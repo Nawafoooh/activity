@@ -1284,162 +1284,133 @@
         }
         
         function renderFormDataToPDF(doc, formData, mapping, startY) {
-            const leftColumn = 25;
-            const rightColumn = 110;
             let yPosition = startY;
             
-            // تقسيم الحقول إلى عمودين
+            // تقسيم الحقول إلى قصيرة وطويلة
             const shortFields = mapping.order.filter(fieldId => 
-                !['objectives', 'impact', 'evidence', 'achievement-percentage', 'interaction', 'challenges',
-                  'strength-points', 'weakness-points', 'educational-challenges', 'improved-issues',
-                  'treatment-plans', 'outstanding-students', 'final-plan'].some(keyword => fieldId.includes(keyword))
+                !fieldId.includes('objectives') && 
+                !fieldId.includes('impact') && 
+                !fieldId.includes('evidence') &&
+                !fieldId.includes('challenges') &&
+                !fieldId.includes('interaction') &&
+                !fieldId.includes('achievement') &&
+                !fieldId.includes('strength') &&
+                !fieldId.includes('weakness') &&
+                !fieldId.includes('issues') &&
+                !fieldId.includes('plans') &&
+                !fieldId.includes('students')
             );
             
+            // عرض الحقول القصيرة في عمودين
             const leftFields = shortFields.filter((_, index) => index % 2 === 0);
             const rightFields = shortFields.filter((_, index) => index % 2 === 1);
             
-            // رسم الحقول القصيرة في عمودين
             const maxRows = Math.max(leftFields.length, rightFields.length);
             for (let i = 0; i < maxRows; i++) {
                 if (leftFields[i] && formData[leftFields[i]]) {
-                    renderFieldInPDF(doc, leftFields[i], formData[leftFields[i]], mapping.labels, leftColumn, yPosition + (i * 15));
+                    renderField(doc, leftFields[i], formData[leftFields[i]], mapping.labels, 25, yPosition + (i * 12));
                 }
                 if (rightFields[i] && formData[rightFields[i]]) {
-                    renderFieldInPDF(doc, rightFields[i], formData[rightFields[i]], mapping.labels, rightColumn, yPosition + (i * 15));
+                    renderField(doc, rightFields[i], formData[rightFields[i]], mapping.labels, 110, yPosition + (i * 12));
                 }
             }
             
-            // الحقول الطويلة (عرض كامل)
-            yPosition += (maxRows * 15) + 20;
+            yPosition += (maxRows * 12) + 20;
             
+            // عرض الحقول الطويلة
             const longFields = mapping.order.filter(fieldId => 
-                ['objectives', 'impact', 'evidence', 'achievement-percentage', 'interaction', 'challenges',
-                 'strength-points', 'weakness-points', 'educational-challenges', 'improved-issues',
-                 'treatment-plans', 'outstanding-students', 'final-plan'].some(keyword => fieldId.includes(keyword))
+                fieldId.includes('objectives') || 
+                fieldId.includes('impact') || 
+                fieldId.includes('evidence') ||
+                fieldId.includes('challenges') ||
+                fieldId.includes('interaction') ||
+                fieldId.includes('achievement') ||
+                fieldId.includes('strength') ||
+                fieldId.includes('weakness') ||
+                fieldId.includes('issues') ||
+                fieldId.includes('plans') ||
+                fieldId.includes('students')
             );
             
             longFields.forEach(fieldId => {
-                if (formData[fieldId]) {
-                    yPosition = renderLongFieldInPDF(doc, fieldId, formData[fieldId], mapping.labels, leftColumn, yPosition);
+                if (formData[fieldId] && yPosition < 250) {
+                    yPosition = renderLongField(doc, fieldId, formData[fieldId], mapping.labels, 25, yPosition);
                 }
             });
             
-            // إضافة منطقة التوقيعات
-            addSignatureArea(doc, yPosition + 20);
+            // إضافة التوقيعات
+            addSignatures(doc, Math.min(yPosition + 15, 240));
         }
         
-        function renderFieldInPDF(doc, fieldId, value, labels, x, y) {
+        function renderField(doc, fieldId, value, labels, x, y) {
             const arabicLabel = labels[fieldId];
-            const englishLabel = getEnglishFieldLabel(arabicLabel);
+            const englishLabel = getEnglishLabel(arabicLabel);
             
-            doc.setFontSize(12);
+            doc.setFontSize(10);
             doc.setTextColor(44, 100, 112);
             doc.text(englishLabel + ':', x, y);
             
             doc.setTextColor(46, 62, 80);
-            // For Arabic values, we'll use romanized or English equivalent where possible
-            const displayValue = isArabicText(value) ? romanizeArabicValue(value) : value;
-            doc.text(displayValue, x + 50, y);
+            const translatedValue = translateValue(value);
+            doc.text(translatedValue, x + 45, y);
         }
         
-        function renderLongFieldInPDF(doc, fieldId, value, labels, x, y) {
+        function renderLongField(doc, fieldId, value, labels, x, y) {
             const arabicLabel = labels[fieldId];
-            const englishLabel = getEnglishFieldLabel(arabicLabel);
+            const englishLabel = getEnglishLabel(arabicLabel);
             
-            doc.setFontSize(12);
+            doc.setFontSize(10);
             doc.setTextColor(44, 100, 112);
             doc.text(englishLabel + ':', x, y);
             
-            y += 8;
+            y += 6;
             
             doc.setTextColor(46, 62, 80);
-            // For Arabic values, we'll use romanized or English equivalent where possible
-            const displayValue = isArabicText(value) ? romanizeArabicValue(value) : value;
-            const lines = doc.splitTextToSize(displayValue, 160);
+            doc.setFontSize(9);
+            
+            // تبسيط النص الطويل
+            const translatedValue = value.length > 100 ? 
+                '[Content available in original Arabic form]' : 
+                translateValue(value);
+            
+            const lines = doc.splitTextToSize(translatedValue, 160);
             doc.text(lines, x, y);
             
-            return y + (lines.length * 5) + 15;
-        }
-
-        function isArabicText(text) {
-            const arabicRegex = /[\u0600-\u06FF\u0750-\u077F]/;
-            return arabicRegex.test(text);
-        }
-
-        function romanizeArabicValue(arabicValue) {
-            // Common Arabic to English mappings for form values
-            const commonMappings = {
-                'الفصل الدراسي الأول': 'First Semester',
-                'الفصل الدراسي الثاني': 'Second Semester', 
-                'الفصل الدراسي الثالث': 'Third Semester',
-                'الأول متوسط': 'First Grade Middle School',
-                'الثاني متوسط': 'Second Grade Middle School',
-                'الثالث متوسط': 'Third Grade Middle School',
-                'الحصة الأولى': 'First Period',
-                'الحصة الثانية': 'Second Period',
-                'الحصة الثالثة': 'Third Period',
-                'الحصة الرابعة': 'Fourth Period',
-                'الحصة الخامسة': 'Fifth Period',
-                'الحصة السادسة': 'Sixth Period',
-                'الحصة السابعة': 'Seventh Period',
-                'الأحد': 'Sunday',
-                'الاثنين': 'Monday',
-                'الثلاثاء': 'Tuesday',
-                'الأربعاء': 'Wednesday',
-                'الخميس': 'Thursday',
-                'الجمعة': 'Friday',
-                'السبت': 'Saturday',
-                'متوسطة المنذر بن عمرو الأنصاري': 'Al-Mundhir bin Amr Al-Ansari Middle School'
-            };
-
-            // Check for exact matches first
-            if (commonMappings[arabicValue]) {
-                return commonMappings[arabicValue];
-            }
-
-            // For other Arabic text, provide a note
-            if (isArabicText(arabicValue)) {
-                return '[Arabic Text: Please refer to original form]';
-            }
-
-            return arabicValue;
+            return y + (lines.length * 4) + 10;
         }
         
-        function addSignatureArea(doc, startY) {
-            let yPosition = Math.min(startY, 240); // Ensure we don't go too far down
+        function addSignatures(doc, startY) {
+            let yPosition = startY;
             
-            // رسم خط فاصل
+            // خط فاصل
             doc.setDrawColor(74, 144, 164);
             doc.setLineWidth(0.5);
             doc.line(20, yPosition, 190, yPosition);
             
+            yPosition += 10;
+            
+            // عنوان التوقيعات
+            doc.setFontSize(12);
+            doc.setTextColor(44, 100, 112);
+            doc.text('Signatures', 105, yPosition, { align: 'center' });
+            
             yPosition += 15;
             
-            // منطقة التوقيعات
-            doc.setFontSize(14);
-            doc.setTextColor(44, 100, 112);
-            doc.text('Signatures & Evidence', 105, yPosition, { align: 'center' });
-            
-            yPosition += 25;
-            
-            // التوقيعات
-            doc.setFontSize(12);
+            // خطوط التوقيع
+            doc.setFontSize(10);
             doc.setTextColor(46, 62, 80);
             
-            // خط توقيع رائد النشاط
             doc.line(40, yPosition, 80, yPosition);
-            doc.text('Activity Coordinator', 60, yPosition + 8, { align: 'center' });
+            doc.text('Activity Coordinator', 60, yPosition + 6, { align: 'center' });
             
-            // خط توقيع مدير المدرسة
             doc.line(130, yPosition, 170, yPosition);
-            doc.text('School Principal', 150, yPosition + 8, { align: 'center' });
+            doc.text('School Principal', 150, yPosition + 6, { align: 'center' });
             
-            // معلومات التذييل
-            yPosition = 280;
-            doc.setFontSize(10);
+            // تذييل
+            doc.setFontSize(8);
             doc.setTextColor(128, 128, 128);
-            doc.text('Al-Mundhir bin Amr Al-Ansari Middle School - Activity Coordinator: Abdullah Al-Harbi', 105, yPosition, { align: 'center' });
-            doc.text('Print Date: ' + new Date().toLocaleDateString('en-US'), 105, yPosition + 5, { align: 'center' });
+            doc.text('Al-Mundhir bin Amr Al-Ansari Middle School', 105, 280, { align: 'center' });
+            doc.text(`Print Date: ${new Date().toLocaleDateString('en-US')}`, 105, 285, { align: 'center' });
         }
         
         function showNotification(message, type) {
