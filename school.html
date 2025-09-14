@@ -1,435 +1,4 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>برامج النشاط الطلابي - متوسطة المنذر بن عمرو الأنصاري</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Tajawal', Arial, sans-serif;
-            background: linear-gradient(135deg, #e8f4f8 0%, #f0f8ff 50%, #e6f3ff 100%);
-            min-height: 100vh;
-            color: #2c3e50;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            min-height: 100vh;
-            box-shadow: 0 0 30px rgba(0,0,0,0.1);
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #2c6470 0%, #4a90a4 100%);
-            color: white;
-            padding: 25px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
-            pointer-events: none;
-        }
-        
-        .header h1 {
-            font-size: 2em;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-            position: relative;
-            z-index: 1;
-        }
-        
-        .school-info {
-            font-size: 1.2em;
-            font-weight: 500;
-            margin-bottom: 15px;
-            color: #b8dce6;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .management-info {
-            background: rgba(255, 255, 255, 0.15);
-            padding: 10px 20px;
-            border-radius: 25px;
-            display: inline-block;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            position: relative;
-            z-index: 1;
-        }
-        
-        .activities-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0;
-            margin: 40px 20px;
-        }
-        
-        .activities-grid.expanded {
-            grid-template-rows: repeat(5, auto);
-        }
-        
-        .activity-card {
-            background: linear-gradient(135deg, #4a90a4, #2c6470);
-            color: white;
-            padding: 40px 20px;
-            text-align: center;
-            font-size: 1.1em;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 1px solid rgba(255,255,255,0.1);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .activity-card:nth-child(odd) {
-            background: linear-gradient(135deg, #5ba3b8, #4a90a4);
-        }
-        
-        .activity-card:nth-child(even) {
-            background: linear-gradient(135deg, #3d7485, #2c6470);
-        }
-        
-        .activity-card:nth-child(3n) {
-            background: linear-gradient(135deg, #6bb6c9, #5ba3b8);
-        }
-        
-        .activity-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: all 0.6s ease;
-        }
-        
-        .activity-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
-        }
-        
-        .activity-card:hover::before {
-            left: 100%;
-        }
-        
-        .form-section {
-            background: linear-gradient(135deg, #f8fbfc, #ffffff);
-            padding: 40px 20px;
-            border-top: 3px solid #4a90a4;
-            box-shadow: 0 -2px 10px rgba(74, 144, 164, 0.05);
-        }
-        
-        .form-title {
-            text-align: center;
-            font-size: 1.6em;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 30px;
-            padding: 15px;
-            background: linear-gradient(135deg, #e8f4f8, #f0f8ff);
-            border-radius: 10px;
-            border-left: 4px solid #4a90a4;
-            box-shadow: 0 2px 8px rgba(74, 144, 164, 0.1);
-        }
-        
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .form-group label {
-            font-weight: 500;
-            color: #34495e;
-            margin-bottom: 8px;
-            font-size: 0.95em;
-        }
-        
-        .form-group input,
-        .form-group select {
-            padding: 12px;
-            border: 2px solid #e8f4f8;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 0.95em;
-            transition: all 0.3s ease;
-            background: white;
-        }
-        
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #4a90a4;
-            box-shadow: 0 0 0 3px rgba(74, 144, 164, 0.1);
-        }
-        
-        .large-field {
-            grid-column: 1 / -1;
-        }
-        
-        .large-field textarea {
-            min-height: 100px;
-            padding: 12px;
-            border: 2px solid #e8f4f8;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 0.95em;
-            resize: vertical;
-            background: white;
-        }
-        
-        .large-field textarea:focus {
-            outline: none;
-            border-color: #4a90a4;
-            box-shadow: 0 0 0 3px rgba(74, 144, 164, 0.1);
-        }
-        
-        .action-buttons {
-            text-align: center;
-            margin: 30px 0;
-        }
-        
-        .btn {
-            background: linear-gradient(135deg, #4a90a4, #357a8a);
-            color: white;
-            padding: 14px 30px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 500;
-            margin: 0 10px;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            text-decoration: none;
-        }
-        
-        .btn:hover {
-            background: linear-gradient(135deg, #357a8a, #2c6470);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(74, 144, 164, 0.3);
-        }
-        
-        .btn.secondary {
-            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
-        }
-        
-        .btn.secondary:hover {
-            background: linear-gradient(135deg, #7f8c8d, #6c7b7d);
-        }
-        
-        .footer {
-            background: linear-gradient(135deg, #2c3e50, #34495e);
-            color: white;
-            text-align: center;
-            padding: 25px;
-            margin-top: auto;
-        }
-        
-        .footer p {
-            margin: 5px 0;
-            opacity: 0.9;
-        }
-        
-        .footer .copyright {
-            font-size: 0.9em;
-            margin-top: 10px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .footer .developer {
-            color: #74b9ff;
-            font-weight: 500;
-        }
-        
-        @media (max-width: 768px) {
-            .activities-grid {
-                grid-template-columns: 1fr;
-                margin: 20px 10px;
-            }
-            
-            .activity-card {
-                padding: 30px 15px;
-                font-size: 1em;
-            }
-            
-            .header h1 {
-                font-size: 1.6em;
-            }
-            
-            .form-section {
-                padding: 30px 15px;
-            }
-            
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .btn {
-                display: block;
-                margin: 10px auto;
-                width: fit-content;
-            }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.8s ease-in;
-        }
-        
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .slide-in-left {
-            animation: slideInLeft 0.6s ease-out;
-        }
-        
-        @keyframes slideInLeft {
-            from {
-                opacity: 0;
-                transform: translateX(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-        
-        .slide-in-right {
-            animation: slideInRight 0.6s ease-out;
-        }
-        
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-        
-        .loading {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .loading::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            animation: shimmer 2s infinite;
-        }
-        
-        @keyframes shimmer {
-            0% { left: -100%; }
-            100% { left: 100%; }
-        }
-        
-        @keyframes slideInRight {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOutRight {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header fade-in">
-            <h1>برامج النشاط الطلابي</h1>
-            <div class="school-info">متوسطة المنذر بن عمرو الأنصاري</div>
-            <div class="management-info">رائد النشاط: عبدالله الحربي</div>
-        </div>
-        
-        <!-- Activities Grid -->
-        <div class="activities-grid expanded">
-            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال الرياضة والصحة')">
-                مجال الرياضة والصحة
-            </div>
-            
-            <div class="activity-card slide-in-left loading" onclick="openActivity('مجال المواطنة والحياة')">
-                مجال المواطنة والحياة
-            </div>
-            
-            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال الثقافة والفنون')">
-                مجال الثقافة والفنون
-            </div>
-            
-            <div class="activity-card slide-in-left loading" onclick="openActivity('مجال النشاط الكشفي')">
-                مجال النشاط الكشفي
-            </div>
-            
-            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال العلوم والتقنية')">
-                مجال العلوم والتقنية
-            </div>
-            
-            <div class="activity-card slide-in-left loading" onclick="openActivity('مجال النشاط الاجتماعي')">
-                مجال النشاط الاجتماعي
-            </div>
-            
-            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال الأيام والمناسبات')">
-                مجال الأيام والمناسبات
-            </div>
-            
-            <div class="activity-card slide-in-left loading" onclick="openActivity('التقرير النهائي للأنشطة')">
-                التقرير النهائي للأنشطة
-            </div>
-        </div>
-        
-        <!-- Form Section -->
-        <div class="form-section fade-in">
-            <div class="form-title" id="form-title">مجال الرياضة والصحة</div>
-            
-            <form class="form-grid" id="activity-form">
+<form class="form-grid" id="activity-form">
                 <div class="form-group">
                     <label for="education-dept">إدارة التعليم</label>
                     <input type="text" id="education-dept" placeholder="أدخل إدارة التعليم">
@@ -530,332 +99,245 @@
                 </div>
             </form>
             
-            <div class="action-buttons">
-                <button class="btn" onclick="generatePDF()">
-                    📄 تحميل ملف PDF
-                </button>
-                <button class="btn secondary" onclick="clearForm()">
-                    🗑️ مسح النموذج
-                </button>
-            </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="footer fade-in">
-            <p>متوسطة المنذر بن عمرو الأنصاري - برامج النشاط الطلابي</p>
-            <p>رائد النشاط: عبدالله الحربي</p>
-            <div class="copyright">
-                <p>⚠️ حقوق النسخ محفوظة</p>
-                <p>إعداد وتنفيذ: <span class="developer">Nawaf AlSubhi</span></p>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const today = new Date();
-            const dateInput = document.getElementById('date');
-            const dayInput = document.getElementById('day');
+            <!-- Daily Report Form -->
+            <form class="form-grid hidden" id="daily-report-form">
+                <div class="form-group">
+                    <label for="daily-education-dept">إدارة التعليم</label>
+                    <input type="text" id="daily-education-dept" placeholder="أدخل إدارة التعليم">
+                </div>
+                
+                <div class="form-group">
+                    <label for="daily-school-name">اسم المدرسة</label>
+                    <input type="text" id="daily-school-name" value="متوسطة المنذر بن عمرو الأنصاري" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label for="daily-teacher-name">اسم المعلم</label>
+                    <input type="text" id="daily-teacher-name" placeholder="اسم المعلم">
+                </div>
+                
+                <div class="form-group">
+                    <label for="daily-specialization">التخصص</label>
+                    <input type="text" id="daily-specialization" placeholder="التخصص">
+                </div>
+                
+                <div class="form-group">
+                    <label for="daily-semester">الفصل الدراسي</label>
+                    <select id="daily-semester">
+                        <option value="">اختر الفصل الدراسي</option>
+                        <option value="first">الفصل الدراسي الأول</option>
+                        <option value="second">الفصل الدراسي الثاني</option>
+                        <option value="third">الفصل الدراسي الثالث</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="daily-grade">الصف</label>
+                    <select id="daily-grade">
+                        <option value="">اختر الصف</option>
+                        <option value="first">الأول متوسط</option>
+                        <option value="second">الثاني متوسط</option>
+                        <option value="third">الثالث متوسط</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="daily-date">التاريخ</label>
+                    <input type="date" id="daily-date">
+                </div>
+                
+                <div class="form-group">
+                    <label for="daily-period">الحصة</label>
+                    <select id="daily-period">
+                        <option value="">اختر الحصة</option>
+                        <option value="1">الحصة الأولى</option>
+                        <option value="2">الحصة الثانية</option>
+                        <option value="3">الحصة الثالثة</option>
+                        <option value="4">الحصة الرابعة</option>
+                        <option value="5">الحصة الخامسة</option>
+                        <option value="6">الحصة السادسة</option>
+                        <option value="7">الحصة السابعة</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="daily-unit">الوحدة الدراسية</label>
+                    <input type="text" id="daily-unit" placeholder="الوحدة الدراسية">
+                </div>
+                
+                <div class="form-group">
+                    <label for="daily-lesson-title">عنوان الدرس</label>
+                    <input type="text" id="daily-lesson-title" placeholder="عنوان الدرس">
+                </div>
+                
+                <div class="form-group large-field">
+                    <label for="daily-objectives">أهداف الدرس</label>
+                    <textarea id="daily-objectives" placeholder="اكتب أهداف الدرس..."></textarea>
+                </div>
+                
+                <div class="form-group large-field">
+                    <label for="daily-achievement-percentage">نسبة تحقق أهداف الدرس</label>
+                    <textarea id="daily-achievement-percentage" placeholder="اكتب نسبة تحقق أهداف الدرس..."></textarea>
+                </div>
+                
+                <div class="form-group large-field">
+                    <label for="daily-student-interaction">ملاحظات حول تفاعل الطلب</label>
+                    <textarea id="daily-student-interaction" placeholder="اكتب ملاحظات حول تفاعل الطلب..."></textarea>
+                </div>
+                
+                <div class="form-group large-field">
+                    <label for="daily-challenges">التحديات الصفية</label>
+                    <textarea id="daily-challenges" placeholder="اكتب التحديات الصفية..."></textarea>
+                </div>
+            </form>
             
-            dateInput.value = today.toISOString().split('T')[0];
+            <!-- Weekly Report Form -->
+            <form class="form-grid hidden" id="weekly-report-form">
+                <div class="form-group">
+                    <label for="weekly-education-dept">إدارة التعليم</label>
+                    <input type="text" id="weekly-education-dept" placeholder="أدخل إدارة التعليم">
+                </div>
+                
+                <div class="form-group">
+                    <label for="weekly-school-name">اسم المدرسة</label>
+                    <input type="text" id="weekly-school-name" value="متوسطة المنذر بن عمرو الأنصاري" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label for="weekly-teacher-name">اسم المعلم</label>
+                    <input type="text" id="weekly-teacher-name" placeholder="اسم المعلم">
+                </div>
+                
+                <div class="form-group">
+                    <label for="weekly-specialization">التخصص</label>
+                    <input type="text" id="weekly-specialization" placeholder="التخصص">
+                </div>
+                
+                <div class="form-group">
+                    <label for="weekly-semester">الفصل الدراسي</label>
+                    <select id="weekly-semester">
+                        <option value="">اختر الفصل الدراسي</option>
+                        <option value="first">الفصل الدراسي الأول</option>
+                        <option value="second">الفصل الدراسي الثاني</option>
+                        <option value="third">الفصل الدراسي الثالث</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="weekly-grade">الصف</label>
+                    <select id="weekly-grade">
+                        <option value="">اختر الصف</option>
+                        <option value="first">الأول متوسط</option>
+                        <option value="second">الثاني متوسط</option>
+                        <option value="third">الثالث متوسط</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="weekly-date">التاريخ</label>
+                    <input type="date" id="weekly-date">
+                </div>
+                
+                <div class="form-group">
+                    <label for="weekly-week">الأسبوع</label>
+                    <input type="text" id="weekly-week" placeholder="الأسبوع">
+                </div>
+                
+                <div class="form-group">
+                    <label for="weekly-lessons-taught">أهم الدروس المنفذة</label>
+                    <input type="text" id="weekly-lessons-taught" placeholder="أهم الدروس المنفذة">
+                </div>
+                
+                <div class="form-group large-field">
+                    <label for="weekly-strength-points">أبرز نقاط القوة لدى الطلب</label>
+                    <textarea id="weekly-strength-points" placeholder="اكتب أبرز نقاط القوة لدى الطلب..."></textarea>
+                </div>
+                
+                <div class="form-group large-field">
+                    <label for="weekly-weakness-points">أبرز نقاط الضعف لدى الطلب</label>
+                    <textarea id="weekly-weakness-points" placeholder="اكتب أبرز نقاط الضعف لدى الطلب..."></textarea>
+                </div>
+                
+                <div class="form-group large-field">
+                    <label for="weekly-educational-challenges">أبرز التحديات التعليمية</label>
+                    <textarea id="weekly-educational-challenges" placeholder="اكتب أبرز التحديات التعليمية..."></textarea>
+                </div>
+            </form>
             
-            const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-            dayInput.value = days[today.getDay()];
-            
-            dateInput.addEventListener('change', function() {
-                const selectedDate = new Date(this.value);
-                dayInput.value = days[selectedDate.getDay()];
-            });
-            
-            setTimeout(() => {
-                document.querySelectorAll('.loading').forEach(el => {
-                    el.classList.remove('loading');
-                });
-            }, 2000);
-        });
-        
-        function openActivity(activityName) {
-            const formTitle = document.getElementById('form-title');
-            formTitle.textContent = activityName;
-            
-            formTitle.style.animation = 'none';
-            setTimeout(() => {
-                formTitle.style.animation = 'fadeIn 0.5s ease-in';
-            }, 10);
-            
-            document.querySelector('.form-section').scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-            
-            showNotification(`تم تحديد ${activityName} ✨`, 'success');
-        }
-        
-        function clearForm() {
-            if (confirm('هل أنت متأكد من مسح جميع البيانات؟')) {
-                const form = document.getElementById('activity-form');
-                form.querySelectorAll('input:not([readonly]), select, textarea').forEach(input => {
-                    input.value = '';
-                });
+            <!-- Monthly Report Form -->
+            <form class="form-grid hidden" id="monthly-report-form">
+                <div class="form-group">
+                    <label for="monthly-education-dept">إدارة التعليم</label>
+                    <input type="text" id="monthly-education-dept" placeholder="أدخل إدارة التعليم">
+                </div>
                 
-                showNotification('تم مسح النموذج بنجاح! 🗑️', 'success');
-            }
-        }
-        
-        const fieldOrder = [
-            'education-dept',
-            'school-name', 
-            'semester',
-            'specialization',
-            'teacher-name',
-            'grade',
-            'date',
-            'day',
-            'period',
-            'attendance',
-            'presence',
-            'venue',
-            'program-name',
-            'program-objectives',
-            'program-impact',
-            'evidence'
-        ];
-        
-        const fieldLabels = {
-            'education-dept': 'إدارة التعليم',
-            'school-name': 'اسم المدرسة',
-            'semester': 'الفصل الدراسي',
-            'specialization': 'التخصص', 
-            'teacher-name': 'اسم المعلم',
-            'grade': 'الصف',
-            'date': 'التاريخ',
-            'day': 'اليوم',
-            'period': 'الحصة',
-            'attendance': 'الغياب',
-            'presence': 'الحضور',
-            'venue': 'مكان التنفيذ',
-            'program-name': 'اسم البرنامج',
-            'program-objectives': 'أهداف البرنامج',
-            'program-impact': 'الأثر الإيجابي للبرنامج',
-            'evidence': 'الشواهد'
-        };
-        
-        function generatePDF() {
-            showNotification('جاري إنشاء ملف PDF...', 'info');
-            
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-
-                doc.setFont('helvetica');
-                doc.setFontSize(16);
-                doc.setTextColor(44, 100, 112);
+                <div class="form-group">
+                    <label for="monthly-school-name">اسم المدرسة</label>
+                    <input type="text" id="monthly-school-name" value="متوسطة المنذر بن عمرو الأنصاري" readonly>
+                </div>
                 
-                // إضافة الشعار والعنوان
-                doc.setFillColor(44, 100, 112);
-                doc.rect(0, 0, 210, 40, 'F');
+                <div class="form-group">
+                    <label for="monthly-teacher-name">اسم المعلم</label>
+                    <input type="text" id="monthly-teacher-name" placeholder="اسم المعلم">
+                </div>
                 
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(18);
-                doc.text('Ministry of Education', 150, 15);
-                doc.text('وزارة التعليم', 150, 25);
+                <div class="form-group">
+                    <label for="monthly-specialization">التخصص</label>
+                    <input type="text" id="monthly-specialization" placeholder="التخصص">
+                </div>
                 
-                doc.setFontSize(24);
-                doc.text('برامج الأنشطة الطلابية', 105, 55, { align: 'center' });
+                <div class="form-group">
+                    <label for="monthly-semester">الفصل الدراسي</label>
+                    <select id="monthly-semester">
+                        <option value="">اختر الفصل الدراسي</option>
+                        <option value="first">الفصل الدراسي الأول</option>
+                        <option value="second">الفصل الدراسي الثاني</option>
+                        <option value="third">الفصل الدراسي الثالث</option>
+                    </select>
+                </div>
                 
-                // عنوان النشاط
-                const activityTitle = document.getElementById('form-title').textContent;
-                doc.setFontSize(20);
-                doc.setTextColor(44, 100, 112);
-                doc.text(activityTitle, 105, 75, { align: 'center' });
+                <div class="form-group">
+                    <label for="monthly-grade">الصف</label>
+                    <select id="monthly-grade">
+                        <option value="">اختر الصف</option>
+                        <option value="first">الأول متوسط</option>
+                        <option value="second">الثاني متوسط</option>
+                        <option value="third">الثالث متوسط</option>
+                    </select>
+                </div>
                 
-                // رسم خط فاصل
-                doc.setDrawColor(74, 144, 164);
-                doc.setLineWidth(0.5);
-                doc.line(20, 85, 190, 85);
+                <div class="form-group">
+                    <label for="monthly-date">التاريخ</label>
+                    <input type="date" id="monthly-date">
+                </div>
                 
-                let yPosition = 100;
-                const leftColumn = 25;
-                const rightColumn = 110;
+                <div class="form-group">
+                    <label for="monthly-month">الشهر</label>
+                    <input type="text" id="monthly-month" placeholder="الشهر">
+                </div>
                 
-                // جمع البيانات
-                const formData = {};
-                fieldOrder.forEach(fieldId => {
-                    const element = document.getElementById(fieldId);
-                    if (element) {
-                        if (element.tagName === 'SELECT') {
-                            const selectedOption = element.options[element.selectedIndex];
-                            formData[fieldId] = selectedOption && selectedOption.value ? selectedOption.text : '';
-                        } else {
-                            formData[fieldId] = element.value || '';
-                        }
-                    }
-                });
+                <div class="form-group">
+                    <label for="monthly-completion-rate">نسبة إنجاز الخطة</label>
+                    <input type="text" id="monthly-completion-rate" placeholder="نسبة إنجاز الخطة">
+                </div>
                 
-                // ترتيب العرض حسب الملف الأصلي (عمودين)
-                const leftFields = ['education-dept', 'semester', 'teacher-name', 'date', 'period', 'presence', 'program-name'];
-                const rightFields = ['school-name', 'specialization', 'grade', 'day', 'attendance', 'venue'];
+                <div class="form-group large-field">
+                    <label for="monthly-improved-issues">القضايا المستحدثة التي تحتاج متابعة</label>
+                    <textarea id="monthly-improved-issues" placeholder="اكتب القضايا المستحدثة التي تحتاج متابعة..."></textarea>
+                </div>
                 
-                // رسم الحقول في العمود الأيسر
-                leftFields.forEach((fieldId, index) => {
-                    if (formData[fieldId]) {
-                        const label = fieldLabels[fieldId];
-                        const value = formData[fieldId];
-                        
-                        doc.setFontSize(12);
-                        doc.setTextColor(44, 100, 112);
-                        doc.text(label + ':', leftColumn, yPosition + (index * 15));
-                        
-                        doc.setTextColor(46, 62, 80);
-                        doc.text(value, leftColumn + 35, yPosition + (index * 15));
-                    }
-                });
+                <div class="form-group large-field">
+                    <label for="monthly-treatment-plans">خطط المعالجة المقترحة</label>
+                    <textarea id="monthly-treatment-plans" placeholder="اكتب خطط المعالجة المقترحة..."></textarea>
+                </div>
                 
-                // رسم الحقول في العمود الأيمن  
-                rightFields.forEach((fieldId, index) => {
-                    if (formData[fieldId]) {
-                        const label = fieldLabels[fieldId];
-                        const value = formData[fieldId];
-                        
-                        doc.setFontSize(12);
-                        doc.setTextColor(44, 100, 112);
-                        doc.text(label + ':', rightColumn, yPosition + (index * 15));
-                        
-                        doc.setTextColor(46, 62, 80);
-                        doc.text(value, rightColumn + 35, yPosition + (index * 15));
-                    }
-                });
+                <div class="form-group large-field">
+                    <label for="monthly-outstanding-students">الطلاب المتميزون</label>
+                    <textarea id="monthly-outstanding-students" placeholder="اكتب الطلاب المتميزون..."></textarea>
+                </div>
                 
-                // الحقول الطويلة (عرض كامل)
-                yPosition += 130;
-                
-                ['program-objectives', 'program-impact', 'evidence'].forEach(fieldId => {
-                    if (formData[fieldId]) {
-                        const label = fieldLabels[fieldId];
-                        const value = formData[fieldId];
-                        
-                        doc.setFontSize(12);
-                        doc.setTextColor(44, 100, 112);
-                        doc.text(label + ':', leftColumn, yPosition);
-                        
-                        yPosition += 8;
-                        
-                        doc.setTextColor(46, 62, 80);
-                        const lines = doc.splitTextToSize(value, 160);
-                        doc.text(lines, leftColumn, yPosition);
-                        yPosition += lines.length * 5 + 10;
-                    }
-                });
-                
-                // إضافة منطقة التوقيعات
-                yPosition += 20;
-                
-                // رسم خط فاصل
-                doc.setDrawColor(74, 144, 164);
-                doc.setLineWidth(0.5);
-                doc.line(20, yPosition, 190, yPosition);
-                
-                yPosition += 15;
-                
-                // منطقة التوقيعات
-                doc.setFontSize(14);
-                doc.setTextColor(44, 100, 112);
-                doc.text('الشواهد', 105, yPosition, { align: 'center' });
-                
-                yPosition += 25;
-                
-                // التوقيعات
-                doc.setFontSize(12);
-                doc.setTextColor(46, 62, 80);
-                
-                // خط توقيع رائد النشاط
-                doc.line(40, yPosition, 80, yPosition);
-                doc.text('رائد النشاط', 60, yPosition + 8, { align: 'center' });
-                
-                // خط توقيع مدير المدرسة
-                doc.line(130, yPosition, 170, yPosition);
-                doc.text('مدير المدرسة', 150, yPosition + 8, { align: 'center' });
-                
-                // معلومات التذييل
-                yPosition = 280;
-                doc.setFontSize(10);
-                doc.setTextColor(128, 128, 128);
-                doc.text('متوسطة المنذر بن عمرو الأنصاري - رائد النشاط: عبدالله الحربي', 105, yPosition, { align: 'center' });
-                doc.text('تاريخ الطباعة: ' + new Date().toLocaleDateString('ar-SA'), 105, yPosition + 5, { align: 'center' });
-                
-                // حفظ الملف
-                const finalActivityTitle = document.getElementById('form-title').textContent;
-                const fileName = `${finalActivityTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-                doc.save(fileName);
-                
-                showNotification('تم تحميل ملف PDF بنجاح!', 'success');
-                
-            } catch (error) {
-                console.error('خطأ في إنشاء PDF:', error);
-                showNotification('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
-            }
-        }
-        
-        function showNotification(message, type) {
-            const colors = {
-                'success': '#27ae60',
-                'error': '#e74c3c',
-                'warning': '#f39c12',
-                'info': '#3498db'
-            };
-            
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${colors[type] || colors.info};
-                color: white;
-                padding: 15px 20px;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                z-index: 1000;
-                font-weight: 500;
-                max-width: 300px;
-                animation: slideInRight 0.3s ease-out;
-            `;
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.style.animation = 'slideOutRight 0.3s ease-in';
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-        
-        document.querySelectorAll('input, select, textarea').forEach(input => {
-            input.addEventListener('change', function() {
-                const autoSaveData = {
-                    field: this.id,
-                    value: this.value,
-                    timestamp: Date.now()
-                };
-                localStorage.setItem('autosave_activity', JSON.stringify(autoSaveData));
-            });
-        });
-        
-        const autoSaveData = localStorage.getItem('autosave_activity');
-        if (autoSaveData) {
-            try {
-                const data = JSON.parse(autoSaveData);
-                const field = document.getElementById(data.field);
-                if (field && data.value) {
-                    field.value = data.value;
-                }
-            } catch (error) {
-                console.log('خطأ في استرداد البيانات المحفوظة');
-            }
-        }
-    </script>
-</body>
-</html>
+                <div class="form-group large-field">
+                    <label for="monthly-final-plan">الخطة الإثرائية للطلاب المتميزين</label>
+                    <textarea id="monthly-final-plan" placeholder="اكتب الخطة الإثرائية للطلاب المتميزين..."></textarea>
+                </div>
+            </form>
