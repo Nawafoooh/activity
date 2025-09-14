@@ -1,4 +1,548 @@
-<form class="form-grid" id="activity-form">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>برامج النشاط الطلابي - متوسطة المنذر بن عمرو الأنصاري</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Tajawal', Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f4f8 0%, #f0f8ff 50%, #e6f3ff 100%);
+            min-height: 100vh;
+            color: #2c3e50;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 30px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c6470 0%, #4a90a4 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+            pointer-events: none;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .school-info {
+            font-size: 1.2em;
+            font-weight: 500;
+            margin-bottom: 15px;
+            color: #b8dce6;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .management-info {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .activities-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0;
+            margin: 40px 20px;
+        }
+        
+        .activity-card {
+            background: linear-gradient(135deg, #4a90a4, #2c6470);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .activity-card:nth-child(odd) {
+            background: linear-gradient(135deg, #5ba3b8, #4a90a4);
+        }
+        
+        .activity-card:nth-child(even) {
+            background: linear-gradient(135deg, #3d7485, #2c6470);
+        }
+        
+        .activity-card:nth-child(3n) {
+            background: linear-gradient(135deg, #6bb6c9, #5ba3b8);
+        }
+        
+        .activity-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: all 0.6s ease;
+        }
+        
+        .activity-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+        
+        .activity-card:hover::before {
+            left: 100%;
+        }
+        
+        .form-section {
+            background: linear-gradient(135deg, #f8fbfc, #ffffff);
+            padding: 40px 20px;
+            border-top: 3px solid #4a90a4;
+            box-shadow: 0 -2px 10px rgba(74, 144, 164, 0.05);
+        }
+        
+        .form-title {
+            text-align: center;
+            font-size: 1.6em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: linear-gradient(135deg, #e8f4f8, #f0f8ff);
+            border-radius: 10px;
+            border-left: 4px solid #4a90a4;
+            box-shadow: 0 2px 8px rgba(74, 144, 164, 0.1);
+        }
+
+        /* Tab Navigation Styles */
+        .tab-navigation {
+            display: flex;
+            background: linear-gradient(135deg, #e8f4f8, #f0f8ff);
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(74, 144, 164, 0.1);
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 15px 20px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            color: #2c6470;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #4a90a4, #2c6470);
+            color: white;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: rgba(74, 144, 164, 0.1);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Report Selection Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 30px;
+            border: none;
+            width: 60%;
+            max-width: 500px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #2c6470;
+        }
+
+        .report-options {
+            display: grid;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .report-option {
+            background: linear-gradient(135deg, #4a90a4, #2c6470);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .report-option:hover {
+            background: linear-gradient(135deg, #357a8a, #1e4f56);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 144, 164, 0.4);
+        }
+
+        .modal h2 {
+            text-align: center;
+            color: #2c6470;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-weight: 500;
+            color: #34495e;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 12px;
+            border: 2px solid #e8f4f8;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4a90a4;
+            box-shadow: 0 0 0 3px rgba(74, 144, 164, 0.1);
+        }
+        
+        .large-field {
+            grid-column: 1 / -1;
+        }
+        
+        .large-field textarea {
+            min-height: 100px;
+            padding: 12px;
+            border: 2px solid #e8f4f8;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.95em;
+            resize: vertical;
+            background: white;
+        }
+        
+        .large-field textarea:focus {
+            outline: none;
+            border-color: #4a90a4;
+            box-shadow: 0 0 0 3px rgba(74, 144, 164, 0.1);
+        }
+        
+        .action-buttons {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4a90a4, #357a8a);
+            color: white;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #357a8a, #2c6470);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(74, 144, 164, 0.3);
+        }
+        
+        .btn.secondary {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        }
+        
+        .btn.secondary:hover {
+            background: linear-gradient(135deg, #7f8c8d, #6c7b7d);
+        }
+        
+        .footer {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            text-align: center;
+            padding: 25px;
+            margin-top: auto;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+            opacity: 0.9;
+        }
+        
+        .footer .copyright {
+            font-size: 0.9em;
+            margin-top: 10px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .footer .developer {
+            color: #74b9ff;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 768px) {
+            .activities-grid {
+                grid-template-columns: 1fr;
+                margin: 20px 10px;
+            }
+            
+            .activity-card {
+                padding: 30px 15px;
+                font-size: 1em;
+            }
+            
+            .header h1 {
+                font-size: 1.6em;
+            }
+            
+            .form-section {
+                padding: 30px 15px;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn {
+                display: block;
+                margin: 10px auto;
+                width: fit-content;
+            }
+
+            .modal-content {
+                width: 90%;
+                margin: 20% auto;
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.8s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .slide-in-left {
+            animation: slideInLeft 0.6s ease-out;
+        }
+        
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .slide-in-right {
+            animation: slideInRight 0.6s ease-out;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .loading {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header fade-in">
+            <h1>برامج النشاط الطلابي</h1>
+            <div class="school-info">متوسطة المنذر بن عمرو الأنصاري</div>
+            <div class="management-info">رائد النشاط: عبدالله الحربي</div>
+        </div>
+        
+        <!-- Activities Grid -->
+        <div class="activities-grid">
+            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال الرياضة والصحة')">
+                مجال الرياضة والصحة
+            </div>
+            
+            <div class="activity-card slide-in-left loading" onclick="openActivity('مجال المواطنة والحياة')">
+                مجال المواطنة والحياة
+            </div>
+            
+            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال الثقافة والفنون')">
+                مجال الثقافة والفنون
+            </div>
+            
+            <div class="activity-card slide-in-left loading" onclick="openActivity('مجال النشاط الكشفي')">
+                مجال النشاط الكشفي
+            </div>
+            
+            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال العلوم والتقنية')">
+                مجال العلوم والتقنية
+            </div>
+            
+            <div class="activity-card slide-in-left loading" onclick="openActivity('مجال النشاط الاجتماعي')">
+                مجال النشاط الاجتماعي
+            </div>
+            
+            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال الأيام والمناسبات')">
+                مجال الأيام والمناسبات
+            </div>
+            
+            <div class="activity-card slide-in-left loading" onclick="openFinalReport()">
+                التقرير النهائي للأنشطة
+            </div>
+        </div>
+        
+        <!-- Form Section -->
+        <div class="form-section fade-in">
+            <!-- Tab Navigation for Final Reports -->
+            <div class="tab-navigation hidden" id="report-tabs">
+                <button class="tab-btn active" onclick="switchTab('daily')">التقرير اليومي</button>
+                <button class="tab-btn" onclick="switchTab('weekly')">التقرير الأسبوعي</button>
+                <button class="tab-btn" onclick="switchTab('monthly')">التقرير الشهري</button>
+            </div>
+
+            <div class="form-title" id="form-title">مجال الرياضة والصحة</div>
+            
+            <!-- Activity Form -->
+            <form class="form-grid" id="activity-form">
                 <div class="form-group">
                     <label for="education-dept">إدارة التعليم</label>
                     <input type="text" id="education-dept" placeholder="أدخل إدارة التعليم">
@@ -341,3 +885,766 @@
                     <textarea id="monthly-final-plan" placeholder="اكتب الخطة الإثرائية للطلاب المتميزين..."></textarea>
                 </div>
             </form>
+            
+            <div class="action-buttons">
+                <button class="btn" onclick="generatePDF()">
+                    📄 تحميل ملف PDF
+                </button>
+                <button class="btn secondary" onclick="clearForm()">
+                    🗑️ مسح النموذج
+                </button>
+            </div>
+        </div>
+        
+        <!-- Report Selection Modal -->
+        <div id="reportModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeReportModal()">&times;</span>
+                <h2>اختر نوع التقرير</h2>
+                <div class="report-options">
+                    <button class="report-option" onclick="selectReportType('daily')">
+                        📊 التقرير اليومي
+                    </button>
+                    <button class="report-option" onclick="selectReportType('weekly')">
+                        📈 التقرير الأسبوعي
+                    </button>
+                    <button class="report-option" onclick="selectReportType('monthly')">
+                        📋 التقرير الشهري
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer fade-in">
+            <p>متوسطة المنذر بن عمرو الأنصاري - برامج النشاط الطلابي</p>
+            <p>رائد النشاط: عبدالله الحربي</p>
+            <div class="copyright">
+                <p>⚠️ حقوق النسخ محفوظة</p>
+                <p>إعداد وتنفيذ: <span class="developer">Nawaf AlSubhi</span></p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentReportType = 'activity';
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            initializeDateFields(today);
+            
+            setTimeout(() => {
+                document.querySelectorAll('.loading').forEach(el => {
+                    el.classList.remove('loading');
+                });
+            }, 2000);
+        });
+        
+        function initializeDateFields(date) {
+            const dateInputs = ['date', 'daily-date', 'weekly-date', 'monthly-date'];
+            const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+            
+            dateInputs.forEach(inputId => {
+                const dateInput = document.getElementById(inputId);
+                if (dateInput) {
+                    dateInput.value = date.toISOString().split('T')[0];
+                    
+                    dateInput.addEventListener('change', function() {
+                        const selectedDate = new Date(this.value);
+                        const dayInputId = inputId.replace('date', 'day');
+                        const dayInput = document.getElementById(dayInputId);
+                        if (dayInput) {
+                            dayInput.value = days[selectedDate.getDay()];
+                        }
+                    });
+                }
+            });
+            
+            const dayInput = document.getElementById('day');
+            if (dayInput) {
+                dayInput.value = days[date.getDay()];
+            }
+        }
+        
+        function openFinalReport() {
+            const modal = document.getElementById('reportModal');
+            modal.style.display = 'block';
+        }
+        
+        function closeReportModal() {
+            const modal = document.getElementById('reportModal');
+            modal.style.display = 'none';
+        }
+        
+        function selectReportType(reportType) {
+            currentReportType = reportType;
+            closeReportModal();
+            
+            // Hide all forms and tabs
+            document.getElementById('activity-form').classList.add('hidden');
+            document.getElementById('daily-report-form').classList.add('hidden');
+            document.getElementById('weekly-report-form').classList.add('hidden');
+            document.getElementById('monthly-report-form').classList.add('hidden');
+            document.getElementById('report-tabs').classList.add('hidden');
+            
+            // Show appropriate form and update title
+            const formTitle = document.getElementById('form-title');
+            
+            if (reportType === 'daily') {
+                document.getElementById('daily-report-form').classList.remove('hidden');
+                document.getElementById('report-tabs').classList.remove('hidden');
+                formTitle.textContent = 'التقرير اليومي';
+            } else if (reportType === 'weekly') {
+                document.getElementById('weekly-report-form').classList.remove('hidden');
+                document.getElementById('report-tabs').classList.remove('hidden');
+                formTitle.textContent = 'التقرير الأسبوعي';
+            } else if (reportType === 'monthly') {
+                document.getElementById('monthly-report-form').classList.remove('hidden');
+                document.getElementById('report-tabs').classList.remove('hidden');
+                formTitle.textContent = 'التقرير الشهري';
+            }
+            
+            // Update tab active state
+            updateTabActiveState(reportType);
+            
+            // Scroll to form
+            document.querySelector('.form-section').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+            
+            const reportNames = {
+                'daily': 'التقرير اليومي',
+                'weekly': 'التقرير الأسبوعي',
+                'monthly': 'التقرير الشهري'
+            };
+            
+            showNotification(`تم تحديد ${reportNames[reportType]} ✨`, 'success');
+        }
+        
+        function switchTab(tabType) {
+            currentReportType = tabType;
+            
+            // Hide all forms
+            document.getElementById('daily-report-form').classList.add('hidden');
+            document.getElementById('weekly-report-form').classList.add('hidden');
+            document.getElementById('monthly-report-form').classList.add('hidden');
+            
+            // Show selected form
+            document.getElementById(`${tabType}-report-form`).classList.remove('hidden');
+            
+            // Update form title
+            const formTitle = document.getElementById('form-title');
+            const titles = {
+                'daily': 'التقرير اليومي',
+                'weekly': 'التقرير الأسبوعي',
+                'monthly': 'التقرير الشهري'
+            };
+            formTitle.textContent = titles[tabType];
+            
+            // Update tab active state
+            updateTabActiveState(tabType);
+        }
+        
+        function updateTabActiveState(activeTab) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Add active class to selected tab
+            const tabMapping = {
+                'daily': 0,
+                'weekly': 1,
+                'monthly': 2
+            };
+            
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            if (tabButtons[tabMapping[activeTab]]) {
+                tabButtons[tabMapping[activeTab]].classList.add('active');
+            }
+        }
+        
+        function openActivity(activityName) {
+            currentReportType = 'activity';
+            
+            // Hide all report forms and tabs
+            document.getElementById('daily-report-form').classList.add('hidden');
+            document.getElementById('weekly-report-form').classList.add('hidden');
+            document.getElementById('monthly-report-form').classList.add('hidden');
+            document.getElementById('report-tabs').classList.add('hidden');
+            
+            // Show activity form
+            document.getElementById('activity-form').classList.remove('hidden');
+            
+            const formTitle = document.getElementById('form-title');
+            formTitle.textContent = activityName;
+            
+            formTitle.style.animation = 'none';
+            setTimeout(() => {
+                formTitle.style.animation = 'fadeIn 0.5s ease-in';
+            }, 10);
+            
+            document.querySelector('.form-section').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+            
+            showNotification(`تم تحديد ${activityName} ✨`, 'success');
+        }
+        
+        function clearForm() {
+            if (confirm('هل أنت متأكد من مسح جميع البيانات؟')) {
+                let targetForm;
+                
+                if (currentReportType === 'daily') {
+                    targetForm = document.getElementById('daily-report-form');
+                } else if (currentReportType === 'weekly') {
+                    targetForm = document.getElementById('weekly-report-form');
+                } else if (currentReportType === 'monthly') {
+                    targetForm = document.getElementById('monthly-report-form');
+                } else {
+                    targetForm = document.getElementById('activity-form');
+                }
+                
+                targetForm.querySelectorAll('input:not([readonly]), select, textarea').forEach(input => {
+                    input.value = '';
+                });
+                
+                showNotification('تم مسح النموذج بنجاح! 🗑️', 'success');
+            }
+        }
+
+        // Field mappings for all report types
+        const fieldMappings = {
+            'activity': {
+                order: [
+                    'education-dept', 'school-name', 'teacher-name', 'specialization', 'semester', 'grade',
+                    'date', 'day', 'period', 'attendance', 'presence', 'venue', 'program-name',
+                    'program-objectives', 'program-impact', 'evidence'
+                ],
+                labels: {
+                    'education-dept': 'إدارة التعليم',
+                    'school-name': 'اسم المدرسة',
+                    'semester': 'الفصل الدراسي',
+                    'specialization': 'التخصص', 
+                    'teacher-name': 'اسم المعلم',
+                    'grade': 'الصف',
+                    'date': 'التاريخ',
+                    'day': 'اليوم',
+                    'period': 'الحصة',
+                    'attendance': 'الغياب',
+                    'presence': 'الحضور',
+                    'venue': 'مكان التنفيذ',
+                    'program-name': 'اسم البرنامج',
+                    'program-objectives': 'أهداف البرنامج',
+                    'program-impact': 'الأثر الإيجابي للبرنامج',
+                    'evidence': 'الشواهد'
+                }
+            },
+            'daily': {
+                order: [
+                    'daily-education-dept', 'daily-school-name', 'daily-teacher-name', 'daily-specialization',
+                    'daily-semester', 'daily-grade', 'daily-date', 'daily-period', 'daily-unit', 'daily-lesson-title',
+                    'daily-objectives', 'daily-achievement-percentage', 'daily-student-interaction', 'daily-challenges'
+                ],
+                labels: {
+                    'daily-education-dept': 'إدارة التعليم',
+                    'daily-school-name': 'اسم المدرسة',
+                    'daily-teacher-name': 'اسم المعلم',
+                    'daily-specialization': 'التخصص',
+                    'daily-semester': 'الفصل الدراسي',
+                    'daily-grade': 'الصف',
+                    'daily-date': 'التاريخ',
+                    'daily-period': 'الحصة',
+                    'daily-unit': 'الوحدة الدراسية',
+                    'daily-lesson-title': 'عنوان الدرس',
+                    'daily-objectives': 'أهداف الدرس',
+                    'daily-achievement-percentage': 'نسبة تحقق أهداف الدرس',
+                    'daily-student-interaction': 'ملاحظات حول تفاعل الطلب',
+                    'daily-challenges': 'التحديات الصفية'
+                }
+            },
+            'weekly': {
+                order: [
+                    'weekly-education-dept', 'weekly-school-name', 'weekly-teacher-name', 'weekly-specialization',
+                    'weekly-semester', 'weekly-grade', 'weekly-date', 'weekly-week', 'weekly-lessons-taught',
+                    'weekly-strength-points', 'weekly-weakness-points', 'weekly-educational-challenges'
+                ],
+                labels: {
+                    'weekly-education-dept': 'إدارة التعليم',
+                    'weekly-school-name': 'اسم المدرسة',
+                    'weekly-teacher-name': 'اسم المعلم',
+                    'weekly-specialization': 'التخصص',
+                    'weekly-semester': 'الفصل الدراسي',
+                    'weekly-grade': 'الصف',
+                    'weekly-date': 'التاريخ',
+                    'weekly-week': 'الأسبوع',
+                    'weekly-lessons-taught': 'أهم الدروس المنفذة',
+                    'weekly-strength-points': 'أبرز نقاط القوة لدى الطلب',
+                    'weekly-weakness-points': 'أبرز نقاط الضعف لدى الطلب',
+                    'weekly-educational-challenges': 'أبرز التحديات التعليمية'
+                }
+            },
+            'monthly': {
+                order: [
+                    'monthly-education-dept', 'monthly-school-name', 'monthly-teacher-name', 'monthly-specialization',
+                    'monthly-semester', 'monthly-grade', 'monthly-date', 'monthly-month', 'monthly-completion-rate',
+                    'monthly-improved-issues', 'monthly-treatment-plans', 'monthly-outstanding-students', 'monthly-final-plan'
+                ],
+                labels: {
+                    'monthly-education-dept': 'إدارة التعليم',
+                    'monthly-school-name': 'اسم المدرسة',
+                    'monthly-teacher-name': 'اسم المعلم',
+                    'monthly-specialization': 'التخصص',
+                    'monthly-semester': 'الفصل الدراسي',
+                    'monthly-grade': 'الصف',
+                    'monthly-date': 'التاريخ',
+                    'monthly-month': 'الشهر',
+                    'monthly-completion-rate': 'نسبة إنجاز الخطة',
+                    'monthly-improved-issues': 'القضايا المستحدثة التي تحتاج متابعة',
+                    'monthly-treatment-plans': 'خطط المعالجة المقترحة',
+                    'monthly-outstanding-students': 'الطلاب المتميزون',
+                    'monthly-final-plan': 'الخطة الإثرائية للطلاب المتميزين'
+                }
+            }
+        };
+        
+        function generatePDF() {
+            showNotification('جاري إنشاء ملف PDF...', 'info');
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                doc.setFont('helvetica');
+                
+                // Get current form data and configuration
+                const currentMapping = fieldMappings[currentReportType];
+                const formData = getCurrentFormData(currentMapping.order);
+                
+                // إضافة الشعار والعنوان
+                doc.setFillColor(44, 100, 112);
+                doc.rect(0, 0, 210, 40, 'F');
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(18);
+                doc.text('Ministry of Education', 150, 15);
+                doc.text('وزارة التعليم', 150, 25);
+                
+                doc.setFontSize(24);
+                doc.text('برامج الأنشطة الطلابية', 105, 55, { align: 'center' });
+                
+                // عنوان التقرير
+                const reportTitle = document.getElementById('form-title').textContent;
+                doc.setFontSize(20);
+                doc.setTextColor(44, 100, 112);
+                doc.text(reportTitle, 105, 75, { align: 'center' });
+                
+                // رسم خط فاصل
+                doc.setDrawColor(74, 144, 164);
+                doc.setLineWidth(0.5);
+                doc.line(20, 85, 190, 85);
+                
+                let yPosition = 100;
+                
+                // عرض البيانات بناء على نوع التقرير
+                renderFormDataToPDF(doc, formData, currentMapping, yPosition);
+                
+                // حفظ الملف
+                const fileName = `${reportTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+                doc.save(fileName);
+                
+                showNotification('تم تحميل ملف PDF بنجاح!', 'success');
+                
+            } catch (error) {
+                console.error('خطأ في إنشاء PDF:', error);
+                showNotification('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
+            }
+        }
+        
+        function getCurrentFormData(fieldOrder) {
+            const formData = {};
+            fieldOrder.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element) {
+                    if (element.tagName === 'SELECT') {
+                        const selectedOption = element.options[element.selectedIndex];
+                        formData[fieldId] = selectedOption && selectedOption.value ? selectedOption.text : '';
+                    } else {
+                        formData[fieldId] = element.value || '';
+                    }
+                }
+            });
+            return formData;
+        }
+        
+        function renderFormDataToPDF(doc, formData, mapping, startY) {
+            const leftColumn = 25;
+            const rightColumn = 110;
+            let yPosition = startY;
+            
+            // تقسيم الحقول إلى عمودين
+            const shortFields = mapping.order.filter(fieldId => 
+                !['objectives', 'impact', 'evidence', 'achievement-percentage', 'interaction', 'challenges',
+                  'strength-points', 'weakness-points', 'educational-challenges', 'improved-issues',
+                  'treatment-plans', 'outstanding-students', 'final-plan'].some(keyword => fieldId.includes(keyword))
+            );
+            
+            const leftFields = shortFields.filter((_, index) => index % 2 === 0);
+            const rightFields = shortFields.filter((_, index) => index % 2 === 1);
+            
+            // رسم الحقول القصيرة في عمودين
+            const maxRows = Math.max(leftFields.length, rightFields.length);
+            for (let i = 0; i < maxRows; i++) {
+                if (leftFields[i] && formData[leftFields[i]]) {
+                    renderFieldInPDF(doc, leftFields[i], formData[leftFields[i]], mapping.labels, leftColumn, yPosition + (i * 15));
+                }
+                if (rightFields[i] && formData[rightFields[i]]) {
+                    renderFieldInPDF(doc, rightFields[i], formData[rightFields[i]], mapping.labels, rightColumn, yPosition + (i * 15));
+                }
+            }
+            
+            // الحقول الطويلة (عرض كامل)
+            yPosition += (maxRows * 15) + 20;
+            
+            const longFields = mapping.order.filter(fieldId => 
+                ['objectives', 'impact', 'evidence', 'achievement-percentage', 'interaction', 'challenges',
+                 'strength-points', 'weakness-points', 'educational-challenges', 'improved-issues',
+                 'treatment-plans', 'outstanding-students', 'final-plan'].some(keyword => fieldId.includes(keyword))
+            );
+            
+            longFields.forEach(fieldId => {
+                if (formData[fieldId]) {
+                    yPosition = renderLongFieldInPDF(doc, fieldId, formData[fieldId], mapping.labels, leftColumn, yPosition);
+                }
+            });
+            
+            // إضافة منطقة التوقيعات
+            addSignatureArea(doc, yPosition + 20);
+        }
+        
+        function renderFieldInPDF(doc, fieldId, value, labels, x, y) {
+            const label = labels[fieldId];
+            
+            doc.setFontSize(12);
+            doc.setTextColor(44, 100, 112);
+            doc.text(label + ':', x, y);
+            
+            doc.setTextColor(46, 62, 80);
+            doc.text(value, x + 35, y);
+        }
+        
+        function renderLongFieldInPDF(doc, fieldId, value, labels, x, y) {
+            const label = labels[fieldId];
+            
+            doc.setFontSize(12);
+            doc.setTextColor(44, 100, 112);
+            doc.text(label + ':', x, y);
+            
+            y += 8;
+            
+            doc.setTextColor(46, 62, 80);
+            const lines = doc.splitTextToSize(value, 160);
+            doc.text(lines, x, y);
+            
+            return y + (lines.length * 5) + 15;
+        }
+        
+        function addSignatureArea(doc, startY) {
+            let yPosition = startY;
+            
+            // رسم خط فاصل
+            doc.setDrawColor(74, 144, 164);
+            doc.setLineWidth(0.5);
+            doc.line(20, yPosition, 190, yPosition);
+            
+            yPosition += 15;
+            
+            // منطقة التوقيعات
+            doc.setFontSize(14);
+            doc.setTextColor(44, 100, 112);
+            doc.text('الشواهد', 105, yPosition, { align: 'center' });
+            
+            yPosition += 25;
+            
+            // التوقيعات
+            doc.setFontSize(12);
+            doc.setTextColor(46, 62, 80);
+            
+            // خط توقيع رائد النشاط
+            doc.line(40, yPosition, 80, yPosition);
+            doc.text('رائد النشاط', 60, yPosition + 8, { align: 'center' });
+            
+            // خط توقيع مدير المدرسة
+            doc.line(130, yPosition, 170, yPosition);
+            doc.text('مدير المدرسة', 150, yPosition + 8, { align: 'center' });
+            
+            // معلومات التذييل
+            yPosition = 280;
+            doc.setFontSize(10);
+            doc.setTextColor(128, 128, 128);
+            doc.text('متوسطة المنذر بن عمرو الأنصاري - رائد النشاط: عبدالله الحربي', 105, yPosition, { align: 'center' });
+            doc.text('تاريخ الطباعة: ' + new Date().toLocaleDateString('ar-SA'), 105, yPosition + 5, { align: 'center' });
+        }
+        
+        function showNotification(message, type) {
+            const colors = {
+                'success': '#27ae60',
+                'error': '#e74c3c',
+                'warning': '#f39c12',
+                'info': '#3498db'
+            };
+            
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${colors[type] || colors.info};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                z-index: 1000;
+                font-weight: 500;
+                max-width: 300px;
+                animation: slideInRight 0.3s ease-out;
+            `;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('reportModal');
+            if (event.target == modal) {
+                closeReportModal();
+            }
+        }
+
+        // Auto-save functionality
+        document.addEventListener('input', function(event) {
+            if (event.target.matches('input, select, textarea')) {
+                const autoSaveData = {
+                    field: event.target.id,
+                    value: event.target.value,
+                    reportType: currentReportType,
+                    timestamp: Date.now()
+                };
+                // Note: localStorage removed to comply with Claude.ai environment
+            }
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            // Ctrl/Cmd + S to generate PDF
+            if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                event.preventDefault();
+                generatePDF();
+            }
+            
+            // Ctrl/Cmd + R to clear form
+            if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
+                event.preventDefault();
+                clearForm();
+            }
+            
+            // Escape to close modal
+            if (event.key === 'Escape') {
+                closeReportModal();
+            }
+        });
+        
+        // Form validation
+        function validateCurrentForm() {
+            let targetForm;
+            
+            if (currentReportType === 'daily') {
+                targetForm = document.getElementById('daily-report-form');
+            } else if (currentReportType === 'weekly') {
+                targetForm = document.getElementById('weekly-report-form');
+            } else if (currentReportType === 'monthly') {
+                targetForm = document.getElementById('monthly-report-form');
+            } else {
+                targetForm = document.getElementById('activity-form');
+            }
+            
+            const requiredFields = targetForm.querySelectorAll('input[required], select[required], textarea[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.style.borderColor = '#e74c3c';
+                    isValid = false;
+                } else {
+                    field.style.borderColor = '#e8f4f8';
+                }
+            });
+            
+            return isValid;
+        }
+        
+        // Enhanced PDF generation with validation
+        const originalGeneratePDF = generatePDF;
+        generatePDF = function() {
+            // Basic validation for empty forms
+            const currentMapping = fieldMappings[currentReportType];
+            const formData = getCurrentFormData(currentMapping.order);
+            
+            const hasData = Object.values(formData).some(value => value.trim() !== '');
+            
+            if (!hasData) {
+                showNotification('يرجى تعبئة بعض الحقول قبل إنشاء التقرير', 'warning');
+                return;
+            }
+            
+            originalGeneratePDF();
+        };
+        
+        // Print functionality
+        function printForm() {
+            window.print();
+        }
+        
+        // Enhanced form field animations
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('input, select, textarea').forEach(field => {
+                field.addEventListener('focus', function() {
+                    this.parentElement.style.transform = 'translateY(-2px)';
+                    this.style.boxShadow = '0 5px 15px rgba(74, 144, 164, 0.2)';
+                });
+                
+                field.addEventListener('blur', function() {
+                    this.parentElement.style.transform = 'translateY(0)';
+                    this.style.boxShadow = 'none';
+                });
+            });
+        });
+
+        // Add smooth scrolling for better UX
+        document.addEventListener('scroll', function() {
+            const header = document.querySelector('.header');
+            if (window.scrollY > 100) {
+                header.style.transform = 'translateY(-5px)';
+                header.style.boxShadow = '0 5px 20px rgba(0,0,0,0.1)';
+            } else {
+                header.style.transform = 'translateY(0)';
+                header.style.boxShadow = 'none';
+            }
+        });
+
+        // Initialize form with today's date
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            }).format(today);
+            
+            // Add Hijri date display
+            const dateInputs = document.querySelectorAll('input[type="date"]');
+            dateInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    const selectedDate = new Date(this.value);
+                    const hijri = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                    }).format(selectedDate);
+                    
+                    // Could add hijri date display here if needed
+                });
+            });
+        });
+
+        // Export functionality
+        function exportToExcel() {
+            showNotification('جاري تحضير ملف Excel...', 'info');
+            
+            const currentMapping = fieldMappings[currentReportType];
+            const formData = getCurrentFormData(currentMapping.order);
+            
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            
+            // Add headers
+            csvContent += "الحقل,القيمة\n";
+            
+            // Add data
+            currentMapping.order.forEach(fieldId => {
+                if (formData[fieldId]) {
+                    const label = currentMapping.labels[fieldId];
+                    const value = formData[fieldId].replace(/,/g, '،'); // Replace commas
+                    csvContent += `"${label}","${value}"\n`;
+                }
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            
+            const reportTitle = document.getElementById('form-title').textContent;
+            const fileName = `${reportTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+            link.setAttribute("download", fileName);
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('تم تصدير البيانات بنجاح!', 'success');
+        }
+
+        // Add context menu for additional options
+        document.addEventListener('contextmenu', function(event) {
+            if (event.target.matches('input, textarea, select')) {
+                event.preventDefault();
+                
+                const menu = document.createElement('div');
+                menu.style.cssText = `
+                    position: fixed;
+                    top: ${event.clientY}px;
+                    left: ${event.clientX}px;
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 5px;
+                    padding: 5px 0;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    z-index: 1000;
+                `;
+                
+                const clearOption = document.createElement('div');
+                clearOption.textContent = 'مسح الحقل';
+                clearOption.style.cssText = `
+                    padding: 8px 15px;
+                    cursor: pointer;
+                    font-size: 14px;
+                `;
+                clearOption.addEventListener('click', function() {
+                    event.target.value = '';
+                    document.body.removeChild(menu);
+                });
+                
+                menu.appendChild(clearOption);
+                document.body.appendChild(menu);
+                
+                document.addEventListener('click', function() {
+                    if (document.body.contains(menu)) {
+                        document.body.removeChild(menu);
+                    }
+                }, { once: true });
+            }
+        });
+    </script>
+</body>
+</html>
