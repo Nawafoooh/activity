@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>برامج النشاط الطلابي - متوسطة المنذر بن عمرو الأنصاري</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* ====== نفس التنسيقات السابقة مع إضافات بسيطة ====== */
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Tajawal',Arial,sans-serif;background:linear-gradient(135deg,#e8f4f8 0%,#f0f8ff 50%,#e6f3ff 100%);min-height:100vh;color:#2c3e50}
+        .container{max-width:1200px;margin:0 auto;background:white;min-height:100vh;box-shadow:0 0 30px rgba(0,0,0,.1)}
+        .header{background:linear-gradient(135deg,#2c6470 0%,#4a90a4 100%);color:white;padding:25px;text-align:center;position:relative;overflow:hidden}
+        .header::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,.1)"/><circle cx="80" cy="40" r="1.5" fill="rgba(255,255,255,.1)"/><circle cx="40" cy="80" r="1" fill="rgba(255,255,255,.1)"/></svg>');pointer-events:none}
+        .header h1{font-size:2em;font-weight:700;margin-bottom:10px;text-shadow:2px 2px 4px rgba(0,0,0,.2);position:relative;z-index:1}
+        .school-info{font-size:1.2em;font-weight:500;margin-bottom:15px;color:#b8dce6;position:relative;z-index:1}
+        .management-info{background:rgba(255,255,255,.15);padding:10px 20px;border-radius:25px;display:inline-block;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2);position:relative;z-index:1}
+        .activities-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0;margin:40px 20px}
+        .activity-card{background:linear-gradient(135deg,#4a90a4,#2c6470);color:white;padding:40px 20px;text-align:center;font-size:1.1em;font-weight:500;cursor:pointer;transition:all .3s ease;border:1px solid rgba(255,255,255,.1);position:relative;overflow:hidden}
+        .activity-card:nth-child(odd){background:linear-gradient(135deg,#5ba3b8,#4a90a4)}
+        .activity-card:nth-child(even){background:linear-gradient(135deg,#3d7485,#2c6470)}
+        .activity-card:nth-child(3n){background:linear-gradient(135deg,#6bb6c9,#5ba3b8)}
+        .activity-card::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transition:all .6s ease}
+        .activity-card:hover{transform:translateY(-5px);box-shadow:0 15px 30px rgba(0,0,0,.2)}
+        .activity-card:hover::before{left:100%}
+        .form-section{background:linear-gradient(135deg,#f8fbfc,#ffffff);padding:40px 20px;border-top:3px solid #4a90a4;box-shadow:0 -2px 10px rgba(74,144,164,.05)}
+        .form-title{text-align:center;font-size:1.6em;font-weight:600;color:#2c3e50;margin-bottom:30px;padding:15px;background:linear-gradient(135deg,#e8f4f8,#f0f8ff);border-radius:10px;border-left:4px solid #4a90a4;box-shadow:0 2px 8px rgba(74,144,164,.1)}
+        .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;max-width:800px;margin:0 auto}
+        .form-group{display:flex;flex-direction:column}
+        .form-group label{font-weight:500;color:#34495e;margin-bottom:8px;font-size:.95em}
+        .form-group input,.form-group select,.form-group textarea{padding:12px;border:2px solid #e8f4f8;border-radius:6px;font-family:inherit;font-size:.95em;transition:all .3s ease;background:white}
+        .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#4a90a4;box-shadow:0 0 0 3px rgba(74,144,164,.1)}
+        .large-field{grid-column:1/-1}
+        .large-field textarea{min-height:100px;resize:vertical}
+        .action-buttons{text-align:center;margin:30px 0}
+        .btn{background:linear-gradient(135deg,#4a90a4,#357a8a);color:white;padding:14px 30px;border:none;border-radius:8px;cursor:pointer;font-size:1em;font-weight:500;margin:0 10px;transition:all .3s ease;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+        .btn:hover{background:linear-gradient(135deg,#357a8a,#2c6470);transform:translateY(-2px);box-shadow:0 8px 20px rgba(74,144,164,.3)}
+        .btn.secondary{background:linear-gradient(135deg,#95a5a6,#7f8c8d)}
+        .btn.secondary:hover{background:linear-gradient(135deg,#7f8c8d,#6c7b7d)}
+        .footer{background:linear-gradient(135deg,#2c3e50,#34495e);color:white;text-align:center;padding:25px;margin-top:auto}
+        .footer p{margin:5px 0;opacity:.9}
+        .footer .copyright{font-size:.9em;margin-top:10px;padding-top:15px;border-top:1px solid rgba(255,255,255,.1)}
+        .footer .developer{color:#74b9ff;font-weight:500}
+        @media(max-width:768px){.activities-grid{grid-template-columns:1fr;margin:20px 10px}.activity-card{padding:30px 15px;font-size:1em}.header h1{font-size:1.6em}.form-section{padding:30px 15px}.form-grid{grid-template-columns:1fr}.btn{display:block;margin:10px auto;width:fit-content}}
+        /* ====== حركات بسيطة ====== */
+        .fade-in{animation:fadeIn .8s ease-in}@keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .slide-in-left{animation:slideInLeft .6s ease-out}@keyframes slideInLeft{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+        .slide-in-right{animation:slideInRight .6s ease-out}@keyframes slideInRight{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+        .loading{position:relative;overflow:hidden}.loading::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.1),transparent);animation:shimmer 2s infinite}@keyframes shimmer{0%{left:-100%}100%{left:100%}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ================== الهيدر ================== -->
+        <div class="header fade-in">
+            <h1>برامج النشاط الطلابي</h1>
+            <div class="school-info">متوسطة المنذر بن عمرو الأنصاري</div>
+            <div class="management-info">رائد النشاط: عبدالله الحربي</div>
+        </div>
+
+        <!-- ================== أيقونات المجالات ================== -->
+        <div class="activities-grid expanded">
+            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال الرياضة والصحة')">مجال الرياضة والصحة</div>
+            <div class="activity-card slide-in-left loading" onclick="openActivity('مجال المواطنة والحياة')">مجال المواطنة والحياة</div>
+            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال الثقافة والفنون')">مجال الثقافة والفنون</div>
+            <div class="activity-card slide-in-left loading" onclick="openActivity('مجال النشاط الكشفي')">مجال النشاط الكشفي</div>
+            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال العلوم والتقنية')">مجال العلوم والتقنية</div>
+            <div class="activity-card slide-in-left loading" onclick="openActivity('مجال النشاط الاجتماعي')">مجال النشاط الاجتماعي</div>
+            <div class="activity-card slide-in-right loading" onclick="openActivity('مجال الأيام والمناسبات')">مجال الأيام والمناسبات</div>
+            <div class="activity-card slide-in-left loading" onclick="openActivity('التقرير النهائي للأنشطة')">التقرير النهائي للأنشطة</div>
+        </div>
+
+        <!-- ================== النموذج ================== -->
+        <div class="form-section fade-in">
+            <div class="form-title" id="form-title">مجال الرياضة والصحة</div>
+
+            <form class="form-grid" id="activity-form">
+                <!-- البيانات العامة -->
+                <div class="form-group"><label>إدارة التعليم</label><input type="text" id="education-dept" placeholder="أدخل إدارة التعليم"></div>
+                <div class="form-group"><label>اسم المدرسة</label><input type="text" id="school-name" value="متوسطة المنذر بن عمرو الأنصاري" readonly></div>
+                <div class="form-group"><label>اسم المعلم</label><input type="text" id="teacher-name" placeholder="اسم المعلم"></div>
+                <div class="form-group"><label>التخصص</label><input type="text" id="specialization" placeholder="التخصص"></div>
+                <div class="form-group"><label>الفصل الدراسي</label>
+                    <select id="semester">
+                        <option value="">اختر الفصل الدراسي</option>
+                        <option value="first">الفصل الدراسي الأول</option>
+                        <option value="second">الفصل الدراسي الثاني</option>
+                        <option value="third">الفصل الدراسي الثالث</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>الصف</label>
+                    <select id="grade">
+                        <option value="">اختر الصف</option>
+                        <option value="first">الأول متوسط</option>
+                        <option value="second">الثاني متوسط</option>
+                        <option value="third">الثالث متوسط</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>التاريخ</label><input type="date" id="date"></div>
+                <div class="form-group"><label>اليوم</label><input type="text" id="day" placeholder="اليوم" readonly></div>
+                <div class="form-group"><label>الحصة</label>
+                    <select id="period">
+                        <option value="">اختر الحصة</option>
+                        <option value="1">الحصة الأولى</option>
+                        <option value="2">الحصة الثانية</option>
+                        <option value="3">الحصة الثالثة</option>
+                        <option value="4">الحصة الرابعة</option>
+                        <option value="5">الحصة الخامسة</option>
+                        <option value="6">الحصة السادسة</option>
+                        <option value="7">الحصة السابعة</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>الغياب</label><input type="number" id="attendance" placeholder="عدد الطلاب الغائبين" min="0"></div>
+                <div class="form-group"><label>الحضور</label><input type="number" id="presence" placeholder="عدد الطلاب الحاضرين" min="0"></div>
+                <div class="form-group"><label>مكان التنفيذ</label><input type="text" id="venue" placeholder="مكان تنفيذ النشاط"></div>
+                <div class="form-group"><label>اسم البرنامج</label><input type="text" id="program-name" placeholder="اسم البرنامج/النشاط"></div>
+
+                <!-- الحقول الطويلة -->
+                <div class="form-group large-field"><label>أهداف البرنامج</label><textarea id="program-objectives" placeholder="اكتب أهداف البرنامج والنتائج المتوقعة..."></textarea></div>
+                <div class="form-group large-field"><label>الأثر الإيجابي للبرنامج</label><textarea id="program-impact" placeholder="اكتب الأثر الإيجابي والفوائد المحققة من البرنامج على الطلاب والمجتمع المدرسي..."></textarea></div>
+                <div class="form-group large-field"><label>الشواهد</label><textarea id="evidence" placeholder="اكتب وصف الشواهد والأدلة على نجاح البرنامج..."></textarea></div>
+
+                <!-- ========== الحقول الجديدة ========== -->
+                <div class="form-group large-field"><label>التقرير اليومي</label><textarea id="daily-report" placeholder="ملخص يومي لأنشطة اليوم..."></textarea></div>
+                <div class="form-group large-field"><label>التقرير الأسبوعي</label><textarea id="weekly-report" placeholder="ملخص أنشطة الأسبوع..."></textarea></div>
+                <div class="form-group large-field"><label>التقرير الشهري</label><textarea id="monthly-report" placeholder="ملخص أنشطة الشهر..."></textarea></div>
+            </form>
+
+            <!-- أزرار التحكم -->
+            <div class="action-buttons">
+                <button class="btn" onclick="generatePDF()">📄 تحميل ملف PDF</button>
+                <button class="btn secondary" onclick="clearForm()">🗑️ مسح النموذج</button>
+            </div>
+        </div>
+
+        <!-- ================== الفوتر ================== -->
+        <div class="footer fade-in">
+            <p>متوسطة المنذر بن عمرو الأنصاري - برامج النشاط الط
