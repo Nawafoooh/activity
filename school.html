@@ -1329,34 +1329,84 @@
         }
         
         function renderFieldInPDF(doc, fieldId, value, labels, x, y) {
-            const label = labels[fieldId];
+            const arabicLabel = labels[fieldId];
+            const englishLabel = getEnglishFieldLabel(arabicLabel);
             
             doc.setFontSize(12);
             doc.setTextColor(44, 100, 112);
-            doc.text(label + ':', x, y);
+            doc.text(englishLabel + ':', x, y);
             
             doc.setTextColor(46, 62, 80);
-            doc.text(value, x + 35, y);
+            // For Arabic values, we'll use romanized or English equivalent where possible
+            const displayValue = isArabicText(value) ? romanizeArabicValue(value) : value;
+            doc.text(displayValue, x + 50, y);
         }
         
         function renderLongFieldInPDF(doc, fieldId, value, labels, x, y) {
-            const label = labels[fieldId];
+            const arabicLabel = labels[fieldId];
+            const englishLabel = getEnglishFieldLabel(arabicLabel);
             
             doc.setFontSize(12);
             doc.setTextColor(44, 100, 112);
-            doc.text(label + ':', x, y);
+            doc.text(englishLabel + ':', x, y);
             
             y += 8;
             
             doc.setTextColor(46, 62, 80);
-            const lines = doc.splitTextToSize(value, 160);
+            // For Arabic values, we'll use romanized or English equivalent where possible
+            const displayValue = isArabicText(value) ? romanizeArabicValue(value) : value;
+            const lines = doc.splitTextToSize(displayValue, 160);
             doc.text(lines, x, y);
             
             return y + (lines.length * 5) + 15;
         }
+
+        function isArabicText(text) {
+            const arabicRegex = /[\u0600-\u06FF\u0750-\u077F]/;
+            return arabicRegex.test(text);
+        }
+
+        function romanizeArabicValue(arabicValue) {
+            // Common Arabic to English mappings for form values
+            const commonMappings = {
+                'الفصل الدراسي الأول': 'First Semester',
+                'الفصل الدراسي الثاني': 'Second Semester', 
+                'الفصل الدراسي الثالث': 'Third Semester',
+                'الأول متوسط': 'First Grade Middle School',
+                'الثاني متوسط': 'Second Grade Middle School',
+                'الثالث متوسط': 'Third Grade Middle School',
+                'الحصة الأولى': 'First Period',
+                'الحصة الثانية': 'Second Period',
+                'الحصة الثالثة': 'Third Period',
+                'الحصة الرابعة': 'Fourth Period',
+                'الحصة الخامسة': 'Fifth Period',
+                'الحصة السادسة': 'Sixth Period',
+                'الحصة السابعة': 'Seventh Period',
+                'الأحد': 'Sunday',
+                'الاثنين': 'Monday',
+                'الثلاثاء': 'Tuesday',
+                'الأربعاء': 'Wednesday',
+                'الخميس': 'Thursday',
+                'الجمعة': 'Friday',
+                'السبت': 'Saturday',
+                'متوسطة المنذر بن عمرو الأنصاري': 'Al-Mundhir bin Amr Al-Ansari Middle School'
+            };
+
+            // Check for exact matches first
+            if (commonMappings[arabicValue]) {
+                return commonMappings[arabicValue];
+            }
+
+            // For other Arabic text, provide a note
+            if (isArabicText(arabicValue)) {
+                return '[Arabic Text: Please refer to original form]';
+            }
+
+            return arabicValue;
+        }
         
         function addSignatureArea(doc, startY) {
-            let yPosition = startY;
+            let yPosition = Math.min(startY, 240); // Ensure we don't go too far down
             
             // رسم خط فاصل
             doc.setDrawColor(74, 144, 164);
@@ -1368,7 +1418,7 @@
             // منطقة التوقيعات
             doc.setFontSize(14);
             doc.setTextColor(44, 100, 112);
-            doc.text('الشواهد', 105, yPosition, { align: 'center' });
+            doc.text('Signatures & Evidence', 105, yPosition, { align: 'center' });
             
             yPosition += 25;
             
@@ -1378,18 +1428,18 @@
             
             // خط توقيع رائد النشاط
             doc.line(40, yPosition, 80, yPosition);
-            doc.text('رائد النشاط', 60, yPosition + 8, { align: 'center' });
+            doc.text('Activity Coordinator', 60, yPosition + 8, { align: 'center' });
             
             // خط توقيع مدير المدرسة
             doc.line(130, yPosition, 170, yPosition);
-            doc.text('مدير المدرسة', 150, yPosition + 8, { align: 'center' });
+            doc.text('School Principal', 150, yPosition + 8, { align: 'center' });
             
             // معلومات التذييل
             yPosition = 280;
             doc.setFontSize(10);
             doc.setTextColor(128, 128, 128);
-            doc.text('متوسطة المنذر بن عمرو الأنصاري - رائد النشاط: عبدالله الحربي', 105, yPosition, { align: 'center' });
-            doc.text('تاريخ الطباعة: ' + new Date().toLocaleDateString('ar-SA'), 105, yPosition + 5, { align: 'center' });
+            doc.text('Al-Mundhir bin Amr Al-Ansari Middle School - Activity Coordinator: Abdullah Al-Harbi', 105, yPosition, { align: 'center' });
+            doc.text('Print Date: ' + new Date().toLocaleDateString('en-US'), 105, yPosition + 5, { align: 'center' });
         }
         
         function showNotification(message, type) {
