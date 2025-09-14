@@ -13,6 +13,338 @@
             padding: 0;
             box-sizing: border-box;
         }
+
+        // دالة إنشاء PDF بالعربية الأصلية
+        function generateArabicPDF() {
+            if (!validateForm()) {
+                showNotification('يرجى إكمال الحقول المطلوبة قبل إنشاء التقرير', 'warning');
+                return;
+            }
+
+            showNotification('جاري إنشاء ملف PDF بالعربية...', 'info');
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                // تسجيل الخط العربي
+                registerArabicFont(doc);
+
+                const currentMapping = fieldMappings[currentReportType];
+                const formData = getCurrentFormData(currentMapping.order);
+
+                const hasData = Object.values(formData).some(value => value.trim() !== '');
+                if (!hasData) {
+                    showNotification('يرجى تعبئة بعض الحقول قبل إنشاء التقرير', 'warning');
+                    return;
+                }
+
+                // إنشاء الهيدر العربي
+                createArabicPDFHeader(doc);
+                
+                // عنوان التقرير
+                const reportTitle = document.getElementById('form-title').textContent;
+                createArabicPDFTitle(doc, reportTitle);
+                
+                // محتوى التقرير
+                let currentY = createArabicPDFContent(doc, formData, currentMapping);
+                
+                // التذييل
+                createArabicPDFFooter(doc, currentY);
+
+                // حفظ الملف
+                const fileName = `تقرير_${reportTitle.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('ar-SA').replace(/\//g, '-')}.pdf`;
+                doc.save(fileName);
+
+                // تحديث الإحصائيات
+                stats.reportsGenerated++;
+                updateStats();
+                showNotification('تم تحميل ملف PDF بالعربية بنجاح!', 'success');
+
+            } catch (error) {
+                console.error('خطأ في إنشاء PDF بالعربية:', error);
+                showNotification('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
+            }
+        }
+
+        function createArabicPDFHeader(doc) {
+            // خلفية الهيدر
+            doc.setFillColor(44, 100, 112);
+            doc.rect(0, 0, 210, 60, 'F');
+            
+            // إطار زخرفي
+            doc.setDrawColor(255, 255, 255);
+            doc.setLineWidth(2);
+            doc.rect(5, 5, 200, 50);
+            
+            // شعار المملكة (دائرة)
+            doc.setFillColor(255, 255, 255);
+            doc.circle(180, 30, 8, 'FD');
+            doc.setFillColor(44, 100, 112);
+            doc.circle(180, 30, 6, 'F');
+            
+            // النصوص العربية
+            doc.setFont('Amiri', 'normal');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            
+            try {
+                // محاولة كتابة النص العربي
+                doc.text('المملكة العربية السعودية', 200, 18, { align: 'right' });
+                doc.setFontSize(14);
+                doc.text('وزارة التعليم', 200, 28, { align: 'right' });
+                doc.setFontSize(12);
+                doc.text('مكتب تعليم العوالي', 200, 38, { align: 'right' });
+                doc.setFontSize(11);
+                doc.text('متوسطة المنذر بن عمرو الأنصاري', 200, 48, { align: 'right' });
+            } catch (error) {
+                // في حالة فشل الخط العربي، استخدام بديل
+                doc.setFont('helvetica', 'bold');
+                doc.text('Kingdom of Saudi Arabia', 105, 18, { align: 'center' });
+                doc.text('Ministry of Education', 105, 28, { align: 'center' });
+                doc.text('Al-Awali Education Office', 105, 38, { align: 'center' });
+                doc.text('Al-Mundhir bin Amr Al-Ansari Middle School', 105, 48, { align: 'center' });
+            }
+        }
+
+        function createArabicPDFTitle(doc, reportTitle) {
+            doc.setFont('Amiri', 'normal');
+            doc.setTextColor(44, 100, 112);
+            doc.setFontSize(18);
+            
+            try {
+                doc.text(reportTitle, 200, 80, { align: 'right' });
+            } catch (error) {
+                doc.setFont('helvetica', 'bold');
+                doc.text(reportTitle, 105, 80, { align: 'center' });
+            }
+            
+            // خط زخرفي
+            doc.setDrawColor(74, 144, 164);
+            doc.setLineWidth(1);
+            doc.line(30, 90, 180, 90);
+            
+            doc.setFillColor(74, 144, 164);
+            doc.circle(25, 90, 2, 'F');
+            doc.circle(185, 90, 2, 'F');
+        }
+
+        function createArabicPDFContent(doc, formData, mapping) {
+            let yPosition = 105;
+            
+            // معلومات المدرسة
+            yPosition = addArabicSchoolInfo(doc, yPosition);
+            
+            // المعلومات الأساسية
+            yPosition = addArabicBasicData(doc, formData, mapping, yPosition);
+            
+            // المحتوى التفصيلي
+            yPosition = addArabicDetailedContent(doc, formData, mapping, yPosition);
+            
+            return yPosition;
+        }
+
+        function addArabicSchoolInfo(doc, startY) {
+            let yPosition = startY;
+            
+            doc.setDrawColor(74, 144, 164);
+            doc.setLineWidth(0.5);
+            doc.rect(20, yPosition - 5, 170, 25);
+            
+            doc.setFillColor(248, 251, 252);
+            doc.rect(20, yPosition - 5, 170, 25, 'F');
+            
+            doc.setFont('Amiri', 'normal');
+            doc.setFontSize(12);
+            doc.setTextColor(44, 100, 112);
+            
+            try {
+                doc.text('معلومات المدرسة', 185, yPosition + 3, { align: 'right' });
+                doc.setFontSize(10);
+                doc.setTextColor(46, 62, 80);
+                doc.text('المدرسة: متوسطة المنذر بن عمرو الأنصاري', 185, yPosition + 12, { align: 'right' });
+                doc.text('رائد النشاط: عبدالله الحربي', 185, yPosition + 18, { align: 'right' });
+            } catch (error) {
+                doc.setFont('helvetica', 'bold');
+                doc.text('School Information', 25, yPosition + 3);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.text('School: Al-Mundhir bin Amr Al-Ansari Middle School', 25, yPosition + 12);
+                doc.text('Activity Coordinator: Abdullah Al-Harbi', 25, yPosition + 18);
+            }
+            
+            return yPosition + 35;
+        }
+
+        function addArabicBasicData(doc, formData, mapping, startY) {
+            let yPosition = startY;
+            
+            doc.setFont('Amiri', 'normal');
+            doc.setFontSize(12);
+            doc.setTextColor(44, 100, 112);
+            
+            try {
+                doc.text('المعلومات الأساسية', 185, yPosition, { align: 'right' });
+            } catch (error) {
+                doc.setFont('helvetica', 'bold');
+                doc.text('Basic Information', 25, yPosition);
+            }
+            
+            yPosition += 15;
+            
+            const basicFields = getBasicFields(mapping.order);
+            
+            basicFields.forEach(fieldId => {
+                if (formData[fieldId] && yPosition < 250) {
+                    const label = mapping.labels[fieldId];
+                    const value = formData[fieldId];
+                    
+                    doc.setFont('Amiri', 'normal');
+                    doc.setFontSize(10);
+                    doc.setTextColor(44, 100, 112);
+                    
+                    try {
+                        doc.text(`${label}:`, 185, yPosition, { align: 'right' });
+                        doc.setTextColor(46, 62, 80);
+                        doc.text(value, 185, yPosition + 5, { align: 'right' });
+                    } catch (error) {
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(`${label}: ${value}`, 25, yPosition);
+                    }
+                    
+                    yPosition += 12;
+                    
+                    if (yPosition > 250) {
+                        doc.addPage();
+                        yPosition = 30;
+                    }
+                }
+            });
+            
+            return yPosition + 10;
+        }
+
+        function addArabicDetailedContent(doc, formData, mapping, startY) {
+            let yPosition = startY;
+            
+            const detailedFields = getDetailedFields(mapping.order);
+            
+            detailedFields.forEach(fieldId => {
+                if (formData[fieldId] && formData[fieldId].trim()) {
+                    if (yPosition > 240) {
+                        doc.addPage();
+                        yPosition = 30;
+                    }
+                    
+                    const label = mapping.labels[fieldId];
+                    const content = formData[fieldId];
+                    
+                    doc.setFont('Amiri', 'normal');
+                    doc.setFontSize(11);
+                    doc.setTextColor(44, 100, 112);
+                    
+                    try {
+                        doc.text(`${label}:`, 185, yPosition, { align: 'right' });
+                        
+                        yPosition += 8;
+                        
+                        doc.setFontSize(10);
+                        doc.setTextColor(46, 62, 80);
+                        
+                        // تقسيم النص لعدة أسطر
+                        const lines = doc.splitTextToSize(content, 160);
+                        
+                        // خلفية للمحتوى
+                        const contentHeight = lines.length * 5 + 6;
+                        doc.setDrawColor(230, 244, 248);
+                        doc.setFillColor(248, 251, 252);
+                        doc.rect(25, yPosition - 2, 160, contentHeight, 'FD');
+                        
+                        // النص العربي من اليمين
+                        lines.forEach((line, index) => {
+                            doc.text(line, 180, yPosition + 3 + (index * 5), { align: 'right' });
+                        });
+                        
+                        yPosition += contentHeight + 8;
+                        
+                    } catch (error) {
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(`${label}: ${content}`, 25, yPosition);
+                        yPosition += 15;
+                    }
+                }
+            });
+            
+            return yPosition;
+        }
+
+        function createArabicPDFFooter(doc, startY) {
+            const pageHeight = 297;
+            let yPosition = Math.max(startY + 20, pageHeight - 70);
+            
+            // خط فاصل
+            doc.setDrawColor(74, 144, 164);
+            doc.setLineWidth(0.5);
+            doc.line(25, yPosition, 185, yPosition);
+            
+            yPosition += 15;
+            
+            // أقسام التوقيع
+            doc.setFont('Amiri', 'normal');
+            doc.setFontSize(11);
+            doc.setTextColor(44, 100, 112);
+            
+            try {
+                // رائد النشاط (على اليمين)
+                doc.text('رائد النشاط', 170, yPosition, { align: 'right' });
+                doc.setFontSize(9);
+                doc.text('عبدالله الحربي', 170, yPosition + 8, { align: 'right' });
+                doc.line(130, yPosition + 15, 180, yPosition + 15);
+                
+                // مدير المدرسة (على اليسار)
+                doc.setFontSize(11);
+                doc.text('مدير المدرسة', 80, yPosition, { align: 'right' });
+                doc.setFontSize(9);
+                doc.text('التوقيع', 80, yPosition + 8, { align: 'right' });
+                doc.line(30, yPosition + 15, 80, yPosition + 15);
+                
+            } catch (error) {
+                doc.setFont('helvetica', 'bold');
+                // نسخة إنجليزية في حالة فشل العربية
+                doc.text('Activity Coordinator', 140, yPosition);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Abdullah Al-Harbi', 140, yPosition + 8);
+                doc.line(120, yPosition + 15, 180, yPosition + 15);
+                
+                doc.setFont('helvetica', 'bold');
+                doc.text('School Principal', 70, yPosition);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Signature', 70, yPosition + 8);
+                doc.line(30, yPosition + 15, 80, yPosition + 15);
+            }
+            
+            yPosition += 30;
+            
+            // معلومات المدرسة
+            doc.setFont('Amiri', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(128, 128, 128);
+            
+            const currentDate = new Date().toLocaleDateString('ar-SA');
+            
+            try {
+                doc.text('متوسطة المنذر بن عمرو الأنصاري', 105, yPosition, { align: 'center' });
+                doc.text(`التاريخ: ${currentDate}`, 105, yPosition + 8, { align: 'center' });
+            } catch (error) {
+                doc.setFont('helvetica', 'normal');
+                doc.text('Al-Mundhir bin Amr Al-Ansari Middle School', 105, yPosition, { align: 'center' });
+                doc.text(`Date: ${currentDate}`, 105, yPosition + 8, { align: 'center' });
+            }
+        }
         
         body {
             font-family: 'Tajawal', Arial, sans-serif;
@@ -1597,7 +1929,7 @@
             return formData;
         }
 
-        // Advanced PDF generation functionality
+        // Advanced PDF generation with proper Arabic support
         function generatePDF() {
             if (!validateForm()) {
                 showNotification('يرجى إكمال الحقول المطلوبة قبل إنشاء التقرير', 'warning');
@@ -1607,45 +1939,321 @@
             showNotification('جاري إنشاء ملف PDF...', 'info');
             
             try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-
-                // Get current form data and configuration
-                const currentMapping = fieldMappings[currentReportType];
-                const formData = getCurrentFormData(currentMapping.order);
+                // Create HTML content for better Arabic support
+                const htmlContent = generateHTMLForPDF();
                 
-                // Check if form has data
-                const hasData = Object.values(formData).some(value => value.trim() !== '');
-                if (!hasData) {
-                    showNotification('يرجى تعبئة بعض الحقول قبل إنشاء التقرير', 'warning');
-                    return;
-                }
+                // Open print window with Arabic content
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
                 
-                // Create PDF sections
-                createPDFHeader(doc);
-                const reportTitle = document.getElementById('form-title').textContent;
-                createPDFTitle(doc, reportTitle);
-                let currentY = createPDFContent(doc, formData, currentMapping);
-                createPDFFooter(doc, currentY);
-                
-                // Save file
-                const fileName = generateFileName(reportTitle);
-                doc.save(fileName);
+                // Auto print
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                }, 1000);
                 
                 // Update statistics
                 stats.reportsGenerated++;
                 updateStats();
                 
-                showNotification('تم تحميل ملف PDF بنجاح!', 'success');
+                showNotification('تم فتح نافذة الطباعة. يمكنك حفظ الملف كـ PDF من خيارات الطباعة.', 'success');
                 
             } catch (error) {
                 console.error('خطأ في إنشاء PDF:', error);
                 showNotification('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
             }
+        }
+
+        function generateHTMLForPDF() {
+            const currentMapping = fieldMappings[currentReportType];
+            const formData = getCurrentFormData(currentMapping.order);
+            const reportTitle = document.getElementById('form-title').textContent;
+            
+            return `
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8">
+                <title>${reportTitle}</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
+                    
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    
+                    body {
+                        font-family: 'Tajawal', Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #2c3e50;
+                        background: white;
+                        padding: 20px;
+                    }
+                    
+                    .header {
+                        text-align: center;
+                        border: 3px solid #2c6470;
+                        padding: 30px;
+                        margin-bottom: 40px;
+                        background: linear-gradient(135deg, #f8fbfc, #ffffff);
+                        border-radius: 15px;
+                    }
+                    
+                    .header h1 {
+                        color: #2c6470;
+                        font-size: 28px;
+                        font-weight: 700;
+                        margin-bottom: 10px;
+                    }
+                    
+                    .header h2 {
+                        color: #4a90a4;
+                        font-size: 22px;
+                        font-weight: 600;
+                        margin-bottom: 8px;
+                    }
+                    
+                    .header h3 {
+                        color: #5ba3b8;
+                        font-size: 18px;
+                        font-weight: 500;
+                        margin-bottom: 6px;
+                    }
+                    
+                    .header h4 {
+                        color: #6bb6c9;
+                        font-size: 16px;
+                        font-weight: 500;
+                    }
+                    
+                    .report-title {
+                        background: linear-gradient(135deg, #e8f4f8, #f0f8ff);
+                        padding: 20px;
+                        text-align: center;
+                        border-radius: 10px;
+                        margin-bottom: 30px;
+                        border-right: 5px solid #4a90a4;
+                    }
+                    
+                    .report-title h2 {
+                        color: #2c6470;
+                        font-size: 24px;
+                        font-weight: 600;
+                    }
+                    
+                    .content-section {
+                        margin-bottom: 30px;
+                    }
+                    
+                    .section-title {
+                        background: #2c6470;
+                        color: white;
+                        padding: 12px 20px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        margin-bottom: 15px;
+                        border-radius: 8px;
+                    }
+                    
+                    .info-grid {
+                        display: grid;
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 15px;
+                        margin-bottom: 20px;
+                    }
+                    
+                    .info-item {
+                        border: 1px solid #e8f4f8;
+                        padding: 15px;
+                        border-radius: 8px;
+                        background: #fafcfd;
+                    }
+                    
+                    .info-label {
+                        font-weight: 600;
+                        color: #2c6470;
+                        margin-bottom: 5px;
+                        font-size: 14px;
+                    }
+                    
+                    .info-value {
+                        color: #34495e;
+                        font-size: 15px;
+                        min-height: 20px;
+                    }
+                    
+                    .full-width {
+                        grid-column: 1 / -1;
+                    }
+                    
+                    .text-content {
+                        background: #f8fbfc;
+                        padding: 20px;
+                        border-radius: 8px;
+                        border-right: 4px solid #4a90a4;
+                        margin-bottom: 15px;
+                    }
+                    
+                    .text-content .label {
+                        font-weight: 600;
+                        color: #2c6470;
+                        font-size: 16px;
+                        margin-bottom: 10px;
+                        display: block;
+                    }
+                    
+                    .text-content .content {
+                        color: #34495e;
+                        line-height: 1.8;
+                        font-size: 15px;
+                    }
+                    
+                    .footer {
+                        margin-top: 50px;
+                        border-top: 2px solid #4a90a4;
+                        padding-top: 30px;
+                    }
+                    
+                    .signatures {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 50px;
+                        margin-bottom: 30px;
+                    }
+                    
+                    .signature-box {
+                        text-align: center;
+                        padding: 20px;
+                        border: 1px solid #e8f4f8;
+                        border-radius: 8px;
+                        background: #fafcfd;
+                    }
+                    
+                    .signature-title {
+                        font-weight: 600;
+                        color: #2c6470;
+                        margin-bottom: 10px;
+                        font-size: 16px;
+                    }
+                    
+                    .signature-name {
+                        color: #34495e;
+                        margin-bottom: 20px;
+                        font-size: 15px;
+                    }
+                    
+                    .signature-line {
+                        border-bottom: 2px solid #2c6470;
+                        height: 40px;
+                        margin-bottom: 10px;
+                    }
+                    
+                    .date-info {
+                        text-align: center;
+                        color: #7f8c8d;
+                        font-size: 14px;
+                        margin-top: 20px;
+                    }
+                    
+                    @media print {
+                        body { margin: 0; }
+                        .header { page-break-inside: avoid; }
+                        .content-section { page-break-inside: avoid; }
+                        .signatures { page-break-inside: avoid; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>المملكة العربية السعودية</h1>
+                    <h2>وزارة التعليم</h2>
+                    <h3>مكتب تعليم العوالي</h3>
+                    <h4>متوسطة المنذر بن عمرو الأنصاري</h4>
+                </div>
+
+                <div class="report-title">
+                    <h2>${reportTitle}</h2>
+                </div>
+
+                <div class="content-section">
+                    <div class="section-title">المعلومات الأساسية</div>
+                    <div class="info-grid">
+                        ${generateBasicInfoHTML(formData, currentMapping)}
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <div class="section-title">التفاصيل والمحتوى</div>
+                    ${generateDetailedContentHTML(formData, currentMapping)}
+                </div>
+
+                <div class="footer">
+                    <div class="signatures">
+                        <div class="signature-box">
+                            <div class="signature-title">رائد النشاط</div>
+                            <div class="signature-name">عبدالله الحربي</div>
+                            <div class="signature-line"></div>
+                            <div>التوقيع</div>
+                        </div>
+                        <div class="signature-box">
+                            <div class="signature-title">مدير المدرسة</div>
+                            <div class="signature-name"></div>
+                            <div class="signature-line"></div>
+                            <div>التوقيع</div>
+                        </div>
+                    </div>
+                    <div class="date-info">
+                        متوسطة المنذر بن عمرو الأنصاري<br>
+                        التاريخ: ${new Date().toLocaleDateString('ar-SA')}<br>
+                        تم الإنشاء: ${new Date().toLocaleString('ar-SA')}
+                    </div>
+                </div>
+            </body>
+            </html>
+            `;
+        }
+
+        function generateBasicInfoHTML(formData, mapping) {
+            const basicFields = getBasicFields(mapping.order);
+            let html = '';
+            
+            basicFields.forEach(fieldId => {
+                if (formData[fieldId]) {
+                    const label = mapping.labels[fieldId];
+                    const value = formData[fieldId];
+                    html += `
+                        <div class="info-item">
+                            <div class="info-label">${label}</div>
+                            <div class="info-value">${value}</div>
+                        </div>
+                    `;
+                }
+            });
+            
+            return html;
+        }
+
+        function generateDetailedContentHTML(formData, mapping) {
+            const detailedFields = getDetailedFields(mapping.order);
+            let html = '';
+            
+            detailedFields.forEach(fieldId => {
+                if (formData[fieldId] && formData[fieldId].trim()) {
+                    const label = mapping.labels[fieldId];
+                    const content = formData[fieldId];
+                    html += `
+                        <div class="text-content">
+                            <span class="label">${label}:</span>
+                            <div class="content">${content}</div>
+                        </div>
+                    `;
+                }
+            });
+            
+            return html;
         }
 
         function createPDFHeader(doc) {
