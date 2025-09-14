@@ -151,7 +151,6 @@
             box-shadow: 0 2px 8px rgba(74, 144, 164, 0.1);
         }
 
-        /* Tab Navigation Styles */
         .tab-navigation {
             display: flex;
             background: linear-gradient(135deg, #e8f4f8, #f0f8ff);
@@ -187,7 +186,6 @@
             display: none !important;
         }
 
-        /* Report Selection Modal Styles */
         .modal {
             display: none;
             position: fixed;
@@ -378,6 +376,78 @@
             color: #74b9ff;
             font-weight: 500;
         }
+
+        .stats-dashboard {
+            background: linear-gradient(135deg, #f8fbfc, #ffffff);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px;
+            box-shadow: 0 5px 15px rgba(74, 144, 164, 0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #4a90a4, #2c6470);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .backup-controls {
+            background: linear-gradient(135deg, #e8f4f8, #f0f8ff);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px;
+            text-align: center;
+        }
+
+        .backup-btn {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95em;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .backup-btn:hover {
+            background: linear-gradient(135deg, #229954, #1e8449);
+            transform: translateY(-2px);
+        }
+
+        .restore-btn {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .restore-btn:hover {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
         
         @media (max-width: 768px) {
             .activities-grid {
@@ -411,6 +481,10 @@
             .modal-content {
                 width: 90%;
                 margin: 20% auto;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
         }
         
@@ -484,6 +558,34 @@
             from { transform: translateX(0); opacity: 1; }
             to { transform: translateX(100%); opacity: 0; }
         }
+
+        .form-validation-error {
+            border-color: #e74c3c !important;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1) !important;
+        }
+
+        .validation-message {
+            color: #e74c3c;
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #4a90a4, #2c6470);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -493,6 +595,38 @@
             <h1>برامج النشاط الطلابي</h1>
             <div class="school-info">متوسطة المنذر بن عمرو الأنصاري</div>
             <div class="management-info">رائد النشاط: عبدالله الحربي</div>
+        </div>
+
+        <!-- Statistics Dashboard -->
+        <div class="stats-dashboard fade-in">
+            <h3 style="color: #2c6470; margin-bottom: 15px; text-align: center;">لوحة الإحصائيات</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-activities">7</div>
+                    <div class="stat-label">مجالات الأنشطة</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="reports-generated">0</div>
+                    <div class="stat-label">التقارير المنشأة</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="forms-completed">0</div>
+                    <div class="stat-label">النماذج المكتملة</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="active-sessions">1</div>
+                    <div class="stat-label">الجلسات النشطة</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backup Controls -->
+        <div class="backup-controls">
+            <h4 style="color: #2c6470; margin-bottom: 15px;">إدارة البيانات</h4>
+            <button class="backup-btn" onclick="backupData()">📁 نسخ احتياطي للبيانات</button>
+            <button class="backup-btn restore-btn" onclick="document.getElementById('restore-file').click()">📂 استرداد البيانات</button>
+            <input type="file" id="restore-file" accept=".json" style="display: none;" onchange="restoreData(this)">
+            <button class="backup-btn" onclick="exportAllData()">📊 تصدير جميع البيانات</button>
         </div>
         
         <!-- Activities Grid -->
@@ -541,11 +675,17 @@
 
             <div class="form-title" id="form-title">مجال الرياضة والصحة</div>
             
+            <!-- Progress Bar -->
+            <div class="progress-bar">
+                <div class="progress-fill" id="form-progress"></div>
+            </div>
+            
             <!-- Activity Form -->
             <form class="form-grid" id="activity-form">
                 <div class="form-group">
                     <label for="education-dept">إدارة التعليم</label>
                     <input type="text" id="education-dept" placeholder="أدخل إدارة التعليم">
+                    <div class="validation-message" id="education-dept-error">هذا الحقل مطلوب</div>
                 </div>
                 
                 <div class="form-group">
@@ -556,6 +696,7 @@
                 <div class="form-group">
                     <label for="teacher-name">اسم المعلم</label>
                     <input type="text" id="teacher-name" placeholder="اسم المعلم">
+                    <div class="validation-message" id="teacher-name-error">هذا الحقل مطلوب</div>
                 </div>
                 
                 <div class="form-group">
@@ -625,6 +766,7 @@
                 <div class="form-group">
                     <label for="program-name">اسم البرنامج</label>
                     <input type="text" id="program-name" placeholder="اسم البرنامج/النشاط">
+                    <div class="validation-message" id="program-name-error">هذا الحقل مطلوب</div>
                 </div>
                 
                 <div class="form-group large-field">
@@ -893,6 +1035,15 @@
                 <button class="btn secondary" onclick="clearForm()">
                     🗑️ مسح النموذج
                 </button>
+                <button class="btn secondary" onclick="exportToExcel()">
+                    📊 تصدير إلى Excel
+                </button>
+                <button class="btn secondary" onclick="saveFormData()">
+                    💾 حفظ البيانات
+                </button>
+                <button class="btn secondary" onclick="validateForm()">
+                    ✅ التحقق من البيانات
+                </button>
             </div>
         </div>
         
@@ -928,193 +1079,12 @@
     
     <script>
         let currentReportType = 'activity';
+        let stats = {
+            reportsGenerated: 0,
+            formsCompleted: 0,
+            activeSessions: 1
+        };
         
-        document.addEventListener('DOMContentLoaded', function() {
-            const today = new Date();
-            initializeDateFields(today);
-            
-            setTimeout(() => {
-                document.querySelectorAll('.loading').forEach(el => {
-                    el.classList.remove('loading');
-                });
-            }, 2000);
-        });
-        
-        function initializeDateFields(date) {
-            const dateInputs = ['date', 'daily-date', 'weekly-date', 'monthly-date'];
-            const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-            
-            dateInputs.forEach(inputId => {
-                const dateInput = document.getElementById(inputId);
-                if (dateInput) {
-                    dateInput.value = date.toISOString().split('T')[0];
-                    
-                    dateInput.addEventListener('change', function() {
-                        const selectedDate = new Date(this.value);
-                        const dayInputId = inputId.replace('date', 'day');
-                        const dayInput = document.getElementById(dayInputId);
-                        if (dayInput) {
-                            dayInput.value = days[selectedDate.getDay()];
-                        }
-                    });
-                }
-            });
-            
-            const dayInput = document.getElementById('day');
-            if (dayInput) {
-                dayInput.value = days[date.getDay()];
-            }
-        }
-        
-        function openFinalReport() {
-            const modal = document.getElementById('reportModal');
-            modal.style.display = 'block';
-        }
-        
-        function closeReportModal() {
-            const modal = document.getElementById('reportModal');
-            modal.style.display = 'none';
-        }
-        
-        function selectReportType(reportType) {
-            currentReportType = reportType;
-            closeReportModal();
-            
-            // Hide all forms and tabs
-            document.getElementById('activity-form').classList.add('hidden');
-            document.getElementById('daily-report-form').classList.add('hidden');
-            document.getElementById('weekly-report-form').classList.add('hidden');
-            document.getElementById('monthly-report-form').classList.add('hidden');
-            document.getElementById('report-tabs').classList.add('hidden');
-            
-            // Show appropriate form and update title
-            const formTitle = document.getElementById('form-title');
-            
-            if (reportType === 'daily') {
-                document.getElementById('daily-report-form').classList.remove('hidden');
-                document.getElementById('report-tabs').classList.remove('hidden');
-                formTitle.textContent = 'التقرير اليومي';
-            } else if (reportType === 'weekly') {
-                document.getElementById('weekly-report-form').classList.remove('hidden');
-                document.getElementById('report-tabs').classList.remove('hidden');
-                formTitle.textContent = 'التقرير الأسبوعي';
-            } else if (reportType === 'monthly') {
-                document.getElementById('monthly-report-form').classList.remove('hidden');
-                document.getElementById('report-tabs').classList.remove('hidden');
-                formTitle.textContent = 'التقرير الشهري';
-            }
-            
-            // Update tab active state
-            updateTabActiveState(reportType);
-            
-            // Scroll to form
-            document.querySelector('.form-section').scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-            
-            const reportNames = {
-                'daily': 'التقرير اليومي',
-                'weekly': 'التقرير الأسبوعي',
-                'monthly': 'التقرير الشهري'
-            };
-            
-            showNotification(`تم تحديد ${reportNames[reportType]} ✨`, 'success');
-        }
-        
-        function switchTab(tabType) {
-            currentReportType = tabType;
-            
-            // Hide all forms
-            document.getElementById('daily-report-form').classList.add('hidden');
-            document.getElementById('weekly-report-form').classList.add('hidden');
-            document.getElementById('monthly-report-form').classList.add('hidden');
-            
-            // Show selected form
-            document.getElementById(`${tabType}-report-form`).classList.remove('hidden');
-            
-            // Update form title
-            const formTitle = document.getElementById('form-title');
-            const titles = {
-                'daily': 'التقرير اليومي',
-                'weekly': 'التقرير الأسبوعي',
-                'monthly': 'التقرير الشهري'
-            };
-            formTitle.textContent = titles[tabType];
-            
-            // Update tab active state
-            updateTabActiveState(tabType);
-        }
-        
-        function updateTabActiveState(activeTab) {
-            // Remove active class from all tabs
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Add active class to selected tab
-            const tabMapping = {
-                'daily': 0,
-                'weekly': 1,
-                'monthly': 2
-            };
-            
-            const tabButtons = document.querySelectorAll('.tab-btn');
-            if (tabButtons[tabMapping[activeTab]]) {
-                tabButtons[tabMapping[activeTab]].classList.add('active');
-            }
-        }
-        
-        function openActivity(activityName) {
-            currentReportType = 'activity';
-            
-            // Hide all report forms and tabs
-            document.getElementById('daily-report-form').classList.add('hidden');
-            document.getElementById('weekly-report-form').classList.add('hidden');
-            document.getElementById('monthly-report-form').classList.add('hidden');
-            document.getElementById('report-tabs').classList.add('hidden');
-            
-            // Show activity form
-            document.getElementById('activity-form').classList.remove('hidden');
-            
-            const formTitle = document.getElementById('form-title');
-            formTitle.textContent = activityName;
-            
-            formTitle.style.animation = 'none';
-            setTimeout(() => {
-                formTitle.style.animation = 'fadeIn 0.5s ease-in';
-            }, 10);
-            
-            document.querySelector('.form-section').scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-            
-            showNotification(`تم تحديد ${activityName} ✨`, 'success');
-        }
-        
-        function clearForm() {
-            if (confirm('هل أنت متأكد من مسح جميع البيانات؟')) {
-                let targetForm;
-                
-                if (currentReportType === 'daily') {
-                    targetForm = document.getElementById('daily-report-form');
-                } else if (currentReportType === 'weekly') {
-                    targetForm = document.getElementById('weekly-report-form');
-                } else if (currentReportType === 'monthly') {
-                    targetForm = document.getElementById('monthly-report-form');
-                } else {
-                    targetForm = document.getElementById('activity-form');
-                }
-                
-                targetForm.querySelectorAll('input:not([readonly]), select, textarea').forEach(input => {
-                    input.value = '';
-                });
-                
-                showNotification('تم مسح النموذج بنجاح! 🗑️', 'success');
-            }
-        }
-
         // Field mappings for all report types
         const fieldMappings = {
             'activity': {
@@ -1210,7 +1180,430 @@
             }
         };
         
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            initializeDateFields(today);
+            loadSavedData();
+            updateStats();
+            
+            setTimeout(() => {
+                document.querySelectorAll('.loading').forEach(el => {
+                    el.classList.remove('loading');
+                });
+            }, 2000);
+
+            // Add form progress tracking
+            addFormProgressTracking();
+        });
+        
+        function initializeDateFields(date) {
+            const dateInputs = ['date', 'daily-date', 'weekly-date', 'monthly-date'];
+            const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+            
+            dateInputs.forEach(inputId => {
+                const dateInput = document.getElementById(inputId);
+                if (dateInput) {
+                    dateInput.value = date.toISOString().split('T')[0];
+                    
+                    dateInput.addEventListener('change', function() {
+                        const selectedDate = new Date(this.value);
+                        const dayInputId = inputId.replace('date', 'day');
+                        const dayInput = document.getElementById(dayInputId);
+                        if (dayInput) {
+                            dayInput.value = days[selectedDate.getDay()];
+                        }
+                    });
+                }
+            });
+            
+            const dayInput = document.getElementById('day');
+            if (dayInput) {
+                dayInput.value = days[date.getDay()];
+            }
+        }
+
+        // Form Progress Tracking
+        function addFormProgressTracking() {
+            const forms = ['activity-form', 'daily-report-form', 'weekly-report-form', 'monthly-report-form'];
+            
+            forms.forEach(formId => {
+                const form = document.getElementById(formId);
+                if (form) {
+                    const inputs = form.querySelectorAll('input:not([readonly]), select, textarea');
+                    inputs.forEach(input => {
+                        input.addEventListener('input', updateFormProgress);
+                        input.addEventListener('change', updateFormProgress);
+                    });
+                }
+            });
+        }
+
+        function updateFormProgress() {
+            const currentForm = getCurrentActiveForm();
+            if (!currentForm) return;
+
+            const inputs = currentForm.querySelectorAll('input:not([readonly]), select, textarea');
+            const filledInputs = Array.from(inputs).filter(input => input.value.trim() !== '');
+            const progress = (filledInputs.length / inputs.length) * 100;
+
+            const progressFill = document.getElementById('form-progress');
+            if (progressFill) {
+                progressFill.style.width = progress + '%';
+            }
+
+            if (progress === 100) {
+                stats.formsCompleted++;
+                updateStats();
+                showNotification('تم إكمال النموذج بنجاح!', 'success');
+            }
+        }
+
+        function getCurrentActiveForm() {
+            const forms = ['activity-form', 'daily-report-form', 'weekly-report-form', 'monthly-report-form'];
+            return forms.map(id => document.getElementById(id)).find(form => !form.classList.contains('hidden'));
+        }
+
+        // Enhanced Statistics Functions
+        function updateStats() {
+            document.getElementById('reports-generated').textContent = stats.reportsGenerated;
+            document.getElementById('forms-completed').textContent = stats.formsCompleted;
+            document.getElementById('active-sessions').textContent = stats.activeSessions;
+        }
+
+        // Data Management Functions
+        function saveFormData() {
+            const currentMapping = fieldMappings[currentReportType];
+            const formData = getCurrentFormData(currentMapping.order);
+            
+            const savedData = {
+                reportType: currentReportType,
+                data: formData,
+                timestamp: new Date().toISOString(),
+                formTitle: document.getElementById('form-title').textContent
+            };
+
+            const allSavedData = JSON.parse(localStorage.getItem('studentActivityData') || '[]');
+            allSavedData.push(savedData);
+            localStorage.setItem('studentActivityData', JSON.stringify(allSavedData));
+            
+            showNotification('تم حفظ البيانات بنجاح!', 'success');
+        }
+
+        function loadSavedData() {
+            const savedData = localStorage.getItem('studentActivityData');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                stats.formsCompleted = data.length;
+                updateStats();
+            }
+        }
+
+        function backupData() {
+            const allData = {
+                forms: JSON.parse(localStorage.getItem('studentActivityData') || '[]'),
+                stats: stats,
+                timestamp: new Date().toISOString(),
+                version: '2.0'
+            };
+
+            const dataStr = JSON.stringify(allData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `student_activity_backup_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showNotification('تم إنشاء النسخة الاحتياطية بنجاح!', 'success');
+        }
+
+        function restoreData(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (data.forms) {
+                        localStorage.setItem('studentActivityData', JSON.stringify(data.forms));
+                    }
+                    if (data.stats) {
+                        stats = { ...stats, ...data.stats };
+                        updateStats();
+                    }
+                    
+                    showNotification('تم استرداد البيانات بنجاح!', 'success');
+                    
+                } catch (error) {
+                    showNotification('خطأ في قراءة ملف النسخة الاحتياطية', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportAllData() {
+            const allData = JSON.parse(localStorage.getItem('studentActivityData') || '[]');
+            
+            if (allData.length === 0) {
+                showNotification('لا توجد بيانات للتصدير', 'warning');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            csvContent += "نوع التقرير,عنوان النموذج,التاريخ,البيانات\n";
+
+            allData.forEach(item => {
+                const dataStr = Object.entries(item.data)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('; ');
+                
+                csvContent += `"${item.reportType}","${item.formTitle}","${new Date(item.timestamp).toLocaleDateString('ar-SA')}","${dataStr}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `all_student_activity_data_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('تم تصدير جميع البيانات بنجاح!', 'success');
+        }
+
+        // Form Validation
+        function validateForm() {
+            const currentForm = getCurrentActiveForm();
+            if (!currentForm) return false;
+
+            const requiredFields = [
+                'education-dept', 'teacher-name', 'program-name',
+                'daily-teacher-name', 'weekly-teacher-name', 'monthly-teacher-name'
+            ];
+
+            let isValid = true;
+            let errors = [];
+
+            requiredFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field && field.offsetParent !== null) { // Check if field is visible
+                    const errorElement = document.getElementById(fieldId + '-error');
+                    
+                    if (!field.value.trim()) {
+                        field.classList.add('form-validation-error');
+                        if (errorElement) {
+                            errorElement.style.display = 'block';
+                        }
+                        isValid = false;
+                        errors.push(fieldMappings[currentReportType]?.labels[fieldId] || fieldId);
+                    } else {
+                        field.classList.remove('form-validation-error');
+                        if (errorElement) {
+                            errorElement.style.display = 'none';
+                        }
+                    }
+                }
+            });
+
+            if (isValid) {
+                showNotification('تم التحقق من النموذج بنجاح! جميع الحقول المطلوبة مكتملة.', 'success');
+            } else {
+                showNotification(`يرجى إكمال الحقول التالية: ${errors.join(', ')}`, 'error');
+            }
+
+            return isValid;
+        }
+        
+        function openFinalReport() {
+            const modal = document.getElementById('reportModal');
+            modal.style.display = 'block';
+        }
+        
+        function closeReportModal() {
+            const modal = document.getElementById('reportModal');
+            modal.style.display = 'none';
+        }
+        
+        function selectReportType(reportType) {
+            currentReportType = reportType;
+            closeReportModal();
+            
+            // Hide all forms and tabs
+            document.getElementById('activity-form').classList.add('hidden');
+            document.getElementById('daily-report-form').classList.add('hidden');
+            document.getElementById('weekly-report-form').classList.add('hidden');
+            document.getElementById('monthly-report-form').classList.add('hidden');
+            document.getElementById('report-tabs').classList.add('hidden');
+            
+            // Show appropriate form and update title
+            const formTitle = document.getElementById('form-title');
+            
+            if (reportType === 'daily') {
+                document.getElementById('daily-report-form').classList.remove('hidden');
+                document.getElementById('report-tabs').classList.remove('hidden');
+                formTitle.textContent = 'التقرير اليومي';
+            } else if (reportType === 'weekly') {
+                document.getElementById('weekly-report-form').classList.remove('hidden');
+                document.getElementById('report-tabs').classList.remove('hidden');
+                formTitle.textContent = 'التقرير الأسبوعي';
+            } else if (reportType === 'monthly') {
+                document.getElementById('monthly-report-form').classList.remove('hidden');
+                document.getElementById('report-tabs').classList.remove('hidden');
+                formTitle.textContent = 'التقرير الشهري';
+            }
+            
+            // Update tab active state
+            updateTabActiveState(reportType);
+            
+            // Scroll to form
+            document.querySelector('.form-section').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+            
+            const reportNames = {
+                'daily': 'التقرير اليومي',
+                'weekly': 'التقرير الأسبوعي',
+                'monthly': 'التقرير الشهري'
+            };
+            
+            showNotification(`تم تحديد ${reportNames[reportType]}`, 'success');
+        }
+        
+        function switchTab(tabType) {
+            currentReportType = tabType;
+            
+            // Hide all forms
+            document.getElementById('daily-report-form').classList.add('hidden');
+            document.getElementById('weekly-report-form').classList.add('hidden');
+            document.getElementById('monthly-report-form').classList.add('hidden');
+            
+            // Show selected form
+            document.getElementById(`${tabType}-report-form`).classList.remove('hidden');
+            
+            // Update form title
+            const formTitle = document.getElementById('form-title');
+            const titles = {
+                'daily': 'التقرير اليومي',
+                'weekly': 'التقرير الأسبوعي',
+                'monthly': 'التقرير الشهري'
+            };
+            formTitle.textContent = titles[tabType];
+            
+            // Update tab active state
+            updateTabActiveState(tabType);
+            
+            // Reset progress bar
+            updateFormProgress();
+        }
+        
+        function updateTabActiveState(activeTab) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Add active class to selected tab
+            const tabMapping = {
+                'daily': 0,
+                'weekly': 1,
+                'monthly': 2
+            };
+            
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            if (tabButtons[tabMapping[activeTab]]) {
+                tabButtons[tabMapping[activeTab]].classList.add('active');
+            }
+        }
+        
+        function openActivity(activityName) {
+            currentReportType = 'activity';
+            
+            // Hide all report forms and tabs
+            document.getElementById('daily-report-form').classList.add('hidden');
+            document.getElementById('weekly-report-form').classList.add('hidden');
+            document.getElementById('monthly-report-form').classList.add('hidden');
+            document.getElementById('report-tabs').classList.add('hidden');
+            
+            // Show activity form
+            document.getElementById('activity-form').classList.remove('hidden');
+            
+            const formTitle = document.getElementById('form-title');
+            formTitle.textContent = activityName;
+            
+            formTitle.style.animation = 'none';
+            setTimeout(() => {
+                formTitle.style.animation = 'fadeIn 0.5s ease-in';
+            }, 10);
+            
+            document.querySelector('.form-section').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+            
+            // Reset progress bar
+            updateFormProgress();
+            
+            showNotification(`تم تحديد ${activityName}`, 'success');
+        }
+        
+        function clearForm() {
+            if (confirm('هل أنت متأكد من مسح جميع البيانات؟')) {
+                let targetForm;
+                
+                if (currentReportType === 'daily') {
+                    targetForm = document.getElementById('daily-report-form');
+                } else if (currentReportType === 'weekly') {
+                    targetForm = document.getElementById('weekly-report-form');
+                } else if (currentReportType === 'monthly') {
+                    targetForm = document.getElementById('monthly-report-form');
+                } else {
+                    targetForm = document.getElementById('activity-form');
+                }
+                
+                targetForm.querySelectorAll('input:not([readonly]), select, textarea').forEach(input => {
+                    input.value = '';
+                    input.classList.remove('form-validation-error');
+                });
+                
+                // Hide validation messages
+                targetForm.querySelectorAll('.validation-message').forEach(msg => {
+                    msg.style.display = 'none';
+                });
+                
+                // Reset progress bar
+                updateFormProgress();
+                
+                showNotification('تم مسح النموذج بنجاح!', 'success');
+            }
+        }
+
+        // Helper functions for data collection
+        function getCurrentFormData(fieldOrder) {
+            const formData = {};
+            fieldOrder.forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element) {
+                    formData[fieldId] = element.value || '';
+                }
+            });
+            return formData;
+        }
+
+        // Advanced PDF generation functionality
         function generatePDF() {
+            if (!validateForm()) {
+                showNotification('يرجى إكمال الحقول المطلوبة قبل إنشاء التقرير', 'warning');
+                return;
+            }
+
             showNotification('جاري إنشاء ملف PDF...', 'info');
             
             try {
@@ -1221,43 +1614,31 @@
                     format: 'a4'
                 });
 
-                doc.setFont('helvetica');
-                
                 // Get current form data and configuration
                 const currentMapping = fieldMappings[currentReportType];
                 const formData = getCurrentFormData(currentMapping.order);
                 
-                // إضافة الشعار والعنوان
-                doc.setFillColor(44, 100, 112);
-                doc.rect(0, 0, 210, 40, 'F');
+                // Check if form has data
+                const hasData = Object.values(formData).some(value => value.trim() !== '');
+                if (!hasData) {
+                    showNotification('يرجى تعبئة بعض الحقول قبل إنشاء التقرير', 'warning');
+                    return;
+                }
                 
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(18);
-                doc.text('Ministry of Education', 150, 15);
-                doc.text('وزارة التعليم', 150, 25);
-                
-                doc.setFontSize(24);
-                doc.text('برامج الأنشطة الطلابية', 105, 55, { align: 'center' });
-                
-                // عنوان التقرير
+                // Create PDF sections
+                createPDFHeader(doc);
                 const reportTitle = document.getElementById('form-title').textContent;
-                doc.setFontSize(20);
-                doc.setTextColor(44, 100, 112);
-                doc.text(reportTitle, 105, 75, { align: 'center' });
+                createPDFTitle(doc, reportTitle);
+                let currentY = createPDFContent(doc, formData, currentMapping);
+                createPDFFooter(doc, currentY);
                 
-                // رسم خط فاصل
-                doc.setDrawColor(74, 144, 164);
-                doc.setLineWidth(0.5);
-                doc.line(20, 85, 190, 85);
-                
-                let yPosition = 100;
-                
-                // عرض البيانات بناء على نوع التقرير
-                renderFormDataToPDF(doc, formData, currentMapping, yPosition);
-                
-                // حفظ الملف
-                const fileName = `${reportTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+                // Save file
+                const fileName = generateFileName(reportTitle);
                 doc.save(fileName);
+                
+                // Update statistics
+                stats.reportsGenerated++;
+                updateStats();
                 
                 showNotification('تم تحميل ملف PDF بنجاح!', 'success');
                 
@@ -1266,152 +1647,403 @@
                 showNotification('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
             }
         }
-        
-        /* ==========================================================
-           حفظ تلقائي محسن
-        ========================================================== */
-        document.addEventListener('input', function(event) {
-            if (event.target.matches('input, select, textarea')) {
-                const autoSaveData = {
-                    field: event.target.id,
-                    value: event.target.value,
-                    reportType: currentReportType,
-                    timestamp: Date.now()
-                };
-                // Note: localStorage removed to comply with Claude.ai environment
-            }
-        });
-        
-        function renderFormDataToPDF(doc, formData, mapping, startY) {
-            let yPosition = startY;
+
+        function createPDFHeader(doc) {
+            // Header background
+            doc.setFillColor(44, 100, 112);
+            doc.rect(0, 0, 210, 45, 'F');
             
-            // تقسيم الحقول إلى قصيرة وطويلة
-            const shortFields = mapping.order.filter(fieldId => 
-                !fieldId.includes('objectives') && 
-                !fieldId.includes('impact') && 
-                !fieldId.includes('evidence') &&
-                !fieldId.includes('challenges') &&
-                !fieldId.includes('interaction') &&
-                !fieldId.includes('achievement') &&
-                !fieldId.includes('strength') &&
-                !fieldId.includes('weakness') &&
-                !fieldId.includes('issues') &&
-                !fieldId.includes('plans') &&
-                !fieldId.includes('students')
-            );
-            
-            // عرض الحقول القصيرة في عمودين
-            const leftFields = shortFields.filter((_, index) => index % 2 === 0);
-            const rightFields = shortFields.filter((_, index) => index % 2 === 1);
-            
-            const maxRows = Math.max(leftFields.length, rightFields.length);
-            for (let i = 0; i < maxRows; i++) {
-                if (leftFields[i] && formData[leftFields[i]]) {
-                    renderField(doc, leftFields[i], formData[leftFields[i]], mapping.labels, 25, yPosition + (i * 12));
-                }
-                if (rightFields[i] && formData[rightFields[i]]) {
-                    renderField(doc, rightFields[i], formData[rightFields[i]], mapping.labels, 110, yPosition + (i * 12));
-                }
+            // Decorative elements
+            doc.setFillColor(255, 255, 255, 0.1);
+            for (let i = 0; i < 10; i++) {
+                doc.circle(20 + i * 15, 15, 2, 'F');
+                doc.circle(30 + i * 15, 30, 1.5, 'F');
             }
             
-            yPosition += (maxRows * 12) + 20;
+            // Header text
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.text('Kingdom of Saudi Arabia', 105, 15, { align: 'center' });
+            doc.text('المملكة العربية السعودية', 105, 25, { align: 'center' });
             
-            // عرض الحقول الطويلة
-            const longFields = mapping.order.filter(fieldId => 
-                fieldId.includes('objectives') || 
-                fieldId.includes('impact') || 
-                fieldId.includes('evidence') ||
-                fieldId.includes('challenges') ||
-                fieldId.includes('interaction') ||
-                fieldId.includes('achievement') ||
-                fieldId.includes('strength') ||
-                fieldId.includes('weakness') ||
-                fieldId.includes('issues') ||
-                fieldId.includes('plans') ||
-                fieldId.includes('students')
-            );
-            
-            longFields.forEach(fieldId => {
-                if (formData[fieldId] && yPosition < 250) {
-                    yPosition = renderLongField(doc, fieldId, formData[fieldId], mapping.labels, 25, yPosition);
-                }
-            });
-            
-            // إضافة التوقيعات
-            addSignatures(doc, Math.min(yPosition + 15, 240));
+            doc.setFontSize(14);
+            doc.text('Ministry of Education', 105, 35, { align: 'center' });
+            doc.text('وزارة التعليم', 105, 42, { align: 'center' });
         }
-        
-        function renderField(doc, fieldId, value, labels, x, y) {
-            const arabicLabel = labels[fieldId];
-            const englishLabel = getEnglishLabel(arabicLabel);
-            
-            doc.setFontSize(10);
+
+        function createPDFTitle(doc, reportTitle) {
+            doc.setFont('helvetica', 'bold');
             doc.setTextColor(44, 100, 112);
-            doc.text(englishLabel + ':', x, y);
+            doc.setFontSize(18);
             
-            doc.setTextColor(46, 62, 80);
-            const translatedValue = translateValue(value);
-            doc.text(translatedValue, x + 45, y);
+            doc.text('Student Activities Program', 105, 60, { align: 'center' });
+            doc.text('برنامج الأنشطة الطلابية', 105, 70, { align: 'center' });
+            
+            doc.setFontSize(16);
+            doc.setTextColor(74, 144, 164);
+            
+            const englishTitle = translateReportTitle(reportTitle);
+            doc.text(englishTitle, 105, 85, { align: 'center' });
+            
+            // Decorative line
+            doc.setDrawColor(74, 144, 164);
+            doc.setLineWidth(1);
+            doc.line(30, 95, 180, 95);
+            
+            doc.setFillColor(74, 144, 164);
+            doc.circle(25, 95, 2, 'F');
+            doc.circle(185, 95, 2, 'F');
         }
-        
-        function renderLongField(doc, fieldId, value, labels, x, y) {
-            const arabicLabel = labels[fieldId];
-            const englishLabel = getEnglishLabel(arabicLabel);
+
+        function createPDFContent(doc, formData, mapping) {
+            let yPosition = 110;
             
-            doc.setFontSize(10);
-            doc.setTextColor(44, 100, 112);
-            doc.text(englishLabel + ':', x, y);
+            yPosition = addSchoolInfo(doc, formData, mapping, yPosition);
+            yPosition = addBasicData(doc, formData, mapping, yPosition);
+            yPosition = addDetailedContent(doc, formData, mapping, yPosition);
             
-            y += 6;
-            
-            doc.setTextColor(46, 62, 80);
-            doc.setFontSize(9);
-            
-            // تبسيط النص الطويل
-            const translatedValue = value.length > 100 ? 
-                '[Content available in original Arabic form]' : 
-                translateValue(value);
-            
-            const lines = doc.splitTextToSize(translatedValue, 160);
-            doc.text(lines, x, y);
-            
-            return y + (lines.length * 4) + 10;
+            return yPosition;
         }
-        
-        function addSignatures(doc, startY) {
+
+        function addSchoolInfo(doc, formData, mapping, startY) {
             let yPosition = startY;
             
-            // خط فاصل
             doc.setDrawColor(74, 144, 164);
             doc.setLineWidth(0.5);
-            doc.line(20, yPosition, 190, yPosition);
+            doc.rect(20, yPosition - 5, 170, 25);
+            
+            doc.setFillColor(248, 251, 252);
+            doc.rect(20, yPosition - 5, 170, 25, 'F');
+            
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(44, 100, 112);
+            doc.text('School Information', 25, yPosition + 3);
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(46, 62, 80);
+            
+            doc.text('School: Al-Mundhir bin Amr Al-Ansari Middle School', 25, yPosition + 10);
+            doc.text('Activity Coordinator: Abdullah Al-Harbi', 25, yPosition + 16);
+            
+            return yPosition + 35;
+        }
+
+        function addBasicData(doc, formData, mapping, startY) {
+            let yPosition = startY;
+            
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(44, 100, 112);
+            doc.text('Basic Information', 25, yPosition);
             
             yPosition += 10;
             
-            // عنوان التوقيعات
-            doc.setFontSize(12);
+            const basicFields = getBasicFields(mapping.order);
+            const tableData = [];
+            
+            basicFields.forEach(fieldId => {
+                if (formData[fieldId]) {
+                    const label = translateFieldLabel(mapping.labels[fieldId]);
+                    const value = formatFieldValue(fieldId, formData[fieldId]);
+                    tableData.push([label, value]);
+                }
+            });
+            
+            yPosition = drawTable(doc, tableData, 25, yPosition, 160);
+            
+            return yPosition + 10;
+        }
+
+        function addDetailedContent(doc, formData, mapping, startY) {
+            let yPosition = startY;
+            
+            const detailedFields = getDetailedFields(mapping.order);
+            
+            detailedFields.forEach(fieldId => {
+                if (formData[fieldId] && formData[fieldId].trim()) {
+                    if (yPosition > 240) {
+                        doc.addPage();
+                        yPosition = 30;
+                    }
+                    
+                    yPosition = addDetailedField(doc, fieldId, formData[fieldId], mapping.labels, yPosition);
+                }
+            });
+            
+            return yPosition;
+        }
+
+        function addDetailedField(doc, fieldId, value, labels, startY) {
+            let yPosition = startY;
+            
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
             doc.setTextColor(44, 100, 112);
-            doc.text('Signatures', 105, yPosition, { align: 'center' });
             
-            yPosition += 15;
+            const englishLabel = translateFieldLabel(labels[fieldId]);
+            doc.text(englishLabel + ':', 25, yPosition);
             
-            // خطوط التوقيع
+            yPosition += 8;
+            
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
             doc.setTextColor(46, 62, 80);
             
-            doc.line(40, yPosition, 80, yPosition);
-            doc.text('Activity Coordinator', 60, yPosition + 6, { align: 'center' });
+            const processedContent = processArabicContent(value);
+            const lines = doc.splitTextToSize(processedContent, 160);
             
-            doc.line(130, yPosition, 170, yPosition);
-            doc.text('School Principal', 150, yPosition + 6, { align: 'center' });
+            const contentHeight = lines.length * 5 + 6;
+            doc.setDrawColor(230, 244, 248);
+            doc.setFillColor(248, 251, 252);
+            doc.rect(25, yPosition - 2, 160, contentHeight, 'FD');
             
-            // تذييل
+            doc.text(lines, 30, yPosition + 3);
+            
+            return yPosition + contentHeight + 8;
+        }
+
+        function drawTable(doc, data, x, y, width) {
+            const rowHeight = 8;
+            const colWidth = width / 2;
+            
+            doc.setDrawColor(74, 144, 164);
+            doc.setLineWidth(0.3);
+            
+            data.forEach((row, index) => {
+                const currentY = y + (index * rowHeight);
+                
+                if (index % 2 === 0) {
+                    doc.setFillColor(248, 251, 252);
+                    doc.rect(x, currentY, width, rowHeight, 'F');
+                }
+                
+                doc.rect(x, currentY, colWidth, rowHeight);
+                doc.rect(x + colWidth, currentY, colWidth, rowHeight);
+                
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9);
+                doc.setTextColor(44, 100, 112);
+                doc.text(row[0], x + 3, currentY + 5);
+                
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(46, 62, 80);
+                doc.text(row[1], x + colWidth + 3, currentY + 5);
+            });
+            
+            return y + (data.length * rowHeight);
+        }
+
+        function createPDFFooter(doc, startY) {
+            const pageHeight = 297;
+            let yPosition = Math.max(startY + 20, pageHeight - 60);
+            
+            doc.setDrawColor(74, 144, 164);
+            doc.setLineWidth(0.5);
+            doc.line(25, yPosition, 185, yPosition);
+            
+            yPosition += 15;
+            
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(44, 100, 112);
+            
+            doc.text('Activity Coordinator', 60, yPosition);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.text('Abdullah Al-Harbi', 60, yPosition + 6);
+            doc.line(30, yPosition + 10, 90, yPosition + 10);
+            
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.text('School Principal', 150, yPosition);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.text('Signature', 150, yPosition + 6);
+            doc.line(120, yPosition + 10, 180, yPosition + 10);
+            
+            yPosition += 25;
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
             doc.setTextColor(128, 128, 128);
-            doc.text('Al-Mundhir bin Amr Al-Ansari Middle School', 105, 280, { align: 'center' });
-            doc.text(`Print Date: ${new Date().toLocaleDateString('en-US')}`, 105, 285, { align: 'center' });
+            
+            const currentDate = new Date().toLocaleDateString('en-US');
+            doc.text('Al-Mundhir bin Amr Al-Ansari Middle School', 105, yPosition, { align: 'center' });
+            doc.text(`Generated on: ${currentDate}`, 105, yPosition + 5, { align: 'center' });
+        }
+
+        // Translation helper functions
+        function translateReportTitle(arabicTitle) {
+            const translations = {
+                'مجال الرياضة والصحة': 'Sports and Health Field',
+                'مجال المواطنة والحياة': 'Citizenship and Life Field',
+                'مجال الثقافة والفنون': 'Culture and Arts Field',
+                'مجال النشاط الكشفي': 'Scout Activity Field',
+                'مجال العلوم والتقنية': 'Science and Technology Field',
+                'مجال النشاط الاجتماعي': 'Social Activity Field',
+                'مجال الأيام والمناسبات': 'Events and Occasions Field',
+                'التقرير اليومي': 'Daily Report',
+                'التقرير الأسبوعي': 'Weekly Report',
+                'التقرير الشهري': 'Monthly Report'
+            };
+            return translations[arabicTitle] || 'Activity Report';
+        }
+
+        function translateFieldLabel(arabicLabel) {
+            const translations = {
+                'إدارة التعليم': 'Education Department',
+                'اسم المدرسة': 'School Name',
+                'اسم المعلم': 'Teacher Name',
+                'التخصص': 'Specialization',
+                'الفصل الدراسي': 'Semester',
+                'الصف': 'Grade',
+                'التاريخ': 'Date',
+                'اليوم': 'Day',
+                'الحصة': 'Period',
+                'الغياب': 'Absent Students',
+                'الحضور': 'Present Students',
+                'مكان التنفيذ': 'Venue',
+                'اسم البرنامج': 'Program Name',
+                'أهداف البرنامج': 'Program Objectives',
+                'الأثر الإيجابي للبرنامج': 'Program Impact',
+                'الشواهد': 'Evidence',
+                'الوحدة الدراسية': 'Study Unit',
+                'عنوان الدرس': 'Lesson Title',
+                'أهداف الدرس': 'Lesson Objectives',
+                'نسبة تحقق أهداف الدرس': 'Achievement Percentage',
+                'ملاحظات حول تفاعل الطلب': 'Student Interaction Notes',
+                'التحديات الصفية': 'Classroom Challenges',
+                'الأسبوع': 'Week',
+                'أهم الدروس المنفذة': 'Key Lessons Implemented',
+                'أبرز نقاط القوة لدى الطلب': 'Student Strengths',
+                'أبرز نقاط الضعف لدى الطلب': 'Student Weaknesses',
+                'أبرز التحديات التعليمية': 'Educational Challenges',
+                'الشهر': 'Month',
+                'نسبة إنجاز الخطة': 'Plan Completion Rate',
+                'القضايا المستحدثة التي تحتاج متابعة': 'New Issues Requiring Follow-up',
+                'خطط المعالجة المقترحة': 'Proposed Treatment Plans',
+                'الطلاب المتميزون': 'Outstanding Students',
+                'الخطة الإثرائية للطلاب المتميزين': 'Enrichment Plan for Outstanding Students'
+            };
+            return translations[arabicLabel] || arabicLabel;
+        }
+
+        function formatFieldValue(fieldId, value) {
+            if (fieldId.includes('semester')) {
+                const semesterTranslations = {
+                    'first': 'First Semester',
+                    'second': 'Second Semester',
+                    'third': 'Third Semester'
+                };
+                return semesterTranslations[value] || value;
+            }
+            
+            if (fieldId.includes('grade')) {
+                const gradeTranslations = {
+                    'first': '1st Middle Grade',
+                    'second': '2nd Middle Grade',
+                    'third': '3rd Middle Grade'
+                };
+                return gradeTranslations[value] || value;
+            }
+            
+            if (fieldId.includes('period')) {
+                return `Period ${value}`;
+            }
+            
+            return value;
+        }
+
+        function processArabicContent(arabicText) {
+            if (arabicText.length > 100) {
+                return `[Arabic content available - ${arabicText.length} characters]\n\nContent summary: ${arabicText.substring(0, 100)}...`;
+            }
+            
+            return arabicText.replace(/[\u0600-\u06FF]/g, '?') || '[Arabic text content]';
+        }
+
+        function getBasicFields(allFields) {
+            return allFields.filter(field => 
+                !field.includes('objectives') && 
+                !field.includes('impact') && 
+                !field.includes('evidence') &&
+                !field.includes('challenges') &&
+                !field.includes('interaction') &&
+                !field.includes('achievement') &&
+                !field.includes('strength') &&
+                !field.includes('weakness') &&
+                !field.includes('issues') &&
+                !field.includes('plans') &&
+                !field.includes('students')
+            );
+        }
+
+        function getDetailedFields(allFields) {
+            return allFields.filter(field => 
+                field.includes('objectives') || 
+                field.includes('impact') || 
+                field.includes('evidence') ||
+                field.includes('challenges') ||
+                field.includes('interaction') ||
+                field.includes('achievement') ||
+                field.includes('strength') ||
+                field.includes('weakness') ||
+                field.includes('issues') ||
+                field.includes('plans') ||
+                field.includes('students')
+            );
+        }
+
+        function generateFileName(reportTitle) {
+            const date = new Date();
+            const dateStr = date.toISOString().split('T')[0];
+            const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '-');
+            const cleanTitle = reportTitle.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_');
+            return `${cleanTitle}_${dateStr}_${timeStr}.pdf`;
         }
         
+        // Export to Excel functionality
+        function exportToExcel() {
+            if (!validateForm()) {
+                showNotification('يرجى إكمال الحقول المطلوبة قبل التصدير', 'warning');
+                return;
+            }
+
+            showNotification('جاري تحضير ملف Excel...', 'info');
+            
+            const currentMapping = fieldMappings[currentReportType];
+            const formData = getCurrentFormData(currentMapping.order);
+            
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            
+            csvContent += "الحقل,القيمة\n";
+            
+            currentMapping.order.forEach(fieldId => {
+                if (formData[fieldId]) {
+                    const label = currentMapping.labels[fieldId];
+                    const value = formData[fieldId].replace(/,/g, '،');
+                    csvContent += `"${label}","${value}"\n`;
+                }
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            
+            const reportTitle = document.getElementById('form-title').textContent;
+            const fileName = `${reportTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+            link.setAttribute("download", fileName);
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('تم تصدير البيانات بنجاح!', 'success');
+        }
+        
+        // Notification system
         function showNotification(message, type) {
             const colors = {
                 'success': '#27ae60',
@@ -1442,10 +2074,10 @@
             setTimeout(() => {
                 notification.style.animation = 'slideOutRight 0.3s ease-in';
                 setTimeout(() => notification.remove(), 300);
-            }, 3000);
+            }, 4000);
         }
 
-        // Close modal when clicking outside
+        // Event listeners and interactions
         window.onclick = function(event) {
             const modal = document.getElementById('reportModal');
             if (event.target == modal) {
@@ -1453,91 +2085,43 @@
             }
         }
 
-        // Auto-save functionality
         document.addEventListener('input', function(event) {
             if (event.target.matches('input, select, textarea')) {
+                // Remove validation error styling when user starts typing
+                event.target.classList.remove('form-validation-error');
+                const errorElement = document.getElementById(event.target.id + '-error');
+                if (errorElement) {
+                    errorElement.style.display = 'none';
+                }
+                
+                // Update form progress
+                updateFormProgress();
+                
                 const autoSaveData = {
                     field: event.target.id,
                     value: event.target.value,
                     reportType: currentReportType,
                     timestamp: Date.now()
                 };
-                // Note: localStorage removed to comply with Claude.ai environment
             }
         });
         
-        // Keyboard shortcuts
         document.addEventListener('keydown', function(event) {
-            // Ctrl/Cmd + S to generate PDF
             if ((event.ctrlKey || event.metaKey) && event.key === 's') {
                 event.preventDefault();
                 generatePDF();
             }
             
-            // Ctrl/Cmd + R to clear form
             if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
                 event.preventDefault();
                 clearForm();
             }
             
-            // Escape to close modal
             if (event.key === 'Escape') {
                 closeReportModal();
             }
         });
         
-        // Form validation
-        function validateCurrentForm() {
-            let targetForm;
-            
-            if (currentReportType === 'daily') {
-                targetForm = document.getElementById('daily-report-form');
-            } else if (currentReportType === 'weekly') {
-                targetForm = document.getElementById('weekly-report-form');
-            } else if (currentReportType === 'monthly') {
-                targetForm = document.getElementById('monthly-report-form');
-            } else {
-                targetForm = document.getElementById('activity-form');
-            }
-            
-            const requiredFields = targetForm.querySelectorAll('input[required], select[required], textarea[required]');
-            let isValid = true;
-            
-            requiredFields.forEach(field => {
-                if (!field.value.trim()) {
-                    field.style.borderColor = '#e74c3c';
-                    isValid = false;
-                } else {
-                    field.style.borderColor = '#e8f4f8';
-                }
-            });
-            
-            return isValid;
-        }
-        
-        // Enhanced PDF generation with validation
-        const originalGeneratePDF = generatePDF;
-        generatePDF = function() {
-            // Basic validation for empty forms
-            const currentMapping = fieldMappings[currentReportType];
-            const formData = getCurrentFormData(currentMapping.order);
-            
-            const hasData = Object.values(formData).some(value => value.trim() !== '');
-            
-            if (!hasData) {
-                showNotification('يرجى تعبئة بعض الحقول قبل إنشاء التقرير', 'warning');
-                return;
-            }
-            
-            originalGeneratePDF();
-        };
-        
-        // Print functionality
-        function printForm() {
-            window.print();
-        }
-        
-        // Enhanced form field animations
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('input, select, textarea').forEach(field => {
                 field.addEventListener('focus', function() {
@@ -1552,7 +2136,6 @@
             });
         });
 
-        // Add smooth scrolling for better UX
         document.addEventListener('scroll', function() {
             const header = document.querySelector('.header');
             if (window.scrollY > 100) {
@@ -1564,68 +2147,6 @@
             }
         });
 
-        // Initialize form with today's date
-        document.addEventListener('DOMContentLoaded', function() {
-            const today = new Date();
-            const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            }).format(today);
-            
-            // Add Hijri date display
-            const dateInputs = document.querySelectorAll('input[type="date"]');
-            dateInputs.forEach(input => {
-                input.addEventListener('change', function() {
-                    const selectedDate = new Date(this.value);
-                    const hijri = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric'
-                    }).format(selectedDate);
-                    
-                    // Could add hijri date display here if needed
-                });
-            });
-        });
-
-        // Export functionality
-        function exportToExcel() {
-            showNotification('جاري تحضير ملف Excel...', 'info');
-            
-            const currentMapping = fieldMappings[currentReportType];
-            const formData = getCurrentFormData(currentMapping.order);
-            
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            
-            // Add headers
-            csvContent += "الحقل,القيمة\n";
-            
-            // Add data
-            currentMapping.order.forEach(fieldId => {
-                if (formData[fieldId]) {
-                    const label = currentMapping.labels[fieldId];
-                    const value = formData[fieldId].replace(/,/g, '،'); // Replace commas
-                    csvContent += `"${label}","${value}"\n`;
-                }
-            });
-            
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            
-            const reportTitle = document.getElementById('form-title').textContent;
-            const fileName = `${reportTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
-            link.setAttribute("download", fileName);
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            showNotification('تم تصدير البيانات بنجاح!', 'success');
-        }
-
-        // Add context menu for additional options
         document.addEventListener('contextmenu', function(event) {
             if (event.target.matches('input, textarea, select')) {
                 event.preventDefault();
@@ -1652,10 +2173,32 @@
                 `;
                 clearOption.addEventListener('click', function() {
                     event.target.value = '';
+                    event.target.classList.remove('form-validation-error');
+                    const errorElement = document.getElementById(event.target.id + '-error');
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                    }
+                    updateFormProgress();
+                    document.body.removeChild(menu);
+                });
+                
+                const copyOption = document.createElement('div');
+                copyOption.textContent = 'نسخ النص';
+                copyOption.style.cssText = `
+                    padding: 8px 15px;
+                    cursor: pointer;
+                    font-size: 14px;
+                `;
+                copyOption.addEventListener('click', function() {
+                    navigator.clipboard.writeText(event.target.value);
+                    showNotification('تم نسخ النص', 'success');
                     document.body.removeChild(menu);
                 });
                 
                 menu.appendChild(clearOption);
+                if (event.target.value) {
+                    menu.appendChild(copyOption);
+                }
                 document.body.appendChild(menu);
                 
                 document.addEventListener('click', function() {
@@ -1665,6 +2208,348 @@
                 }, { once: true });
             }
         });
+
+        // Auto-save functionality
+        function enableAutoSave() {
+            setInterval(() => {
+                const currentMapping = fieldMappings[currentReportType];
+                const formData = getCurrentFormData(currentMapping.order);
+                
+                const hasData = Object.values(formData).some(value => value.trim() !== '');
+                if (hasData) {
+                    const autoSaveData = {
+                        reportType: currentReportType,
+                        data: formData,
+                        timestamp: new Date().toISOString(),
+                        isAutoSave: true
+                    };
+                    
+                    localStorage.setItem('autoSaveData', JSON.stringify(autoSaveData));
+                }
+            }, 30000); // Auto-save every 30 seconds
+        }
+
+        function loadAutoSaveData() {
+            const autoSaveData = localStorage.getItem('autoSaveData');
+            if (autoSaveData) {
+                const data = JSON.parse(autoSaveData);
+                const timeDiff = new Date() - new Date(data.timestamp);
+                
+                // If auto-save is less than 1 hour old
+                if (timeDiff < 3600000) {
+                    if (confirm('تم العثور على بيانات محفوظة تلقائياً. هل تريد استردادها؟')) {
+                        currentReportType = data.reportType;
+                        
+                        // Load the appropriate form
+                        if (data.reportType !== 'activity') {
+                            selectReportType(data.reportType);
+                        }
+                        
+                        // Fill the form data
+                        Object.entries(data.data).forEach(([fieldId, value]) => {
+                            const field = document.getElementById(fieldId);
+                            if (field) {
+                                field.value = value;
+                            }
+                        });
+                        
+                        updateFormProgress();
+                        showNotification('تم استرداد البيانات المحفوظة تلقائياً', 'success');
+                    }
+                }
+            }
+        }
+
+        // Initialize auto-save when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                loadAutoSaveData();
+                enableAutoSave();
+            }, 1000);
+        });
+
+        // Print functionality
+        function printForm() {
+            const currentForm = getCurrentActiveForm();
+            if (!currentForm) return;
+
+            const printWindow = window.open('', '_blank');
+            const reportTitle = document.getElementById('form-title').textContent;
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html dir="rtl">
+                <head>
+                    <title>${reportTitle}</title>
+                    <style>
+                        body { font-family: 'Tajawal', Arial, sans-serif; margin: 20px; }
+                        .header { text-align: center; border-bottom: 2px solid #4a90a4; padding-bottom: 20px; margin-bottom: 30px; }
+                        .form-group { margin-bottom: 15px; page-break-inside: avoid; }
+                        .form-group label { font-weight: bold; color: #2c6470; }
+                        .form-group input, .form-group select, .form-group textarea { 
+                            border: 1px solid #ddd; padding: 8px; width: 100%; margin-top: 5px; 
+                        }
+                        .footer { margin-top: 40px; border-top: 1px solid #ddd; padding-top: 20px; }
+                        @media print { .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
+                        <h2>${reportTitle}</h2>
+                        <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
+                    </div>
+                    ${currentForm.innerHTML}
+                    <div class="footer">
+                        <p>رائد النشاط: عبدالله الحربي</p>
+                        <p>التوقيع: ________________</p>
+                    </div>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 1000);
+        }
+
+        // Enhanced keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            // Existing shortcuts
+            if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                event.preventDefault();
+                generatePDF();
+            }
+            
+            if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
+                event.preventDefault();
+                clearForm();
+            }
+            
+            if (event.key === 'Escape') {
+                closeReportModal();
+            }
+
+            // New shortcuts
+            if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
+                event.preventDefault();
+                printForm();
+            }
+
+            if ((event.ctrlKey || event.metaKey) && event.key === 'e') {
+                event.preventDefault();
+                exportToExcel();
+            }
+
+            if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+                event.preventDefault();
+                backupData();
+            }
+
+            if ((event.ctrlKey || event.metaKey) && event.key === 'v' && event.shiftKey) {
+                event.preventDefault();
+                validateForm();
+            }
+        });
+
+        // Field auto-completion suggestions
+        const suggestionData = {
+            'education-dept': ['إدارة تعليم الرياض', 'إدارة تعليم جدة', 'إدارة تعليم الدمام', 'إدارة تعليم مكة'],
+            'teacher-name': ['أحمد محمد', 'فاطمة العلي', 'محمد السعد', 'نورا الأحمد'],
+            'specialization': ['رياضيات', 'علوم', 'لغة عربية', 'لغة إنجليزية', 'اجتماعيات', 'تربية بدنية'],
+            'venue': ['المسرح المدرسي', 'الصالة الرياضية', 'المكتبة', 'المختبر', 'الفناء', 'قاعة الحاسوب']
+        };
+
+        function setupAutoComplete() {
+            Object.keys(suggestionData).forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', function() {
+                        showSuggestions(this, suggestionData[fieldId]);
+                    });
+                }
+            });
+        }
+
+        function showSuggestions(input, suggestions) {
+            const value = input.value.toLowerCase();
+            const filteredSuggestions = suggestions.filter(suggestion => 
+                suggestion.toLowerCase().includes(value)
+            );
+
+            // Remove existing suggestions
+            const existingSuggestions = document.querySelector('.suggestions-list');
+            if (existingSuggestions) {
+                existingSuggestions.remove();
+            }
+
+            if (filteredSuggestions.length > 0 && value.length > 1) {
+                const suggestionsList = document.createElement('div');
+                suggestionsList.className = 'suggestions-list';
+                suggestionsList.style.cssText = `
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-top: none;
+                    border-radius: 0 0 6px 6px;
+                    max-height: 150px;
+                    overflow-y: auto;
+                    z-index: 100;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                `;
+
+                filteredSuggestions.forEach(suggestion => {
+                    const suggestionItem = document.createElement('div');
+                    suggestionItem.textContent = suggestion;
+                    suggestionItem.style.cssText = `
+                        padding: 8px 12px;
+                        cursor: pointer;
+                        border-bottom: 1px solid #f0f0f0;
+                    `;
+                    
+                    suggestionItem.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = '#f8f9fa';
+                    });
+                    
+                    suggestionItem.addEventListener('mouseleave', function() {
+                        this.style.backgroundColor = 'white';
+                    });
+                    
+                    suggestionItem.addEventListener('click', function() {
+                        input.value = suggestion;
+                        suggestionsList.remove();
+                        updateFormProgress();
+                    });
+                    
+                    suggestionsList.appendChild(suggestionItem);
+                });
+
+                input.parentNode.style.position = 'relative';
+                input.parentNode.appendChild(suggestionsList);
+
+                // Remove suggestions when clicking elsewhere
+                document.addEventListener('click', function(event) {
+                    if (!input.contains(event.target) && !suggestionsList.contains(event.target)) {
+                        suggestionsList.remove();
+                    }
+                }, { once: true });
+            }
+        }
+
+        // Initialize auto-complete
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(setupAutoComplete, 500);
+        });
+
+        // Add help tooltips
+        function addHelpTooltips() {
+            const helpTexts = {
+                'program-objectives': 'اكتب الأهداف التعليمية والتربوية المراد تحقيقها من البرنامج',
+                'program-impact': 'صف التأثير الإيجابي المتوقع على الطلاب والمجتمع المدرسي',
+                'evidence': 'اذكر الأدلة والشواهد التي تثبت نجاح البرنامج مثل الصور والمشاركات',
+                'daily-objectives': 'حدد الأهداف التعليمية الواضحة والقابلة للقياس للدرس',
+                'weekly-strength-points': 'اذكر المهارات والقدرات التي يتميز بها الطلاب',
+                'monthly-completion-rate': 'احسب النسبة المئوية لإنجاز الخطة الدراسية'
+            };
+
+            Object.keys(helpTexts).forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    const helpIcon = document.createElement('span');
+                    helpIcon.innerHTML = ' ❓';
+                    helpIcon.style.cssText = `
+                        cursor: help;
+                        color: #4a90a4;
+                        font-size: 0.9em;
+                        margin-right: 5px;
+                    `;
+                    helpIcon.title = helpTexts[fieldId];
+                    
+                    field.parentNode.querySelector('label').appendChild(helpIcon);
+                }
+            });
+        }
+
+        // Initialize help tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(addHelpTooltips, 600);
+        });
+
+        // Enhanced notification system with action buttons
+        function showAdvancedNotification(message, type, actions = []) {
+            const colors = {
+                'success': '#27ae60',
+                'error': '#e74c3c',
+                'warning': '#f39c12',
+                'info': '#3498db'
+            };
+            
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${colors[type] || colors.info};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                z-index: 1000;
+                font-weight: 500;
+                max-width: 350px;
+                animation: slideInRight 0.3s ease-out;
+            `;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = message;
+            messageDiv.style.marginBottom = actions.length > 0 ? '10px' : '0';
+            notification.appendChild(messageDiv);
+            
+            if (actions.length > 0) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.style.cssText = `
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 10px;
+                `;
+                
+                actions.forEach(action => {
+                    const actionBtn = document.createElement('button');
+                    actionBtn.textContent = action.text;
+                    actionBtn.style.cssText = `
+                        background: rgba(255,255,255,0.2);
+                        border: 1px solid rgba(255,255,255,0.3);
+                        color: white;
+                        padding: 5px 10px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 0.85em;
+                    `;
+                    actionBtn.onclick = () => {
+                        action.callback();
+                        notification.remove();
+                    };
+                    actionsDiv.appendChild(actionBtn);
+                });
+                
+                notification.appendChild(actionsDiv);
+            }
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    notification.style.animation = 'slideOutRight 0.3s ease-in';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
+        }
     </script>
 </body>
 </html>
