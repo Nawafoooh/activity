@@ -13,338 +13,6 @@
             padding: 0;
             box-sizing: border-box;
         }
-
-        // دالة إنشاء PDF بالعربية الأصلية
-        function generateArabicPDF() {
-            if (!validateForm()) {
-                showNotification('يرجى إكمال الحقول المطلوبة قبل إنشاء التقرير', 'warning');
-                return;
-            }
-
-            showNotification('جاري إنشاء ملف PDF بالعربية...', 'info');
-
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-
-                // تسجيل الخط العربي
-                registerArabicFont(doc);
-
-                const currentMapping = fieldMappings[currentReportType];
-                const formData = getCurrentFormData(currentMapping.order);
-
-                const hasData = Object.values(formData).some(value => value.trim() !== '');
-                if (!hasData) {
-                    showNotification('يرجى تعبئة بعض الحقول قبل إنشاء التقرير', 'warning');
-                    return;
-                }
-
-                // إنشاء الهيدر العربي
-                createArabicPDFHeader(doc);
-                
-                // عنوان التقرير
-                const reportTitle = document.getElementById('form-title').textContent;
-                createArabicPDFTitle(doc, reportTitle);
-                
-                // محتوى التقرير
-                let currentY = createArabicPDFContent(doc, formData, currentMapping);
-                
-                // التذييل
-                createArabicPDFFooter(doc, currentY);
-
-                // حفظ الملف
-                const fileName = `تقرير_${reportTitle.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('ar-SA').replace(/\//g, '-')}.pdf`;
-                doc.save(fileName);
-
-                // تحديث الإحصائيات
-                stats.reportsGenerated++;
-                updateStats();
-                showNotification('تم تحميل ملف PDF بالعربية بنجاح!', 'success');
-
-            } catch (error) {
-                console.error('خطأ في إنشاء PDF بالعربية:', error);
-                showNotification('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
-            }
-        }
-
-        function createArabicPDFHeader(doc) {
-            // خلفية الهيدر
-            doc.setFillColor(44, 100, 112);
-            doc.rect(0, 0, 210, 60, 'F');
-            
-            // إطار زخرفي
-            doc.setDrawColor(255, 255, 255);
-            doc.setLineWidth(2);
-            doc.rect(5, 5, 200, 50);
-            
-            // شعار المملكة (دائرة)
-            doc.setFillColor(255, 255, 255);
-            doc.circle(180, 30, 8, 'FD');
-            doc.setFillColor(44, 100, 112);
-            doc.circle(180, 30, 6, 'F');
-            
-            // النصوص العربية
-            doc.setFont('Amiri', 'normal');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(16);
-            
-            try {
-                // محاولة كتابة النص العربي
-                doc.text('المملكة العربية السعودية', 200, 18, { align: 'right' });
-                doc.setFontSize(14);
-                doc.text('وزارة التعليم', 200, 28, { align: 'right' });
-                doc.setFontSize(12);
-                doc.text('مكتب تعليم العوالي', 200, 38, { align: 'right' });
-                doc.setFontSize(11);
-                doc.text('متوسطة المنذر بن عمرو الأنصاري', 200, 48, { align: 'right' });
-            } catch (error) {
-                // في حالة فشل الخط العربي، استخدام بديل
-                doc.setFont('helvetica', 'bold');
-                doc.text('Kingdom of Saudi Arabia', 105, 18, { align: 'center' });
-                doc.text('Ministry of Education', 105, 28, { align: 'center' });
-                doc.text('Al-Awali Education Office', 105, 38, { align: 'center' });
-                doc.text('Al-Mundhir bin Amr Al-Ansari Middle School', 105, 48, { align: 'center' });
-            }
-        }
-
-        function createArabicPDFTitle(doc, reportTitle) {
-            doc.setFont('Amiri', 'normal');
-            doc.setTextColor(44, 100, 112);
-            doc.setFontSize(18);
-            
-            try {
-                doc.text(reportTitle, 200, 80, { align: 'right' });
-            } catch (error) {
-                doc.setFont('helvetica', 'bold');
-                doc.text(reportTitle, 105, 80, { align: 'center' });
-            }
-            
-            // خط زخرفي
-            doc.setDrawColor(74, 144, 164);
-            doc.setLineWidth(1);
-            doc.line(30, 90, 180, 90);
-            
-            doc.setFillColor(74, 144, 164);
-            doc.circle(25, 90, 2, 'F');
-            doc.circle(185, 90, 2, 'F');
-        }
-
-        function createArabicPDFContent(doc, formData, mapping) {
-            let yPosition = 105;
-            
-            // معلومات المدرسة
-            yPosition = addArabicSchoolInfo(doc, yPosition);
-            
-            // المعلومات الأساسية
-            yPosition = addArabicBasicData(doc, formData, mapping, yPosition);
-            
-            // المحتوى التفصيلي
-            yPosition = addArabicDetailedContent(doc, formData, mapping, yPosition);
-            
-            return yPosition;
-        }
-
-        function addArabicSchoolInfo(doc, startY) {
-            let yPosition = startY;
-            
-            doc.setDrawColor(74, 144, 164);
-            doc.setLineWidth(0.5);
-            doc.rect(20, yPosition - 5, 170, 25);
-            
-            doc.setFillColor(248, 251, 252);
-            doc.rect(20, yPosition - 5, 170, 25, 'F');
-            
-            doc.setFont('Amiri', 'normal');
-            doc.setFontSize(12);
-            doc.setTextColor(44, 100, 112);
-            
-            try {
-                doc.text('معلومات المدرسة', 185, yPosition + 3, { align: 'right' });
-                doc.setFontSize(10);
-                doc.setTextColor(46, 62, 80);
-                doc.text('المدرسة: متوسطة المنذر بن عمرو الأنصاري', 185, yPosition + 12, { align: 'right' });
-                doc.text('رائد النشاط: عبدالله الحربي', 185, yPosition + 18, { align: 'right' });
-            } catch (error) {
-                doc.setFont('helvetica', 'bold');
-                doc.text('School Information', 25, yPosition + 3);
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(10);
-                doc.text('School: Al-Mundhir bin Amr Al-Ansari Middle School', 25, yPosition + 12);
-                doc.text('Activity Coordinator: Abdullah Al-Harbi', 25, yPosition + 18);
-            }
-            
-            return yPosition + 35;
-        }
-
-        function addArabicBasicData(doc, formData, mapping, startY) {
-            let yPosition = startY;
-            
-            doc.setFont('Amiri', 'normal');
-            doc.setFontSize(12);
-            doc.setTextColor(44, 100, 112);
-            
-            try {
-                doc.text('المعلومات الأساسية', 185, yPosition, { align: 'right' });
-            } catch (error) {
-                doc.setFont('helvetica', 'bold');
-                doc.text('Basic Information', 25, yPosition);
-            }
-            
-            yPosition += 15;
-            
-            const basicFields = getBasicFields(mapping.order);
-            
-            basicFields.forEach(fieldId => {
-                if (formData[fieldId] && yPosition < 250) {
-                    const label = mapping.labels[fieldId];
-                    const value = formData[fieldId];
-                    
-                    doc.setFont('Amiri', 'normal');
-                    doc.setFontSize(10);
-                    doc.setTextColor(44, 100, 112);
-                    
-                    try {
-                        doc.text(`${label}:`, 185, yPosition, { align: 'right' });
-                        doc.setTextColor(46, 62, 80);
-                        doc.text(value, 185, yPosition + 5, { align: 'right' });
-                    } catch (error) {
-                        doc.setFont('helvetica', 'normal');
-                        doc.text(`${label}: ${value}`, 25, yPosition);
-                    }
-                    
-                    yPosition += 12;
-                    
-                    if (yPosition > 250) {
-                        doc.addPage();
-                        yPosition = 30;
-                    }
-                }
-            });
-            
-            return yPosition + 10;
-        }
-
-        function addArabicDetailedContent(doc, formData, mapping, startY) {
-            let yPosition = startY;
-            
-            const detailedFields = getDetailedFields(mapping.order);
-            
-            detailedFields.forEach(fieldId => {
-                if (formData[fieldId] && formData[fieldId].trim()) {
-                    if (yPosition > 240) {
-                        doc.addPage();
-                        yPosition = 30;
-                    }
-                    
-                    const label = mapping.labels[fieldId];
-                    const content = formData[fieldId];
-                    
-                    doc.setFont('Amiri', 'normal');
-                    doc.setFontSize(11);
-                    doc.setTextColor(44, 100, 112);
-                    
-                    try {
-                        doc.text(`${label}:`, 185, yPosition, { align: 'right' });
-                        
-                        yPosition += 8;
-                        
-                        doc.setFontSize(10);
-                        doc.setTextColor(46, 62, 80);
-                        
-                        // تقسيم النص لعدة أسطر
-                        const lines = doc.splitTextToSize(content, 160);
-                        
-                        // خلفية للمحتوى
-                        const contentHeight = lines.length * 5 + 6;
-                        doc.setDrawColor(230, 244, 248);
-                        doc.setFillColor(248, 251, 252);
-                        doc.rect(25, yPosition - 2, 160, contentHeight, 'FD');
-                        
-                        // النص العربي من اليمين
-                        lines.forEach((line, index) => {
-                            doc.text(line, 180, yPosition + 3 + (index * 5), { align: 'right' });
-                        });
-                        
-                        yPosition += contentHeight + 8;
-                        
-                    } catch (error) {
-                        doc.setFont('helvetica', 'normal');
-                        doc.text(`${label}: ${content}`, 25, yPosition);
-                        yPosition += 15;
-                    }
-                }
-            });
-            
-            return yPosition;
-        }
-
-        function createArabicPDFFooter(doc, startY) {
-            const pageHeight = 297;
-            let yPosition = Math.max(startY + 20, pageHeight - 70);
-            
-            // خط فاصل
-            doc.setDrawColor(74, 144, 164);
-            doc.setLineWidth(0.5);
-            doc.line(25, yPosition, 185, yPosition);
-            
-            yPosition += 15;
-            
-            // أقسام التوقيع
-            doc.setFont('Amiri', 'normal');
-            doc.setFontSize(11);
-            doc.setTextColor(44, 100, 112);
-            
-            try {
-                // رائد النشاط (على اليمين)
-                doc.text('رائد النشاط', 170, yPosition, { align: 'right' });
-                doc.setFontSize(9);
-                doc.text('عبدالله الحربي', 170, yPosition + 8, { align: 'right' });
-                doc.line(130, yPosition + 15, 180, yPosition + 15);
-                
-                // مدير المدرسة (على اليسار)
-                doc.setFontSize(11);
-                doc.text('مدير المدرسة', 80, yPosition, { align: 'right' });
-                doc.setFontSize(9);
-                doc.text('التوقيع', 80, yPosition + 8, { align: 'right' });
-                doc.line(30, yPosition + 15, 80, yPosition + 15);
-                
-            } catch (error) {
-                doc.setFont('helvetica', 'bold');
-                // نسخة إنجليزية في حالة فشل العربية
-                doc.text('Activity Coordinator', 140, yPosition);
-                doc.setFont('helvetica', 'normal');
-                doc.text('Abdullah Al-Harbi', 140, yPosition + 8);
-                doc.line(120, yPosition + 15, 180, yPosition + 15);
-                
-                doc.setFont('helvetica', 'bold');
-                doc.text('School Principal', 70, yPosition);
-                doc.setFont('helvetica', 'normal');
-                doc.text('Signature', 70, yPosition + 8);
-                doc.line(30, yPosition + 15, 80, yPosition + 15);
-            }
-            
-            yPosition += 30;
-            
-            // معلومات المدرسة
-            doc.setFont('Amiri', 'normal');
-            doc.setFontSize(8);
-            doc.setTextColor(128, 128, 128);
-            
-            const currentDate = new Date().toLocaleDateString('ar-SA');
-            
-            try {
-                doc.text('متوسطة المنذر بن عمرو الأنصاري', 105, yPosition, { align: 'center' });
-                doc.text(`التاريخ: ${currentDate}`, 105, yPosition + 8, { align: 'center' });
-            } catch (error) {
-                doc.setFont('helvetica', 'normal');
-                doc.text('Al-Mundhir bin Amr Al-Ansari Middle School', 105, yPosition, { align: 'center' });
-                doc.text(`Date: ${currentDate}`, 105, yPosition + 8, { align: 'center' });
-            }
-        }
         
         body {
             font-family: 'Tajawal', Arial, sans-serif;
@@ -647,66 +315,130 @@
             border-color: #4a90a4;
             box-shadow: 0 0 0 3px rgba(74, 144, 164, 0.1);
         }
-        
-        .action-buttons {
+
+        /* Evidence Upload Section */
+        .evidence-section {
+            background: linear-gradient(135deg, #f8fbfc, #ffffff);
+            border: 2px dashed #4a90a4;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
             text-align: center;
-            margin: 30px 0;
+            transition: all 0.3s ease;
         }
-        
-        .btn {
-            background: linear-gradient(135deg, #4a90a4, #357a8a);
+
+        .evidence-section:hover {
+            border-color: #2c6470;
+            background: linear-gradient(135deg, #e8f4f8, #f0f8ff);
+        }
+
+        .evidence-section.dragover {
+            border-color: #27ae60;
+            background: linear-gradient(135deg, #e8f8f5, #f0fdf4);
+        }
+
+        .upload-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #4a90a4;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #2c6470;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .upload-subtext {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #4a90a4, #2c6470);
             color: white;
-            padding: 14px 30px;
+            padding: 12px 25px;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 1em;
             font-weight: 500;
-            margin: 0 10px;
             transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            text-decoration: none;
         }
-        
-        .btn:hover {
-            background: linear-gradient(135deg, #357a8a, #2c6470);
+
+        .upload-btn:hover {
+            background: linear-gradient(135deg, #357a8a, #1e4f56);
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(74, 144, 164, 0.3);
         }
-        
-        .btn.secondary {
-            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+
+        .evidence-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(74, 144, 164, 0.05);
+            border-radius: 8px;
         }
-        
-        .btn.secondary:hover {
-            background: linear-gradient(135deg, #7f8c8d, #6c7b7d);
+
+        .evidence-item {
+            position: relative;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
         }
-        
-        .footer {
-            background: linear-gradient(135deg, #2c3e50, #34495e);
-            color: white;
+
+        .evidence-item:hover {
+            transform: translateY(-3px);
+        }
+
+        .evidence-item img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+        }
+
+        .evidence-item .file-info {
+            padding: 8px;
+            font-size: 0.8em;
             text-align: center;
-            padding: 25px;
-            margin-top: auto;
+            color: #2c6470;
         }
-        
-        .footer p {
-            margin: 5px 0;
-            opacity: 0.9;
+
+        .evidence-item .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 0.8em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        .footer .copyright {
-            font-size: 0.9em;
-            margin-top: 10px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .footer .developer {
-            color: #74b9ff;
-            font-weight: 500;
+
+        .evidence-item .remove-btn:hover {
+            background: #c0392b;
         }
 
         .stats-dashboard {
@@ -781,6 +513,95 @@
             background: linear-gradient(135deg, #e67e22, #d35400);
         }
         
+        .action-buttons {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4a90a4, #357a8a);
+            color: white;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #357a8a, #2c6470);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(74, 144, 164, 0.3);
+        }
+        
+        .btn.secondary {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        }
+        
+        .btn.secondary:hover {
+            background: linear-gradient(135deg, #7f8c8d, #6c7b7d);
+        }
+        
+        .footer {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            text-align: center;
+            padding: 25px;
+            margin-top: auto;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+            opacity: 0.9;
+        }
+        
+        .footer .copyright {
+            font-size: 0.9em;
+            margin-top: 10px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .footer .developer {
+            color: #74b9ff;
+            font-weight: 500;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #4a90a4, #2c6470);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .form-validation-error {
+            border-color: #e74c3c !important;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1) !important;
+        }
+
+        .validation-message {
+            color: #e74c3c;
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: none;
+        }
+        
         @media (max-width: 768px) {
             .activities-grid {
                 grid-template-columns: 1fr;
@@ -817,6 +638,10 @@
 
             .stats-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .evidence-preview {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             }
         }
         
@@ -891,32 +716,9 @@
             to { transform: translateX(100%); opacity: 0; }
         }
 
-        .form-validation-error {
-            border-color: #e74c3c !important;
-            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1) !important;
-        }
-
-        .validation-message {
-            color: #e74c3c;
-            font-size: 0.85em;
-            margin-top: 5px;
-            display: none;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: #ecf0f1;
-            border-radius: 3px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(135deg, #4a90a4, #2c6470);
-            width: 0%;
-            transition: width 0.3s ease;
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
     </style>
 </head>
@@ -946,8 +748,8 @@
                     <div class="stat-label">النماذج المكتملة</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number" id="active-sessions">1</div>
-                    <div class="stat-label">الجلسات النشطة</div>
+                    <div class="stat-number" id="evidence-uploaded">0</div>
+                    <div class="stat-label">الشواهد المرفوعة</div>
                 </div>
             </div>
         </div>
@@ -1111,9 +913,24 @@
                     <textarea id="program-impact" placeholder="اكتب الأثر الإيجابي والفوائد المحققة من البرنامج على الطلاب والمجتمع المدرسي..."></textarea>
                 </div>
                 
+                <!-- Evidence Upload Section -->
                 <div class="form-group large-field">
-                    <label for="evidence">الشواهد</label>
-                    <textarea id="evidence" placeholder="اكتب وصف الشواهد والأدلة على نجاح البرنامج..."></textarea>
+                    <label for="evidence-text">وصف الشواهد</label>
+                    <textarea id="evidence-text" placeholder="اكتب وصف الشواهد والأدلة على نجاح البرنامج..."></textarea>
+                </div>
+
+                <div class="form-group large-field">
+                    <label>رفع الشواهد (الصور والملفات)</label>
+                    <div class="evidence-section" id="evidence-section">
+                        <div class="upload-area" onclick="document.getElementById('evidence-files').click()">
+                            <div class="upload-icon">📁</div>
+                            <div class="upload-text">اسحب الملفات هنا أو انقر للتصفح</div>
+                            <div class="upload-subtext">يمكن رفع الصور (JPG, PNG) والمستندات (PDF, DOC)</div>
+                            <button type="button" class="upload-btn">اختيار الملفات</button>
+                        </div>
+                        <input type="file" id="evidence-files" class="file-input" multiple accept="image/*,.pdf,.doc,.docx">
+                        <div class="evidence-preview" id="evidence-preview"></div>
+                    </div>
                 </div>
             </form>
             
@@ -1207,6 +1024,20 @@
                     <label for="daily-challenges">التحديات الصفية</label>
                     <textarea id="daily-challenges" placeholder="اكتب التحديات الصفية..."></textarea>
                 </div>
+
+                <div class="form-group large-field">
+                    <label>رفع شواهد التقرير اليومي</label>
+                    <div class="evidence-section" id="daily-evidence-section">
+                        <div class="upload-area" onclick="document.getElementById('daily-evidence-files').click()">
+                            <div class="upload-icon">📁</div>
+                            <div class="upload-text">اسحب الملفات هنا أو انقر للتصفح</div>
+                            <div class="upload-subtext">صور الأنشطة، أوراق العمل، نماذج التقييم</div>
+                            <button type="button" class="upload-btn">اختيار الملفات</button>
+                        </div>
+                        <input type="file" id="daily-evidence-files" class="file-input" multiple accept="image/*,.pdf,.doc,.docx">
+                        <div class="evidence-preview" id="daily-evidence-preview"></div>
+                    </div>
+                </div>
             </form>
             
             <!-- Weekly Report Form -->
@@ -1279,6 +1110,20 @@
                 <div class="form-group large-field">
                     <label for="weekly-educational-challenges">أبرز التحديات التعليمية</label>
                     <textarea id="weekly-educational-challenges" placeholder="اكتب أبرز التحديات التعليمية..."></textarea>
+                </div>
+
+                <div class="form-group large-field">
+                    <label>رفع شواهد التقرير الأسبوعي</label>
+                    <div class="evidence-section" id="weekly-evidence-section">
+                        <div class="upload-area" onclick="document.getElementById('weekly-evidence-files').click()">
+                            <div class="upload-icon">📁</div>
+                            <div class="upload-text">اسحب الملفات هنا أو انقر للتصفح</div>
+                            <div class="upload-subtext">نماذج التقييم، إحصائيات الأداء، تقارير المتابعة</div>
+                            <button type="button" class="upload-btn">اختيار الملفات</button>
+                        </div>
+                        <input type="file" id="weekly-evidence-files" class="file-input" multiple accept="image/*,.pdf,.doc,.docx">
+                        <div class="evidence-preview" id="weekly-evidence-preview"></div>
+                    </div>
                 </div>
             </form>
             
@@ -1358,6 +1203,20 @@
                     <label for="monthly-final-plan">الخطة الإثرائية للطلاب المتميزين</label>
                     <textarea id="monthly-final-plan" placeholder="اكتب الخطة الإثرائية للطلاب المتميزين..."></textarea>
                 </div>
+
+                <div class="form-group large-field">
+                    <label>رفع شواهد التقرير الشهري</label>
+                    <div class="evidence-section" id="monthly-evidence-section">
+                        <div class="upload-area" onclick="document.getElementById('monthly-evidence-files').click()">
+                            <div class="upload-icon">📁</div>
+                            <div class="upload-text">اسحب الملفات هنا أو انقر للتصفح</div>
+                            <div class="upload-subtext">التقارير الشاملة، الإحصائيات، الخطط المستقبلية</div>
+                            <button type="button" class="upload-btn">اختيار الملفات</button>
+                        </div>
+                        <input type="file" id="monthly-evidence-files" class="file-input" multiple accept="image/*,.pdf,.doc,.docx">
+                        <div class="evidence-preview" id="monthly-evidence-preview"></div>
+                    </div>
+                </div>
             </form>
             
             <div class="action-buttons">
@@ -1414,7 +1273,14 @@
         let stats = {
             reportsGenerated: 0,
             formsCompleted: 0,
-            activeSessions: 1
+            evidenceUploaded: 0
+        };
+
+        let uploadedFiles = {
+            activity: [],
+            daily: [],
+            weekly: [],
+            monthly: []
         };
         
         // Field mappings for all report types
@@ -1423,7 +1289,7 @@
                 order: [
                     'education-dept', 'school-name', 'teacher-name', 'specialization', 'semester', 'grade',
                     'date', 'day', 'period', 'attendance', 'presence', 'venue', 'program-name',
-                    'program-objectives', 'program-impact', 'evidence'
+                    'program-objectives', 'program-impact', 'evidence-text'
                 ],
                 labels: {
                     'education-dept': 'إدارة التعليم',
@@ -1441,7 +1307,7 @@
                     'program-name': 'اسم البرنامج',
                     'program-objectives': 'أهداف البرنامج',
                     'program-impact': 'الأثر الإيجابي للبرنامج',
-                    'evidence': 'الشواهد'
+                    'evidence-text': 'وصف الشواهد'
                 }
             },
             'daily': {
@@ -1518,6 +1384,7 @@
             initializeDateFields(today);
             loadSavedData();
             updateStats();
+            setupFileUpload();
             
             setTimeout(() => {
                 document.querySelectorAll('.loading').forEach(el => {
@@ -1525,9 +1392,126 @@
                 });
             }, 2000);
 
-            // Add form progress tracking
             addFormProgressTracking();
         });
+
+        // File Upload Setup
+        function setupFileUpload() {
+            const evidenceSections = ['evidence-section', 'daily-evidence-section', 'weekly-evidence-section', 'monthly-evidence-section'];
+            const fileInputs = ['evidence-files', 'daily-evidence-files', 'weekly-evidence-files', 'monthly-evidence-files'];
+            
+            evidenceSections.forEach((sectionId, index) => {
+                const section = document.getElementById(sectionId);
+                const fileInput = document.getElementById(fileInputs[index]);
+                
+                if (section && fileInput) {
+                    // Drag and drop functionality
+                    section.addEventListener('dragover', function(e) {
+                        e.preventDefault();
+                        this.classList.add('dragover');
+                    });
+                    
+                    section.addEventListener('dragleave', function(e) {
+                        e.preventDefault();
+                        this.classList.remove('dragover');
+                    });
+                    
+                    section.addEventListener('drop', function(e) {
+                        e.preventDefault();
+                        this.classList.remove('dragover');
+                        const files = e.dataTransfer.files;
+                        handleFileUpload(files, getReportTypeFromSectionId(sectionId));
+                    });
+                    
+                    // File input change event
+                    fileInput.addEventListener('change', function(e) {
+                        const files = e.target.files;
+                        handleFileUpload(files, getReportTypeFromSectionId(sectionId));
+                    });
+                }
+            });
+        }
+
+        function getReportTypeFromSectionId(sectionId) {
+            if (sectionId.includes('daily')) return 'daily';
+            if (sectionId.includes('weekly')) return 'weekly';
+            if (sectionId.includes('monthly')) return 'monthly';
+            return 'activity';
+        }
+
+        function handleFileUpload(files, reportType) {
+            const maxFileSize = 10 * 1024 * 1024; // 10MB
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            
+            Array.from(files).forEach(file => {
+                if (file.size > maxFileSize) {
+                    showNotification('حجم الملف كبير جداً. الحد الأقصى 10 ميجابايت', 'error');
+                    return;
+                }
+                
+                if (!allowedTypes.includes(file.type)) {
+                    showNotification('نوع الملف غير مدعوم. يرجى رفع صور أو مستندات PDF/Word فقط', 'error');
+                    return;
+                }
+                
+                const fileData = {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    lastModified: file.lastModified,
+                    data: null
+                };
+                
+                // Read file as base64 for storage
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    fileData.data = e.target.result;
+                    uploadedFiles[reportType].push(fileData);
+                    updateEvidencePreview(reportType);
+                    stats.evidenceUploaded++;
+                    updateStats();
+                    showNotification(`تم رفع الملف: ${file.name}`, 'success');
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function updateEvidencePreview(reportType) {
+            const previewId = reportType === 'activity' ? 'evidence-preview' : `${reportType}-evidence-preview`;
+            const preview = document.getElementById(previewId);
+            
+            if (!preview) return;
+            
+            preview.innerHTML = '';
+            
+            uploadedFiles[reportType].forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'evidence-item';
+                
+                let content = '';
+                if (file.type.startsWith('image/')) {
+                    content = `<img src="${file.data}" alt="${file.name}">`;
+                } else {
+                    content = `<div style="height: 80px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; color: #2c6470; font-size: 2em;">📄</div>`;
+                }
+                
+                item.innerHTML = `
+                    ${content}
+                    <div class="file-info">${file.name}</div>
+                    <button class="remove-btn" onclick="removeFile('${reportType}', ${index})">&times;</button>
+                `;
+                
+                preview.appendChild(item);
+            });
+        }
+
+        function removeFile(reportType, index) {
+            uploadedFiles[reportType].splice(index, 1);
+            updateEvidencePreview(reportType);
+            stats.evidenceUploaded = Math.max(0, stats.evidenceUploaded - 1);
+            updateStats();
+            showNotification('تم حذف الملف', 'info');
+        }
         
         function initializeDateFields(date) {
             const dateInputs = ['date', 'daily-date', 'weekly-date', 'monthly-date'];
@@ -1600,7 +1584,7 @@
         function updateStats() {
             document.getElementById('reports-generated').textContent = stats.reportsGenerated;
             document.getElementById('forms-completed').textContent = stats.formsCompleted;
-            document.getElementById('active-sessions').textContent = stats.activeSessions;
+            document.getElementById('evidence-uploaded').textContent = stats.evidenceUploaded;
         }
 
         // Data Management Functions
@@ -1611,6 +1595,7 @@
             const savedData = {
                 reportType: currentReportType,
                 data: formData,
+                files: uploadedFiles[currentReportType],
                 timestamp: new Date().toISOString(),
                 formTitle: document.getElementById('form-title').textContent
             };
@@ -1627,6 +1612,12 @@
             if (savedData) {
                 const data = JSON.parse(savedData);
                 stats.formsCompleted = data.length;
+                
+                // Count total uploaded files
+                stats.evidenceUploaded = data.reduce((total, item) => {
+                    return total + (item.files ? item.files.length : 0);
+                }, 0);
+                
                 updateStats();
             }
         }
@@ -1634,9 +1625,10 @@
         function backupData() {
             const allData = {
                 forms: JSON.parse(localStorage.getItem('studentActivityData') || '[]'),
+                files: uploadedFiles,
                 stats: stats,
                 timestamp: new Date().toISOString(),
-                version: '2.0'
+                version: '3.0'
             };
 
             const dataStr = JSON.stringify(allData, null, 2);
@@ -1666,6 +1658,10 @@
                     if (data.forms) {
                         localStorage.setItem('studentActivityData', JSON.stringify(data.forms));
                     }
+                    if (data.files) {
+                        uploadedFiles = { ...uploadedFiles, ...data.files };
+                        updateAllEvidencePreviews();
+                    }
                     if (data.stats) {
                         stats = { ...stats, ...data.stats };
                         updateStats();
@@ -1680,6 +1676,12 @@
             reader.readAsText(file);
         }
 
+        function updateAllEvidencePreviews() {
+            Object.keys(uploadedFiles).forEach(reportType => {
+                updateEvidencePreview(reportType);
+            });
+        }
+
         function exportAllData() {
             const allData = JSON.parse(localStorage.getItem('studentActivityData') || '[]');
             
@@ -1689,14 +1691,16 @@
             }
 
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "نوع التقرير,عنوان النموذج,التاريخ,البيانات\n";
+            csvContent += "نوع التقرير,عنوان النموذج,التاريخ,عدد الشواهد,البيانات\n";
 
             allData.forEach(item => {
                 const dataStr = Object.entries(item.data)
                     .map(([key, value]) => `${key}: ${value}`)
                     .join('; ');
                 
-                csvContent += `"${item.reportType}","${item.formTitle}","${new Date(item.timestamp).toLocaleDateString('ar-SA')}","${dataStr}"\n`;
+                const filesCount = item.files ? item.files.length : 0;
+                
+                csvContent += `"${item.reportType}","${item.formTitle}","${new Date(item.timestamp).toLocaleDateString('ar-SA')}","${filesCount}","${dataStr}"\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
@@ -1725,7 +1729,7 @@
 
             requiredFields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);
-                if (field && field.offsetParent !== null) { // Check if field is visible
+                if (field && field.offsetParent !== null) {
                     const errorElement = document.getElementById(fieldId + '-error');
                     
                     if (!field.value.trim()) {
@@ -1910,6 +1914,10 @@
                     msg.style.display = 'none';
                 });
                 
+                // Clear uploaded files
+                uploadedFiles[currentReportType] = [];
+                updateEvidencePreview(currentReportType);
+                
                 // Reset progress bar
                 updateFormProgress();
                 
@@ -1929,17 +1937,16 @@
             return formData;
         }
 
-        // Advanced PDF generation with proper Arabic support
+        // Enhanced PDF generation with evidence support
         function generatePDF() {
             if (!validateForm()) {
                 showNotification('يرجى إكمال الحقول المطلوبة قبل إنشاء التقرير', 'warning');
                 return;
             }
 
-            showNotification('جاري إنشاء ملف PDF...', 'info');
+            showNotification('جاري إنشاء ملف PDF مع الشواهد...', 'info');
             
             try {
-                // Create HTML content for better Arabic support
                 const htmlContent = generateHTMLForPDF();
                 
                 // Open print window with Arabic content
@@ -1969,6 +1976,7 @@
             const currentMapping = fieldMappings[currentReportType];
             const formData = getCurrentFormData(currentMapping.order);
             const reportTitle = document.getElementById('form-title').textContent;
+            const currentFiles = uploadedFiles[currentReportType] || [];
             
             return `
             <!DOCTYPE html>
@@ -2046,6 +2054,7 @@
                     
                     .content-section {
                         margin-bottom: 30px;
+                        page-break-inside: avoid;
                     }
                     
                     .section-title {
@@ -2110,11 +2119,84 @@
                         line-height: 1.8;
                         font-size: 15px;
                     }
+
+                    .evidence-section {
+                        background: #f8fbfc;
+                        padding: 20px;
+                        border-radius: 8px;
+                        border-right: 4px solid #27ae60;
+                        margin-bottom: 15px;
+                        page-break-inside: avoid;
+                    }
+
+                    .evidence-section .label {
+                        font-weight: 600;
+                        color: #27ae60;
+                        font-size: 16px;
+                        margin-bottom: 15px;
+                        display: block;
+                    }
+
+                    .evidence-grid {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 15px;
+                        margin-top: 15px;
+                    }
+
+                    .evidence-item {
+                        text-align: center;
+                        background: white;
+                        padding: 10px;
+                        border-radius: 8px;
+                        border: 1px solid #e8f4f8;
+                    }
+
+                    .evidence-item img {
+                        max-width: 100%;
+                        height: 120px;
+                        object-fit: cover;
+                        border-radius: 4px;
+                        margin-bottom: 8px;
+                    }
+
+                    .evidence-item .file-icon {
+                        font-size: 3em;
+                        color: #4a90a4;
+                        margin-bottom: 8px;
+                    }
+
+                    .evidence-item .file-name {
+                        font-size: 12px;
+                        color: #2c6470;
+                        word-break: break-word;
+                    }
+
+                    .evidence-summary {
+                        background: #e8f8f5;
+                        padding: 15px;
+                        border-radius: 8px;
+                        margin-top: 20px;
+                        text-align: center;
+                    }
+
+                    .evidence-summary .count {
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #27ae60;
+                        margin-bottom: 5px;
+                    }
+
+                    .evidence-summary .label {
+                        color: #2c6470;
+                        font-weight: 500;
+                    }
                     
                     .footer {
                         margin-top: 50px;
                         border-top: 2px solid #4a90a4;
                         padding-top: 30px;
+                        page-break-inside: avoid;
                     }
                     
                     .signatures {
@@ -2163,6 +2245,7 @@
                         .header { page-break-inside: avoid; }
                         .content-section { page-break-inside: avoid; }
                         .signatures { page-break-inside: avoid; }
+                        .evidence-section { page-break-inside: avoid; }
                     }
                 </style>
             </head>
@@ -2190,6 +2273,21 @@
                     ${generateDetailedContentHTML(formData, currentMapping)}
                 </div>
 
+                ${currentFiles.length > 0 ? `
+                <div class="content-section">
+                    <div class="evidence-section">
+                        <span class="label">الشواهد والمرفقات المدعمة للتقرير</span>
+                        <div class="evidence-summary">
+                            <div class="count">${currentFiles.length}</div>
+                            <div class="label">ملف مرفق كشاهد</div>
+                        </div>
+                        <div class="evidence-grid">
+                            ${generateEvidenceHTML(currentFiles)}
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
                 <div class="footer">
                     <div class="signatures">
                         <div class="signature-box">
@@ -2208,7 +2306,8 @@
                     <div class="date-info">
                         متوسطة المنذر بن عمرو الأنصاري<br>
                         التاريخ: ${new Date().toLocaleDateString('ar-SA')}<br>
-                        تم الإنشاء: ${new Date().toLocaleString('ar-SA')}
+                        تم الإنشاء: ${new Date().toLocaleString('ar-SA')}<br>
+                        عدد الشواهد المرفقة: ${currentFiles.length}
                     </div>
                 </div>
             </body>
@@ -2256,331 +2355,24 @@
             return html;
         }
 
-        function createPDFHeader(doc) {
-            // Header background
-            doc.setFillColor(44, 100, 112);
-            doc.rect(0, 0, 210, 45, 'F');
-            
-            // Decorative elements
-            doc.setFillColor(255, 255, 255, 0.1);
-            for (let i = 0; i < 10; i++) {
-                doc.circle(20 + i * 15, 15, 2, 'F');
-                doc.circle(30 + i * 15, 30, 1.5, 'F');
-            }
-            
-            // Header text
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(16);
-            doc.text('Kingdom of Saudi Arabia', 105, 15, { align: 'center' });
-            doc.text('المملكة العربية السعودية', 105, 25, { align: 'center' });
-            
-            doc.setFontSize(14);
-            doc.text('Ministry of Education', 105, 35, { align: 'center' });
-            doc.text('وزارة التعليم', 105, 42, { align: 'center' });
-        }
-
-        function createPDFTitle(doc, reportTitle) {
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(44, 100, 112);
-            doc.setFontSize(18);
-            
-            doc.text('Student Activities Program', 105, 60, { align: 'center' });
-            doc.text('برنامج الأنشطة الطلابية', 105, 70, { align: 'center' });
-            
-            doc.setFontSize(16);
-            doc.setTextColor(74, 144, 164);
-            
-            const englishTitle = translateReportTitle(reportTitle);
-            doc.text(englishTitle, 105, 85, { align: 'center' });
-            
-            // Decorative line
-            doc.setDrawColor(74, 144, 164);
-            doc.setLineWidth(1);
-            doc.line(30, 95, 180, 95);
-            
-            doc.setFillColor(74, 144, 164);
-            doc.circle(25, 95, 2, 'F');
-            doc.circle(185, 95, 2, 'F');
-        }
-
-        function createPDFContent(doc, formData, mapping) {
-            let yPosition = 110;
-            
-            yPosition = addSchoolInfo(doc, formData, mapping, yPosition);
-            yPosition = addBasicData(doc, formData, mapping, yPosition);
-            yPosition = addDetailedContent(doc, formData, mapping, yPosition);
-            
-            return yPosition;
-        }
-
-        function addSchoolInfo(doc, formData, mapping, startY) {
-            let yPosition = startY;
-            
-            doc.setDrawColor(74, 144, 164);
-            doc.setLineWidth(0.5);
-            doc.rect(20, yPosition - 5, 170, 25);
-            
-            doc.setFillColor(248, 251, 252);
-            doc.rect(20, yPosition - 5, 170, 25, 'F');
-            
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.setTextColor(44, 100, 112);
-            doc.text('School Information', 25, yPosition + 3);
-            
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.setTextColor(46, 62, 80);
-            
-            doc.text('School: Al-Mundhir bin Amr Al-Ansari Middle School', 25, yPosition + 10);
-            doc.text('Activity Coordinator: Abdullah Al-Harbi', 25, yPosition + 16);
-            
-            return yPosition + 35;
-        }
-
-        function addBasicData(doc, formData, mapping, startY) {
-            let yPosition = startY;
-            
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.setTextColor(44, 100, 112);
-            doc.text('Basic Information', 25, yPosition);
-            
-            yPosition += 10;
-            
-            const basicFields = getBasicFields(mapping.order);
-            const tableData = [];
-            
-            basicFields.forEach(fieldId => {
-                if (formData[fieldId]) {
-                    const label = translateFieldLabel(mapping.labels[fieldId]);
-                    const value = formatFieldValue(fieldId, formData[fieldId]);
-                    tableData.push([label, value]);
+        function generateEvidenceHTML(files) {
+            return files.map(file => {
+                if (file.type.startsWith('image/')) {
+                    return `
+                        <div class="evidence-item">
+                            <img src="${file.data}" alt="${file.name}">
+                            <div class="file-name">${file.name}</div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="evidence-item">
+                            <div class="file-icon">📄</div>
+                            <div class="file-name">${file.name}</div>
+                        </div>
+                    `;
                 }
-            });
-            
-            yPosition = drawTable(doc, tableData, 25, yPosition, 160);
-            
-            return yPosition + 10;
-        }
-
-        function addDetailedContent(doc, formData, mapping, startY) {
-            let yPosition = startY;
-            
-            const detailedFields = getDetailedFields(mapping.order);
-            
-            detailedFields.forEach(fieldId => {
-                if (formData[fieldId] && formData[fieldId].trim()) {
-                    if (yPosition > 240) {
-                        doc.addPage();
-                        yPosition = 30;
-                    }
-                    
-                    yPosition = addDetailedField(doc, fieldId, formData[fieldId], mapping.labels, yPosition);
-                }
-            });
-            
-            return yPosition;
-        }
-
-        function addDetailedField(doc, fieldId, value, labels, startY) {
-            let yPosition = startY;
-            
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.setTextColor(44, 100, 112);
-            
-            const englishLabel = translateFieldLabel(labels[fieldId]);
-            doc.text(englishLabel + ':', 25, yPosition);
-            
-            yPosition += 8;
-            
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.setTextColor(46, 62, 80);
-            
-            const processedContent = processArabicContent(value);
-            const lines = doc.splitTextToSize(processedContent, 160);
-            
-            const contentHeight = lines.length * 5 + 6;
-            doc.setDrawColor(230, 244, 248);
-            doc.setFillColor(248, 251, 252);
-            doc.rect(25, yPosition - 2, 160, contentHeight, 'FD');
-            
-            doc.text(lines, 30, yPosition + 3);
-            
-            return yPosition + contentHeight + 8;
-        }
-
-        function drawTable(doc, data, x, y, width) {
-            const rowHeight = 8;
-            const colWidth = width / 2;
-            
-            doc.setDrawColor(74, 144, 164);
-            doc.setLineWidth(0.3);
-            
-            data.forEach((row, index) => {
-                const currentY = y + (index * rowHeight);
-                
-                if (index % 2 === 0) {
-                    doc.setFillColor(248, 251, 252);
-                    doc.rect(x, currentY, width, rowHeight, 'F');
-                }
-                
-                doc.rect(x, currentY, colWidth, rowHeight);
-                doc.rect(x + colWidth, currentY, colWidth, rowHeight);
-                
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(9);
-                doc.setTextColor(44, 100, 112);
-                doc.text(row[0], x + 3, currentY + 5);
-                
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor(46, 62, 80);
-                doc.text(row[1], x + colWidth + 3, currentY + 5);
-            });
-            
-            return y + (data.length * rowHeight);
-        }
-
-        function createPDFFooter(doc, startY) {
-            const pageHeight = 297;
-            let yPosition = Math.max(startY + 20, pageHeight - 70);
-            
-            // Decorative line
-            doc.setDrawColor(74, 144, 164);
-            doc.setLineWidth(0.5);
-            doc.line(25, yPosition, 185, yPosition);
-            
-            yPosition += 15;
-            
-            // Signature sections
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.setTextColor(44, 100, 112);
-            
-            // Activity Coordinator section (Right side in Arabic layout)
-            doc.text('Ra\'id An-Nashat', 140, yPosition);
-            doc.text('Activity Coordinator', 140, yPosition + 6);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.text('Abdullah Al-Harbi', 140, yPosition + 12);
-            doc.text('عبدالله الحربي', 140, yPosition + 18);
-            doc.line(120, yPosition + 22, 180, yPosition + 22);
-            
-            // School Principal section (Left side)
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.text('Mudeer Al-Madrasah', 70, yPosition);
-            doc.text('School Principal', 70, yPosition + 6);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.text('At-Tawqee\' / Signature', 70, yPosition + 12);
-            doc.text('التوقيع', 70, yPosition + 18);
-            doc.line(30, yPosition + 22, 90, yPosition + 22);
-            
-            yPosition += 35;
-            
-            // School information footer
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8);
-            doc.setTextColor(128, 128, 128);
-            
-            const currentDate = new Date().toLocaleDateString('ar-SA');
-            doc.text('Mutawasitat Al-Mundhir bin Amr Al-Ansari', 105, yPosition, { align: 'center' });
-            doc.text('متوسطة المنذر بن عمرو الأنصاري', 105, yPosition + 5, { align: 'center' });
-            doc.text(`At-Tareekh / Date: ${currentDate}`, 105, yPosition + 12, { align: 'center' });
-        }
-
-        // Translation helper functions
-        function translateReportTitle(arabicTitle) {
-            const translations = {
-                'مجال الرياضة والصحة': 'Sports and Health Field',
-                'مجال المواطنة والحياة': 'Citizenship and Life Field',
-                'مجال الثقافة والفنون': 'Culture and Arts Field',
-                'مجال النشاط الكشفي': 'Scout Activity Field',
-                'مجال العلوم والتقنية': 'Science and Technology Field',
-                'مجال النشاط الاجتماعي': 'Social Activity Field',
-                'مجال الأيام والمناسبات': 'Events and Occasions Field',
-                'التقرير اليومي': 'Daily Report',
-                'التقرير الأسبوعي': 'Weekly Report',
-                'التقرير الشهري': 'Monthly Report'
-            };
-            return translations[arabicTitle] || 'Activity Report';
-        }
-
-        function translateFieldLabel(arabicLabel) {
-            const translations = {
-                'إدارة التعليم': 'Education Department',
-                'اسم المدرسة': 'School Name',
-                'اسم المعلم': 'Teacher Name',
-                'التخصص': 'Specialization',
-                'الفصل الدراسي': 'Semester',
-                'الصف': 'Grade',
-                'التاريخ': 'Date',
-                'اليوم': 'Day',
-                'الحصة': 'Period',
-                'الغياب': 'Absent Students',
-                'الحضور': 'Present Students',
-                'مكان التنفيذ': 'Venue',
-                'اسم البرنامج': 'Program Name',
-                'أهداف البرنامج': 'Program Objectives',
-                'الأثر الإيجابي للبرنامج': 'Program Impact',
-                'الشواهد': 'Evidence',
-                'الوحدة الدراسية': 'Study Unit',
-                'عنوان الدرس': 'Lesson Title',
-                'أهداف الدرس': 'Lesson Objectives',
-                'نسبة تحقق أهداف الدرس': 'Achievement Percentage',
-                'ملاحظات حول تفاعل الطلب': 'Student Interaction Notes',
-                'التحديات الصفية': 'Classroom Challenges',
-                'الأسبوع': 'Week',
-                'أهم الدروس المنفذة': 'Key Lessons Implemented',
-                'أبرز نقاط القوة لدى الطلب': 'Student Strengths',
-                'أبرز نقاط الضعف لدى الطلب': 'Student Weaknesses',
-                'أبرز التحديات التعليمية': 'Educational Challenges',
-                'الشهر': 'Month',
-                'نسبة إنجاز الخطة': 'Plan Completion Rate',
-                'القضايا المستحدثة التي تحتاج متابعة': 'New Issues Requiring Follow-up',
-                'خطط المعالجة المقترحة': 'Proposed Treatment Plans',
-                'الطلاب المتميزون': 'Outstanding Students',
-                'الخطة الإثرائية للطلاب المتميزين': 'Enrichment Plan for Outstanding Students'
-            };
-            return translations[arabicLabel] || arabicLabel;
-        }
-
-        function formatFieldValue(fieldId, value) {
-            if (fieldId.includes('semester')) {
-                const semesterTranslations = {
-                    'first': 'First Semester',
-                    'second': 'Second Semester',
-                    'third': 'Third Semester'
-                };
-                return semesterTranslations[value] || value;
-            }
-            
-            if (fieldId.includes('grade')) {
-                const gradeTranslations = {
-                    'first': '1st Middle Grade',
-                    'second': '2nd Middle Grade',
-                    'third': '3rd Middle Grade'
-                };
-                return gradeTranslations[value] || value;
-            }
-            
-            if (fieldId.includes('period')) {
-                return `Period ${value}`;
-            }
-            
-            return value;
-        }
-
-        function processArabicContent(arabicText) {
-            if (arabicText.length > 100) {
-                return `[Arabic content available - ${arabicText.length} characters]\n\nContent summary: ${arabicText.substring(0, 100)}...`;
-            }
-            
-            return arabicText.replace(/[\u0600-\u06FF]/g, '?') || '[Arabic text content]';
+            }).join('');
         }
 
         function getBasicFields(allFields) {
@@ -2614,14 +2406,6 @@
                 field.includes('students')
             );
         }
-
-        function generateFileName(reportTitle) {
-            const date = new Date();
-            const dateStr = date.toISOString().split('T')[0];
-            const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '-');
-            const cleanTitle = reportTitle.replace(/[^\w\s]/gi, '').replace(/\s+/g, '_');
-            return `${cleanTitle}_${dateStr}_${timeStr}.pdf`;
-        }
         
         // Export to Excel functionality
         function exportToExcel() {
@@ -2634,6 +2418,7 @@
             
             const currentMapping = fieldMappings[currentReportType];
             const formData = getCurrentFormData(currentMapping.order);
+            const currentFiles = uploadedFiles[currentReportType] || [];
             
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
             
@@ -2646,6 +2431,11 @@
                     csvContent += `"${label}","${value}"\n`;
                 }
             });
+
+            if (currentFiles.length > 0) {
+                csvContent += `"عدد الشواهد المرفقة","${currentFiles.length}"\n`;
+                csvContent += `"أسماء الملفات","${currentFiles.map(f => f.name).join('، ')}"\n`;
+            }
             
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
@@ -2715,13 +2505,6 @@
                 
                 // Update form progress
                 updateFormProgress();
-                
-                const autoSaveData = {
-                    field: event.target.id,
-                    value: event.target.value,
-                    reportType: currentReportType,
-                    timestamp: Date.now()
-                };
             }
         });
         
@@ -2739,8 +2522,27 @@
             if (event.key === 'Escape') {
                 closeReportModal();
             }
+
+            if ((event.ctrlKey || event.metaKey) && event.key === 'u') {
+                event.preventDefault();
+                const currentFileInput = getCurrentFileInput();
+                if (currentFileInput) {
+                    currentFileInput.click();
+                }
+            }
         });
-        
+
+        function getCurrentFileInput() {
+            const fileInputMap = {
+                'activity': 'evidence-files',
+                'daily': 'daily-evidence-files',
+                'weekly': 'weekly-evidence-files',
+                'monthly': 'monthly-evidence-files'
+            };
+            return document.getElementById(fileInputMap[currentReportType]);
+        }
+
+        // Enhanced form interactions
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('input, select, textarea').forEach(field => {
                 field.addEventListener('focus', function() {
@@ -2753,92 +2555,27 @@
                     this.style.boxShadow = 'none';
                 });
             });
+
+            // Add help tooltips for evidence sections
+            const evidenceSections = document.querySelectorAll('.evidence-section');
+            evidenceSections.forEach(section => {
+                section.title = 'اسحب الملفات هنا مباشرة أو استخدم Ctrl+U لرفع الملفات بسرعة';
+            });
         });
 
-        document.addEventListener('scroll', function() {
-            const header = document.querySelector('.header');
-            if (window.scrollY > 100) {
-                header.style.transform = 'translateY(-5px)';
-                header.style.boxShadow = '0 5px 20px rgba(0,0,0,0.1)';
-            } else {
-                header.style.transform = 'translateY(0)';
-                header.style.boxShadow = 'none';
-            }
-        });
-
-        document.addEventListener('contextmenu', function(event) {
-            if (event.target.matches('input, textarea, select')) {
-                event.preventDefault();
-                
-                const menu = document.createElement('div');
-                menu.style.cssText = `
-                    position: fixed;
-                    top: ${event.clientY}px;
-                    left: ${event.clientX}px;
-                    background: white;
-                    border: 1px solid #ddd;
-                    border-radius: 5px;
-                    padding: 5px 0;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    z-index: 1000;
-                `;
-                
-                const clearOption = document.createElement('div');
-                clearOption.textContent = 'مسح الحقل';
-                clearOption.style.cssText = `
-                    padding: 8px 15px;
-                    cursor: pointer;
-                    font-size: 14px;
-                `;
-                clearOption.addEventListener('click', function() {
-                    event.target.value = '';
-                    event.target.classList.remove('form-validation-error');
-                    const errorElement = document.getElementById(event.target.id + '-error');
-                    if (errorElement) {
-                        errorElement.style.display = 'none';
-                    }
-                    updateFormProgress();
-                    document.body.removeChild(menu);
-                });
-                
-                const copyOption = document.createElement('div');
-                copyOption.textContent = 'نسخ النص';
-                copyOption.style.cssText = `
-                    padding: 8px 15px;
-                    cursor: pointer;
-                    font-size: 14px;
-                `;
-                copyOption.addEventListener('click', function() {
-                    navigator.clipboard.writeText(event.target.value);
-                    showNotification('تم نسخ النص', 'success');
-                    document.body.removeChild(menu);
-                });
-                
-                menu.appendChild(clearOption);
-                if (event.target.value) {
-                    menu.appendChild(copyOption);
-                }
-                document.body.appendChild(menu);
-                
-                document.addEventListener('click', function() {
-                    if (document.body.contains(menu)) {
-                        document.body.removeChild(menu);
-                    }
-                }, { once: true });
-            }
-        });
-
-        // Auto-save functionality
+        // Auto-save functionality with file support
         function enableAutoSave() {
             setInterval(() => {
                 const currentMapping = fieldMappings[currentReportType];
                 const formData = getCurrentFormData(currentMapping.order);
+                const currentFiles = uploadedFiles[currentReportType] || [];
                 
-                const hasData = Object.values(formData).some(value => value.trim() !== '');
+                const hasData = Object.values(formData).some(value => value.trim() !== '') || currentFiles.length > 0;
                 if (hasData) {
                     const autoSaveData = {
                         reportType: currentReportType,
                         data: formData,
+                        files: currentFiles,
                         timestamp: new Date().toISOString(),
                         isAutoSave: true
                     };
@@ -2871,11 +2608,80 @@
                                 field.value = value;
                             }
                         });
+
+                        // Restore uploaded files
+                        if (data.files && data.files.length > 0) {
+                            uploadedFiles[data.reportType] = data.files;
+                            updateEvidencePreview(data.reportType);
+                            stats.evidenceUploaded += data.files.length;
+                        }
                         
                         updateFormProgress();
+                        updateStats();
                         showNotification('تم استرداد البيانات المحفوظة تلقائياً', 'success');
                     }
                 }
+            }
+        }
+
+        // File size formatter
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 بايت';
+            const k = 1024;
+            const sizes = ['بايت', 'كيلوبايت', 'ميجابايت', 'جيجابايت'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Enhanced file preview with size info
+        function updateEvidencePreview(reportType) {
+            const previewId = reportType === 'activity' ? 'evidence-preview' : `${reportType}-evidence-preview`;
+            const preview = document.getElementById(previewId);
+            
+            if (!preview) return;
+            
+            preview.innerHTML = '';
+            
+            uploadedFiles[reportType].forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'evidence-item';
+                
+                let content = '';
+                if (file.type.startsWith('image/')) {
+                    content = `<img src="${file.data}" alt="${file.name}">`;
+                } else {
+                    content = `<div style="height: 80px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; color: #2c6470; font-size: 2em;">📄</div>`;
+                }
+                
+                item.innerHTML = `
+                    ${content}
+                    <div class="file-info">
+                        <div style="font-weight: 500;">${file.name}</div>
+                        <div style="font-size: 0.7em; color: #7f8c8d; margin-top: 2px;">${formatFileSize(file.size)}</div>
+                    </div>
+                    <button class="remove-btn" onclick="removeFile('${reportType}', ${index})" title="حذف الملف">&times;</button>
+                `;
+                
+                preview.appendChild(item);
+            });
+
+            // Show total files count and size
+            if (uploadedFiles[reportType].length > 0) {
+                const totalSize = uploadedFiles[reportType].reduce((sum, file) => sum + file.size, 0);
+                const summary = document.createElement('div');
+                summary.style.cssText = `
+                    grid-column: 1 / -1;
+                    text-align: center;
+                    padding: 10px;
+                    background: rgba(74, 144, 164, 0.1);
+                    border-radius: 5px;
+                    font-size: 0.9em;
+                    color: #2c6470;
+                `;
+                summary.innerHTML = `
+                    المجموع: ${uploadedFiles[reportType].length} ملف - ${formatFileSize(totalSize)}
+                `;
+                preview.appendChild(summary);
             }
         }
 
@@ -2887,288 +2693,90 @@
             }, 1000);
         });
 
-        // Print functionality
-        function printForm() {
-            const currentForm = getCurrentActiveForm();
-            if (!currentForm) return;
-
+        // Print functionality enhancement
+        function printFormWithEvidence() {
+            const htmlContent = generateHTMLForPDF();
             const printWindow = window.open('', '_blank');
-            const reportTitle = document.getElementById('form-title').textContent;
-            
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html dir="rtl">
-                <head>
-                    <title>${reportTitle}</title>
-                    <style>
-                        body { font-family: 'Tajawal', Arial, sans-serif; margin: 20px; }
-                        .header { text-align: center; border-bottom: 2px solid #4a90a4; padding-bottom: 20px; margin-bottom: 30px; }
-                        .form-group { margin-bottom: 15px; page-break-inside: avoid; }
-                        .form-group label { font-weight: bold; color: #2c6470; }
-                        .form-group input, .form-group select, .form-group textarea { 
-                            border: 1px solid #ddd; padding: 8px; width: 100%; margin-top: 5px; 
-                        }
-                        .footer { margin-top: 40px; border-top: 1px solid #ddd; padding-top: 20px; }
-                        @media print { .no-print { display: none; } }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
-                        <h2>${reportTitle}</h2>
-                        <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
-                    </div>
-                    ${currentForm.innerHTML}
-                    <div class="footer">
-                        <p>رائد النشاط: عبدالله الحربي</p>
-                        <p>التوقيع: ________________</p>
-                    </div>
-                </body>
-                </html>
-            `);
-            
+            printWindow.document.write(htmlContent);
             printWindow.document.close();
             printWindow.focus();
             setTimeout(() => {
                 printWindow.print();
-                printWindow.close();
             }, 1000);
         }
 
-        // Enhanced keyboard shortcuts
-        document.addEventListener('keydown', function(event) {
-            // Existing shortcuts
-            if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-                event.preventDefault();
-                generatePDF();
-            }
-            
-            if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
-                event.preventDefault();
-                clearForm();
-            }
-            
-            if (event.key === 'Escape') {
-                closeReportModal();
-            }
-
-            // New shortcuts
-            if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
-                event.preventDefault();
-                printForm();
-            }
-
-            if ((event.ctrlKey || event.metaKey) && event.key === 'e') {
-                event.preventDefault();
-                exportToExcel();
-            }
-
-            if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
-                event.preventDefault();
-                backupData();
-            }
-
-            if ((event.ctrlKey || event.metaKey) && event.key === 'v' && event.shiftKey) {
-                event.preventDefault();
-                validateForm();
-            }
-        });
-
-        // Field auto-completion suggestions
-        const suggestionData = {
-            'education-dept': ['إدارة تعليم الرياض', 'إدارة تعليم جدة', 'إدارة تعليم الدمام', 'إدارة تعليم مكة'],
-            'teacher-name': ['أحمد محمد', 'فاطمة العلي', 'محمد السعد', 'نورا الأحمد'],
-            'specialization': ['رياضيات', 'علوم', 'لغة عربية', 'لغة إنجليزية', 'اجتماعيات', 'تربية بدنية'],
-            'venue': ['المسرح المدرسي', 'الصالة الرياضية', 'المكتبة', 'المختبر', 'الفناء', 'قاعة الحاسوب']
-        };
-
-        function setupAutoComplete() {
-            Object.keys(suggestionData).forEach(fieldId => {
-                const field = document.getElementById(fieldId);
-                if (field) {
-                    field.addEventListener('input', function() {
-                        showSuggestions(this, suggestionData[fieldId]);
-                    });
-                }
-            });
+        // Keyboard shortcuts info
+        function showKeyboardShortcuts() {
+            const shortcuts = `
+                اختصارات لوحة المفاتيح:
+                • Ctrl+S: حفظ كـ PDF
+                • Ctrl+R: مسح النموذج
+                • Ctrl+U: رفع ملفات
+                • Escape: إغلاق النوافذ المنبثقة
+            `;
+            showNotification(shortcuts, 'info');
         }
 
-        function showSuggestions(input, suggestions) {
-            const value = input.value.toLowerCase();
-            const filteredSuggestions = suggestions.filter(suggestion => 
-                suggestion.toLowerCase().includes(value)
-            );
+        // Add keyboard shortcut info button
+        document.addEventListener('DOMContentLoaded', function() {
+            const shortcutBtn = document.createElement('button');
+            shortcutBtn.innerHTML = '⌨️ اختصارات';
+            shortcutBtn.className = 'btn secondary';
+            shortcutBtn.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                z-index: 999;
+                font-size: 0.8em;
+                padding: 8px 15px;
+            `;
+            shortcutBtn.onclick = showKeyboardShortcuts;
+            document.body.appendChild(shortcutBtn);
+        });
 
-            // Remove existing suggestions
-            const existingSuggestions = document.querySelector('.suggestions-list');
-            if (existingSuggestions) {
-                existingSuggestions.remove();
-            }
-
-            if (filteredSuggestions.length > 0 && value.length > 1) {
-                const suggestionsList = document.createElement('div');
-                suggestionsList.className = 'suggestions-list';
-                suggestionsList.style.cssText = `
-                    position: absolute;
-                    top: 100%;
-                    left: 0;
-                    right: 0;
+        // Context menu for evidence items
+        document.addEventListener('contextmenu', function(event) {
+            if (event.target.closest('.evidence-item')) {
+                event.preventDefault();
+                
+                const menu = document.createElement('div');
+                menu.style.cssText = `
+                    position: fixed;
+                    top: ${event.clientY}px;
+                    left: ${event.clientX}px;
                     background: white;
                     border: 1px solid #ddd;
-                    border-top: none;
-                    border-radius: 0 0 6px 6px;
-                    max-height: 150px;
-                    overflow-y: auto;
-                    z-index: 100;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                    border-radius: 5px;
+                    padding: 5px 0;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    z-index: 1000;
                 `;
-
-                filteredSuggestions.forEach(suggestion => {
-                    const suggestionItem = document.createElement('div');
-                    suggestionItem.textContent = suggestion;
-                    suggestionItem.style.cssText = `
-                        padding: 8px 12px;
-                        cursor: pointer;
-                        border-bottom: 1px solid #f0f0f0;
-                    `;
-                    
-                    suggestionItem.addEventListener('mouseenter', function() {
-                        this.style.backgroundColor = '#f8f9fa';
-                    });
-                    
-                    suggestionItem.addEventListener('mouseleave', function() {
-                        this.style.backgroundColor = 'white';
-                    });
-                    
-                    suggestionItem.addEventListener('click', function() {
-                        input.value = suggestion;
-                        suggestionsList.remove();
-                        updateFormProgress();
-                    });
-                    
-                    suggestionsList.appendChild(suggestionItem);
+                
+                const viewOption = document.createElement('div');
+                viewOption.textContent = 'عرض بحجم كامل';
+                viewOption.style.cssText = `
+                    padding: 8px 15px;
+                    cursor: pointer;
+                    font-size: 14px;
+                `;
+                viewOption.addEventListener('click', function() {
+                    const img = event.target.closest('.evidence-item').querySelector('img');
+                    if (img) {
+                        window.open(img.src, '_blank');
+                    }
+                    document.body.removeChild(menu);
                 });
-
-                input.parentNode.style.position = 'relative';
-                input.parentNode.appendChild(suggestionsList);
-
-                // Remove suggestions when clicking elsewhere
-                document.addEventListener('click', function(event) {
-                    if (!input.contains(event.target) && !suggestionsList.contains(event.target)) {
-                        suggestionsList.remove();
+                
+                menu.appendChild(viewOption);
+                document.body.appendChild(menu);
+                
+                document.addEventListener('click', function() {
+                    if (document.body.contains(menu)) {
+                        document.body.removeChild(menu);
                     }
                 }, { once: true });
             }
-        }
-
-        // Initialize auto-complete
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(setupAutoComplete, 500);
         });
-
-        // Add help tooltips
-        function addHelpTooltips() {
-            const helpTexts = {
-                'program-objectives': 'اكتب الأهداف التعليمية والتربوية المراد تحقيقها من البرنامج',
-                'program-impact': 'صف التأثير الإيجابي المتوقع على الطلاب والمجتمع المدرسي',
-                'evidence': 'اذكر الأدلة والشواهد التي تثبت نجاح البرنامج مثل الصور والمشاركات',
-                'daily-objectives': 'حدد الأهداف التعليمية الواضحة والقابلة للقياس للدرس',
-                'weekly-strength-points': 'اذكر المهارات والقدرات التي يتميز بها الطلاب',
-                'monthly-completion-rate': 'احسب النسبة المئوية لإنجاز الخطة الدراسية'
-            };
-
-            Object.keys(helpTexts).forEach(fieldId => {
-                const field = document.getElementById(fieldId);
-                if (field) {
-                    const helpIcon = document.createElement('span');
-                    helpIcon.innerHTML = ' ❓';
-                    helpIcon.style.cssText = `
-                        cursor: help;
-                        color: #4a90a4;
-                        font-size: 0.9em;
-                        margin-right: 5px;
-                    `;
-                    helpIcon.title = helpTexts[fieldId];
-                    
-                    field.parentNode.querySelector('label').appendChild(helpIcon);
-                }
-            });
-        }
-
-        // Initialize help tooltips
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(addHelpTooltips, 600);
-        });
-
-        // Enhanced notification system with action buttons
-        function showAdvancedNotification(message, type, actions = []) {
-            const colors = {
-                'success': '#27ae60',
-                'error': '#e74c3c',
-                'warning': '#f39c12',
-                'info': '#3498db'
-            };
-            
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${colors[type] || colors.info};
-                color: white;
-                padding: 15px 20px;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                z-index: 1000;
-                font-weight: 500;
-                max-width: 350px;
-                animation: slideInRight 0.3s ease-out;
-            `;
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.textContent = message;
-            messageDiv.style.marginBottom = actions.length > 0 ? '10px' : '0';
-            notification.appendChild(messageDiv);
-            
-            if (actions.length > 0) {
-                const actionsDiv = document.createElement('div');
-                actionsDiv.style.cssText = `
-                    display: flex;
-                    gap: 10px;
-                    margin-top: 10px;
-                `;
-                
-                actions.forEach(action => {
-                    const actionBtn = document.createElement('button');
-                    actionBtn.textContent = action.text;
-                    actionBtn.style.cssText = `
-                        background: rgba(255,255,255,0.2);
-                        border: 1px solid rgba(255,255,255,0.3);
-                        color: white;
-                        padding: 5px 10px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 0.85em;
-                    `;
-                    actionBtn.onclick = () => {
-                        action.callback();
-                        notification.remove();
-                    };
-                    actionsDiv.appendChild(actionBtn);
-                });
-                
-                notification.appendChild(actionsDiv);
-            }
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                if (document.body.contains(notification)) {
-                    notification.style.animation = 'slideOutRight 0.3s ease-in';
-                    setTimeout(() => notification.remove(), 300);
-                }
-            }, 5000);
-        }
     </script>
 </body>
 </html>
