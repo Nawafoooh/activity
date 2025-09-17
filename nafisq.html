@@ -1,4 +1,42 @@
-<!DOCTYPE html>
+<!-- عرض الرقم الخاص -->
+            <div class="card" id="studentCodeDisplay" style="display: none;">
+                <h2 class="section-title">🎉 تم إنشاء رقمك الخاص بنجاح</h2>
+                <div style="text-align: center; padding: 30px;">
+                    <div style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 25px; border-radius: 15px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">رقمك الخاص هو:</h3>
+                        <div id="generatedCode" style="font-size: 32px; font-weight: bold; letter-spacing: 3px; background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px;"></div>
+                    </div>
+                    <div style="background: #fff3cd; color: #856404; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: right;">
+                        <h4 style="margin-bottom: 10px;">⚠️ تعليمات مهمة:</h4>
+                        <ul style="text-align: right; margin-right: 20px;">
+                            <li>احتفظ بهذا الرقم في مكان آمن</li>
+                            <li>ستحتاجه لدخول جميع الاختبارات</li>
+                            <li>لا تشاركه مع الطلاب الآخرين</li>
+                            <li>في حالة نسيانه، اتصل بالمعلم</li>
+                        </ul>
+                    </div>
+                    <button class="btn" onclick="proceedToLogin()" style="background: linear-gradient(45deg, #3498db, #2980b9);">المتابعة لدخول الاختبار</button>
+                </div>
+            </div>
+
+            <!-- تسجيل الدخول بالرقم -->
+            <div class="card" id="loginForm" style="display: none;">
+                <h2 class="section-title">🔐 تسجيل الدخول للاختبار</h2>
+                <div class="student-form">
+                    <div class="form-grid" style="grid-template-columns: 1fr;">
+                        <div class="form-group">
+                            <label>الاسم الرباعي الكامل</label>
+                            <input type="text" id="loginFullName" placeholder="أدخل اسمك الكامل كما سجلته سابقاً">
+                        </div>
+                        <div class="form-group">
+                            <label>رقمك الخاص</label>
+                            <input type="text" id="studentCode" placeholder="أدخل رقمك الخاص (6 أرقام)" maxlength="6" style="text-align: center; font-size: 18px; letter-spacing: 2px;">
+                        </div>
+                    </div>
+                    <button class="btn" onclick="loginStudent()">دخول الاختبار</button>
+                    <button class="btn" onclick="backToRegistration()" style="background: #95a5a6; margin-top: 10px;">العودة للتسجيل</button>
+                </div>
+            </div><!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -381,7 +419,7 @@
         <div class="main-content">
             <!-- نموذج تسجيل الطالب -->
             <div class="card" id="studentForm">
-                <h2 class="section-title">تسجيل بيانات الطالب</h2>
+                <h2 class="section-title">تسجيل بيانات الطالب واستخراج الرقم الخاص</h2>
                 <div class="student-form">
                     <div class="form-grid">
                         <div class="form-group">
@@ -413,14 +451,16 @@
                             <label>الشعبة</label>
                             <select id="section">
                                 <option value="">اختر الشعبة</option>
-                                <option value="أ">أ</option>
-                                <option value="ب">ب</option>
-                                <option value="ج">ج</option>
-                                <option value="د">د</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
                             </select>
                         </div>
                     </div>
-                    <button class="btn" onclick="registerStudent()">تسجيل والمتابعة</button>
+                    <button class="btn" onclick="registerStudent()">استخراج رقمي الخاص</button>
                 </div>
             </div>
 
@@ -496,6 +536,7 @@
         let testType = '';
         let questionStartTime = 0;
         let questionTimes = [];
+        let studentDatabase = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
 
         // أسئلة تجريبية
         const dailyQuestions = [
@@ -555,12 +596,12 @@
             // يمكن إضافة المزيد من الأسئلة هنا لتصل إلى 40 سؤال
         ];
 
-        // تسجيل الطالب
+        // تسجيل الطالب واستخراج الرقم
         function registerStudent() {
-            const firstName = document.getElementById('firstName').value;
-            const fatherName = document.getElementById('fatherName').value;
-            const grandFatherName = document.getElementById('grandFatherName').value;
-            const familyName = document.getElementById('familyName').value;
+            const firstName = document.getElementById('firstName').value.trim();
+            const fatherName = document.getElementById('fatherName').value.trim();
+            const grandFatherName = document.getElementById('grandFatherName').value.trim();
+            const familyName = document.getElementById('familyName').value.trim();
             const grade = document.getElementById('grade').value;
             const section = document.getElementById('section').value;
 
@@ -569,15 +610,113 @@
                 return;
             }
 
-            currentStudent = {
-                fullName: `${firstName} ${fatherName} ${grandFatherName} ${familyName}`,
+            const fullName = `${firstName} ${fatherName} ${grandFatherName} ${familyName}`;
+            
+            // التحقق من عدم وجود تسجيل مسبق
+            const studentKey = `${fullName}_${grade}_${section}`;
+            
+            if (studentDatabase[studentKey]) {
+                alert('تم تسجيلك مسبقاً! رقمك الخاص هو: ' + studentDatabase[studentKey].code);
+                return;
+            }
+
+            // إنشاء رقم فريد من 6 أرقام
+            const studentCode = generateStudentCode();
+            
+            // حفظ بيانات الطالب
+            studentDatabase[studentKey] = {
+                fullName: fullName,
                 grade: grade,
                 section: section,
-                id: Date.now() // ID مؤقت
+                code: studentCode,
+                registrationDate: new Date().toISOString(),
+                used: false
+            };
+            
+            localStorage.setItem('nafisStudentDB', JSON.stringify(studentDatabase));
+            
+            // عرض الرقم للطالب
+            document.getElementById('generatedCode').textContent = studentCode;
+            document.getElementById('studentForm').style.display = 'none';
+            document.getElementById('studentCodeDisplay').style.display = 'block';
+        }
+
+        // إنشاء رقم الطالب (6 أرقام)
+        function generateStudentCode() {
+            let code;
+            let exists = true;
+            
+            // التأكد من عدم تكرار الرقم
+            while (exists) {
+                code = Math.floor(Math.random() * 900000) + 100000; // من 100000 إلى 999999
+                exists = Object.values(studentDatabase).some(student => student.code === code.toString());
+            }
+            
+            return code.toString();
+        }
+
+        // الانتقال لصفحة تسجيل الدخول
+        function proceedToLogin() {
+            document.getElementById('studentCodeDisplay').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+        }
+
+        // تسجيل الدخول للاختبار
+        function loginStudent() {
+            const fullName = document.getElementById('loginFullName').value.trim();
+            const code = document.getElementById('studentCode').value.trim();
+
+            if (!fullName || !code) {
+                alert('يرجى إدخال الاسم والرقم الخاص');
+                return;
+            }
+
+            if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+                alert('الرقم الخاص يجب أن يكون 6 أرقام بالضبط');
+                return;
+            }
+
+            // البحث عن الطالب في قاعدة البيانات
+            const student = Object.values(studentDatabase).find(s => 
+                s.fullName.toLowerCase() === fullName.toLowerCase() && s.code === code
+            );
+
+            if (!student) {
+                alert('اسم الطالب أو الرقم الخاص غير صحيح!');
+                return;
+            }
+
+            // التحقق من عدم استخدام الرقم مسبقاً (اختياري)
+            // if (student.used) {
+            //     alert('تم استخدام هذا الرقم مسبقاً!');
+            //     return;
+            // }
+
+            // تسجيل دخول ناجح
+            currentStudent = {
+                fullName: student.fullName,
+                grade: student.grade,
+                section: student.section,
+                code: student.code,
+                id: code
             };
 
-            document.getElementById('studentForm').style.display = 'none';
+            // تحديث حالة الاستخدام
+            // student.used = true;
+            // localStorage.setItem('nafisStudentDB', JSON.stringify(studentDatabase));
+
+            document.getElementById('loginForm').style.display = 'none';
             document.getElementById('testSelection').style.display = 'block';
+        }
+
+        // العودة للتسجيل
+        function backToRegistration() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('studentForm').style.display = 'block';
+            
+            // مسح بيانات تسجيل الدخول
+            document.getElementById('loginFullName').value = '';
+            document.getElementById('studentCode').value = '';
         }
 
         // بدء الاختبار
@@ -891,6 +1030,8 @@
             document.getElementById('questionArea').style.display = 'none';
             document.getElementById('leaderboardCard').style.display = 'none';
             document.getElementById('testSelection').style.display = 'none';
+            document.getElementById('studentCodeDisplay').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'none';
             
             // إظهار نموذج التسجيل
             document.getElementById('studentForm').style.display = 'block';
@@ -902,6 +1043,8 @@
             document.getElementById('familyName').value = '';
             document.getElementById('grade').value = '';
             document.getElementById('section').value = '';
+            document.getElementById('loginFullName').value = '';
+            document.getElementById('studentCode').value = '';
             
             // إعادة تعيين عناصر منطقة الأسئلة
             document.getElementById('optionsContainer').style.display = 'block';
