@@ -11,63 +11,6 @@
             box-sizing: border-box;
         }
 
-        // عرض نتيجة اختبار مكتمل سابقاً
-        function showCompletedTestResult(testType) {
-            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
-            const studentResult = existingResults.find(result => 
-                result.studentName === currentStudent.fullName && 
-                result.grade === currentStudent.grade && 
-                result.section === currentStudent.section &&
-                result.testType === testType
-            );
-
-            if (studentResult) {
-                // تعيين معطيات الاختبار لعرض النتيجة
-                score = studentResult.score;
-                document.getElementById('testSelection').style.display = 'none';
-                
-                document.getElementById('questionArea').style.display = 'block';
-                document.getElementById('optionsContainer').style.display = 'none';
-                document.getElementById('questionText').style.display = 'none';
-                document.querySelector('.nav-buttons').style.display = 'none';
-                document.getElementById('submitBtn').style.display = 'none';
-                document.getElementById('finishBtn').style.display = 'none';
-                
-                document.getElementById('scoreDisplay').innerHTML = `
-                    <div style="background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-right: 4px solid #17a2b8;">
-                        <h4 style="margin-bottom: 10px;">📋 نتيجة سابقة - ${testType === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع'}</h4>
-                        <p style="margin-bottom: 5px;"><strong>تاريخ الاختبار:</strong> ${studentResult.date}</p>
-                        <p><strong>ملاحظة:</strong> لا يمكن إعادة هذا الاختبار</p>
-                    </div>
-                    <p>درجتك النهائية: <span style="font-size: 28px; color: #27ae60; font-weight: bold;">${studentResult.score}</span> من ${studentResult.totalQuestions}</p>
-                    <p>النسبة المئوية: <span style="font-size: 24px; color: #3498db; font-weight: bold;">${studentResult.percentage}%</span></p>
-                    ${studentResult.totalTime ? `<p style="color: #666; font-size: 16px;">⏱️ الوقت الإجمالي: ${studentResult.totalTime} ثانية</p>` : ''}
-                    ${studentResult.averageTime ? `<p style="color: #666; font-size: 16px;">📊 متوسط الوقت للسؤال: ${studentResult.averageTime} ثانية</p>` : ''}
-                `;
-                document.getElementById('scoreDisplay').style.display = 'block';
-                
-                // إظهار زر العودة لاختيار اختبار آخر
-                document.getElementById('homeBtn').style.display = 'none';
-                
-                // إضافة زر للعودة لاختيار الاختبارات
-                const backToSelectionBtn = document.createElement('button');
-                backToSelectionBtn.className = 'btn';
-                backToSelectionBtn.style.background = 'linear-gradient(45deg, #95a5a6, #7f8c8d)';
-                backToSelectionBtn.style.marginTop = '15px';
-                backToSelectionBtn.textContent = 'العودة لاختيار الاختبار';
-                backToSelectionBtn.onclick = () => {
-                    document.getElementById('questionArea').style.display = 'none';
-                    updateTestSelectionStatus(); // إعادة تحديث حالة الاختبارات
-                    document.getElementById('testSelection').style.display = 'block';
-                    backToSelectionBtn.remove(); // إزالة الزر بعد الاستخدام
-                };
-                document.getElementById('questionArea').appendChild(backToSelectionBtn);
-                
-                // إظهار مرتبة الشرف
-                showLeaderboard();
-            }
-        }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -424,6 +367,35 @@
             color: white;
         }
 
+        /* إضافة تنسيق للإشعارات */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #e67e22, #f39c12);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 10000;
+            font-weight: bold;
+            animation: slideIn 0.3s ease;
+        }
+
+        .progress-notification {
+            background: linear-gradient(45deg, #27ae60, #2ecc71) !important;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -523,7 +495,7 @@
                 </div>
             </div>
 
-        <!-- تسجيل الدخول بالرقم -->
+            <!-- تسجيل الدخول بالرقم -->
             <div class="card" id="loginForm" style="display: none;">
                 <h2 class="section-title">🔐 تسجيل الدخول للاختبار</h2>
                 <div class="student-form">
@@ -559,6 +531,21 @@
                     <h4 style="margin-bottom: 10px;">⚠️ تنبيه مهم</h4>
                     <p style="margin-bottom: 5px;"><strong>يُسمح بإجراء كل اختبار مرة واحدة فقط!</strong></p>
                     <p>فكر جيداً قبل اختيار نوع الاختبار</p>
+                </div>
+
+                <!-- إشعار التقدم المحفوظ -->
+                <div id="progressNotification" style="display: none; background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-right: 4px solid #17a2b8;">
+                    <h4 style="margin-bottom: 10px;">📂 اختبار غير مكتمل</h4>
+                    <p style="margin-bottom: 10px;">لديك اختبار أسبوعي غير مكتمل</p>
+                    <p style="margin-bottom: 15px;">السؤال: <span id="progressQuestionNumber">0</span> من <span id="progressTotalQuestions">0</span></p>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button class="btn" onclick="resumeWeeklyTest()" style="background: linear-gradient(45deg, #27ae60, #2ecc71); padding: 10px 20px; font-size: 14px;">
+                            📚 استكمال الاختبار
+                        </button>
+                        <button class="btn" onclick="cancelWeeklyProgress()" style="background: linear-gradient(45deg, #e74c3c, #c0392b); padding: 10px 20px; font-size: 14px;">
+                            🗑️ بدء جديد
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="test-sections">
@@ -742,6 +729,9 @@
 
         let weeklyQuestions = JSON.parse(localStorage.getItem('nafisMainWeeklyQuestions') || JSON.stringify(dailyQuestions));
 
+        // متغيرات لحفظ التقدم
+        let savedProgress = null;
+
         // مراقبة التحديثات من لوحة التحكم
         window.addEventListener('message', function(event) {
             if (event.data.type === 'NAFIS_UPDATE_DAILY') {
@@ -780,47 +770,16 @@
 
         // عرض إشعار التحديث
         function showUpdateNotification(message) {
-            // إنشاء عنصر الإشعار
             const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #27ae60;
-                color: white;
-                padding: 15px 25px;
-                border-radius: 10px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                z-index: 10000;
-                font-weight: bold;
-                animation: slideIn 0.3s ease;
-            `;
+            notification.className = 'notification';
             notification.textContent = message;
-            
-            // إضافة الأنيميشن
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOut {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
             document.body.appendChild(notification);
             
-            // إزالة الإشعار بعد 3 ثواني
             setTimeout(() => {
                 notification.style.animation = 'slideOut 0.3s ease';
                 setTimeout(() => {
                     if (notification.parentNode) {
                         notification.parentNode.removeChild(notification);
-                    }
-                    if (style.parentNode) {
-                        style.parentNode.removeChild(style);
                     }
                 }, 300);
             }, 3000);
@@ -839,6 +798,77 @@
             if (storedWeekly) {
                 weeklyQuestions = JSON.parse(storedWeekly);
                 console.log(`تم تحميل ${weeklyQuestions.length} سؤال أسبوعي`);
+            }
+        }
+
+        // فحص التقدم المحفوظ
+        function checkSavedProgress() {
+            if (!currentStudent.code) return;
+            
+            const progressKey = `nafis_progress_${currentStudent.code}`;
+            const saved = localStorage.getItem(progressKey);
+            
+            if (saved) {
+                savedProgress = JSON.parse(saved);
+                // التحقق من أن التقدم المحفوظ للاختبار الأسبوعي
+                if (savedProgress.testType === 'weekly') {
+                    showProgressNotification(savedProgress);
+                }
+            }
+        }
+
+        // عرض إشعار التقدم المحفوظ
+        function showProgressNotification(progress) {
+            const notification = document.getElementById('progressNotification');
+            const questionNumber = document.getElementById('progressQuestionNumber');
+            const totalQuestions = document.getElementById('progressTotalQuestions');
+            
+            questionNumber.textContent = progress.currentQuestionIndex + 1;
+            totalQuestions.textContent = weeklyQuestions.length;
+            notification.style.display = 'block';
+        }
+
+        // استكمال الاختبار الأسبوعي
+        function resumeWeeklyTest() {
+            if (!savedProgress) return;
+            
+            testType = 'weekly';
+            currentTest = { questions: weeklyQuestions, title: 'أسئلة الأسبوع' };
+            currentQuestionIndex = savedProgress.currentQuestionIndex;
+            userAnswers = savedProgress.userAnswers || [];
+            questionTimes = savedProgress.questionTimes || [];
+            
+            document.getElementById('testSelection').style.display = 'none';
+            document.getElementById('questionArea').style.display = 'block';
+            
+            showUpdateNotification(`تم استكمال الاختبار من السؤال ${currentQuestionIndex + 1}`);
+            showQuestion();
+        }
+
+        // إلغاء التقدم المحفوظ
+        function cancelWeeklyProgress() {
+            const confirmation = confirm('هل أنت متأكد من حذف التقدم المحفوظ وبدء اختبار جديد؟');
+            if (confirmation) {
+                const progressKey = `nafis_progress_${currentStudent.code}`;
+                localStorage.removeItem(progressKey);
+                savedProgress = null;
+                document.getElementById('progressNotification').style.display = 'none';
+                showUpdateNotification('تم حذف التقدم المحفوظ');
+            }
+        }
+
+        // حفظ التقدم تلقائياً
+        function saveProgress() {
+            if (testType === 'weekly' && currentStudent.code) {
+                const progress = {
+                    currentQuestionIndex,
+                    userAnswers,
+                    questionTimes,
+                    testType,
+                    timestamp: Date.now()
+                };
+                const progressKey = `nafis_progress_${currentStudent.code}`;
+                localStorage.setItem(progressKey, JSON.stringify(progress));
             }
         }
 
@@ -930,7 +960,6 @@
                     return;
                 }
 
-                // إنشاء حساب تجريبي للمطور
                 currentStudent = {
                     fullName: fullName + ' (مطور)',
                     grade: 'ثالث متوسط',
@@ -943,6 +972,7 @@
                 showUpdateNotification('تم الدخول بوضع المطور - يمكن إعادة الاختبار');
                 document.getElementById('loginForm').style.display = 'none';
                 document.getElementById('testSelection').style.display = 'block';
+                checkSavedProgress();
                 return;
             }
 
@@ -958,7 +988,6 @@
             // التحقق من عدم إجراء نفس نوع الاختبار مسبقاً
             const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
             
-            // البحث عن نتيجة سابقة لنفس نوع الاختبار فقط
             const hasCompletedDailyTest = existingResults.some(result => 
                 result.studentName === student.fullName && 
                 result.grade === student.grade && 
@@ -973,13 +1002,11 @@
                 result.testType === 'weekly'
             );
 
-            // إذا أجرى كلا الاختبارين، منع الدخول
             if (hasCompletedDailyTest && hasCompletedWeeklyTest) {
                 alert('لقد أجريت جميع الاختبارات المتاحة مسبقاً!');
                 return;
             }
             
-            // إذا أجرى اختبار واحد فقط، السماح بالدخول لاختيار الاختبار الآخر
             if (hasCompletedDailyTest || hasCompletedWeeklyTest) {
                 const completedTestType = hasCompletedDailyTest ? 'daily' : 'weekly';
                 const completedTestName = hasCompletedDailyTest ? 'سؤال اليوم' : 'أسئلة الأسبوع';
@@ -1000,8 +1027,8 @@
                 id: code
             };
 
-            // تحديث حالة الاختبارات في صفحة الاختيار
             updateTestSelectionStatus();
+            checkSavedProgress();
 
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('testSelection').style.display = 'block';
@@ -1056,28 +1083,19 @@
             }
         }
 
-        // عرض النتيجة السابقة
-        function showPreviousResult(student) {
-            const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
-            const studentResult = results.find(result => 
-                result.studentName === student.fullName && 
-                result.grade === student.grade && 
-                result.section === student.section
+        // عرض نتيجة اختبار مكتمل سابقاً
+        function showCompletedTestResult(testType) {
+            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const studentResult = existingResults.find(result => 
+                result.studentName === currentStudent.fullName && 
+                result.grade === currentStudent.grade && 
+                result.section === currentStudent.section &&
+                result.testType === testType
             );
 
             if (studentResult) {
-                document.getElementById('loginForm').style.display = 'none';
-                
-                currentStudent = {
-                    fullName: student.fullName,
-                    grade: student.grade,
-                    section: student.section,
-                    code: student.code,
-                    id: student.code
-                };
-                
-                testType = studentResult.testType;
                 score = studentResult.score;
+                document.getElementById('testSelection').style.display = 'none';
                 
                 document.getElementById('questionArea').style.display = 'block';
                 document.getElementById('optionsContainer').style.display = 'none';
@@ -1087,10 +1105,10 @@
                 document.getElementById('finishBtn').style.display = 'none';
                 
                 document.getElementById('scoreDisplay').innerHTML = `
-                    <div style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                        <h4 style="margin-bottom: 10px;">📋 نتيجتك السابقة</h4>
+                    <div style="background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-right: 4px solid #17a2b8;">
+                        <h4 style="margin-bottom: 10px;">📋 نتيجة سابقة - ${testType === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع'}</h4>
                         <p style="margin-bottom: 5px;"><strong>تاريخ الاختبار:</strong> ${studentResult.date}</p>
-                        <p style="margin-bottom: 5px;"><strong>نوع الاختبار:</strong> ${studentResult.testType === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع'}</p>
+                        <p><strong>ملاحظة:</strong> لا يمكن إعادة هذا الاختبار</p>
                     </div>
                     <p>درجتك النهائية: <span style="font-size: 28px; color: #27ae60; font-weight: bold;">${studentResult.score}</span> من ${studentResult.totalQuestions}</p>
                     <p>النسبة المئوية: <span style="font-size: 24px; color: #3498db; font-weight: bold;">${studentResult.percentage}%</span></p>
@@ -1098,7 +1116,21 @@
                     ${studentResult.averageTime ? `<p style="color: #666; font-size: 16px;">📊 متوسط الوقت للسؤال: ${studentResult.averageTime} ثانية</p>` : ''}
                 `;
                 document.getElementById('scoreDisplay').style.display = 'block';
-                document.getElementById('homeBtn').style.display = 'block';
+                
+                document.getElementById('homeBtn').style.display = 'none';
+                
+                const backToSelectionBtn = document.createElement('button');
+                backToSelectionBtn.className = 'btn';
+                backToSelectionBtn.style.background = 'linear-gradient(45deg, #95a5a6, #7f8c8d)';
+                backToSelectionBtn.style.marginTop = '15px';
+                backToSelectionBtn.textContent = 'العودة لاختيار الاختبار';
+                backToSelectionBtn.onclick = () => {
+                    document.getElementById('questionArea').style.display = 'none';
+                    updateTestSelectionStatus();
+                    document.getElementById('testSelection').style.display = 'block';
+                    backToSelectionBtn.remove();
+                };
+                document.getElementById('questionArea').appendChild(backToSelectionBtn);
                 
                 showLeaderboard();
             }
@@ -1140,7 +1172,6 @@
                     return;
                 }
             } else {
-                // رسالة للمطور
                 console.log('وضع المطور: يُسمح بإعادة الاختبار');
             }
 
@@ -1162,6 +1193,9 @@
                 return;
             }
 
+            // إخفاء إشعار التقدم المحفوظ
+            document.getElementById('progressNotification').style.display = 'none';
+
             document.getElementById('testSelection').style.display = 'none';
             document.getElementById('questionArea').style.display = 'block';
             showQuestion();
@@ -1177,7 +1211,6 @@
             document.getElementById('questionNumber').textContent = 
                 `السؤال ${currentQuestionIndex + 1} من ${totalQuestions} - ${question.subject}`;
 
-            // إضافة الصورة إن وجدت
             let questionHTML = `<p><strong>${question.subject}:</strong> ${question.question}</p>`;
             if (question.image) {
                 questionHTML += `<img src="${question.image}" class="question-image" alt="صورة السؤال">`;
@@ -1200,6 +1233,9 @@
                 currentQuestionIndex === totalQuestions - 1 ? 'inline-block' : 'none';
             
             document.getElementById('submitBtn').style.display = 'none';
+
+            // حفظ التقدم تلقائياً
+            saveProgress();
         }
 
         // اختيار الإجابة
@@ -1245,6 +1281,9 @@
             if (currentQuestionIndex < currentTest.questions.length - 1) {
                 document.getElementById('nextBtn').style.display = 'inline-block';
             }
+
+            // حفظ التقدم بعد الإجابة
+            saveProgress();
         }
 
         // معالج إنهاء الاختبار
@@ -1294,6 +1333,12 @@
             document.getElementById('scoreDisplay').style.display = 'block';
 
             saveResult();
+
+            // حذف التقدم المحفوظ بعد إنهاء الاختبار بنجاح
+            if (testType === 'weekly' && currentStudent.code) {
+                const progressKey = `nafis_progress_${currentStudent.code}`;
+                localStorage.removeItem(progressKey);
+            }
 
             document.getElementById('optionsContainer').style.display = 'none';
             document.getElementById('questionText').style.display = 'none';
@@ -1464,6 +1509,7 @@
             testType = '';
             questionStartTime = 0;
             questionTimes = [];
+            savedProgress = null;
 
             document.getElementById('questionArea').style.display = 'none';
             document.getElementById('leaderboardCard').style.display = 'none';
@@ -1493,6 +1539,7 @@
             document.getElementById('finishBtn').style.display = 'none';
             document.getElementById('progressBar').style.width = '0%';
             document.getElementById('questionNumber').textContent = 'السؤال 1 من 7';
+            document.getElementById('progressNotification').style.display = 'none';
         }
 
         // تحميل الأسئلة عند بدء التطبيق
