@@ -358,7 +358,7 @@
             <div class="school-info">
                 <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
                 <p>مكتب تعليم العوالي - المملكة العربية السعودية</p>
-                <p>مدير المدرسة: الأستاذ نواف الصبحي</p>
+                <p>مدير المدرسة: الأستاذ خالد المطيري</p>
             </div>
         </div>
     </div>
@@ -453,7 +453,8 @@
                 </div>
 
                 <button class="btn" id="submitBtn" onclick="submitAnswer()" style="display: none;">تأكيد الإجابة</button>
-                <button class="btn" id="finishBtn" onclick="finishTest()" style="display: none;">إنهاء الاختبار</button>
+                <button class="btn" id="finishBtn" onclick="handleFinishTest()" style="display: none;">إنهاء الاختبار</button>
+                <button class="btn" id="homeBtn" onclick="goHome()" style="display: none; background: linear-gradient(45deg, #27ae60, #2ecc71); margin-top: 15px;">العودة للرئيسية</button>
             </div>
 
             <!-- مرتبة الشرف -->
@@ -466,7 +467,7 @@
         </div>
 
         <div class="footer">
-            <p><strong>إشراف وتنفيذ: الأستاذ نواف الصبحي</strong></p>
+            <p><strong>إشراف وتنفيذ: الأستاذ خالد المطيري</strong></p>
             <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
         </div>
     </div>
@@ -479,6 +480,8 @@
         let userAnswers = [];
         let score = 0;
         let testType = '';
+        let questionStartTime = 0;
+        let questionTimes = [];
 
         // أسئلة تجريبية
         const dailyQuestions = [
@@ -569,6 +572,7 @@
             currentQuestionIndex = 0;
             userAnswers = [];
             score = 0;
+            questionTimes = []; // إعادة تعيين أوقات الأسئلة
 
             if (type === 'daily') {
                 currentTest = { questions: dailyQuestions, title: 'سؤال اليوم' };
@@ -585,6 +589,9 @@
         function showQuestion() {
             const question = currentTest.questions[currentQuestionIndex];
             const totalQuestions = currentTest.questions.length;
+
+            // تسجيل وقت بداية السؤال
+            questionStartTime = Date.now();
 
             document.getElementById('questionNumber').textContent = 
                 `السؤال ${currentQuestionIndex + 1} من ${totalQuestions} - ${question.subject}`;
@@ -628,6 +635,10 @@
             const userAnswer = userAnswers[currentQuestionIndex];
             const options = document.querySelectorAll('.option');
 
+            // حساب الوقت المستغرق للإجابة (بالثواني)
+            const timeSpent = Math.round((Date.now() - questionStartTime) / 1000);
+            questionTimes[currentQuestionIndex] = timeSpent;
+
             // إظهار الإجابة الصحيحة
             options.forEach((option, index) => {
                 if (index === question.correct) {
@@ -643,13 +654,30 @@
                 score++;
             }
 
-            // إظهار التفسير
+            // إظهار التفسير مع الوقت
             document.getElementById('questionText').innerHTML += 
                 `<div style="margin-top: 15px; padding: 15px; background: #e8f5e8; border-radius: 8px; border-right: 4px solid #27ae60;">
-                    <strong>التفسير:</strong> ${question.explanation}
+                    <strong>التفسير:</strong> ${question.explanation}<br>
+                    <small style="color: #666;">⏱️ وقت الإجابة: ${timeSpent} ثانية</small>
                 </div>`;
 
             document.getElementById('submitBtn').style.display = 'none';
+        }
+
+        // معالج إنهاء الاختبار (للسؤال الأخير)
+        function handleFinishTest() {
+            // تأكيد الإجابة أولاً
+            submitAnswer();
+            
+            // ثم إنهاء الاختبار
+            setTimeout(() => {
+                finishTest();
+                document.getElementById('homeBtn').style.display = 'block';
+                document.getElementById('finishBtn').style.display = 'none';
+                
+                // إخفاء أزرار التنقل
+                document.querySelector('.nav-buttons').style.display = 'none';
+            }, 1000);
         }
 
         // السؤال التالي
@@ -694,6 +722,11 @@
         // حفظ النتيجة (محاكاة)
         function saveResult() {
             const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            
+            // حساب إجمالي الوقت ومتوسط الوقت للسؤال الواحد
+            const totalTime = questionTimes.reduce((sum, time) => sum + (time || 0), 0);
+            const averageTime = questionTimes.length > 0 ? totalTime / questionTimes.length : 0;
+            
             const result = {
                 studentName: currentStudent.fullName,
                 grade: currentStudent.grade,
@@ -702,11 +735,16 @@
                 score: score,
                 totalQuestions: currentTest.questions.length,
                 percentage: Math.round((score / currentTest.questions.length) * 100),
-                date: new Date().toLocaleDateString('ar-SA')
+                totalTime: Math.round(totalTime),
+                averageTime: Math.round(averageTime * 10) / 10, // تقريب لرقم عشري واحد
+                date: new Date().toLocaleDateString('ar-SA'),
+                timestamp: Date.now()
             };
 
             results.push(result);
             localStorage.setItem('nafisResults', JSON.stringify(results));
+            
+            console.log('Result saved:', result); // للتأكد من الحفظ
         }
 
         // إظهار مرتبة الشرف
@@ -714,8 +752,19 @@
             const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
             const filteredResults = results.filter(r => r.testType === testType);
             
-            // ترتيب حسب النسبة المئوية
-            filteredResults.sort((a, b) => b.percentage - a.percentage);
+            console.log('Filtered results:', filteredResults); // للتأكد من البيانات
+            
+            // ترتيب متقدم: النسبة المئوية أولاً، ثم الوقت (الأسرع أفضل)
+            filteredResults.sort((a, b) => {
+                // مقارنة النسبة المئوية أولاً
+                if (b.percentage !== a.percentage) {
+                    return b.percentage - a.percentage;
+                }
+                // إذا كانت النسبة متساوية، الأسرع في الوقت يفوز
+                const aTime = a.averageTime || 999;
+                const bTime = b.averageTime || 999;
+                return aTime - bTime;
+            });
 
             const leaderboardHtml = filteredResults.slice(0, 10).map((result, index) => {
                 let rankClass = '';
@@ -734,18 +783,25 @@
                     rankIcon = `${index + 1}`;
                 }
 
+                const timeInfo = result.averageTime && result.averageTime > 0 ? 
+                    `<small style="display: block; opacity: 0.8; margin-top: 3px;">⏱️ متوسط: ${result.averageTime}ث للسؤال</small>` : '';
+
                 return `
                     <div class="leaderboard-item ${rankClass}">
                         <div class="student-name">
                             ${rankIcon} ${result.studentName} - ${result.grade} ${result.section}
+                            ${timeInfo}
                         </div>
-                        <div>${result.percentage}%</div>
+                        <div>
+                            <strong>${result.percentage}%</strong>
+                            ${result.totalTime && result.totalTime > 0 ? `<br><small>${result.totalTime}ث إجمالي</small>` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
 
             document.getElementById('leaderboard').innerHTML = leaderboardHtml || 
-                '<p style="text-align: center;">لا توجد نتائج حتى الآن</p>';
+                '<p style="text-align: center; color: #666;">لا توجد نتائج حتى الآن</p>';
             
             document.getElementById('leaderboardCard').style.display = 'block';
         }
@@ -761,6 +817,50 @@
             document.getElementById('questionText').style.display = 'block';
             document.querySelector('.nav-buttons').style.display = 'flex';
             document.getElementById('scoreDisplay').style.display = 'none';
+        }
+
+        // العودة للرئيسية
+        function goHome() {
+            // إعادة تعيين جميع المتغيرات
+            currentStudent = {};
+            currentTest = {};
+            currentQuestionIndex = 0;
+            userAnswers = [];
+            score = 0;
+            testType = '';
+            questionStartTime = 0;
+            questionTimes = [];
+
+            // إخفاء جميع الأقسام
+            document.getElementById('questionArea').style.display = 'none';
+            document.getElementById('leaderboardCard').style.display = 'none';
+            document.getElementById('testSelection').style.display = 'none';
+            
+            // إظهار نموذج التسجيل
+            document.getElementById('studentForm').style.display = 'block';
+            
+            // مسح بيانات النموذج
+            document.getElementById('firstName').value = '';
+            document.getElementById('fatherName').value = '';
+            document.getElementById('grandFatherName').value = '';
+            document.getElementById('familyName').value = '';
+            document.getElementById('grade').value = '';
+            document.getElementById('section').value = '';
+            
+            // إعادة تعيين عناصر منطقة الأسئلة
+            document.getElementById('optionsContainer').style.display = 'block';
+            document.getElementById('optionsContainer').innerHTML = '';
+            document.getElementById('questionText').style.display = 'block';
+            document.getElementById('questionText').innerHTML = '<p>مرحباً بك في اختبار نافس!</p>';
+            document.querySelector('.nav-buttons').style.display = 'flex';
+            document.getElementById('scoreDisplay').style.display = 'none';
+            document.getElementById('homeBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('finishBtn').style.display = 'none';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('questionNumber').textContent = 'السؤال 1 من 7';
+            
+            console.log('Returned to home successfully');
         }
     </script>
 </body>
