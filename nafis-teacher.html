@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم المعلم - إضافة الأسئلة</title>
+    <title>منصة اختبار نافس - متوسطة المنذر بن عمرو الأنصاري</title>
     <style>
         * {
             margin: 0;
@@ -11,15 +11,83 @@
             box-sizing: border-box;
         }
 
+        // عرض نتيجة اختبار مكتمل سابقاً
+        function showCompletedTestResult(testType) {
+            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const studentResult = existingResults.find(result => 
+                result.studentName === currentStudent.fullName && 
+                result.grade === currentStudent.grade && 
+                result.section === currentStudent.section &&
+                result.testType === testType
+            );
+
+            if (studentResult) {
+                // تعيين معطيات الاختبار لعرض النتيجة
+                score = studentResult.score;
+                document.getElementById('testSelection').style.display = 'none';
+                
+                document.getElementById('questionArea').style.display = 'block';
+                document.getElementById('optionsContainer').style.display = 'none';
+                document.getElementById('questionText').style.display = 'none';
+                document.querySelector('.nav-buttons').style.display = 'none';
+                document.getElementById('submitBtn').style.display = 'none';
+                document.getElementById('finishBtn').style.display = 'none';
+                
+                document.getElementById('scoreDisplay').innerHTML = `
+                    <div style="background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-right: 4px solid #17a2b8;">
+                        <h4 style="margin-bottom: 10px;">📋 نتيجة سابقة - ${testType === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع'}</h4>
+                        <p style="margin-bottom: 5px;"><strong>تاريخ الاختبار:</strong> ${studentResult.date}</p>
+                        <p><strong>ملاحظة:</strong> لا يمكن إعادة هذا الاختبار</p>
+                    </div>
+                    <p>درجتك النهائية: <span style="font-size: 28px; color: #27ae60; font-weight: bold;">${studentResult.score}</span> من ${studentResult.totalQuestions}</p>
+                    <p>النسبة المئوية: <span style="font-size: 24px; color: #3498db; font-weight: bold;">${studentResult.percentage}%</span></p>
+                    ${studentResult.totalTime ? `<p style="color: #666; font-size: 16px;">⏱️ الوقت الإجمالي: ${studentResult.totalTime} ثانية</p>` : ''}
+                    ${studentResult.averageTime ? `<p style="color: #666; font-size: 16px;">📊 متوسط الوقت للسؤال: ${studentResult.averageTime} ثانية</p>` : ''}
+                `;
+                document.getElementById('scoreDisplay').style.display = 'block';
+                
+                // إظهار زر العودة لاختيار اختبار آخر
+                document.getElementById('homeBtn').style.display = 'none';
+                
+                // إضافة زر للعودة لاختيار الاختبارات
+                const backToSelectionBtn = document.createElement('button');
+                backToSelectionBtn.className = 'btn';
+                backToSelectionBtn.style.background = 'linear-gradient(45deg, #95a5a6, #7f8c8d)';
+                backToSelectionBtn.style.marginTop = '15px';
+                backToSelectionBtn.textContent = 'العودة لاختيار الاختبار';
+                backToSelectionBtn.onclick = () => {
+                    document.getElementById('questionArea').style.display = 'none';
+                    updateTestSelectionStatus(); // إعادة تحديث حالة الاختبارات
+                    document.getElementById('testSelection').style.display = 'block';
+                    backToSelectionBtn.remove(); // إزالة الزر بعد الاستخدام
+                };
+                document.getElementById('questionArea').appendChild(backToSelectionBtn);
+                
+                // إظهار مرتبة الشرف
+                showLeaderboard();
+            }
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+            user-drag: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .header {
-            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            background: linear-gradient(45deg, #1e3c72, #2a5298);
             color: white;
             padding: 20px;
             text-align: center;
@@ -37,7 +105,7 @@
         .logo-icon {
             width: 60px;
             height: 60px;
-            background: #f39c12;
+            background: #4CAF50;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -46,38 +114,62 @@
             font-weight: bold;
         }
 
+        .school-info h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .school-info p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        .admin-card {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
         }
 
-        .admin-card:hover {
-            transform: translateY(-2px);
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.18);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.2);
         }
 
         .section-title {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             color: #2c3e50;
             text-align: center;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+        }
+
+        .student-form {
+            margin-bottom: 30px;
         }
 
         .form-grid {
             display: grid;
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
         .form-group {
@@ -86,278 +178,264 @@
         }
 
         .form-group label {
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             font-weight: bold;
             color: #555;
-            font-size: 16px;
         }
 
-        .form-group input, .form-group select, .form-group textarea {
-            padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            font-family: inherit;
-        }
-
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            outline: none;
-            border-color: #e74c3c;
-            box-shadow: 0 0 10px rgba(231, 76, 60, 0.2);
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .image-upload {
-            border: 2px dashed #ddd;
-            border-radius: 10px;
-            padding: 30px;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .image-upload:hover {
-            border-color: #e74c3c;
-            background: #fdf2f2;
-        }
-
-        .image-upload.dragover {
-            border-color: #27ae60;
-            background: #f0fdf4;
-        }
-
-        .image-preview {
-            max-width: 300px;
-            max-height: 200px;
-            border-radius: 10px;
-            margin-top: 15px;
-        }
-
-        .upload-text {
-            color: #666;
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-
-        .upload-icon {
-            font-size: 48px;
-            color: #bdc3c7;
-            margin-bottom: 15px;
-        }
-
-        .options-container {
-            display: grid;
-            gap: 15px;
-        }
-
-        .option-group {
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            gap: 15px;
-            align-items: center;
-            padding: 15px;
-            border: 2px solid #ecf0f1;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-        }
-
-        .option-group:hover {
-            border-color: #bdc3c7;
-        }
-
-        .option-group.correct {
-            border-color: #27ae60;
-            background: #f0fdf4;
-        }
-
-        .option-label {
-            background: #3498db;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 50%;
-            font-weight: bold;
-            text-align: center;
-            min-width: 40px;
-        }
-
-        .option-input {
+        .form-group input, .form-group select {
             padding: 12px;
-            border: 1px solid #ddd;
+            border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
+            transition: border-color 0.3s ease;
         }
 
-        .correct-radio {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
         }
 
         .btn {
-            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            background: linear-gradient(45deg, #3498db, #2980b9);
             color: white;
             border: none;
             padding: 15px 30px;
             border-radius: 25px;
-            font-size: 18px;
+            font-size: 16px;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-weight: bold;
-            margin: 0 auto;
+            text-align: center;
             display: block;
-            margin-top: 30px;
+            margin: 0 auto;
         }
 
         .btn:hover {
-            background: linear-gradient(45deg, #c0392b, #a93226);
+            background: linear-gradient(45deg, #2980b9, #1f5f99);
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
-        .btn-secondary {
-            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
-            margin-left: 15px;
-        }
-
-        .btn-secondary:hover {
-            background: linear-gradient(45deg, #7f8c8d, #6c7b7d);
-        }
-
-        .questions-list {
-            margin-top: 30px;
-        }
-
-        .question-item {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            border-right: 5px solid #3498db;
-        }
-
-        .question-item h4 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-
-        .question-item .subject-badge {
-            background: #3498db;
-            color: white;
-            padding: 5px 15px;
-            border-radius: 15px;
-            font-size: 12px;
-            margin-bottom: 10px;
-            display: inline-block;
-        }
-
-        .question-options {
-            margin: 10px 0;
-        }
-
-        .question-options div {
-            padding: 8px;
-            margin: 5px 0;
-            border-radius: 5px;
-        }
-
-        .correct-answer {
-            background: #d4edda;
-            color: #155724;
-            font-weight: bold;
-        }
-
-        .delete-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            float: left;
-            margin-top: 10px;
-        }
-
-        .delete-btn:hover {
-            background: #c0392b;
-        }
-
-        .stats-grid {
+        .test-sections {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 20px;
-            margin-bottom: 30px;
         }
 
-        .stat-card {
-            background: linear-gradient(135deg, #3498db, #2980b9);
+        .test-card {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
             color: white;
-            padding: 25px;
             border-radius: 15px;
+            padding: 25px;
             text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
 
-        .stat-card h3 {
-            font-size: 32px;
-            margin-bottom: 10px;
+        .test-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
         }
 
-        .stat-card p {
+        .test-card.weekly {
+            background: linear-gradient(135deg, #fd79a8, #e84393);
+        }
+
+        .test-card h3 {
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+
+        .test-card p {
+            margin-bottom: 20px;
             opacity: 0.9;
         }
 
-        .export-btn {
-            background: linear-gradient(45deg, #27ae60, #229954);
-            margin-left: 10px;
+        .question-container {
+            display: none;
+            text-align: center;
         }
 
-        .export-btn:hover {
-            background: linear-gradient(45deg, #229954, #1e8449);
+        .question {
+            font-size: 18px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
         }
 
-        .success-message {
-            background: #d4edda;
-            color: #155724;
+        .question-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .options {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .option {
             padding: 15px;
+            background: #e8f4fd;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: right;
+        }
+
+        .option:hover {
+            background: #d1ecf1;
+            border-color: #3498db;
+        }
+
+        .option.selected {
+            background: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .option.correct {
+            background: #27ae60;
+            color: white;
+            border-color: #229954;
+        }
+
+        .option.wrong {
+            background: #e74c3c;
+            color: white;
+            border-color: #c0392b;
+        }
+
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #ecf0f1;
             border-radius: 10px;
             margin-bottom: 20px;
-            border: 1px solid #c3e6cb;
-            display: none;
+            overflow: hidden;
         }
 
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .score-display {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+        }
+
+        .leaderboard {
+            margin-top: 30px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             padding: 15px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #f1f2f6, #ddd);
             border-radius: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #f5c6cb;
-            display: none;
+            border-right: 5px solid #3498db;
+        }
+
+        .leaderboard-item.gold {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            border-right-color: #f39c12;
+        }
+
+        .leaderboard-item.silver {
+            background: linear-gradient(135deg, #c0c0c0, #95a5a6);
+            border-right-color: #7f8c8d;
+        }
+
+        .leaderboard-item.bronze {
+            background: linear-gradient(135deg, #cd7f32, #d68910);
+            border-right-color: #b7950b;
+        }
+
+        .student-name {
+            font-weight: bold;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            margin-top: 40px;
+            border-radius: 15px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+
+        .nav-btn {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: #7f8c8d;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .rank-tab {
+            background: transparent;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            margin: 0 5px;
+        }
+
+        .rank-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .rank-tab:hover {
+            background: #2980b9;
+            color: white;
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding: 10px;
+            .form-grid {
+                grid-template-columns: 1fr;
             }
             
-            .admin-card {
-                padding: 20px;
+            .test-sections {
+                grid-template-columns: 1fr;
             }
             
-            .option-group {
-                grid-template-columns: auto 1fr;
+            .nav-buttons {
+                flex-direction: column;
                 gap: 10px;
-            }
-            
-            .correct-radio {
-                grid-column: span 2;
-                justify-self: center;
-                margin-top: 10px;
             }
         }
     </style>
@@ -365,642 +443,1144 @@
 <body>
     <div class="header">
         <div class="logo">
-            <div class="logo-icon">👨‍🏫</div>
-            <div>
-                <h1>لوحة تحكم المعلم</h1>
-                <p>إدارة أسئلة اختبار نافس</p>
-                <p>متوسطة المنذر بن عمرو الأنصاري</p>
+            <div class="logo-icon">نافس</div>
+            <div class="school-info">
+                <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
+                <p>مكتب تعليم العوالي - المملكة العربية السعودية</p>
+                <p>مدير المدرسة: الأستاذ خالد المطيري</p>
             </div>
         </div>
     </div>
 
     <div class="container">
-        <!-- إحصائيات سريعة -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3 id="dailyCount">0</h3>
-                <p>أسئلة يومية</p>
+        <div class="main-content">
+            <!-- نموذج تسجيل الطالب -->
+            <div class="card" id="studentForm">
+                <h2 class="section-title">تسجيل بيانات الطالب واستخراج الرقم الخاص</h2>
+                <div class="student-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>الاسم الأول</label>
+                            <input type="text" id="firstName" placeholder="أدخل الاسم الأول">
+                        </div>
+                        <div class="form-group">
+                            <label>اسم الأب</label>
+                            <input type="text" id="fatherName" placeholder="أدخل اسم الأب">
+                        </div>
+                        <div class="form-group">
+                            <label>اسم الجد</label>
+                            <input type="text" id="grandFatherName" placeholder="أدخل اسم الجد">
+                        </div>
+                        <div class="form-group">
+                            <label>اسم العائلة</label>
+                            <input type="text" id="familyName" placeholder="أدخل اسم العائلة">
+                        </div>
+                        <div class="form-group">
+                            <label>الصف</label>
+                            <select id="grade">
+                                <option value="">اختر الصف</option>
+                                <option value="أول متوسط">أول متوسط</option>
+                                <option value="ثاني متوسط">ثاني متوسط</option>
+                                <option value="ثالث متوسط">ثالث متوسط</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>الشعبة</label>
+                            <select id="section">
+                                <option value="">اختر الشعبة</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="registerStudent()">استخراج رقمي الخاص</button>
+                    <button class="btn" onclick="showLoginForm()" style="background: linear-gradient(45deg, #e67e22, #d35400); margin-top: 15px;">لدي حساب مسبقاً</button>
+                </div>
             </div>
-            <div class="stat-card">
-                <h3 id="weeklyCount">0</h3>
-                <p>أسئلة أسبوعية</p>
+
+            <!-- عرض الرقم الخاص -->
+            <div class="card" id="studentCodeDisplay" style="display: none;">
+                <h2 class="section-title">🎉 تم إنشاء رقمك الخاص بنجاح</h2>
+                <div style="text-align: center; padding: 30px;">
+                    <div style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 25px; border-radius: 15px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px;">رقمك الخاص هو:</h3>
+                        <div id="generatedCode" style="font-size: 32px; font-weight: bold; letter-spacing: 3px; background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px;"></div>
+                    </div>
+                    <div style="background: #fff3cd; color: #856404; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: right;">
+                        <h4 style="margin-bottom: 10px;">⚠️ تعليمات مهمة:</h4>
+                        <ul style="text-align: right; margin-right: 20px;">
+                            <li>احتفظ بهذا الرقم في مكان آمن</li>
+                            <li>ستحتاجه لدخول جميع الاختبارات</li>
+                            <li>لا تشاركه مع الطلاب الآخرين</li>
+                            <li>في حالة نسيانه، اتصل بالمعلم</li>
+                        </ul>
+                    </div>
+                    <button class="btn" onclick="proceedToLogin()" style="background: linear-gradient(45deg, #3498db, #2980b9);">المتابعة لدخول الاختبار</button>
+                </div>
             </div>
-            <div class="stat-card">
-                <h3 id="totalCount">0</h3>
-                <p>إجمالي الأسئلة</p>
+
+        <!-- تسجيل الدخول بالرقم -->
+            <div class="card" id="loginForm" style="display: none;">
+                <h2 class="section-title">🔐 تسجيل الدخول للاختبار</h2>
+                <div class="student-form">
+                    <div class="form-grid" style="grid-template-columns: 1fr;">
+                        <div class="form-group">
+                            <label>الاسم الرباعي الكامل</label>
+                            <input type="text" id="loginFullName" placeholder="أدخل اسمك الكامل كما سجلته سابقاً">
+                        </div>
+                        <div class="form-group">
+                            <label>رقمك الخاص</label>
+                            <input type="text" id="studentCode" placeholder="أدخل رقمك الخاص (6 أرقام)" maxlength="6" style="text-align: center; font-size: 18px; letter-spacing: 2px;">
+                        </div>
+                        
+                        <!-- وضع المطور -->
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="developerMode" style="width: auto;">
+                                وضع المطور (لاختبار الأسئلة الجديدة)
+                            </label>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="loginStudent()">دخول الاختبار</button>
+                    <button class="btn" onclick="backToRegistration()" style="background: #95a5a6; margin-top: 10px;">العودة للتسجيل</button>
+                </div>
+            </div>
+
+            <!-- اختيار نوع الاختبار -->
+            <div class="card" id="testSelection" style="display: none;">
+                <h2 class="section-title">اختر نوع الاختبار</h2>
+                
+                <!-- تحذير في أعلى الصفحة -->
+                <div style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; border-right: 4px solid #f39c12;">
+                    <h4 style="margin-bottom: 10px;">⚠️ تنبيه مهم</h4>
+                    <p style="margin-bottom: 5px;"><strong>يُسمح بإجراء كل اختبار مرة واحدة فقط!</strong></p>
+                    <p>فكر جيداً قبل اختيار نوع الاختبار</p>
+                </div>
+                
+                <div class="test-sections">
+                    <div class="test-card" onclick="confirmAndStartTest('daily')">
+                        <h3>🌟 سؤال اليوم</h3>
+                        <p>7 أسئلة متنوعة في المواد الثلاث</p>
+                        <p><strong>الرياضيات - القراءة - العلوم</strong></p>
+                        <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
+                            <small>⏱️ الوقت المقدر: 15-20 دقيقة</small>
+                        </div>
+                    </div>
+                    <div class="test-card weekly" onclick="confirmAndStartTest('weekly')">
+                        <h3>🏆 أسئلة الأسبوع</h3>
+                        <p>40 سؤال شامل لجميع المواد</p>
+                        <p><strong>اختبار تنافسي أسبوعي</strong></p>
+                        <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
+                            <small>⏱️ الوقت المقدر: 60-90 دقيقة</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- معلومات إضافية -->
+                <div style="background: #e8f5e8; color: #27ae60; padding: 15px; border-radius: 10px; margin-top: 20px; text-align: center; border-right: 4px solid #27ae60;">
+                    <p><strong>💡 نصائح للنجاح:</strong></p>
+                    <ul style="text-align: right; margin: 10px 20px;">
+                        <li>اقرأ السؤال بعناية قبل الإجابة</li>
+                        <li>لا تتسرع في الإجابة</li>
+                        <li>تأكد من اتصال الإنترنت</li>
+                        <li>اختر مكان هادئ للاختبار</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- منطقة الأسئلة -->
+            <div class="card question-container" id="questionArea">
+                <div class="progress">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                
+                <div class="nav-buttons">
+                    <button class="nav-btn" id="prevBtn" onclick="previousQuestion()" disabled>السؤال السابق</button>
+                    <span id="questionNumber">السؤال 1 من 7</span>
+                    <button class="nav-btn" id="nextBtn" onclick="nextQuestion()">السؤال التالي</button>
+                </div>
+
+                <div class="question" id="questionText">
+                    <p>مرحباً بك في اختبار نافس!</p>
+                </div>
+
+                <div class="options" id="optionsContainer">
+                    <!-- سيتم إدراج الخيارات هنا -->
+                </div>
+
+                <div class="score-display" id="scoreDisplay" style="display: none;">
+                    <p>درجتك النهائية: <span id="finalScore">0</span> من <span id="totalQuestions">7</span></p>
+                    <p>النسبة المئوية: <span id="percentage">0%</span></p>
+                </div>
+
+                <button class="btn" id="submitBtn" onclick="submitAnswer()" style="display: none;">تأكيد الإجابة</button>
+                <button class="btn" id="finishBtn" onclick="handleFinishTest()" style="display: none;">إنهاء الاختبار</button>
+                <button class="btn" id="homeBtn" onclick="goHome()" style="display: none; background: linear-gradient(45deg, #27ae60, #2ecc71); margin-top: 15px;">العودة للرئيسية</button>
+            </div>
+
+            <!-- مرتبة الشرف المتقدمة -->
+            <div class="card" id="leaderboardCard" style="display: none;">
+                <h2 class="section-title">🏅 مرتبة الشرف</h2>
+                
+                <!-- ترتيبك الشخصي -->
+                <div id="personalRank" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; text-align: center;">
+                    <h3 style="margin-bottom: 15px;">📊 ترتيبك الشخصي</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: bold;" id="schoolRank">-</div>
+                            <div style="font-size: 14px;">على المدرسة</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: bold;" id="gradeRank">-</div>
+                            <div style="font-size: 14px;">على الصف</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: bold;" id="sectionRank">-</div>
+                            <div style="font-size: 14px;">على الشعبة</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تبويبات الترتيب -->
+                <div style="display: flex; justify-content: center; margin-bottom: 20px; background: #f8f9fa; border-radius: 10px; padding: 5px;">
+                    <button class="rank-tab active" onclick="showRanking('school')" id="schoolTab">🏫 المدرسة</button>
+                    <button class="rank-tab" onclick="showRanking('grade')" id="gradeTab">📚 الصف</button>
+                    <button class="rank-tab" onclick="showRanking('section')" id="sectionTab">👥 الشعبة</button>
+                </div>
+
+                <!-- منطقة عرض الترتيبات -->
+                <div class="leaderboard" id="leaderboard">
+                    <!-- سيتم إدراج النتائج هنا -->
+                </div>
             </div>
         </div>
 
-        <!-- رسائل التأكيد -->
-        <div id="successMessage" class="success-message"></div>
-        <div id="errorMessage" class="error-message"></div>
-
-        <!-- نموذج إضافة سؤال جديد -->
-        <div class="admin-card">
-            <h2 class="section-title">إضافة سؤال جديد</h2>
+        <div class="footer">
+            <p><strong>إشراف وتنفيذ: الأستاذ خالد المطيري</strong></p>
+            <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
             
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="questionSubject">المادة</label>
-                    <select id="questionSubject" required>
-                        <option value="">اختر المادة</option>
-                        <option value="رياضيات">رياضيات</option>
-                        <option value="قراءة">قراءة</option>
-                        <option value="علوم">علوم</option>
-                        <option value="لغة عربية">لغة عربية</option>
-                        <option value="تاريخ">تاريخ</option>
-                        <option value="جغرافيا">جغرافيا</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="questionType">نوع الاختبار</label>
-                    <select id="questionType" required>
-                        <option value="">اختر نوع الاختبار</option>
-                        <option value="daily">سؤال اليوم</option>
-                        <option value="weekly">أسئلة الأسبوع</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="questionText">نص السؤال</label>
-                    <textarea id="questionText" placeholder="أدخل نص السؤال هنا..." required></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label>صورة السؤال (اختيارية)</label>
-                    <div class="image-upload" id="imageUpload">
-                        <div class="upload-icon">📷</div>
-                        <div class="upload-text">اسحب الصورة هنا أو اضغط للاختيار</div>
-                        <input type="file" id="questionImage" accept="image/*" style="display: none;">
-                        <img id="imagePreview" class="image-preview" style="display: none;">
-                        <button type="button" id="removeImage" style="display: none; margin-top: 10px; background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">إزالة الصورة</button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>خيارات الإجابة</label>
-                    <div class="options-container">
-                        <div class="option-group" data-option="0">
-                            <div class="option-label">أ</div>
-                            <input type="text" class="option-input" placeholder="الخيار الأول" required>
-                            <input type="radio" name="correctAnswer" value="0" class="correct-radio">
-                        </div>
-                        <div class="option-group" data-option="1">
-                            <div class="option-label">ب</div>
-                            <input type="text" class="option-input" placeholder="الخيار الثاني" required>
-                            <input type="radio" name="correctAnswer" value="1" class="correct-radio">
-                        </div>
-                        <div class="option-group" data-option="2">
-                            <div class="option-label">ج</div>
-                            <input type="text" class="option-input" placeholder="الخيار الثالث" required>
-                            <input type="radio" name="correctAnswer" value="2" class="correct-radio">
-                        </div>
-                        <div class="option-group" data-option="3">
-                            <div class="option-label">د</div>
-                            <input type="text" class="option-input" placeholder="الخيار الرابع" required>
-                            <input type="radio" name="correctAnswer" value="3" class="correct-radio">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="questionExplanation">تفسير الإجابة الصحيحة</label>
-                    <textarea id="questionExplanation" placeholder="اشرح لماذا هذه الإجابة صحيحة..." required></textarea>
-                </div>
-            </div>
-
-            <button type="button" class="btn" onclick="addQuestion()">إضافة السؤال</button>
-            <button type="button" class="btn btn-secondary" onclick="previewQuestion()">معاينة</button>
-            <button type="button" class="btn export-btn" onclick="exportQuestions()">تصدير الأسئلة</button>
-        </div>
-
-        <!-- قائمة الأسئلة الحالية -->
-        <div class="admin-card">
-            <h2 class="section-title">الأسئلة المضافة</h2>
-            <div id="questionsList" class="questions-list">
-                <!-- سيتم إدراج الأسئلة هنا -->
+            <!-- أزرار المطور -->
+            <div style="margin-top: 15px;">
+                <button onclick="forceRefreshQuestions()" style="background: #f39c12; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin: 5px; font-size: 12px;">
+                    🔄 تحديث الأسئلة
+                </button>
+                <button onclick="clearTestResults()" style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin: 5px; font-size: 12px;">
+                    🗑️ مسح نتائج الاختبار (للمطور)
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        // تحميل الأسئلة المحفوظة
-        let dailyQuestions = JSON.parse(localStorage.getItem('adminDailyQuestions') || '[]');
-        let weeklyQuestions = JSON.parse(localStorage.getItem('adminWeeklyQuestions') || '[]');
+        // بيانات الطالب
+        let currentStudent = {};
+        let currentTest = {};
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
+        let score = 0;
+        let testType = '';
+        let questionStartTime = 0;
+        let questionTimes = [];
+        let studentDatabase = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
 
-        // تحديث الإحصائيات
-        function updateStats() {
-            document.getElementById('dailyCount').textContent = dailyQuestions.length;
-            document.getElementById('weeklyCount').textContent = weeklyQuestions.length;
-            document.getElementById('totalCount').textContent = dailyQuestions.length + weeklyQuestions.length;
-        }
-
-        // معالج رفع الصور
-        function initializeImageUpload() {
-            const uploadArea = document.getElementById('imageUpload');
-            const fileInput = document.getElementById('questionImage');
-            const preview = document.getElementById('imagePreview');
-            const removeBtn = document.getElementById('removeImage');
-
-            uploadArea.addEventListener('click', () => fileInput.click());
-
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('dragover');
-            });
-
-            uploadArea.addEventListener('dragleave', () => {
-                uploadArea.classList.remove('dragover');
-            });
-
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    handleImageFile(files[0]);
-                }
-            });
-
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    handleImageFile(e.target.files[0]);
-                }
-            });
-
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                fileInput.value = '';
-                preview.style.display = 'none';
-                removeBtn.style.display = 'none';
-                document.querySelector('.upload-text').style.display = 'block';
-                document.querySelector('.upload-icon').style.display = 'block';
-            });
-        }
-
-        function handleImageFile(file) {
-            if (!file.type.startsWith('image/')) {
-                showError('يرجى اختيار ملف صورة صحيح');
-                return;
+        // أسئلة تجريبية - سيتم استبدالها بالأسئلة من لوحة التحكم
+        let dailyQuestions = JSON.parse(localStorage.getItem('nafisMainDailyQuestions') || JSON.stringify([
+            {
+                subject: 'رياضيات',
+                question: 'ما ناتج 15 + 28؟',
+                options: ['43', '42', '44', '41'],
+                correct: 0,
+                explanation: 'الإجابة الصحيحة هي 43 لأن 15 + 28 = 43'
+            },
+            {
+                subject: 'قراءة',
+                question: 'أي من الكلمات التالية مرادف لكلمة "سعيد"؟',
+                options: ['حزين', 'مسرور', 'غاضب', 'خائف'],
+                correct: 1,
+                explanation: 'مسرور هو مرادف سعيد'
+            },
+            {
+                subject: 'علوم',
+                question: 'كم عدد أقمار كوكب الأرض؟',
+                options: ['قمر واحد', 'قمران', 'ثلاثة أقمار', 'لا يوجد أقمار'],
+                correct: 0,
+                explanation: 'للأرض قمر واحد فقط'
+            },
+            {
+                subject: 'رياضيات',
+                question: 'ما ناتج 8 × 7؟',
+                options: ['54', '56', '58', '52'],
+                correct: 1,
+                explanation: 'الإجابة الصحيحة هي 56 لأن 8 × 7 = 56'
+            },
+            {
+                subject: 'قراءة',
+                question: 'ما هو جمع كلمة "كتاب"؟',
+                options: ['كتابات', 'كتب', 'كتابان', 'أكتاب'],
+                correct: 1,
+                explanation: 'جمع كتاب هو كتب'
+            },
+            {
+                subject: 'علوم',
+                question: 'أي من هذه المواد موصل للكهرباء؟',
+                options: ['الخشب', 'البلاستيك', 'النحاس', 'المطاط'],
+                correct: 2,
+                explanation: 'النحاس معدن موصل جيد للكهرباء'
+            },
+            {
+                subject: 'رياضيات',
+                question: 'كم يساوي محيط المربع إذا كان طول ضلعه 5 سم؟',
+                options: ['15 سم', '20 سم', '25 سم', '10 سم'],
+                correct: 1,
+                explanation: 'محيط المربع = 4 × طول الضلع = 4 × 5 = 20 سم'
             }
+        ]));
 
-            if (file.size > 5 * 1024 * 1024) { // 5MB
-                showError('حجم الصورة يجب أن يكون أقل من 5 ميجابايت');
-                return;
-            }
+        let weeklyQuestions = JSON.parse(localStorage.getItem('nafisMainWeeklyQuestions') || JSON.stringify(dailyQuestions));
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const preview = document.getElementById('imagePreview');
-                const removeBtn = document.getElementById('removeImage');
-                
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-                removeBtn.style.display = 'block';
-                
-                document.querySelector('.upload-text').style.display = 'none';
-                document.querySelector('.upload-icon').style.display = 'none';
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // تمييز الإجابة الصحيحة
-        document.addEventListener('change', function(e) {
-            if (e.target.name === 'correctAnswer') {
-                // إزالة التمييز من جميع الخيارات
-                document.querySelectorAll('.option-group').forEach(group => {
-                    group.classList.remove('correct');
-                });
-                
-                // تمييز الخيار المحدد
-                const selectedOption = e.target.closest('.option-group');
-                selectedOption.classList.add('correct');
-            }
-        });
-
-        // إضافة سؤال جديد
-        function addQuestion() {
-            // التحقق من صحة البيانات
-            const subject = document.getElementById('questionSubject').value;
-            const type = document.getElementById('questionType').value;
-            const questionText = document.getElementById('questionText').value;
-            const explanation = document.getElementById('questionExplanation').value;
-
-            if (!subject || !type || !questionText || !explanation) {
-                showError('يرجى تعبئة جميع الحقول المطلوبة');
-                return;
-            }
-
-            // جمع الخيارات
-            const options = [];
-            const optionInputs = document.querySelectorAll('.option-input');
-            
-            optionInputs.forEach(input => {
-                if (!input.value.trim()) {
-                    showError('يرجى تعبئة جميع خيارات الإجابة');
-                    return;
-                }
-                options.push(input.value.trim());
-            });
-
-            if (options.length !== 4) return;
-
-            // التحقق من اختيار الإجابة الصحيحة
-            const correctAnswer = document.querySelector('input[name="correctAnswer"]:checked');
-            if (!correctAnswer) {
-                showError('يرجى اختيار الإجابة الصحيحة');
-                return;
-            }
-
-            // جمع الصورة إن وجدت
-            const imagePreview = document.getElementById('imagePreview');
-            const hasImage = imagePreview.style.display !== 'none';
-            const imageData = hasImage ? imagePreview.src : null;
-
-            // إنشاء السؤال
-            const question = {
-                id: Date.now(),
-                subject: subject,
-                question: questionText,
-                options: options,
-                correct: parseInt(correctAnswer.value),
-                explanation: explanation,
-                image: imageData,
-                createdAt: new Date().toLocaleString('ar-SA')
-            };
-
-            // إضافة السؤال للقائمة المناسبة
-            if (type === 'daily') {
-                dailyQuestions.push(question);
-                localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-                // تحديث منصة نافس مباشرة
-                updateNafisPlatform('daily', dailyQuestions);
-            } else {
-                weeklyQuestions.push(question);
-                localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                // تحديث منصة نافس مباشرة
-                updateNafisPlatform('weekly', weeklyQuestions);
-            }
-
-            showSuccess('تم إضافة السؤال وتحديث منصة نافس تلقائياً!');
-            clearForm();
-            updateStats();
-            displayQuestions();
-        }
-
-        // تحديث منصة نافس مباشرة
-        function updateNafisPlatform(type, questions) {
-            // تحديث الأسئلة في منصة نافس الرئيسية
-            if (type === 'daily') {
-                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(questions));
-                
-                // إذا كانت منصة نافس مفتوحة في تبويب آخر، أرسل تحديث
-                window.postMessage({
-                    type: 'NAFIS_UPDATE_DAILY',
-                    questions: questions
-                }, '*');
-                
-                console.log('تم تحديث الأسئلة اليومية في منصة نافس');
-            } else {
-                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(questions));
-                
-                // إذا كانت منصة نافس مفتوحة في تبويب آخر، أرسل تحديث
-                window.postMessage({
-                    type: 'NAFIS_UPDATE_WEEKLY',
-                    questions: questions
-                }, '*');
-                
-                console.log('تم تحديث الأسئلة الأسبوعية في منصة نافس');
-            }
-        }
-
-        // معاينة السؤال
-        function previewQuestion() {
-            const questionText = document.getElementById('questionText').value;
-            const subject = document.getElementById('questionSubject').value;
-            
-            if (!questionText || !subject) {
-                showError('يرجى إدخال نص السؤال والمادة أولاً');
-                return;
-            }
-
-            const options = [];
-            document.querySelectorAll('.option-input').forEach(input => {
-                options.push(input.value || 'خيار فارغ');
-            });
-
-            const correctAnswer = document.querySelector('input[name="correctAnswer"]:checked');
-            const correctIndex = correctAnswer ? parseInt(correctAnswer.value) : -1;
-
-            const imagePreview = document.getElementById('imagePreview');
-            const hasImage = imagePreview.style.display !== 'none';
-
-            let previewHTML = `
-                <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto;">
-                    <h3 style="color: #2c3e50; margin-bottom: 15px;">${subject}: ${questionText}</h3>
-                    ${hasImage ? `<img src="${imagePreview.src}" style="max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 15px;">` : ''}
-                    <div style="display: grid; gap: 10px;">
-            `;
-
-            options.forEach((option, index) => {
-                const isCorrect = index === correctIndex;
-                const style = isCorrect ? 'background: #d4edda; color: #155724; font-weight: bold;' : 'background: #f8f9fa;';
-                previewHTML += `<div style="padding: 12px; border-radius: 8px; ${style}">${String.fromCharCode(65 + index)}) ${option}</div>`;
-            });
-
-            previewHTML += `</div></div>`;
-
-            const newWindow = window.open('', 'معاينة السؤال', 'width=700,height=600');
-            newWindow.document.write(`
-                <html dir="rtl">
-                    <head>
-                        <title>معاينة السؤال</title>
-                        <meta charset="UTF-8">
-                        <style>body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6fa; padding: 20px; }</style>
-                    </head>
-                    <body>${previewHTML}</body>
-                </html>
-            `);
-        }
-
-        // مسح النموذج
-        function clearForm() {
-            document.getElementById('questionSubject').value = '';
-            document.getElementById('questionType').value = '';
-            document.getElementById('questionText').value = '';
-            document.getElementById('questionExplanation').value = '';
-            
-            document.querySelectorAll('.option-input').forEach(input => input.value = '');
-            document.querySelectorAll('input[name="correctAnswer"]').forEach(radio => radio.checked = false);
-            document.querySelectorAll('.option-group').forEach(group => group.classList.remove('correct'));
-            
-            // مسح الصورة
-            const fileInput = document.getElementById('questionImage');
-            const preview = document.getElementById('imagePreview');
-            const removeBtn = document.getElementById('removeImage');
-            
-            fileInput.value = '';
-            preview.style.display = 'none';
-            removeBtn.style.display = 'none';
-            document.querySelector('.upload-text').style.display = 'block';
-            document.querySelector('.upload-icon').style.display = 'block';
-        }
-
-        // عرض الأسئلة
-        function displayQuestions() {
-            const container = document.getElementById('questionsList');
-            const allQuestions = [
-                ...dailyQuestions.map(q => ({...q, type: 'daily', typeName: 'سؤال اليوم'})),
-                ...weeklyQuestions.map(q => ({...q, type: 'weekly', typeName: 'أسئلة الأسبوع'}))
-            ].sort((a, b) => b.id - a.id);
-
-            if (allQuestions.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">لا توجد أسئلة مضافة حتى الآن</p>';
-                return;
-            }
-
-            container.innerHTML = allQuestions.map(question => `
-                <div class="question-item">
-                    <div class="subject-badge">${question.subject}</div>
-                    <h4>${question.question}</h4>
-                    ${question.image ? `<img src="${question.image}" style="max-width: 200px; height: auto; border-radius: 5px; margin: 10px 0;">` : ''}
-                    <div class="question-options">
-                        ${question.options.map((option, index) => 
-                            `<div class="${index === question.correct ? 'correct-answer' : ''}">${String.fromCharCode(65 + index)}) ${option}</div>`
-                        ).join('')}
-                    </div>
-                    <p><strong>التفسير:</strong> ${question.explanation}</p>
-                    <p><small>النوع: ${question.typeName} | تاريخ الإضافة: ${question.createdAt}</small></p>
-                    <button class="delete-btn" onclick="deleteQuestion('${question.type}', ${question.id})">حذف السؤال</button>
-                </div>
-            `).join('');
-        }
-
-        // حذف سؤال
-        function deleteQuestion(type, id) {
-            if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) {
-                return;
-            }
-
-            if (type === 'daily') {
-                dailyQuestions = dailyQuestions.filter(q => q.id !== id);
-                localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-            } else {
-                weeklyQuestions = weeklyQuestions.filter(q => q.id !== id);
-                localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-            }
-
-            showSuccess('تم حذف السؤال بنجاح');
-            updateStats();
-            displayQuestions();
-        }
-
-        // تصدير الأسئلة
-        function exportQuestions() {
-            const data = {
-                daily: dailyQuestions,
-                weekly: weeklyQuestions,
-                exportDate: new Date().toLocaleString('ar-SA'),
-                totalQuestions: dailyQuestions.length + weeklyQuestions.length
-            };
-
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `nafis-questions-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            showSuccess('تم تصدير الأسئلة بنجاح');
-        }
-
-        // عرض رسائل النجاح
-        function showSuccess(message) {
-            const successDiv = document.getElementById('successMessage');
-            const errorDiv = document.getElementById('errorMessage');
-            
-            errorDiv.style.display = 'none';
-            successDiv.textContent = message;
-            successDiv.style.display = 'block';
-            
-            setTimeout(() => {
-                successDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        // عرض رسائل الخطأ
-        function showError(message) {
-            const successDiv = document.getElementById('successMessage');
-            const errorDiv = document.getElementById('errorMessage');
-            
-            successDiv.style.display = 'none';
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        // تحديث أسئلة المنصة الرئيسية
-        function updateMainPlatformQuestions() {
-            try {
-                // تحديث الأسئلة في منصة نافس الرئيسية
+        // مراقبة التحديثات من لوحة التحكم
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'NAFIS_UPDATE_DAILY') {
+                dailyQuestions = event.data.questions;
+                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                console.log('تم تحديث الأسئلة اليومية من لوحة التحكم');
+                showUpdateNotification('تم تحديث الأسئلة اليومية');
+            } else if (event.data.type === 'NAFIS_UPDATE_WEEKLY') {
+                weeklyQuestions = event.data.questions;
+                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                console.log('تم تحديث الأسئلة الأسبوعية من لوحة التحكم');
+                showUpdateNotification('تم تحديث الأسئلة الأسبوعية');
+            } else if (event.data.type === 'NAFIS_UPDATE_ALL') {
+                dailyQuestions = event.data.dailyQuestions || [];
+                weeklyQuestions = event.data.weeklyQuestions || [];
                 localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
                 localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                
-                // إرسال تحديث لجميع التبويبات المفتوحة
-                if (typeof BroadcastChannel !== 'undefined') {
-                    const channel = new BroadcastChannel('nafis-updates');
-                    channel.postMessage({
-                        type: 'QUESTIONS_UPDATED',
-                        dailyQuestions: dailyQuestions,
-                        weeklyQuestions: weeklyQuestions
-                    });
-                    channel.close();
+                console.log('تم تحديث جميع الأسئلة من لوحة التحكم');
+                showUpdateNotification(`تم تحديث الأسئلة: ${dailyQuestions.length} يومي، ${weeklyQuestions.length} أسبوعي`);
+            }
+        });
+
+        // مراقبة التحديثات عبر BroadcastChannel
+        if (typeof BroadcastChannel !== 'undefined') {
+            const channel = new BroadcastChannel('nafis-updates');
+            channel.onmessage = function(event) {
+                if (event.data.type === 'QUESTIONS_UPDATED') {
+                    dailyQuestions = event.data.dailyQuestions || [];
+                    weeklyQuestions = event.data.weeklyQuestions || [];
+                    localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                    localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                    showUpdateNotification('تم تحديث الأسئلة تلقائياً');
                 }
-                
-                // طريقة بديلة للإشعار
-                window.postMessage({
-                    type: 'NAFIS_UPDATE_ALL',
-                    dailyQuestions: dailyQuestions,
-                    weeklyQuestions: weeklyQuestions
-                }, '*');
-                
-                showSuccess(`تم تحديث المنصة الرئيسية بنجاح! (${dailyQuestions.length} سؤال يومي، ${weeklyQuestions.length} سؤال أسبوعي)`);
-                
-                console.log('تم تحديث منصة نافس:', {
-                    daily: dailyQuestions.length,
-                    weekly: weeklyQuestions.length
-                });
-                
-            } catch (error) {
-                console.error('خطأ في تحديث المنصة:', error);
-                showError('حدث خطأ في تحديث المنصة الرئيسية');
+            };
+        }
+
+        // عرض إشعار التحديث
+        function showUpdateNotification(message) {
+            // إنشاء عنصر الإشعار
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #27ae60;
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                z-index: 10000;
+                font-weight: bold;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            
+            // إضافة الأنيميشن
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            document.body.appendChild(notification);
+            
+            // إزالة الإشعار بعد 3 ثواني
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                    if (style.parentNode) {
+                        style.parentNode.removeChild(style);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // تحديث الأسئلة عند تحميل الصفحة
+        function refreshQuestionsFromStorage() {
+            const storedDaily = localStorage.getItem('nafisMainDailyQuestions');
+            const storedWeekly = localStorage.getItem('nafisMainWeeklyQuestions');
+            
+            if (storedDaily) {
+                dailyQuestions = JSON.parse(storedDaily);
+                console.log(`تم تحميل ${dailyQuestions.length} سؤال يومي`);
+            }
+            
+            if (storedWeekly) {
+                weeklyQuestions = JSON.parse(storedWeekly);
+                console.log(`تم تحميل ${weeklyQuestions.length} سؤال أسبوعي`);
             }
         }
 
-        // استيراد الأسئلة من ملف
-        function importQuestions() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
+        // إظهار نموذج تسجيل الدخول مباشرة
+        function showLoginForm() {
+            document.getElementById('studentForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+        }
+
+        // تسجيل الطالب واستخراج الرقم
+        function registerStudent() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const fatherName = document.getElementById('fatherName').value.trim();
+            const grandFatherName = document.getElementById('grandFatherName').value.trim();
+            const familyName = document.getElementById('familyName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+
+            if (!firstName || !fatherName || !grandFatherName || !familyName || !grade || !section) {
+                alert('يرجى تعبئة جميع البيانات المطلوبة');
+                return;
+            }
+
+            const fullName = `${firstName} ${fatherName} ${grandFatherName} ${familyName}`;
+            const studentKey = `${fullName}_${grade}_${section}`;
             
-            input.onchange = function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        
-                        if (data.daily && Array.isArray(data.daily)) {
-                            dailyQuestions = [...dailyQuestions, ...data.daily];
-                            localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-                        }
-                        
-                        if (data.weekly && Array.isArray(data.weekly)) {
-                            weeklyQuestions = [...weeklyQuestions, ...data.weekly];
-                            localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                        }
-                        
-                        updateStats();
-                        displayQuestions();
-                        showSuccess('تم استيراد الأسئلة بنجاح');
-                    } catch (error) {
-                        showError('خطأ في قراءة الملف. تأكد من صحة تنسيق الملف');
-                    }
-                };
-                reader.readAsText(file);
+            if (studentDatabase[studentKey]) {
+                alert('تم تسجيلك مسبقاً! رقمك الخاص هو: ' + studentDatabase[studentKey].code);
+                return;
+            }
+
+            const studentCode = generateStudentCode();
+            
+            studentDatabase[studentKey] = {
+                fullName: fullName,
+                grade: grade,
+                section: section,
+                code: studentCode,
+                registrationDate: new Date().toISOString()
             };
             
-            input.click();
+            localStorage.setItem('nafisStudentDB', JSON.stringify(studentDatabase));
+            
+            document.getElementById('generatedCode').textContent = studentCode;
+            document.getElementById('studentForm').style.display = 'none';
+            document.getElementById('studentCodeDisplay').style.display = 'block';
         }
 
-        // إضافة أزرار إضافية للتحكم
-        function addControlButtons() {
-            const buttonsContainer = document.createElement('div');
-            buttonsContainer.style.textAlign = 'center';
-            buttonsContainer.style.marginTop = '20px';
+        // إنشاء رقم الطالب (6 أرقام)
+        function generateStudentCode() {
+            let code;
+            let exists = true;
             
-            buttonsContainer.innerHTML = `
-                <button type="button" class="btn export-btn" onclick="updateMainPlatformQuestions()">تحديث المنصة الرئيسية</button>
-                <button type="button" class="btn btn-secondary" onclick="importQuestions()">استيراد أسئلة</button>
-                <button type="button" class="btn btn-secondary" onclick="clearAllQuestions()">مسح جميع الأسئلة</button>
+            while (exists) {
+                code = Math.floor(Math.random() * 900000) + 100000;
+                exists = Object.values(studentDatabase).some(student => student.code === code.toString());
+            }
+            
+            return code.toString();
+        }
+
+        // الانتقال لصفحة تسجيل الدخول
+        function proceedToLogin() {
+            document.getElementById('studentCodeDisplay').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+        }
+
+        // تسجيل الدخول للاختبار
+        function loginStudent() {
+            const fullName = document.getElementById('loginFullName').value.trim();
+            const code = document.getElementById('studentCode').value.trim();
+            const isDeveloperMode = document.getElementById('developerMode').checked;
+
+            if (!fullName || !code) {
+                alert('يرجى إدخال الاسم والرقم الخاص');
+                return;
+            }
+
+            if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+                alert('الرقم الخاص يجب أن يكون 6 أرقام بالضبط');
+                return;
+            }
+
+            // في وضع المطور، تجاهل التحقق من قاعدة البيانات
+            if (isDeveloperMode) {
+                const developerPassword = prompt('أدخل كلمة مرور المطور:');
+                if (developerPassword !== 'nafis2024dev') {
+                    alert('كلمة مرور المطور غير صحيحة!');
+                    return;
+                }
+
+                // إنشاء حساب تجريبي للمطور
+                currentStudent = {
+                    fullName: fullName + ' (مطور)',
+                    grade: 'ثالث متوسط',
+                    section: '1',
+                    code: code,
+                    id: 'developer',
+                    isDeveloper: true
+                };
+
+                showUpdateNotification('تم الدخول بوضع المطور - يمكن إعادة الاختبار');
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('testSelection').style.display = 'block';
+                return;
+            }
+
+            const student = Object.values(studentDatabase).find(s => 
+                s.fullName.toLowerCase() === fullName.toLowerCase() && s.code === code
+            );
+
+            if (!student) {
+                alert('اسم الطالب أو الرقم الخاص غير صحيح!');
+                return;
+            }
+
+            // التحقق من عدم إجراء نفس نوع الاختبار مسبقاً
+            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            
+            // البحث عن نتيجة سابقة لنفس نوع الاختبار فقط
+            const hasCompletedDailyTest = existingResults.some(result => 
+                result.studentName === student.fullName && 
+                result.grade === student.grade && 
+                result.section === student.section &&
+                result.testType === 'daily'
+            );
+            
+            const hasCompletedWeeklyTest = existingResults.some(result => 
+                result.studentName === student.fullName && 
+                result.grade === student.grade && 
+                result.section === student.section &&
+                result.testType === 'weekly'
+            );
+
+            // إذا أجرى كلا الاختبارين، منع الدخول
+            if (hasCompletedDailyTest && hasCompletedWeeklyTest) {
+                alert('لقد أجريت جميع الاختبارات المتاحة مسبقاً!');
+                return;
+            }
+            
+            // إذا أجرى اختبار واحد فقط، السماح بالدخول لاختيار الاختبار الآخر
+            if (hasCompletedDailyTest || hasCompletedWeeklyTest) {
+                const completedTestType = hasCompletedDailyTest ? 'daily' : 'weekly';
+                const completedTestName = hasCompletedDailyTest ? 'سؤال اليوم' : 'أسئلة الأسبوع';
+                const availableTestName = hasCompletedDailyTest ? 'أسئلة الأسبوع' : 'سؤال اليوم';
+                
+                const continueChoice = confirm(`لقد أجريت اختبار "${completedTestName}" مسبقاً.\nيمكنك الآن إجراء اختبار "${availableTestName}".\n\nهل تريد المتابعة؟`);
+                
+                if (!continueChoice) {
+                    return;
+                }
+            }
+
+            currentStudent = {
+                fullName: student.fullName,
+                grade: student.grade,
+                section: student.section,
+                code: student.code,
+                id: code
+            };
+
+            // تحديث حالة الاختبارات في صفحة الاختيار
+            updateTestSelectionStatus();
+
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('testSelection').style.display = 'block';
+        }
+
+        // تحديث حالة الاختبارات المتاحة
+        function updateTestSelectionStatus() {
+            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            
+            const hasCompletedDaily = existingResults.some(result => 
+                result.studentName === currentStudent.fullName && 
+                result.grade === currentStudent.grade && 
+                result.section === currentStudent.section &&
+                result.testType === 'daily'
+            );
+            
+            const hasCompletedWeekly = existingResults.some(result => 
+                result.studentName === currentStudent.fullName && 
+                result.grade === currentStudent.grade && 
+                result.section === currentStudent.section &&
+                result.testType === 'weekly'
+            );
+
+            // تحديث بطاقة سؤال اليوم
+            const dailyCard = document.querySelector('.test-card:not(.weekly)');
+            if (hasCompletedDaily) {
+                dailyCard.innerHTML = `
+                    <h3>✅ سؤال اليوم</h3>
+                    <p style="color: rgba(255,255,255,0.8);">تم إجراء هذا الاختبار مسبقاً</p>
+                    <p><strong>لا يمكن إعادة الاختبار</strong></p>
+                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
+                        <small>📋 اضغط لعرض النتيجة السابقة</small>
+                    </div>
+                `;
+                dailyCard.onclick = () => showCompletedTestResult('daily');
+                dailyCard.style.opacity = '0.7';
+            }
+
+            // تحديث بطاقة أسئلة الأسبوع
+            const weeklyCard = document.querySelector('.test-card.weekly');
+            if (hasCompletedWeekly) {
+                weeklyCard.innerHTML = `
+                    <h3>✅ أسئلة الأسبوع</h3>
+                    <p style="color: rgba(255,255,255,0.8);">تم إجراء هذا الاختبار مسبقاً</p>
+                    <p><strong>لا يمكن إعادة الاختبار</strong></p>
+                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
+                        <small>📋 اضغط لعرض النتيجة السابقة</small>
+                    </div>
+                `;
+                weeklyCard.onclick = () => showCompletedTestResult('weekly');
+                weeklyCard.style.opacity = '0.7';
+            }
+        }
+
+        // عرض النتيجة السابقة
+        function showPreviousResult(student) {
+            const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const studentResult = results.find(result => 
+                result.studentName === student.fullName && 
+                result.grade === student.grade && 
+                result.section === student.section
+            );
+
+            if (studentResult) {
+                document.getElementById('loginForm').style.display = 'none';
+                
+                currentStudent = {
+                    fullName: student.fullName,
+                    grade: student.grade,
+                    section: student.section,
+                    code: student.code,
+                    id: student.code
+                };
+                
+                testType = studentResult.testType;
+                score = studentResult.score;
+                
+                document.getElementById('questionArea').style.display = 'block';
+                document.getElementById('optionsContainer').style.display = 'none';
+                document.getElementById('questionText').style.display = 'none';
+                document.querySelector('.nav-buttons').style.display = 'none';
+                document.getElementById('submitBtn').style.display = 'none';
+                document.getElementById('finishBtn').style.display = 'none';
+                
+                document.getElementById('scoreDisplay').innerHTML = `
+                    <div style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                        <h4 style="margin-bottom: 10px;">📋 نتيجتك السابقة</h4>
+                        <p style="margin-bottom: 5px;"><strong>تاريخ الاختبار:</strong> ${studentResult.date}</p>
+                        <p style="margin-bottom: 5px;"><strong>نوع الاختبار:</strong> ${studentResult.testType === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع'}</p>
+                    </div>
+                    <p>درجتك النهائية: <span style="font-size: 28px; color: #27ae60; font-weight: bold;">${studentResult.score}</span> من ${studentResult.totalQuestions}</p>
+                    <p>النسبة المئوية: <span style="font-size: 24px; color: #3498db; font-weight: bold;">${studentResult.percentage}%</span></p>
+                    ${studentResult.totalTime ? `<p style="color: #666; font-size: 16px;">⏱️ الوقت الإجمالي: ${studentResult.totalTime} ثانية</p>` : ''}
+                    ${studentResult.averageTime ? `<p style="color: #666; font-size: 16px;">📊 متوسط الوقت للسؤال: ${studentResult.averageTime} ثانية</p>` : ''}
+                `;
+                document.getElementById('scoreDisplay').style.display = 'block';
+                document.getElementById('homeBtn').style.display = 'block';
+                
+                showLeaderboard();
+            }
+        }
+
+        // العودة للتسجيل
+        function backToRegistration() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('studentForm').style.display = 'block';
+            
+            document.getElementById('loginFullName').value = '';
+            document.getElementById('studentCode').value = '';
+        }
+
+        // تأكيد وبدء الاختبار
+        function confirmAndStartTest(type) {
+            const testName = type === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع';
+            const confirmation = confirm(`هل أنت متأكد من بدء اختبار "${testName}"؟\n\nتذكر: يُسمح بإجراء كل اختبار مرة واحدة فقط!`);
+            
+            if (confirmation) {
+                startTest(type);
+            }
+        }
+
+        // بدء الاختبار
+        function startTest(type) {
+            // السماح للمطور بإعادة الاختبار
+            if (!currentStudent.isDeveloper) {
+                const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+                const hasCompletedTestType = existingResults.some(result => 
+                    result.studentName === currentStudent.fullName && 
+                    result.grade === currentStudent.grade && 
+                    result.section === currentStudent.section &&
+                    result.testType === type
+                );
+
+                if (hasCompletedTestType) {
+                    alert('لقد أجريت هذا النوع من الاختبار مسبقاً! لا يمكن إعادة الاختبار.');
+                    return;
+                }
+            } else {
+                // رسالة للمطور
+                console.log('وضع المطور: يُسمح بإعادة الاختبار');
+            }
+
+            testType = type;
+            currentQuestionIndex = 0;
+            userAnswers = [];
+            score = 0;
+            questionTimes = [];
+
+            if (type === 'daily') {
+                currentTest = { questions: dailyQuestions, title: 'سؤال اليوم' };
+            } else {
+                currentTest = { questions: weeklyQuestions, title: 'أسئلة الأسبوع' };
+            }
+
+            // تحقق من وجود أسئلة
+            if (!currentTest.questions || currentTest.questions.length === 0) {
+                alert('لا توجد أسئلة متاحة حالياً. يرجى إضافة أسئلة من لوحة التحكم.');
+                return;
+            }
+
+            document.getElementById('testSelection').style.display = 'none';
+            document.getElementById('questionArea').style.display = 'block';
+            showQuestion();
+        }
+
+        // عرض السؤال
+        function showQuestion() {
+            const question = currentTest.questions[currentQuestionIndex];
+            const totalQuestions = currentTest.questions.length;
+
+            questionStartTime = Date.now();
+
+            document.getElementById('questionNumber').textContent = 
+                `السؤال ${currentQuestionIndex + 1} من ${totalQuestions} - ${question.subject}`;
+
+            // إضافة الصورة إن وجدت
+            let questionHTML = `<p><strong>${question.subject}:</strong> ${question.question}</p>`;
+            if (question.image) {
+                questionHTML += `<img src="${question.image}" class="question-image" alt="صورة السؤال">`;
+            }
+
+            document.getElementById('questionText').innerHTML = questionHTML;
+
+            const optionsHtml = question.options.map((option, index) => 
+                `<div class="option" onclick="selectOption(${index})">${option}</div>`
+            ).join('');
+
+            document.getElementById('optionsContainer').innerHTML = optionsHtml;
+
+            const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+
+            document.getElementById('prevBtn').disabled = currentQuestionIndex === 0;
+            document.getElementById('nextBtn').style.display = 'none';
+            document.getElementById('finishBtn').style.display = 
+                currentQuestionIndex === totalQuestions - 1 ? 'inline-block' : 'none';
+            
+            document.getElementById('submitBtn').style.display = 'none';
+        }
+
+        // اختيار الإجابة
+        function selectOption(optionIndex) {
+            const options = document.querySelectorAll('.option');
+            options.forEach(option => option.classList.remove('selected'));
+            options[optionIndex].classList.add('selected');
+
+            userAnswers[currentQuestionIndex] = optionIndex;
+            document.getElementById('submitBtn').style.display = 'block';
+        }
+
+        // تأكيد الإجابة
+        function submitAnswer() {
+            const question = currentTest.questions[currentQuestionIndex];
+            const userAnswer = userAnswers[currentQuestionIndex];
+            const options = document.querySelectorAll('.option');
+
+            const timeSpent = Math.round((Date.now() - questionStartTime) / 1000);
+            questionTimes[currentQuestionIndex] = timeSpent;
+
+            options.forEach((option, index) => {
+                if (index === question.correct) {
+                    option.classList.add('correct');
+                } else if (index === userAnswer && index !== question.correct) {
+                    option.classList.add('wrong');
+                }
+                option.style.pointerEvents = 'none';
+            });
+
+            if (userAnswer === question.correct) {
+                score++;
+            }
+
+            document.getElementById('questionText').innerHTML += 
+                `<div style="margin-top: 15px; padding: 15px; background: #e8f5e8; border-radius: 8px; border-right: 4px solid #27ae60;">
+                    <strong>التفسير:</strong> ${question.explanation}<br>
+                    <small style="color: #666;">⏱️ وقت الإجابة: ${timeSpent} ثانية</small>
+                </div>`;
+
+            document.getElementById('submitBtn').style.display = 'none';
+            
+            if (currentQuestionIndex < currentTest.questions.length - 1) {
+                document.getElementById('nextBtn').style.display = 'inline-block';
+            }
+        }
+
+        // معالج إنهاء الاختبار
+        function handleFinishTest() {
+            if (userAnswers[currentQuestionIndex] !== undefined) {
+                submitAnswer();
+                
+                setTimeout(() => {
+                    finishTest();
+                }, 1500);
+            } else {
+                alert('يرجى اختيار إجابة أولاً');
+            }
+        }
+
+        // السؤال التالي
+        function nextQuestion() {
+            if (currentQuestionIndex < currentTest.questions.length - 1) {
+                currentQuestionIndex++;
+                showQuestion();
+            }
+        }
+
+        // السؤال السابق
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                showQuestion();
+            }
+        }
+
+        // إنهاء الاختبار
+        function finishTest() {
+            const totalQuestions = currentTest.questions.length;
+            const percentage = Math.round((score / totalQuestions) * 100);
+            
+            const totalTime = questionTimes.reduce((sum, time) => sum + (time || 0), 0);
+            const averageTime = questionTimes.length > 0 ? Math.round((totalTime / questionTimes.length) * 10) / 10 : 0;
+
+            document.getElementById('scoreDisplay').innerHTML = `
+                <p>درجتك النهائية: <span style="font-size: 28px; color: #27ae60; font-weight: bold;">${score}</span> من ${totalQuestions}</p>
+                <p>النسبة المئوية: <span style="font-size: 24px; color: #3498db; font-weight: bold;">${percentage}%</span></p>
+                <p style="color: #666; font-size: 16px;">⏱️ الوقت الإجمالي: ${totalTime} ثانية</p>
+                <p style="color: #666; font-size: 16px;">📊 متوسط الوقت للسؤال: ${averageTime} ثانية</p>
             `;
             
-            const lastCard = document.querySelector('.admin-card:last-child');
-            lastCard.appendChild(buttonsContainer);
+            document.getElementById('scoreDisplay').style.display = 'block';
+
+            saveResult();
+
+            document.getElementById('optionsContainer').style.display = 'none';
+            document.getElementById('questionText').style.display = 'none';
+            document.querySelector('.nav-buttons').style.display = 'none';
+            document.getElementById('finishBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('homeBtn').style.display = 'block';
+
+            showLeaderboard();
         }
 
-        // مسح جميع الأسئلة
-        function clearAllQuestions() {
-            if (!confirm('هل أنت متأكد من مسح جميع الأسئلة؟ هذا الإجراء لا يمكن التراجع عنه!')) {
-                return;
-            }
+        // حفظ النتيجة
+        function saveResult() {
+            const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
             
-            if (!confirm('تأكيد أخير: سيتم حذف جميع الأسئلة نهائياً!')) {
-                return;
-            }
+            const totalTime = questionTimes.reduce((sum, time) => sum + (time || 0), 0);
+            const averageTime = questionTimes.length > 0 ? totalTime / questionTimes.length : 0;
             
-            dailyQuestions = [];
-            weeklyQuestions = [];
-            
-            localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-            localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-            
-            updateStats();
-            displayQuestions();
-            showSuccess('تم مسح جميع الأسئلة');
+            const result = {
+                studentName: currentStudent.fullName,
+                grade: currentStudent.grade,
+                section: currentStudent.section,
+                testType: testType,
+                score: score,
+                totalQuestions: currentTest.questions.length,
+                percentage: Math.round((score / currentTest.questions.length) * 100),
+                totalTime: Math.round(totalTime),
+                averageTime: Math.round(averageTime * 10) / 10,
+                date: new Date().toLocaleDateString('ar-SA'),
+                timestamp: Date.now()
+            };
+
+            results.push(result);
+            localStorage.setItem('nafisResults', JSON.stringify(results));
         }
 
-        // تهيئة التطبيق عند التحميل
+        // إظهار مرتبة الشرف المتقدمة
+        function showLeaderboard() {
+            const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const filteredResults = results.filter(r => r.testType === testType);
+            
+            const sortedResults = filteredResults.sort((a, b) => {
+                if (b.percentage !== a.percentage) {
+                    return b.percentage - a.percentage;
+                }
+                const aTime = a.averageTime || 999;
+                const bTime = b.averageTime || 999;
+                return aTime - bTime;
+            });
+
+            calculatePersonalRank(sortedResults);
+            showRanking('school');
+            
+            document.getElementById('leaderboardCard').style.display = 'block';
+        }
+
+        // حساب الترتيب الشخصي على مستويات مختلفة
+        function calculatePersonalRank(allResults) {
+            const currentStudentName = currentStudent.fullName;
+            
+            const schoolResults = allResults;
+            const schoolRank = schoolResults.findIndex(r => r.studentName === currentStudentName) + 1;
+            
+            const gradeResults = allResults.filter(r => r.grade === currentStudent.grade);
+            const gradeRank = gradeResults.findIndex(r => r.studentName === currentStudentName) + 1;
+            
+            const sectionResults = allResults.filter(r => 
+                r.grade === currentStudent.grade && r.section === currentStudent.section
+            );
+            const sectionRank = sectionResults.findIndex(r => r.studentName === currentStudentName) + 1;
+            
+            document.getElementById('schoolRank').textContent = schoolRank > 0 ? schoolRank : '-';
+            document.getElementById('gradeRank').textContent = gradeRank > 0 ? gradeRank : '-';
+            document.getElementById('sectionRank').textContent = sectionRank > 0 ? sectionRank : '-';
+        }
+
+        // عرض الترتيب حسب المستوى المطلوب
+        function showRanking(level) {
+            const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const filteredResults = results.filter(r => r.testType === testType);
+            
+            const sortedResults = filteredResults.sort((a, b) => {
+                if (b.percentage !== a.percentage) {
+                    return b.percentage - a.percentage;
+                }
+                const aTime = a.averageTime || 999;
+                const bTime = b.averageTime || 999;
+                return aTime - bTime;
+            });
+
+            let displayResults = [];
+            let title = '';
+
+            switch(level) {
+                case 'school':
+                    displayResults = sortedResults.slice(0, 10);
+                    title = '🏫 أول 10 على المدرسة';
+                    break;
+                case 'grade':
+                    displayResults = sortedResults
+                        .filter(r => r.grade === currentStudent.grade)
+                        .slice(0, 10);
+                    title = `📚 أول 10 - ${currentStudent.grade}`;
+                    break;
+                case 'section':
+                    displayResults = sortedResults
+                        .filter(r => r.grade === currentStudent.grade && r.section === currentStudent.section)
+                        .slice(0, 10);
+                    title = `👥 أول 10 - ${currentStudent.grade} شعبة ${currentStudent.section}`;
+                    break;
+            }
+
+            document.querySelectorAll('.rank-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(level + 'Tab').classList.add('active');
+
+            const leaderboardHtml = `
+                <h3 style="text-align: center; margin-bottom: 20px; color: #2c3e50;">${title}</h3>
+                ${displayResults.length > 0 ? displayResults.map((result, index) => {
+                    let rankClass = '';
+                    let rankIcon = '';
+                    
+                    if (index === 0) {
+                        rankClass = 'gold';
+                        rankIcon = '🥇';
+                    } else if (index === 1) {
+                        rankClass = 'silver';
+                        rankIcon = '🥈';
+                    } else if (index === 2) {
+                        rankClass = 'bronze';
+                        rankIcon = '🥉';
+                    } else {
+                        rankIcon = `${index + 1}`;
+                    }
+
+                    const isCurrentStudent = result.studentName === currentStudent.fullName;
+                    const highlightStyle = isCurrentStudent ? 
+                        'border: 3px solid #e74c3c; background: linear-gradient(135deg, #fff5f5, #ffe5e5);' : '';
+
+                    const timeInfo = result.averageTime && result.averageTime > 0 ? 
+                        `<small style="display: block; opacity: 0.8; margin-top: 3px;">⏱️ متوسط: ${result.averageTime}ث للسؤال</small>` : '';
+
+                    return `
+                        <div class="leaderboard-item ${rankClass}" style="${highlightStyle}">
+                            <div class="student-name">
+                                ${rankIcon} ${result.studentName} - ${result.grade} شعبة ${result.section}
+                                ${isCurrentStudent ? '<span style="color: #e74c3c; font-weight: bold;"> (أنت)</span>' : ''}
+                                ${timeInfo}
+                            </div>
+                            <div>
+                                <strong>${result.percentage}%</strong>
+                                ${result.totalTime && result.totalTime > 0 ? `<br><small>${result.totalTime}ث إجمالي</small>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('') : '<p style="text-align: center; color: #666; padding: 20px;">لا توجد نتائج في هذا المستوى حتى الآن</p>'}
+            `;
+
+            document.getElementById('leaderboard').innerHTML = leaderboardHtml;
+        }
+
+        // العودة للرئيسية
+        function goHome() {
+            currentStudent = {};
+            currentTest = {};
+            currentQuestionIndex = 0;
+            userAnswers = [];
+            score = 0;
+            testType = '';
+            questionStartTime = 0;
+            questionTimes = [];
+
+            document.getElementById('questionArea').style.display = 'none';
+            document.getElementById('leaderboardCard').style.display = 'none';
+            document.getElementById('testSelection').style.display = 'none';
+            document.getElementById('studentCodeDisplay').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'none';
+            
+            document.getElementById('studentForm').style.display = 'block';
+            
+            document.getElementById('firstName').value = '';
+            document.getElementById('fatherName').value = '';
+            document.getElementById('grandFatherName').value = '';
+            document.getElementById('familyName').value = '';
+            document.getElementById('grade').value = '';
+            document.getElementById('section').value = '';
+            document.getElementById('loginFullName').value = '';
+            document.getElementById('studentCode').value = '';
+            
+            document.getElementById('optionsContainer').style.display = 'block';
+            document.getElementById('optionsContainer').innerHTML = '';
+            document.getElementById('questionText').style.display = 'block';
+            document.getElementById('questionText').innerHTML = '<p>مرحباً بك في اختبار نافس!</p>';
+            document.querySelector('.nav-buttons').style.display = 'flex';
+            document.getElementById('scoreDisplay').style.display = 'none';
+            document.getElementById('homeBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('finishBtn').style.display = 'none';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('questionNumber').textContent = 'السؤال 1 من 7';
+        }
+
+        // تحميل الأسئلة عند بدء التطبيق
         document.addEventListener('DOMContentLoaded', function() {
-            initializeImageUpload();
-            updateStats();
-            displayQuestions();
-            addControlButtons();
+            refreshQuestionsFromStorage();
         });
 
-        // حماية لوحة التحكم
-        function checkAdminAccess() {
-            const adminPassword = prompt('أدخل كلمة مرور المعلم للوصول للوحة التحكم:');
-            const correctPassword = 'nafis2024admin'; // يمكن تغييرها
-            
-            if (adminPassword !== correctPassword) {
-                alert('كلمة مرور خاطئة!');
-                window.close();
-                return false;
-            }
-            return true;
+        // تحديث الأسئلة بالقوة (للزر في الفووتر)
+        function forceRefreshQuestions() {
+            refreshQuestionsFromStorage();
+            showUpdateNotification('تم تحديث الأسئلة من قاعدة البيانات');
         }
 
-        // فحص كلمة المرور عند التحميل
-        window.addEventListener('load', function() {
-            if (!checkAdminAccess()) {
-                document.body.innerHTML = '<div style="text-align: center; padding: 50px; font-size: 24px; color: red;">غير مصرح بالوصول!</div>';
+        // مسح نتائج الاختبار (للمطور فقط)
+        function clearTestResults() {
+            const developerPassword = prompt('أدخل كلمة مرور المطور لمسح النتائج:');
+            if (developerPassword !== 'nafis2024dev') {
+                alert('كلمة مرور المطور غير صحيحة!');
+                return;
             }
-        });
 
-        // منع النسخ من لوحة التحكم
+            const confirmDelete = confirm('هل أنت متأكد من مسح جميع نتائج الاختبارات؟\nهذا الإجراء لا يمكن التراجع عنه!');
+            if (!confirmDelete) return;
+
+            // مسح جميع النتائج
+            localStorage.removeItem('nafisResults');
+            showUpdateNotification('تم مسح جميع نتائج الاختبارات - يمكن للجميع إعادة الاختبار');
+        }
+
+        // منع النسخ والنقر بالزر الأيمن
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
+            return false;
         });
 
         document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && (e.keyCode === 67 || e.keyCode === 65 || e.keyCode === 83 || e.keyCode === 85)) {
+            if (e.ctrlKey && (e.keyCode === 67 || e.keyCode === 65 || e.keyCode === 86 || e.keyCode === 83 || e.keyCode === 85)) {
                 e.preventDefault();
+                return false;
             }
             if (e.keyCode === 123) {
                 e.preventDefault();
+                return false;
+            }
+            if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
+                e.preventDefault();
+                return false;
+            }
+            if (e.ctrlKey && e.shiftKey && e.keyCode === 74) {
+                e.preventDefault();
+                return false;
+            }
+            if (e.ctrlKey && e.shiftKey && e.keyCode === 67) {
+                e.preventDefault();
+                return false;
             }
         });
+
+        document.addEventListener('dragstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        document.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        window.addEventListener('beforeprint', function(e) {
+            e.preventDefault();
+            alert('الطباعة غير مسموحة في هذا الاختبار');
+            return false;
+        });
+
+        window.addEventListener('beforeunload', function(e) {
+            if (currentTest.questions && currentQuestionIndex < currentTest.questions.length - 1) {
+                e.preventDefault();
+                e.returnValue = 'هل أنت متأكد من مغادرة الاختبار؟ سيتم فقدان التقدم الحالي.';
+                return e.returnValue;
+            }
+        });
+
+        setInterval(function() {
+            if (window.outerHeight - window.innerHeight > 200 || window.outerWidth - window.innerWidth > 200) {
+                console.clear();
+                document.body.innerHTML = '<div style="text-align: center; padding: 50px; font-size: 24px; color: red;">تم اكتشاف محاولة غش! يرجى إغلاق أدوات المطور.</div>';
+            }
+        }, 1000);
     </script>
 </body>
 </html>
