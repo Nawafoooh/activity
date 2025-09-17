@@ -20,13 +20,35 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
-            -webkit-user-drag: none;
-            -khtml-user-drag: none;
-            -moz-user-drag: none;
-            -o-user-drag: none;
-            user-drag: none;
-            -webkit-touch-callout: none;
-            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* عداد الوقت في أعلى الصفحة */
+        .time-banner {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .time-banner.available {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+        }
+
+        .time-banner.unavailable {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+        }
+
+        .countdown {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
         }
 
         .header {
@@ -158,6 +180,12 @@
             transform: translateY(-2px);
         }
 
+        .btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .test-sections {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -172,6 +200,7 @@
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
+            position: relative;
         }
 
         .test-card:hover {
@@ -183,6 +212,17 @@
             background: linear-gradient(135deg, #fd79a8, #e84393);
         }
 
+        .test-card.disabled {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .test-card.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
         .test-card h3 {
             font-size: 20px;
             margin-bottom: 15px;
@@ -191,6 +231,16 @@
         .test-card p {
             margin-bottom: 20px;
             opacity: 0.9;
+        }
+
+        .test-status {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
         }
 
         .question-container {
@@ -204,13 +254,6 @@
             padding: 20px;
             background: #f8f9fa;
             border-radius: 10px;
-        }
-
-        .question-image {
-            max-width: 100%;
-            height: auto;
-            border-radius: 10px;
-            margin: 15px 0;
         }
 
         .options {
@@ -367,7 +410,6 @@
             color: white;
         }
 
-        /* إضافة تنسيق للإشعارات */
         .notification {
             position: fixed;
             top: 20px;
@@ -409,16 +451,26 @@
                 flex-direction: column;
                 gap: 10px;
             }
+
+            .countdown {
+                font-size: 18px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- عداد الوقت في أعلى الصفحة -->
+    <div class="time-banner" id="timeBanner">
+        <div id="timeStatus">جاري تحديد حالة الاختبارات...</div>
+        <div class="countdown" id="countdown">--:--:--</div>
+    </div>
+
     <div class="header">
         <div class="logo">
             <div class="logo-icon">نافس</div>
             <div class="school-info">
                 <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
-                <p>مكتب تعليم العوالي</p>
+                <p>مكتب تعليم العوالي - المملكة العربية السعودية</p>
                 <p>مدير المدرسة: الأستاذ خالد المطيري</p>
             </div>
         </div>
@@ -513,7 +565,7 @@
                         <div class="form-group">
                             <label style="display: flex; align-items: center; gap: 10px;">
                                 <input type="checkbox" id="developerMode" style="width: auto;">
-                                خاص بالمعلم (لاختبار الأسئلة الجديدة)
+                                وضع المطور (لاختبار الأسئلة الجديدة)
                             </label>
                         </div>
                     </div>
@@ -549,20 +601,24 @@
                 </div>
                 
                 <div class="test-sections">
-                    <div class="test-card" onclick="confirmAndStartTest('daily')">
+                    <div class="test-card" id="dailyTestCard" onclick="confirmAndStartTest('daily')">
+                        <div class="test-status" id="dailyStatus">متاح</div>
                         <h3>🌟 سؤال اليوم</h3>
                         <p>7 أسئلة متنوعة في المواد الثلاث</p>
                         <p><strong>الرياضيات - القراءة - العلوم</strong></p>
                         <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
-                            <small>⏱️ الوقت المقدر: 15-20 دقيقة</small>
+                            <small>⏱️ الوقت المقدر: 15-20 دقيقة</small><br>
+                            <small id="dailyTimeInfo">متاح من 1 ظهراً لمدة 24 ساعة</small>
                         </div>
                     </div>
-                    <div class="test-card weekly" onclick="confirmAndStartTest('weekly')">
+                    <div class="test-card weekly" id="weeklyTestCard" onclick="confirmAndStartTest('weekly')">
+                        <div class="test-status" id="weeklyStatus">متاح</div>
                         <h3>🏆 أسئلة الأسبوع</h3>
                         <p>40 سؤال شامل لجميع المواد</p>
                         <p><strong>اختبار تنافسي أسبوعي</strong></p>
                         <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
-                            <small>⏱️ الوقت المقدر: 60-90 دقيقة</small>
+                            <small>⏱️ الوقت المقدر: 60-90 دقيقة</small><br>
+                            <small id="weeklyTimeInfo">متاح من الأحد 1 ظهراً حتى الخميس 1 ظهراً</small>
                         </div>
                     </div>
                 </div>
@@ -658,11 +714,19 @@
                 <button onclick="clearTestResults()" style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin: 5px; font-size: 12px;">
                     🗑️ مسح نتائج الاختبار (للمطور)
                 </button>
+                <button onclick="testTimeSystem()" style="background: #9b59b6; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin: 5px; font-size: 12px;">
+                    ⏰ اختبار النظام الزمني
+                </button>
             </div>
         </div>
     </div>
 
     <script>
+        // متغيرات النظام الزمني
+        let countdownInterval;
+        let dailyTestAvailable = false;
+        let weeklyTestAvailable = false;
+
         // بيانات الطالب
         let currentStudent = {};
         let currentTest = {};
@@ -674,7 +738,7 @@
         let questionTimes = [];
         let studentDatabase = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
 
-        // أسئلة تجريبية - سيتم استبدالها بالأسئلة من لوحة التحكم
+        // أسئلة تجريبية
         let dailyQuestions = JSON.parse(localStorage.getItem('nafisMainDailyQuestions') || JSON.stringify([
             {
                 subject: 'رياضيات',
@@ -732,41 +796,213 @@
         // متغيرات لحفظ التقدم
         let savedProgress = null;
 
+        // دالة حساب التوقيت
+        function calculateTimes() {
+            const now = new Date();
+            const today = new Date(now);
+            today.setHours(13, 0, 0, 0); // 1 ظهراً اليوم
+            
+            // حساب بداية ونهاية الاختبار اليومي
+            let dailyStart = new Date(today);
+            let dailyEnd = new Date(today);
+            dailyEnd.setDate(dailyEnd.getDate() + 1); // 24 ساعة لاحقاً
+            
+            // إذا كان الوقت الحالي قبل 1 ظهراً اليوم، فالاختبار لم يبدأ بعد
+            if (now < dailyStart) {
+                // الاختبار سيبدأ اليوم في 1 ظهراً
+            } else if (now >= dailyStart && now < dailyEnd) {
+                // الاختبار متاح الآن
+                dailyTestAvailable = true;
+            } else {
+                // الاختبار انتهى، التالي غداً في 1 ظهراً
+                dailyStart.setDate(dailyStart.getDate() + 1);
+                dailyEnd.setDate(dailyEnd.getDate() + 1);
+            }
+            
+            // حساب بداية ونهاية الاختبار الأسبوعي
+            const currentDay = now.getDay(); // 0 = الأحد، 4 = الخميس
+            let weeklyStart = new Date(today);
+            let weeklyEnd = new Date(today);
+            
+            // البحث عن الأحد الحالي أو التالي في 1 ظهراً
+            const daysUntilSunday = (7 - currentDay) % 7;
+            if (currentDay === 0 && now >= dailyStart) {
+                // اليوم أحد والساعة بعد 1 ظهراً - الاختبار متاح
+            } else if (currentDay === 0 && now < dailyStart) {
+                // اليوم أحد لكن قبل 1 ظهراً
+                daysUntilSunday = 0;
+            } else {
+                // ليس يوم أحد
+                weeklyStart.setDate(weeklyStart.getDate() + daysUntilSunday);
+            }
+            
+            // حساب يوم الخميس (4 أيام بعد الأحد)
+            weeklyEnd = new Date(weeklyStart);
+            weeklyEnd.setDate(weeklyEnd.getDate() + 4);
+            
+            // التحقق من توفر الاختبار الأسبوعي
+            if (now >= weeklyStart && now < weeklyEnd) {
+                weeklyTestAvailable = true;
+            }
+            
+            return {
+                now,
+                dailyStart,
+                dailyEnd,
+                weeklyStart,
+                weeklyEnd,
+                dailyAvailable: dailyTestAvailable,
+                weeklyAvailable: weeklyTestAvailable
+            };
+        }
+
+        // تحديث عداد الوقت
+        function updateCountdown() {
+            const times = calculateTimes();
+            const timeBanner = document.getElementById('timeBanner');
+            const timeStatus = document.getElementById('timeStatus');
+            const countdown = document.getElementById('countdown');
+            
+            let targetTime;
+            let statusText;
+            let bannerClass = '';
+            
+            if (times.dailyAvailable) {
+                // الاختبار اليومي متاح
+                targetTime = times.dailyEnd;
+                statusText = '🟢 الاختبار اليومي متاح الآن - ينتهي خلال:';
+                bannerClass = 'available';
+            } else if (times.weeklyAvailable) {
+                // الاختبار الأسبوعي متاح
+                targetTime = times.weeklyEnd;
+                statusText = '🟢 الاختبار الأسبوعي متاح الآن - ينتهي خلال:';
+                bannerClass = 'available';
+            } else {
+                // لا يوجد اختبار متاح
+                if (times.now < times.dailyStart) {
+                    targetTime = times.dailyStart;
+                    statusText = '🔴 الاختبار اليومي سيبدأ خلال:';
+                } else {
+                    targetTime = times.weeklyStart;
+                    statusText = '🔴 الاختبار الأسبوعي القادم سيبدأ خلال:';
+                }
+                bannerClass = 'unavailable';
+            }
+            
+            // حساب الوقت المتبقي
+            const diff = targetTime - times.now;
+            if (diff > 0) {
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                countdown.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+                countdown.textContent = '00:00:00';
+            }
+            
+            timeStatus.textContent = statusText;
+            timeBanner.className = `time-banner ${bannerClass}`;
+            
+            // تحديث حالة بطاقات الاختبار
+            updateTestCards();
+        }
+
+        // تحديث حالة بطاقات الاختبار
+        function updateTestCards() {
+            const dailyCard = document.getElementById('dailyTestCard');
+            const weeklyCard = document.getElementById('weeklyTestCard');
+            const dailyStatus = document.getElementById('dailyStatus');
+            const weeklyStatus = document.getElementById('weeklyStatus');
+            
+            if (dailyTestAvailable) {
+                dailyCard.classList.remove('disabled');
+                dailyStatus.textContent = '🟢 متاح';
+                dailyCard.onclick = () => confirmAndStartTest('daily');
+            } else {
+                dailyCard.classList.add('disabled');
+                dailyStatus.textContent = '🔴 غير متاح';
+                dailyCard.onclick = () => alert('الاختبار اليومي غير متاح في الوقت الحالي');
+            }
+            
+            if (weeklyTestAvailable) {
+                weeklyCard.classList.remove('disabled');
+                weeklyStatus.textContent = '🟢 متاح';
+                weeklyCard.onclick = () => confirmAndStartTest('weekly');
+            } else {
+                weeklyCard.classList.add('disabled');
+                weeklyStatus.textContent = '🔴 غير متاح';
+                weeklyCard.onclick = () => alert('الاختبار الأسبوعي غير متاح في الوقت الحالي');
+            }
+        }
+
+        // بدء العداد التنازلي
+        function startCountdown() {
+            updateCountdown();
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+
+        // اختبار النظام الزمني (للمطور)
+        function testTimeSystem() {
+            const developerPassword = prompt('أدخل كلمة مرور المطور لاختبار النظام الزمني:');
+            if (developerPassword !== 'nafis2024dev') {
+                alert('كلمة مرور المطور غير صحيحة!');
+                return;
+            }
+
+            const testOptions = [
+                '1. تفعيل الاختبار اليومي',
+                '2. تفعيل الاختبار الأسبوعي',
+                '3. تفعيل كلا الاختبارين',
+                '4. إلغاء تفعيل جميع الاختبارات',
+                '5. العودة للنظام العادي'
+            ];
+
+            const choice = prompt('اختر خيار الاختبار:\n' + testOptions.join('\n'));
+
+            switch(choice) {
+                case '1':
+                    dailyTestAvailable = true;
+                    weeklyTestAvailable = false;
+                    showUpdateNotification('تم تفعيل الاختبار اليومي للاختبار');
+                    break;
+                case '2':
+                    dailyTestAvailable = false;
+                    weeklyTestAvailable = true;
+                    showUpdateNotification('تم تفعيل الاختبار الأسبوعي للاختبار');
+                    break;
+                case '3':
+                    dailyTestAvailable = true;
+                    weeklyTestAvailable = true;
+                    showUpdateNotification('تم تفعيل جميع الاختبارات للاختبار');
+                    break;
+                case '4':
+                    dailyTestAvailable = false;
+                    weeklyTestAvailable = false;
+                    showUpdateNotification('تم إلغاء تفعيل جميع الاختبارات');
+                    break;
+                case '5':
+                    calculateTimes();
+                    showUpdateNotification('تم العودة للنظام الزمني العادي');
+                    break;
+                default:
+                    return;
+            }
+            updateTestCards();
+        }
+
         // مراقبة التحديثات من لوحة التحكم
         window.addEventListener('message', function(event) {
             if (event.data.type === 'NAFIS_UPDATE_DAILY') {
                 dailyQuestions = event.data.questions;
                 localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
-                console.log('تم تحديث الأسئلة اليومية من لوحة التحكم');
                 showUpdateNotification('تم تحديث الأسئلة اليومية');
             } else if (event.data.type === 'NAFIS_UPDATE_WEEKLY') {
                 weeklyQuestions = event.data.questions;
                 localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                console.log('تم تحديث الأسئلة الأسبوعية من لوحة التحكم');
                 showUpdateNotification('تم تحديث الأسئلة الأسبوعية');
-            } else if (event.data.type === 'NAFIS_UPDATE_ALL') {
-                dailyQuestions = event.data.dailyQuestions || [];
-                weeklyQuestions = event.data.weeklyQuestions || [];
-                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
-                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                console.log('تم تحديث جميع الأسئلة من لوحة التحكم');
-                showUpdateNotification(`تم تحديث الأسئلة: ${dailyQuestions.length} يومي، ${weeklyQuestions.length} أسبوعي`);
             }
         });
-
-        // مراقبة التحديثات عبر BroadcastChannel
-        if (typeof BroadcastChannel !== 'undefined') {
-            const channel = new BroadcastChannel('nafis-updates');
-            channel.onmessage = function(event) {
-                if (event.data.type === 'QUESTIONS_UPDATED') {
-                    dailyQuestions = event.data.dailyQuestions || [];
-                    weeklyQuestions = event.data.weeklyQuestions || [];
-                    localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
-                    localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                    showUpdateNotification('تم تحديث الأسئلة تلقائياً');
-                }
-            };
-        }
 
         // عرض إشعار التحديث
         function showUpdateNotification(message) {
@@ -785,22 +1021,6 @@
             }, 3000);
         }
 
-        // تحديث الأسئلة عند تحميل الصفحة
-        function refreshQuestionsFromStorage() {
-            const storedDaily = localStorage.getItem('nafisMainDailyQuestions');
-            const storedWeekly = localStorage.getItem('nafisMainWeeklyQuestions');
-            
-            if (storedDaily) {
-                dailyQuestions = JSON.parse(storedDaily);
-                console.log(`تم تحميل ${dailyQuestions.length} سؤال يومي`);
-            }
-            
-            if (storedWeekly) {
-                weeklyQuestions = JSON.parse(storedWeekly);
-                console.log(`تم تحميل ${weeklyQuestions.length} سؤال أسبوعي`);
-            }
-        }
-
         // فحص التقدم المحفوظ
         function checkSavedProgress() {
             if (!currentStudent.code) return;
@@ -810,7 +1030,6 @@
             
             if (saved) {
                 savedProgress = JSON.parse(saved);
-                // التحقق من أن التقدم المحفوظ للاختبار الأسبوعي
                 if (savedProgress.testType === 'weekly') {
                     showProgressNotification(savedProgress);
                 }
@@ -872,13 +1091,13 @@
             }
         }
 
-        // إظهار نموذج تسجيل الدخول مباشرة
+        // إظهار نموذج تسجيل الدخول
         function showLoginForm() {
             document.getElementById('studentForm').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
         }
 
-        // تسجيل الطالب واستخراج الرقم
+        // تسجيل الطالب
         function registerStudent() {
             const firstName = document.getElementById('firstName').value.trim();
             const fatherName = document.getElementById('fatherName').value.trim();
@@ -917,7 +1136,7 @@
             document.getElementById('studentCodeDisplay').style.display = 'block';
         }
 
-        // إنشاء رقم الطالب (6 أرقام)
+        // إنشاء رقم الطالب
         function generateStudentCode() {
             let code;
             let exists = true;
@@ -930,13 +1149,13 @@
             return code.toString();
         }
 
-        // الانتقال لصفحة تسجيل الدخول
+        // الانتقال لتسجيل الدخول
         function proceedToLogin() {
             document.getElementById('studentCodeDisplay').style.display = 'none';
             document.getElementById('loginForm').style.display = 'block';
         }
 
-        // تسجيل الدخول للاختبار
+        // تسجيل الدخول
         function loginStudent() {
             const fullName = document.getElementById('loginFullName').value.trim();
             const code = document.getElementById('studentCode').value.trim();
@@ -952,7 +1171,6 @@
                 return;
             }
 
-            // في وضع المطور، تجاهل التحقق من قاعدة البيانات
             if (isDeveloperMode) {
                 const developerPassword = prompt('أدخل كلمة مرور المطور:');
                 if (developerPassword !== 'nafis2024dev') {
@@ -969,7 +1187,7 @@
                     isDeveloper: true
                 };
 
-                showUpdateNotification('تم الدخول بوضع المطور - يمكن إعادة الاختبار');
+                showUpdateNotification('تم الدخول بوضع المطور');
                 document.getElementById('loginForm').style.display = 'none';
                 document.getElementById('testSelection').style.display = 'block';
                 checkSavedProgress();
@@ -985,38 +1203,25 @@
                 return;
             }
 
-            // التحقق من عدم إجراء نفس نوع الاختبار مسبقاً
             const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
             
-            const hasCompletedDailyTest = existingResults.some(result => 
+            const hasCompletedDaily = existingResults.some(result => 
                 result.studentName === student.fullName && 
                 result.grade === student.grade && 
                 result.section === student.section &&
                 result.testType === 'daily'
             );
             
-            const hasCompletedWeeklyTest = existingResults.some(result => 
+            const hasCompletedWeekly = existingResults.some(result => 
                 result.studentName === student.fullName && 
                 result.grade === student.grade && 
                 result.section === student.section &&
                 result.testType === 'weekly'
             );
 
-            if (hasCompletedDailyTest && hasCompletedWeeklyTest) {
+            if (hasCompletedDaily && hasCompletedWeekly) {
                 alert('لقد أجريت جميع الاختبارات المتاحة مسبقاً!');
                 return;
-            }
-            
-            if (hasCompletedDailyTest || hasCompletedWeeklyTest) {
-                const completedTestType = hasCompletedDailyTest ? 'daily' : 'weekly';
-                const completedTestName = hasCompletedDailyTest ? 'سؤال اليوم' : 'أسئلة الأسبوع';
-                const availableTestName = hasCompletedDailyTest ? 'أسئلة الأسبوع' : 'سؤال اليوم';
-                
-                const continueChoice = confirm(`لقد أجريت اختبار "${completedTestName}" مسبقاً.\nيمكنك الآن إجراء اختبار "${availableTestName}".\n\nهل تريد المتابعة؟`);
-                
-                if (!continueChoice) {
-                    return;
-                }
             }
 
             currentStudent = {
@@ -1034,7 +1239,7 @@
             document.getElementById('testSelection').style.display = 'block';
         }
 
-        // تحديث حالة الاختبارات المتاحة
+        // تحديث حالة الاختبارات
         function updateTestSelectionStatus() {
             const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
             
@@ -1052,38 +1257,33 @@
                 result.testType === 'weekly'
             );
 
-            // تحديث بطاقة سؤال اليوم
-            const dailyCard = document.querySelector('.test-card:not(.weekly)');
+            const dailyCard = document.getElementById('dailyTestCard');
+            const weeklyCard = document.getElementById('weeklyTestCard');
+
             if (hasCompletedDaily) {
                 dailyCard.innerHTML = `
+                    <div class="test-status">✅ مكتمل</div>
                     <h3>✅ سؤال اليوم</h3>
                     <p style="color: rgba(255,255,255,0.8);">تم إجراء هذا الاختبار مسبقاً</p>
-                    <p><strong>لا يمكن إعادة الاختبار</strong></p>
-                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
-                        <small>📋 اضغط لعرض النتيجة السابقة</small>
-                    </div>
+                    <p><strong>اضغط لعرض النتيجة</strong></p>
                 `;
                 dailyCard.onclick = () => showCompletedTestResult('daily');
-                dailyCard.style.opacity = '0.7';
+                dailyCard.style.opacity = '0.8';
             }
 
-            // تحديث بطاقة أسئلة الأسبوع
-            const weeklyCard = document.querySelector('.test-card.weekly');
             if (hasCompletedWeekly) {
                 weeklyCard.innerHTML = `
+                    <div class="test-status">✅ مكتمل</div>
                     <h3>✅ أسئلة الأسبوع</h3>
                     <p style="color: rgba(255,255,255,0.8);">تم إجراء هذا الاختبار مسبقاً</p>
-                    <p><strong>لا يمكن إعادة الاختبار</strong></p>
-                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
-                        <small>📋 اضغط لعرض النتيجة السابقة</small>
-                    </div>
+                    <p><strong>اضغط لعرض النتيجة</strong></p>
                 `;
                 weeklyCard.onclick = () => showCompletedTestResult('weekly');
-                weeklyCard.style.opacity = '0.7';
+                weeklyCard.style.opacity = '0.8';
             }
         }
 
-        // عرض نتيجة اختبار مكتمل سابقاً
+        // عرض نتيجة اختبار مكتمل
         function showCompletedTestResult(testType) {
             const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
             const studentResult = existingResults.find(result => 
@@ -1108,7 +1308,6 @@
                     <div style="background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-right: 4px solid #17a2b8;">
                         <h4 style="margin-bottom: 10px;">📋 نتيجة سابقة - ${testType === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع'}</h4>
                         <p style="margin-bottom: 5px;"><strong>تاريخ الاختبار:</strong> ${studentResult.date}</p>
-                        <p><strong>ملاحظة:</strong> لا يمكن إعادة هذا الاختبار</p>
                     </div>
                     <p>درجتك النهائية: <span style="font-size: 28px; color: #27ae60; font-weight: bold;">${studentResult.score}</span> من ${studentResult.totalQuestions}</p>
                     <p>النسبة المئوية: <span style="font-size: 24px; color: #3498db; font-weight: bold;">${studentResult.percentage}%</span></p>
@@ -1116,8 +1315,6 @@
                     ${studentResult.averageTime ? `<p style="color: #666; font-size: 16px;">📊 متوسط الوقت للسؤال: ${studentResult.averageTime} ثانية</p>` : ''}
                 `;
                 document.getElementById('scoreDisplay').style.display = 'block';
-                
-                document.getElementById('homeBtn').style.display = 'none';
                 
                 const backToSelectionBtn = document.createElement('button');
                 backToSelectionBtn.className = 'btn';
@@ -1147,6 +1344,19 @@
 
         // تأكيد وبدء الاختبار
         function confirmAndStartTest(type) {
+            // التحقق من توفر الاختبار حسب الوقت
+            if (!currentStudent.isDeveloper) {
+                if (type === 'daily' && !dailyTestAvailable) {
+                    alert('الاختبار اليومي غير متاح في الوقت الحالي!\nيتاح يومياً من الساعة 1 ظهراً لمدة 24 ساعة.');
+                    return;
+                }
+                
+                if (type === 'weekly' && !weeklyTestAvailable) {
+                    alert('الاختبار الأسبوعي غير متاح في الوقت الحالي!\nيتاح من الأحد 1 ظهراً حتى الخميس 1 ظهراً.');
+                    return;
+                }
+            }
+
             const testName = type === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع';
             const confirmation = confirm(`هل أنت متأكد من بدء اختبار "${testName}"؟\n\nتذكر: يُسمح بإجراء كل اختبار مرة واحدة فقط!`);
             
@@ -1157,7 +1367,6 @@
 
         // بدء الاختبار
         function startTest(type) {
-            // السماح للمطور بإعادة الاختبار
             if (!currentStudent.isDeveloper) {
                 const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
                 const hasCompletedTestType = existingResults.some(result => 
@@ -1171,8 +1380,6 @@
                     alert('لقد أجريت هذا النوع من الاختبار مسبقاً! لا يمكن إعادة الاختبار.');
                     return;
                 }
-            } else {
-                console.log('وضع المطور: يُسمح بإعادة الاختبار');
             }
 
             testType = type;
@@ -1187,15 +1394,12 @@
                 currentTest = { questions: weeklyQuestions, title: 'أسئلة الأسبوع' };
             }
 
-            // تحقق من وجود أسئلة
             if (!currentTest.questions || currentTest.questions.length === 0) {
                 alert('لا توجد أسئلة متاحة حالياً. يرجى إضافة أسئلة من لوحة التحكم.');
                 return;
             }
 
-            // إخفاء إشعار التقدم المحفوظ
             document.getElementById('progressNotification').style.display = 'none';
-
             document.getElementById('testSelection').style.display = 'none';
             document.getElementById('questionArea').style.display = 'block';
             showQuestion();
@@ -1233,8 +1437,6 @@
                 currentQuestionIndex === totalQuestions - 1 ? 'inline-block' : 'none';
             
             document.getElementById('submitBtn').style.display = 'none';
-
-            // حفظ التقدم تلقائياً
             saveProgress();
         }
 
@@ -1282,7 +1484,6 @@
                 document.getElementById('nextBtn').style.display = 'inline-block';
             }
 
-            // حفظ التقدم بعد الإجابة
             saveProgress();
         }
 
@@ -1334,7 +1535,6 @@
 
             saveResult();
 
-            // حذف التقدم المحفوظ بعد إنهاء الاختبار بنجاح
             if (testType === 'weekly' && currentStudent.code) {
                 const progressKey = `nafis_progress_${currentStudent.code}`;
                 localStorage.removeItem(progressKey);
@@ -1375,7 +1575,7 @@
             localStorage.setItem('nafisResults', JSON.stringify(results));
         }
 
-        // إظهار مرتبة الشرف المتقدمة
+        // إظهار مرتبة الشرف
         function showLeaderboard() {
             const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
             const filteredResults = results.filter(r => r.testType === testType);
@@ -1395,7 +1595,7 @@
             document.getElementById('leaderboardCard').style.display = 'block';
         }
 
-        // حساب الترتيب الشخصي على مستويات مختلفة
+        // حساب الترتيب الشخصي
         function calculatePersonalRank(allResults) {
             const currentStudentName = currentStudent.fullName;
             
@@ -1415,7 +1615,7 @@
             document.getElementById('sectionRank').textContent = sectionRank > 0 ? sectionRank : '-';
         }
 
-        // عرض الترتيب حسب المستوى المطلوب
+        // عرض الترتيب
         function showRanking(level) {
             const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
             const filteredResults = results.filter(r => r.testType === testType);
@@ -1519,6 +1719,7 @@
             
             document.getElementById('studentForm').style.display = 'block';
             
+            // إعادة تعيين القيم
             document.getElementById('firstName').value = '';
             document.getElementById('fatherName').value = '';
             document.getElementById('grandFatherName').value = '';
@@ -1542,18 +1743,23 @@
             document.getElementById('progressNotification').style.display = 'none';
         }
 
-        // تحميل الأسئلة عند بدء التطبيق
-        document.addEventListener('DOMContentLoaded', function() {
-            refreshQuestionsFromStorage();
-        });
-
-        // تحديث الأسئلة بالقوة (للزر في الفووتر)
+        // تحديث الأسئلة بالقوة
         function forceRefreshQuestions() {
-            refreshQuestionsFromStorage();
+            const storedDaily = localStorage.getItem('nafisMainDailyQuestions');
+            const storedWeekly = localStorage.getItem('nafisMainWeeklyQuestions');
+            
+            if (storedDaily) {
+                dailyQuestions = JSON.parse(storedDaily);
+            }
+            
+            if (storedWeekly) {
+                weeklyQuestions = JSON.parse(storedWeekly);
+            }
+            
             showUpdateNotification('تم تحديث الأسئلة من قاعدة البيانات');
         }
 
-        // مسح نتائج الاختبار (للمطور فقط)
+        // مسح نتائج الاختبار
         function clearTestResults() {
             const developerPassword = prompt('أدخل كلمة مرور المطور لمسح النتائج:');
             if (developerPassword !== 'nafis2024dev') {
@@ -1564,12 +1770,11 @@
             const confirmDelete = confirm('هل أنت متأكد من مسح جميع نتائج الاختبارات؟\nهذا الإجراء لا يمكن التراجع عنه!');
             if (!confirmDelete) return;
 
-            // مسح جميع النتائج
             localStorage.removeItem('nafisResults');
-            showUpdateNotification('تم مسح جميع نتائج الاختبارات - يمكن للجميع إعادة الاختبار');
+            showUpdateNotification('تم مسح جميع نتائج الاختبارات');
         }
 
-        // منع النسخ والنقر بالزر الأيمن
+        // حماية من الغش
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
             return false;
@@ -1584,50 +1789,13 @@
                 e.preventDefault();
                 return false;
             }
-            if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
-                e.preventDefault();
-                return false;
-            }
-            if (e.ctrlKey && e.shiftKey && e.keyCode === 74) {
-                e.preventDefault();
-                return false;
-            }
-            if (e.ctrlKey && e.shiftKey && e.keyCode === 67) {
-                e.preventDefault();
-                return false;
-            }
         });
 
-        document.addEventListener('dragstart', function(e) {
-            e.preventDefault();
-            return false;
+        // بدء النظام عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            startCountdown();
+            forceRefreshQuestions();
         });
-
-        document.addEventListener('selectstart', function(e) {
-            e.preventDefault();
-            return false;
-        });
-
-        window.addEventListener('beforeprint', function(e) {
-            e.preventDefault();
-            alert('الطباعة غير مسموحة في هذا الاختبار');
-            return false;
-        });
-
-        window.addEventListener('beforeunload', function(e) {
-            if (currentTest.questions && currentQuestionIndex < currentTest.questions.length - 1) {
-                e.preventDefault();
-                e.returnValue = 'هل أنت متأكد من مغادرة الاختبار؟ سيتم فقدان التقدم الحالي.';
-                return e.returnValue;
-            }
-        });
-
-        setInterval(function() {
-            if (window.outerHeight - window.innerHeight > 200 || window.outerWidth - window.innerWidth > 200) {
-                console.clear();
-                document.body.innerHTML = '<div style="text-align: center; padding: 50px; font-size: 24px; color: red;">تم اكتشاف محاولة غش! يرجى إغلاق أدوات المطور.</div>';
-            }
-        }, 1000);
     </script>
 </body>
 </html>
