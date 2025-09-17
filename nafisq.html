@@ -11,6 +11,63 @@
             box-sizing: border-box;
         }
 
+        // عرض نتيجة اختبار مكتمل سابقاً
+        function showCompletedTestResult(testType) {
+            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const studentResult = existingResults.find(result => 
+                result.studentName === currentStudent.fullName && 
+                result.grade === currentStudent.grade && 
+                result.section === currentStudent.section &&
+                result.testType === testType
+            );
+
+            if (studentResult) {
+                // تعيين معطيات الاختبار لعرض النتيجة
+                score = studentResult.score;
+                document.getElementById('testSelection').style.display = 'none';
+                
+                document.getElementById('questionArea').style.display = 'block';
+                document.getElementById('optionsContainer').style.display = 'none';
+                document.getElementById('questionText').style.display = 'none';
+                document.querySelector('.nav-buttons').style.display = 'none';
+                document.getElementById('submitBtn').style.display = 'none';
+                document.getElementById('finishBtn').style.display = 'none';
+                
+                document.getElementById('scoreDisplay').innerHTML = `
+                    <div style="background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-right: 4px solid #17a2b8;">
+                        <h4 style="margin-bottom: 10px;">📋 نتيجة سابقة - ${testType === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع'}</h4>
+                        <p style="margin-bottom: 5px;"><strong>تاريخ الاختبار:</strong> ${studentResult.date}</p>
+                        <p><strong>ملاحظة:</strong> لا يمكن إعادة هذا الاختبار</p>
+                    </div>
+                    <p>درجتك النهائية: <span style="font-size: 28px; color: #27ae60; font-weight: bold;">${studentResult.score}</span> من ${studentResult.totalQuestions}</p>
+                    <p>النسبة المئوية: <span style="font-size: 24px; color: #3498db; font-weight: bold;">${studentResult.percentage}%</span></p>
+                    ${studentResult.totalTime ? `<p style="color: #666; font-size: 16px;">⏱️ الوقت الإجمالي: ${studentResult.totalTime} ثانية</p>` : ''}
+                    ${studentResult.averageTime ? `<p style="color: #666; font-size: 16px;">📊 متوسط الوقت للسؤال: ${studentResult.averageTime} ثانية</p>` : ''}
+                `;
+                document.getElementById('scoreDisplay').style.display = 'block';
+                
+                // إظهار زر العودة لاختيار اختبار آخر
+                document.getElementById('homeBtn').style.display = 'none';
+                
+                // إضافة زر للعودة لاختيار الاختبارات
+                const backToSelectionBtn = document.createElement('button');
+                backToSelectionBtn.className = 'btn';
+                backToSelectionBtn.style.background = 'linear-gradient(45deg, #95a5a6, #7f8c8d)';
+                backToSelectionBtn.style.marginTop = '15px';
+                backToSelectionBtn.textContent = 'العودة لاختيار الاختبار';
+                backToSelectionBtn.onclick = () => {
+                    document.getElementById('questionArea').style.display = 'none';
+                    updateTestSelectionStatus(); // إعادة تحديث حالة الاختبارات
+                    document.getElementById('testSelection').style.display = 'block';
+                    backToSelectionBtn.remove(); // إزالة الزر بعد الاستخدام
+                };
+                document.getElementById('questionArea').appendChild(backToSelectionBtn);
+                
+                // إظهار مرتبة الشرف
+                showLeaderboard();
+            }
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -595,7 +652,7 @@
         </div>
 
         <div class="footer">
-            <p><strong>إشراف وتنفيذ: الأستاذ نواف الصبحي</strong></p>
+            <p><strong>إشراف وتنفيذ: الأستاذ خالد المطيري</strong></p>
             <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
         </div>
     </div>
@@ -757,20 +814,41 @@
                 return;
             }
 
-            // التحقق من عدم إجراء الاختبار مسبقاً
+            // التحقق من عدم إجراء نفس نوع الاختبار مسبقاً
             const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
-            const hasCompletedTest = existingResults.some(result => 
+            
+            // البحث عن نتيجة سابقة لنفس نوع الاختبار فقط
+            const hasCompletedDailyTest = existingResults.some(result => 
                 result.studentName === student.fullName && 
                 result.grade === student.grade && 
-                result.section === student.section
+                result.section === student.section &&
+                result.testType === 'daily'
+            );
+            
+            const hasCompletedWeeklyTest = existingResults.some(result => 
+                result.studentName === student.fullName && 
+                result.grade === student.grade && 
+                result.section === student.section &&
+                result.testType === 'weekly'
             );
 
-            if (hasCompletedTest) {
-                const viewResult = confirm('لقد أجريت الاختبار مسبقاً! هل تريد عرض نتيجتك السابقة؟');
-                if (viewResult) {
-                    showPreviousResult(student);
-                }
+            // إذا أجرى كلا الاختبارين، منع الدخول
+            if (hasCompletedDailyTest && hasCompletedWeeklyTest) {
+                alert('لقد أجريت جميع الاختبارات المتاحة مسبقاً!');
                 return;
+            }
+            
+            // إذا أجرى اختبار واحد فقط، السماح بالدخول لاختيار الاختبار الآخر
+            if (hasCompletedDailyTest || hasCompletedWeeklyTest) {
+                const completedTestType = hasCompletedDailyTest ? 'daily' : 'weekly';
+                const completedTestName = hasCompletedDailyTest ? 'سؤال اليوم' : 'أسئلة الأسبوع';
+                const availableTestName = hasCompletedDailyTest ? 'أسئلة الأسبوع' : 'سؤال اليوم';
+                
+                const continueChoice = confirm(`لقد أجريت اختبار "${completedTestName}" مسبقاً.\nيمكنك الآن إجراء اختبار "${availableTestName}".\n\nهل تريد المتابعة؟`);
+                
+                if (!continueChoice) {
+                    return;
+                }
             }
 
             currentStudent = {
@@ -781,8 +859,60 @@
                 id: code
             };
 
+            // تحديث حالة الاختبارات في صفحة الاختيار
+            updateTestSelectionStatus();
+
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('testSelection').style.display = 'block';
+        }
+
+        // تحديث حالة الاختبارات المتاحة
+        function updateTestSelectionStatus() {
+            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            
+            const hasCompletedDaily = existingResults.some(result => 
+                result.studentName === currentStudent.fullName && 
+                result.grade === currentStudent.grade && 
+                result.section === currentStudent.section &&
+                result.testType === 'daily'
+            );
+            
+            const hasCompletedWeekly = existingResults.some(result => 
+                result.studentName === currentStudent.fullName && 
+                result.grade === currentStudent.grade && 
+                result.section === currentStudent.section &&
+                result.testType === 'weekly'
+            );
+
+            // تحديث بطاقة سؤال اليوم
+            const dailyCard = document.querySelector('.test-card:not(.weekly)');
+            if (hasCompletedDaily) {
+                dailyCard.innerHTML = `
+                    <h3>✅ سؤال اليوم</h3>
+                    <p style="color: rgba(255,255,255,0.8);">تم إجراء هذا الاختبار مسبقاً</p>
+                    <p><strong>لا يمكن إعادة الاختبار</strong></p>
+                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
+                        <small>📋 اضغط لعرض النتيجة السابقة</small>
+                    </div>
+                `;
+                dailyCard.onclick = () => showCompletedTestResult('daily');
+                dailyCard.style.opacity = '0.7';
+            }
+
+            // تحديث بطاقة أسئلة الأسبوع
+            const weeklyCard = document.querySelector('.test-card.weekly');
+            if (hasCompletedWeekly) {
+                weeklyCard.innerHTML = `
+                    <h3>✅ أسئلة الأسبوع</h3>
+                    <p style="color: rgba(255,255,255,0.8);">تم إجراء هذا الاختبار مسبقاً</p>
+                    <p><strong>لا يمكن إعادة الاختبار</strong></p>
+                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
+                        <small>📋 اضغط لعرض النتيجة السابقة</small>
+                    </div>
+                `;
+                weeklyCard.onclick = () => showCompletedTestResult('weekly');
+                weeklyCard.style.opacity = '0.7';
+            }
         }
 
         // عرض النتيجة السابقة
