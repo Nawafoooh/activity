@@ -387,6 +387,28 @@
             cursor: not-allowed;
         }
 
+        /* تبويبات الترتيب */
+        .rank-tab {
+            background: transparent;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            margin: 0 5px;
+        }
+
+        .rank-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .rank-tab:hover {
+            background: #2980b9;
+            color: white;
+        }
+
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -512,9 +534,37 @@
                 <button class="btn" id="homeBtn" onclick="goHome()" style="display: none; background: linear-gradient(45deg, #27ae60, #2ecc71); margin-top: 15px;">العودة للرئيسية</button>
             </div>
 
-            <!-- مرتبة الشرف -->
+            <!-- مرتبة الشرف المتقدمة -->
             <div class="card" id="leaderboardCard" style="display: none;">
                 <h2 class="section-title">🏅 مرتبة الشرف</h2>
+                
+                <!-- ترتيبك الشخصي -->
+                <div id="personalRank" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 15px; margin-bottom: 30px; text-align: center;">
+                    <h3 style="margin-bottom: 15px;">📊 ترتيبك الشخصي</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: bold;" id="schoolRank">-</div>
+                            <div style="font-size: 14px;">على المدرسة</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: bold;" id="gradeRank">-</div>
+                            <div style="font-size: 14px;">على الصف</div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px;">
+                            <div style="font-size: 24px; font-weight: bold;" id="sectionRank">-</div>
+                            <div style="font-size: 14px;">على الشعبة</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تبويبات الترتيب -->
+                <div style="display: flex; justify-content: center; margin-bottom: 20px; background: #f8f9fa; border-radius: 10px; padding: 5px;">
+                    <button class="rank-tab active" onclick="showRanking('school')" id="schoolTab">🏫 المدرسة</button>
+                    <button class="rank-tab" onclick="showRanking('grade')" id="gradeTab">📚 الصف</button>
+                    <button class="rank-tab" onclick="showRanking('section')" id="sectionTab">👥 الشعبة</button>
+                </div>
+
+                <!-- منطقة عرض الترتيبات -->
                 <div class="leaderboard" id="leaderboard">
                     <!-- سيتم إدراج النتائج هنا -->
                 </div>
@@ -949,63 +999,143 @@
             console.log('Result saved:', result); // للتأكد من الحفظ
         }
 
-        // إظهار مرتبة الشرف
+        // إظهار مرتبة الشرف المتقدمة
         function showLeaderboard() {
             const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
             const filteredResults = results.filter(r => r.testType === testType);
             
-            console.log('Filtered results:', filteredResults); // للتأكد من البيانات
+            console.log('Filtered results:', filteredResults);
             
-            // ترتيب متقدم: النسبة المئوية أولاً، ثم الوقت (الأسرع أفضل)
-            filteredResults.sort((a, b) => {
-                // مقارنة النسبة المئوية أولاً
+            // ترتيب عام للنتائج
+            const sortedResults = filteredResults.sort((a, b) => {
                 if (b.percentage !== a.percentage) {
                     return b.percentage - a.percentage;
                 }
-                // إذا كانت النسبة متساوية، الأسرع في الوقت يفوز
                 const aTime = a.averageTime || 999;
                 const bTime = b.averageTime || 999;
                 return aTime - bTime;
             });
 
-            const leaderboardHtml = filteredResults.slice(0, 10).map((result, index) => {
-                let rankClass = '';
-                let rankIcon = '';
-                
-                if (index === 0) {
-                    rankClass = 'gold';
-                    rankIcon = '🥇';
-                } else if (index === 1) {
-                    rankClass = 'silver';
-                    rankIcon = '🥈';
-                } else if (index === 2) {
-                    rankClass = 'bronze';
-                    rankIcon = '🥉';
-                } else {
-                    rankIcon = `${index + 1}`;
-                }
-
-                const timeInfo = result.averageTime && result.averageTime > 0 ? 
-                    `<small style="display: block; opacity: 0.8; margin-top: 3px;">⏱️ متوسط: ${result.averageTime}ث للسؤال</small>` : '';
-
-                return `
-                    <div class="leaderboard-item ${rankClass}">
-                        <div class="student-name">
-                            ${rankIcon} ${result.studentName} - ${result.grade} ${result.section}
-                            ${timeInfo}
-                        </div>
-                        <div>
-                            <strong>${result.percentage}%</strong>
-                            ${result.totalTime && result.totalTime > 0 ? `<br><small>${result.totalTime}ث إجمالي</small>` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            document.getElementById('leaderboard').innerHTML = leaderboardHtml || 
-                '<p style="text-align: center; color: #666;">لا توجد نتائج حتى الآن</p>';
+            // حساب الترتيب الشخصي
+            calculatePersonalRank(sortedResults);
+            
+            // عرض ترتيب المدرسة بشكل افتراضي
+            showRanking('school');
             
             document.getElementById('leaderboardCard').style.display = 'block';
+        }
+
+        // حساب الترتيب الشخصي على مستويات مختلفة
+        function calculatePersonalRank(allResults) {
+            const currentStudentName = currentStudent.fullName;
+            
+            // ترتيب على مستوى المدرسة
+            const schoolResults = allResults;
+            const schoolRank = schoolResults.findIndex(r => r.studentName === currentStudentName) + 1;
+            
+            // ترتيب على مستوى الصف
+            const gradeResults = allResults.filter(r => r.grade === currentStudent.grade);
+            const gradeRank = gradeResults.findIndex(r => r.studentName === currentStudentName) + 1;
+            
+            // ترتيب على مستوى الشعبة
+            const sectionResults = allResults.filter(r => 
+                r.grade === currentStudent.grade && r.section === currentStudent.section
+            );
+            const sectionRank = sectionResults.findIndex(r => r.studentName === currentStudentName) + 1;
+            
+            // عرض الترتيبات الشخصية
+            document.getElementById('schoolRank').textContent = schoolRank > 0 ? schoolRank : '-';
+            document.getElementById('gradeRank').textContent = gradeRank > 0 ? gradeRank : '-';
+            document.getElementById('sectionRank').textContent = sectionRank > 0 ? sectionRank : '-';
+        }
+
+        // عرض الترتيب حسب المستوى المطلوب
+        function showRanking(level) {
+            const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const filteredResults = results.filter(r => r.testType === testType);
+            
+            // ترتيب النتائج
+            const sortedResults = filteredResults.sort((a, b) => {
+                if (b.percentage !== a.percentage) {
+                    return b.percentage - a.percentage;
+                }
+                const aTime = a.averageTime || 999;
+                const bTime = b.averageTime || 999;
+                return aTime - bTime;
+            });
+
+            let displayResults = [];
+            let title = '';
+
+            // تصفية حسب المستوى
+            switch(level) {
+                case 'school':
+                    displayResults = sortedResults.slice(0, 10); // أول 10 على المدرسة
+                    title = '🏫 أول 10 على المدرسة';
+                    break;
+                case 'grade':
+                    displayResults = sortedResults
+                        .filter(r => r.grade === currentStudent.grade)
+                        .slice(0, 10); // أول 10 على الصف
+                    title = `📚 أول 10 - ${currentStudent.grade}`;
+                    break;
+                case 'section':
+                    displayResults = sortedResults
+                        .filter(r => r.grade === currentStudent.grade && r.section === currentStudent.section)
+                        .slice(0, 10); // أول 10 على الشعبة
+                    title = `👥 أول 10 - ${currentStudent.grade} شعبة ${currentStudent.section}`;
+                    break;
+            }
+
+            // تحديث التبويبات
+            document.querySelectorAll('.rank-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(level + 'Tab').classList.add('active');
+
+            // عرض النتائج
+            const leaderboardHtml = `
+                <h3 style="text-align: center; margin-bottom: 20px; color: #2c3e50;">${title}</h3>
+                ${displayResults.length > 0 ? displayResults.map((result, index) => {
+                    let rankClass = '';
+                    let rankIcon = '';
+                    
+                    if (index === 0) {
+                        rankClass = 'gold';
+                        rankIcon = '🥇';
+                    } else if (index === 1) {
+                        rankClass = 'silver';
+                        rankIcon = '🥈';
+                    } else if (index === 2) {
+                        rankClass = 'bronze';
+                        rankIcon = '🥉';
+                    } else {
+                        rankIcon = `${index + 1}`;
+                    }
+
+                    // تمييز الطالب الحالي
+                    const isCurrentStudent = result.studentName === currentStudent.fullName;
+                    const highlightStyle = isCurrentStudent ? 
+                        'border: 3px solid #e74c3c; background: linear-gradient(135deg, #fff5f5, #ffe5e5);' : '';
+
+                    const timeInfo = result.averageTime && result.averageTime > 0 ? 
+                        `<small style="display: block; opacity: 0.8; margin-top: 3px;">⏱️ متوسط: ${result.averageTime}ث للسؤال</small>` : '';
+
+                    return `
+                        <div class="leaderboard-item ${rankClass}" style="${highlightStyle}">
+                            <div class="student-name">
+                                ${rankIcon} ${result.studentName} - ${result.grade} شعبة ${result.section}
+                                ${isCurrentStudent ? '<span style="color: #e74c3c; font-weight: bold;"> (أنت)</span>' : ''}
+                                ${timeInfo}
+                            </div>
+                            <div>
+                                <strong>${result.percentage}%</strong>
+                                ${result.totalTime && result.totalTime > 0 ? `<br><small>${result.totalTime}ث إجمالي</small>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('') : '<p style="text-align: center; color: #666; padding: 20px;">لا توجد نتائج في هذا المستوى حتى الآن</p>'}
+            `;
+
+            document.getElementById('leaderboard').innerHTML = leaderboardHtml;
         }
 
         // إعادة تعيين للاختبار الجديد
