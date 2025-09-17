@@ -523,7 +523,7 @@
                 </div>
             </div>
 
-            <!-- تسجيل الدخول بالرقم -->
+        <!-- تسجيل الدخول بالرقم -->
             <div class="card" id="loginForm" style="display: none;">
                 <h2 class="section-title">🔐 تسجيل الدخول للاختبار</h2>
                 <div class="student-form">
@@ -535,6 +535,14 @@
                         <div class="form-group">
                             <label>رقمك الخاص</label>
                             <input type="text" id="studentCode" placeholder="أدخل رقمك الخاص (6 أرقام)" maxlength="6" style="text-align: center; font-size: 18px; letter-spacing: 2px;">
+                        </div>
+                        
+                        <!-- وضع المطور -->
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="developerMode" style="width: auto;">
+                                وضع المطور (لاختبار الأسئلة الجديدة)
+                            </label>
                         </div>
                     </div>
                     <button class="btn" onclick="loginStudent()">دخول الاختبار</button>
@@ -655,10 +663,15 @@
             <p><strong>إشراف وتنفيذ: الأستاذ خالد المطيري</strong></p>
             <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
             
-            <!-- زر تحديث سريع للأسئلة -->
-            <button onclick="forceRefreshQuestions()" style="background: #f39c12; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; font-size: 12px;">
-                🔄 تحديث الأسئلة
-            </button>
+            <!-- أزرار المطور -->
+            <div style="margin-top: 15px;">
+                <button onclick="forceRefreshQuestions()" style="background: #f39c12; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin: 5px; font-size: 12px;">
+                    🔄 تحديث الأسئلة
+                </button>
+                <button onclick="clearTestResults()" style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin: 5px; font-size: 12px;">
+                    🗑️ مسح نتائج الاختبار (للمطور)
+                </button>
+            </div>
         </div>
     </div>
 
@@ -897,6 +910,7 @@
         function loginStudent() {
             const fullName = document.getElementById('loginFullName').value.trim();
             const code = document.getElementById('studentCode').value.trim();
+            const isDeveloperMode = document.getElementById('developerMode').checked;
 
             if (!fullName || !code) {
                 alert('يرجى إدخال الاسم والرقم الخاص');
@@ -905,6 +919,30 @@
 
             if (code.length !== 6 || !/^\d{6}$/.test(code)) {
                 alert('الرقم الخاص يجب أن يكون 6 أرقام بالضبط');
+                return;
+            }
+
+            // في وضع المطور، تجاهل التحقق من قاعدة البيانات
+            if (isDeveloperMode) {
+                const developerPassword = prompt('أدخل كلمة مرور المطور:');
+                if (developerPassword !== 'nafis2024dev') {
+                    alert('كلمة مرور المطور غير صحيحة!');
+                    return;
+                }
+
+                // إنشاء حساب تجريبي للمطور
+                currentStudent = {
+                    fullName: fullName + ' (مطور)',
+                    grade: 'ثالث متوسط',
+                    section: '1',
+                    code: code,
+                    id: 'developer',
+                    isDeveloper: true
+                };
+
+                showUpdateNotification('تم الدخول بوضع المطور - يمكن إعادة الاختبار');
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('testSelection').style.display = 'block';
                 return;
             }
 
@@ -1087,17 +1125,23 @@
 
         // بدء الاختبار
         function startTest(type) {
-            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
-            const hasCompletedTestType = existingResults.some(result => 
-                result.studentName === currentStudent.fullName && 
-                result.grade === currentStudent.grade && 
-                result.section === currentStudent.section &&
-                result.testType === type
-            );
+            // السماح للمطور بإعادة الاختبار
+            if (!currentStudent.isDeveloper) {
+                const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+                const hasCompletedTestType = existingResults.some(result => 
+                    result.studentName === currentStudent.fullName && 
+                    result.grade === currentStudent.grade && 
+                    result.section === currentStudent.section &&
+                    result.testType === type
+                );
 
-            if (hasCompletedTestType) {
-                alert('لقد أجريت هذا النوع من الاختبار مسبقاً! لا يمكن إعادة الاختبار.');
-                return;
+                if (hasCompletedTestType) {
+                    alert('لقد أجريت هذا النوع من الاختبار مسبقاً! لا يمكن إعادة الاختبار.');
+                    return;
+                }
+            } else {
+                // رسالة للمطور
+                console.log('وضع المطور: يُسمح بإعادة الاختبار');
             }
 
             testType = type;
@@ -1110,6 +1154,12 @@
                 currentTest = { questions: dailyQuestions, title: 'سؤال اليوم' };
             } else {
                 currentTest = { questions: weeklyQuestions, title: 'أسئلة الأسبوع' };
+            }
+
+            // تحقق من وجود أسئلة
+            if (!currentTest.questions || currentTest.questions.length === 0) {
+                alert('لا توجد أسئلة متاحة حالياً. يرجى إضافة أسئلة من لوحة التحكم.');
+                return;
             }
 
             document.getElementById('testSelection').style.display = 'none';
@@ -1454,6 +1504,22 @@
         function forceRefreshQuestions() {
             refreshQuestionsFromStorage();
             showUpdateNotification('تم تحديث الأسئلة من قاعدة البيانات');
+        }
+
+        // مسح نتائج الاختبار (للمطور فقط)
+        function clearTestResults() {
+            const developerPassword = prompt('أدخل كلمة مرور المطور لمسح النتائج:');
+            if (developerPassword !== 'nafis2024dev') {
+                alert('كلمة مرور المطور غير صحيحة!');
+                return;
+            }
+
+            const confirmDelete = confirm('هل أنت متأكد من مسح جميع نتائج الاختبارات؟\nهذا الإجراء لا يمكن التراجع عنه!');
+            if (!confirmDelete) return;
+
+            // مسح جميع النتائج
+            localStorage.removeItem('nafisResults');
+            showUpdateNotification('تم مسح جميع نتائج الاختبارات - يمكن للجميع إعادة الاختبار');
         }
 
         // منع النسخ والنقر بالزر الأيمن
