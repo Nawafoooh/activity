@@ -899,28 +899,98 @@
                 reader.onload = function(e) {
                     try {
                         const data = JSON.parse(e.target.result);
+                        let importedCount = 0;
                         
-                        if (data.daily && Array.isArray(data.daily)) {
-                            dailyQuestions = [...dailyQuestions, ...data.daily];
-                            localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+                        // التحقق من التنسيق الجديد (nafis_exam)
+                        if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
+                            const questions = data.nafes_exam;
+                            
+                            questions.forEach(question => {
+                                if (isValidQuestion(question)) {
+                                    // إضافة معرف فريد وتاريخ إنشاء
+                                    const newQuestion = {
+                                        ...question,
+                                        id: Date.now() + Math.random(),
+                                        createdAt: new Date().toLocaleString('ar-SA'),
+                                        image: null // الملف المستورد لا يحتوي على صور
+                                    };
+                                    
+                                    // تحديد نوع الاختبار (افتراضياً أسبوعي للملفات الكبيرة)
+                                    if (questions.length <= 10) {
+                                        dailyQuestions.push(newQuestion);
+                                    } else {
+                                        weeklyQuestions.push(newQuestion);
+                                    }
+                                    importedCount++;
+                                }
+                            });
+                        }
+                        // التحقق من التنسيق القديم
+                        else if (data.daily && Array.isArray(data.daily)) {
+                            data.daily.forEach(question => {
+                                if (isValidQuestion(question)) {
+                                    dailyQuestions.push({
+                                        ...question,
+                                        id: question.id || Date.now() + Math.random(),
+                                        createdAt: question.createdAt || new Date().toLocaleString('ar-SA')
+                                    });
+                                    importedCount++;
+                                }
+                            });
                         }
                         
                         if (data.weekly && Array.isArray(data.weekly)) {
-                            weeklyQuestions = [...weeklyQuestions, ...data.weekly];
-                            localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                            data.weekly.forEach(question => {
+                                if (isValidQuestion(question)) {
+                                    weeklyQuestions.push({
+                                        ...question,
+                                        id: question.id || Date.now() + Math.random(),
+                                        createdAt: question.createdAt || new Date().toLocaleString('ar-SA')
+                                    });
+                                    importedCount++;
+                                }
+                            });
                         }
+                        
+                        if (importedCount === 0) {
+                            showError('لم يتم العثور على أسئلة صحيحة في الملف');
+                            return;
+                        }
+                        
+                        // حفظ الأسئلة المحدثة
+                        localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+                        localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
                         
                         updateStats();
                         displayQuestions();
-                        showSuccess('تم استيراد الأسئلة بنجاح');
+                        showSuccess(`تم استيراد ${importedCount} سؤال بنجاح!`);
+                        
+                        // تحديث المنصة الرئيسية تلقائياً
+                        updateMainPlatformQuestions();
+                        
                     } catch (error) {
-                        showError('خطأ في قراءة الملف. تأكد من صحة تنسيق الملف');
+                        console.error('خطأ في قراءة الملف:', error);
+                        showError('خطأ في قراءة الملف. تأكد من صحة تنسيق JSON');
                     }
                 };
                 reader.readAsText(file);
             };
             
             input.click();
+        }
+
+        // التحقق من صحة السؤال
+        function isValidQuestion(question) {
+            return question &&
+                   question.subject &&
+                   question.question &&
+                   question.options &&
+                   Array.isArray(question.options) &&
+                   question.options.length >= 4 &&
+                   typeof question.correct === 'number' &&
+                   question.correct >= 0 &&
+                   question.correct < question.options.length &&
+                   question.explanation;
         }
 
         // إضافة أزرار إضافية للتحكم
