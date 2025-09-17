@@ -652,8 +652,13 @@
         </div>
 
         <div class="footer">
-            <p><strong>إشراف وتنفيذ: الأستاذ نواف الصبحي</strong></p>
+            <p><strong>إشراف وتنفيذ: الأستاذ خالد المطيري</strong></p>
             <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
+            
+            <!-- زر تحديث سريع للأسئلة -->
+            <button onclick="forceRefreshQuestions()" style="background: #f39c12; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; font-size: 12px;">
+                🔄 تحديث الأسئلة
+            </button>
         </div>
     </div>
 
@@ -669,8 +674,8 @@
         let questionTimes = [];
         let studentDatabase = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
 
-        // أسئلة تجريبية
-        const dailyQuestions = [
+        // أسئلة تجريبية - سيتم استبدالها بالأسئلة من لوحة التحكم
+        let dailyQuestions = JSON.parse(localStorage.getItem('nafisMainDailyQuestions') || JSON.stringify([
             {
                 subject: 'رياضيات',
                 question: 'ما ناتج 15 + 28؟',
@@ -720,11 +725,109 @@
                 correct: 1,
                 explanation: 'محيط المربع = 4 × طول الضلع = 4 × 5 = 20 سم'
             }
-        ];
+        ]));
 
-        const weeklyQuestions = [
-            ...dailyQuestions
-        ];
+        let weeklyQuestions = JSON.parse(localStorage.getItem('nafisMainWeeklyQuestions') || JSON.stringify(dailyQuestions));
+
+        // مراقبة التحديثات من لوحة التحكم
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'NAFIS_UPDATE_DAILY') {
+                dailyQuestions = event.data.questions;
+                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                console.log('تم تحديث الأسئلة اليومية من لوحة التحكم');
+                showUpdateNotification('تم تحديث الأسئلة اليومية');
+            } else if (event.data.type === 'NAFIS_UPDATE_WEEKLY') {
+                weeklyQuestions = event.data.questions;
+                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                console.log('تم تحديث الأسئلة الأسبوعية من لوحة التحكم');
+                showUpdateNotification('تم تحديث الأسئلة الأسبوعية');
+            } else if (event.data.type === 'NAFIS_UPDATE_ALL') {
+                dailyQuestions = event.data.dailyQuestions || [];
+                weeklyQuestions = event.data.weeklyQuestions || [];
+                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                console.log('تم تحديث جميع الأسئلة من لوحة التحكم');
+                showUpdateNotification(`تم تحديث الأسئلة: ${dailyQuestions.length} يومي، ${weeklyQuestions.length} أسبوعي`);
+            }
+        });
+
+        // مراقبة التحديثات عبر BroadcastChannel
+        if (typeof BroadcastChannel !== 'undefined') {
+            const channel = new BroadcastChannel('nafis-updates');
+            channel.onmessage = function(event) {
+                if (event.data.type === 'QUESTIONS_UPDATED') {
+                    dailyQuestions = event.data.dailyQuestions || [];
+                    weeklyQuestions = event.data.weeklyQuestions || [];
+                    localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                    localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                    showUpdateNotification('تم تحديث الأسئلة تلقائياً');
+                }
+            };
+        }
+
+        // عرض إشعار التحديث
+        function showUpdateNotification(message) {
+            // إنشاء عنصر الإشعار
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #27ae60;
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                z-index: 10000;
+                font-weight: bold;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            
+            // إضافة الأنيميشن
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            document.body.appendChild(notification);
+            
+            // إزالة الإشعار بعد 3 ثواني
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                    if (style.parentNode) {
+                        style.parentNode.removeChild(style);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // تحديث الأسئلة عند تحميل الصفحة
+        function refreshQuestionsFromStorage() {
+            const storedDaily = localStorage.getItem('nafisMainDailyQuestions');
+            const storedWeekly = localStorage.getItem('nafisMainWeeklyQuestions');
+            
+            if (storedDaily) {
+                dailyQuestions = JSON.parse(storedDaily);
+                console.log(`تم تحميل ${dailyQuestions.length} سؤال يومي`);
+            }
+            
+            if (storedWeekly) {
+                weeklyQuestions = JSON.parse(storedWeekly);
+                console.log(`تم تحميل ${weeklyQuestions.length} سؤال أسبوعي`);
+            }
+        }
 
         // إظهار نموذج تسجيل الدخول مباشرة
         function showLoginForm() {
@@ -1024,8 +1127,13 @@
             document.getElementById('questionNumber').textContent = 
                 `السؤال ${currentQuestionIndex + 1} من ${totalQuestions} - ${question.subject}`;
 
-            document.getElementById('questionText').innerHTML = 
-                `<p><strong>${question.subject}:</strong> ${question.question}</p>`;
+            // إضافة الصورة إن وجدت
+            let questionHTML = `<p><strong>${question.subject}:</strong> ${question.question}</p>`;
+            if (question.image) {
+                questionHTML += `<img src="${question.image}" class="question-image" alt="صورة السؤال">`;
+            }
+
+            document.getElementById('questionText').innerHTML = questionHTML;
 
             const optionsHtml = question.options.map((option, index) => 
                 `<div class="option" onclick="selectOption(${index})">${option}</div>`
@@ -1335,6 +1443,17 @@
             document.getElementById('finishBtn').style.display = 'none';
             document.getElementById('progressBar').style.width = '0%';
             document.getElementById('questionNumber').textContent = 'السؤال 1 من 7';
+        }
+
+        // تحميل الأسئلة عند بدء التطبيق
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshQuestionsFromStorage();
+        });
+
+        // تحديث الأسئلة بالقوة (للزر في الفووتر)
+        function forceRefreshQuestions() {
+            refreshQuestionsFromStorage();
+            showUpdateNotification('تم تحديث الأسئلة من قاعدة البيانات');
         }
 
         // منع النسخ والنقر بالزر الأيمن
