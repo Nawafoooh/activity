@@ -619,6 +619,7 @@
 
                 <button class="btn" id="submitBtn" onclick="submitAnswer()" style="display: none;">تأكيد الإجابة</button>
                 <button class="btn" id="finishBtn" onclick="handleFinishTest()" style="display: none;">إنهاء الاختبار</button>
+                <button class="btn" id="saveExitBtn" onclick="saveAndExit()" style="display: none; background: linear-gradient(45deg, #f39c12, #e67e22); margin-top: 15px;">حفظ وخروج</button>
                 <button class="btn" id="homeBtn" onclick="goHome()" style="display: none; background: linear-gradient(45deg, #27ae60, #2ecc71); margin-top: 15px;">العودة للرئيسية</button>
             </div>
 
@@ -660,7 +661,7 @@
         </div>
 
         <div class="footer">
-            <p><strong>إشراف وتنفيذ: الأستاذ خالد المطيري</strong></p>
+            <p><strong>إشراف وتنفيذ: الأستاذ نواف الصبحي</strong></p>
             <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
             
             <!-- أزرار المطور -->
@@ -1025,6 +1026,9 @@
                 result.testType === 'weekly'
             );
 
+            // التحقق من وجود اختبار محفوظ
+            const savedTest = getSavedTest();
+
             // تحديث بطاقة سؤال اليوم
             const dailyCard = document.querySelector('.test-card:not(.weekly)');
             if (hasCompletedDaily) {
@@ -1040,7 +1044,7 @@
                 dailyCard.style.opacity = '0.7';
             }
 
-            // تحديث بطاقة أسئلة الأسبوع
+            // تحديث بطاقة أسئلة الأسبوع مع إمكانية المتابعة
             const weeklyCard = document.querySelector('.test-card.weekly');
             if (hasCompletedWeekly) {
                 weeklyCard.innerHTML = `
@@ -1053,6 +1057,22 @@
                 `;
                 weeklyCard.onclick = () => showCompletedTestResult('weekly');
                 weeklyCard.style.opacity = '0.7';
+            } else if (savedTest && savedTest.testType === 'weekly') {
+                // إضافة خيار المتابعة للاختبار المحفوظ
+                weeklyCard.innerHTML = `
+                    <h3>📚 أسئلة الأسبوع</h3>
+                    <p>40 سؤال شامل لجميع المواد</p>
+                    <p><strong>اختبار تنافسي أسبوعي</strong></p>
+                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 15px;">
+                        <small>⏱️ الوقت المقدر: 60-90 دقيقة</small>
+                    </div>
+                    <div style="background: rgba(46, 204, 113, 0.3); padding: 10px; border-radius: 8px; margin-top: 10px; border: 2px solid rgba(46, 204, 113, 0.5);">
+                        <p style="font-size: 14px; margin-bottom: 5px;">💾 <strong>لديك اختبار محفوظ</strong></p>
+                        <p style="font-size: 12px;">السؤال ${savedTest.currentQuestionIndex + 1} من ${savedTest.totalQuestions}</p>
+                        <p style="font-size: 12px;">يمكنك المتابعة من حيث توقفت</p>
+                    </div>
+                `;
+                weeklyCard.onclick = () => showResumeOptions('weekly');
             }
         }
 
@@ -1167,6 +1187,103 @@
             showQuestion();
         }
 
+        // حفظ الاختبار والخروج
+        function saveAndExit() {
+            if (testType !== 'weekly') {
+                alert('ميزة الحفظ والخروج متاحة فقط للاختبار الأسبوعي');
+                return;
+            }
+
+            const testData = {
+                studentName: currentStudent.fullName,
+                studentGrade: currentStudent.grade,
+                studentSection: currentStudent.section,
+                testType: testType,
+                currentQuestionIndex: currentQuestionIndex,
+                userAnswers: userAnswers,
+                score: score,
+                questionTimes: questionTimes,
+                questions: currentTest.questions,
+                totalQuestions: currentTest.questions.length,
+                savedAt: new Date().toISOString(),
+                savedAtReadable: new Date().toLocaleString('ar-SA')
+            };
+
+            localStorage.setItem('nafis_saved_test', JSON.stringify(testData));
+            
+            showUpdateNotification('تم حفظ تقدمك بنجاح! يمكنك المتابعة لاحقاً');
+            
+            setTimeout(() => {
+                goHome();
+            }, 2000);
+        }
+
+        // الحصول على الاختبار المحفوظ
+        function getSavedTest() {
+            const savedData = localStorage.getItem('nafis_saved_test');
+            if (!savedData) return null;
+            
+            try {
+                const testData = JSON.parse(savedData);
+                
+                // التحقق من أن الطالب الحالي هو من حفظ الاختبار
+                if (testData.studentName === currentStudent.fullName &&
+                    testData.studentGrade === currentStudent.grade &&
+                    testData.studentSection === currentStudent.section) {
+                    return testData;
+                }
+            } catch (error) {
+                console.error('خطأ في قراءة الاختبار المحفوظ:', error);
+            }
+            
+            return null;
+        }
+
+        // عرض خيارات المتابعة أو البداية الجديدة
+        function showResumeOptions(type) {
+            const savedTest = getSavedTest();
+            if (!savedTest) {
+                confirmAndStartTest(type);
+                return;
+            }
+
+            const resumeChoice = confirm(`لديك اختبار محفوظ من ${savedTest.savedAtReadable}\nالسؤال ${savedTest.currentQuestionIndex + 1} من ${savedTest.totalQuestions}\n\nهل تريد المتابعة من حيث توقفت؟\n\n- اضغط "موافق" للمتابعة\n- اضغط "إلغاء" لبدء اختبار جديد`);
+            
+            if (resumeChoice) {
+                resumeTest();
+            } else {
+                // حذف الاختبار المحفوظ وبدء جديد
+                localStorage.removeItem('nafis_saved_test');
+                confirmAndStartTest(type);
+            }
+        }
+
+        // استكمال الاختبار المحفوظ
+        function resumeTest() {
+            const savedTest = getSavedTest();
+            if (!savedTest) {
+                alert('لم يتم العثور على اختبار محفوظ');
+                return;
+            }
+
+            // استعادة البيانات المحفوظة
+            testType = savedTest.testType;
+            currentQuestionIndex = savedTest.currentQuestionIndex;
+            userAnswers = savedTest.userAnswers || [];
+            score = savedTest.score || 0;
+            questionTimes = savedTest.questionTimes || [];
+            currentTest = {
+                questions: savedTest.questions,
+                title: savedTest.testType === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع'
+            };
+
+            showUpdateNotification(`تم استكمال الاختبار من السؤال ${currentQuestionIndex + 1}`);
+
+            document.getElementById('testSelection').style.display = 'none';
+            document.getElementById('questionArea').style.display = 'block';
+            showQuestion();
+        }
+
         // عرض السؤال
         function showQuestion() {
             const question = currentTest.questions[currentQuestionIndex];
@@ -1191,6 +1308,14 @@
 
             document.getElementById('optionsContainer').innerHTML = optionsHtml;
 
+            // استعادة الإجابة المحفوظة إن وجدت
+            if (userAnswers[currentQuestionIndex] !== undefined) {
+                const selectedOption = userAnswers[currentQuestionIndex];
+                const options = document.querySelectorAll('.option');
+                options[selectedOption].classList.add('selected');
+                document.getElementById('submitBtn').style.display = 'block';
+            }
+
             const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
             document.getElementById('progressBar').style.width = progress + '%';
 
@@ -1199,7 +1324,12 @@
             document.getElementById('finishBtn').style.display = 
                 currentQuestionIndex === totalQuestions - 1 ? 'inline-block' : 'none';
             
-            document.getElementById('submitBtn').style.display = 'none';
+            // إظهار زر "حفظ وخروج" للاختبار الأسبوعي فقط
+            document.getElementById('saveExitBtn').style.display = 
+                testType === 'weekly' ? 'inline-block' : 'none';
+            
+            document.getElementById('submitBtn').style.display = 
+                userAnswers[currentQuestionIndex] !== undefined ? 'block' : 'none';
         }
 
         // اختيار الإجابة
@@ -1295,11 +1425,18 @@
 
             saveResult();
 
+            // حذف الاختبار المحفوظ بعد الانتهاء
+            if (testType === 'weekly') {
+                localStorage.removeItem('nafis_saved_test');
+                console.log('تم حذف الاختبار المحفوظ بعد الانتهاء');
+            }
+
             document.getElementById('optionsContainer').style.display = 'none';
             document.getElementById('questionText').style.display = 'none';
             document.querySelector('.nav-buttons').style.display = 'none';
             document.getElementById('finishBtn').style.display = 'none';
             document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('saveExitBtn').style.display = 'none';
             document.getElementById('homeBtn').style.display = 'block';
 
             showLeaderboard();
@@ -1465,6 +1602,9 @@
             questionStartTime = 0;
             questionTimes = [];
 
+            // حذف البيانات المحفوظة عند العودة للرئيسية
+            localStorage.removeItem('nafis_saved_test');
+
             document.getElementById('questionArea').style.display = 'none';
             document.getElementById('leaderboardCard').style.display = 'none';
             document.getElementById('testSelection').style.display = 'none';
@@ -1481,8 +1621,21 @@
             document.getElementById('section').value = '';
             document.getElementById('loginFullName').value = '';
             document.getElementById('studentCode').value = '';
+            document.getElementById('developerMode').checked = false;
             
             document.getElementById('optionsContainer').style.display = 'block';
+            document.getElementById('optionsContainer').innerHTML = '';
+            document.getElementById('questionText').style.display = 'block';
+            document.getElementById('questionText').innerHTML = '<p>مرحباً بك في اختبار نافس!</p>';
+            document.querySelector('.nav-buttons').style.display = 'flex';
+            document.getElementById('scoreDisplay').style.display = 'none';
+            document.getElementById('homeBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('finishBtn').style.display = 'none';
+            document.getElementById('saveExitBtn').style.display = 'none';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('questionNumber').textContent = 'السؤال 1 من 7';
+        }getElementById('optionsContainer').style.display = 'block';
             document.getElementById('optionsContainer').innerHTML = '';
             document.getElementById('questionText').style.display = 'block';
             document.getElementById('questionText').innerHTML = '<p>مرحباً بك في اختبار نافس!</p>';
