@@ -590,8 +590,9 @@
             const question = currentTest.questions[currentQuestionIndex];
             const totalQuestions = currentTest.questions.length;
 
-            // تسجيل وقت بداية السؤال
+            // تسجيل وقت بداية السؤال في كل مرة
             questionStartTime = Date.now();
+            console.log(`Starting question ${currentQuestionIndex + 1} at: ${questionStartTime}`);
 
             document.getElementById('questionNumber').textContent = 
                 `السؤال ${currentQuestionIndex + 1} من ${totalQuestions} - ${question.subject}`;
@@ -611,8 +612,10 @@
 
             // أزرار التنقل
             document.getElementById('prevBtn').disabled = currentQuestionIndex === 0;
-            document.getElementById('nextBtn').style.display = 
-                currentQuestionIndex === totalQuestions - 1 ? 'none' : 'inline-block';
+            
+            // إخفاء زر التالي في البداية
+            document.getElementById('nextBtn').style.display = 'none';
+            
             document.getElementById('finishBtn').style.display = 
                 currentQuestionIndex === totalQuestions - 1 ? 'inline-block' : 'none';
             
@@ -639,6 +642,8 @@
             const timeSpent = Math.round((Date.now() - questionStartTime) / 1000);
             questionTimes[currentQuestionIndex] = timeSpent;
 
+            console.log(`Question ${currentQuestionIndex + 1}: ${timeSpent} seconds`); // للتأكد
+
             // إظهار الإجابة الصحيحة
             options.forEach((option, index) => {
                 if (index === question.correct) {
@@ -662,22 +667,42 @@
                 </div>`;
 
             document.getElementById('submitBtn').style.display = 'none';
+            
+            // إذا لم نكن في السؤال الأخير، إظهار زر التالي
+            if (currentQuestionIndex < currentTest.questions.length - 1) {
+                document.getElementById('nextBtn').style.display = 'inline-block';
+            }
         }
 
         // معالج إنهاء الاختبار (للسؤال الأخير)
         function handleFinishTest() {
-            // تأكيد الإجابة أولاً
-            submitAnswer();
-            
-            // ثم إنهاء الاختبار
-            setTimeout(() => {
-                finishTest();
-                document.getElementById('homeBtn').style.display = 'block';
-                document.getElementById('finishBtn').style.display = 'none';
+            // إذا لم يتم الإجابة على السؤال الأخير، تأكيد الإجابة أولاً
+            if (userAnswers[currentQuestionIndex] !== undefined) {
+                submitAnswer();
                 
-                // إخفاء أزرار التنقل
-                document.querySelector('.nav-buttons').style.display = 'none';
-            }, 1000);
+                // انتظار قليلاً ثم إنهاء الاختبار
+                setTimeout(() => {
+                    finishTest();
+                }, 1500);
+            } else {
+                alert('يرجى اختيار إجابة أولاً');
+            }
+        }
+
+        // السؤال التالي
+        function nextQuestion() {
+            if (currentQuestionIndex < currentTest.questions.length - 1) {
+                currentQuestionIndex++;
+                showQuestion();
+            }
+        }
+
+        // السؤال السابق
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                showQuestion();
+            }
         }
 
         // السؤال التالي
@@ -700,20 +725,37 @@
         function finishTest() {
             const totalQuestions = currentTest.questions.length;
             const percentage = Math.round((score / totalQuestions) * 100);
+            
+            // حساب الوقت الإجمالي
+            const totalTime = questionTimes.reduce((sum, time) => sum + (time || 0), 0);
+            const averageTime = questionTimes.length > 0 ? Math.round((totalTime / questionTimes.length) * 10) / 10 : 0;
 
             document.getElementById('finalScore').textContent = score;
             document.getElementById('totalQuestions').textContent = totalQuestions;
             document.getElementById('percentage').textContent = percentage + '%';
+            
+            // إضافة معلومات الوقت للنتيجة
+            document.getElementById('scoreDisplay').innerHTML = `
+                <p>درجتك النهائية: <span id="finalScore">${score}</span> من <span id="totalQuestions">${totalQuestions}</span></p>
+                <p>النسبة المئوية: <span id="percentage">${percentage}%</span></p>
+                <p style="color: #666; font-size: 16px;">⏱️ الوقت الإجمالي: ${totalTime} ثانية</p>
+                <p style="color: #666; font-size: 16px;">📊 متوسط الوقت للسؤال: ${averageTime} ثانية</p>
+            `;
+            
             document.getElementById('scoreDisplay').style.display = 'block';
 
             // حفظ النتيجة
             saveResult();
 
-            // إخفاء عناصر السؤال
+            // إخفاء عناصر السؤال وإظهار زر العودة
             document.getElementById('optionsContainer').style.display = 'none';
             document.getElementById('questionText').style.display = 'none';
             document.querySelector('.nav-buttons').style.display = 'none';
             document.getElementById('finishBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+            
+            // إظهار زر العودة للرئيسية
+            document.getElementById('homeBtn').style.display = 'block';
 
             // إظهار مرتبة الشرف
             showLeaderboard();
