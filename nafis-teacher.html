@@ -634,15 +634,45 @@
             if (type === 'daily') {
                 dailyQuestions.push(question);
                 localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+                // تحديث منصة نافس مباشرة
+                updateNafisPlatform('daily', dailyQuestions);
             } else {
                 weeklyQuestions.push(question);
                 localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                // تحديث منصة نافس مباشرة
+                updateNafisPlatform('weekly', weeklyQuestions);
             }
 
-            showSuccess('تم إضافة السؤال بنجاح!');
+            showSuccess('تم إضافة السؤال وتحديث منصة نافس تلقائياً!');
             clearForm();
             updateStats();
             displayQuestions();
+        }
+
+        // تحديث منصة نافس مباشرة
+        function updateNafisPlatform(type, questions) {
+            // تحديث الأسئلة في منصة نافس الرئيسية
+            if (type === 'daily') {
+                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(questions));
+                
+                // إذا كانت منصة نافس مفتوحة في تبويب آخر، أرسل تحديث
+                window.postMessage({
+                    type: 'NAFIS_UPDATE_DAILY',
+                    questions: questions
+                }, '*');
+                
+                console.log('تم تحديث الأسئلة اليومية في منصة نافس');
+            } else {
+                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(questions));
+                
+                // إذا كانت منصة نافس مفتوحة في تبويب آخر، أرسل تحديث
+                window.postMessage({
+                    type: 'NAFIS_UPDATE_WEEKLY',
+                    questions: questions
+                }, '*');
+                
+                console.log('تم تحديث الأسئلة الأسبوعية في منصة نافس');
+            }
         }
 
         // معاينة السؤال
@@ -819,10 +849,40 @@
 
         // تحديث أسئلة المنصة الرئيسية
         function updateMainPlatformQuestions() {
-            // تحديث الأسئلة في المنصة الرئيسية
-            localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
-            localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
-            showSuccess('تم تحديث أسئلة المنصة الرئيسية بنجاح');
+            try {
+                // تحديث الأسئلة في منصة نافس الرئيسية
+                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                
+                // إرسال تحديث لجميع التبويبات المفتوحة
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const channel = new BroadcastChannel('nafis-updates');
+                    channel.postMessage({
+                        type: 'QUESTIONS_UPDATED',
+                        dailyQuestions: dailyQuestions,
+                        weeklyQuestions: weeklyQuestions
+                    });
+                    channel.close();
+                }
+                
+                // طريقة بديلة للإشعار
+                window.postMessage({
+                    type: 'NAFIS_UPDATE_ALL',
+                    dailyQuestions: dailyQuestions,
+                    weeklyQuestions: weeklyQuestions
+                }, '*');
+                
+                showSuccess(`تم تحديث المنصة الرئيسية بنجاح! (${dailyQuestions.length} سؤال يومي، ${weeklyQuestions.length} سؤال أسبوعي)`);
+                
+                console.log('تم تحديث منصة نافس:', {
+                    daily: dailyQuestions.length,
+                    weekly: weeklyQuestions.length
+                });
+                
+            } catch (error) {
+                console.error('خطأ في تحديث المنصة:', error);
+                showError('حدث خطأ في تحديث المنصة الرئيسية');
+            }
         }
 
         // استيراد الأسئلة من ملف
