@@ -768,36 +768,83 @@ function addControlButtons() {
   document.querySelector('.admin-card:last-child').appendChild(container);
 }
 
-/* استيراد الأسئلة */
+/* --------------------------------------------------
+   استيراد الأسئلة – لا يمس باقي الكود
+-------------------------------------------------- */
 window.importQuestions = async function () {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  input.onchange = e => {
+  const input       = document.createElement('input');
+  input.type        = 'file';
+  input.accept      = '.json';
+  input.onchange    = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = async ev => {
+    reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
-        let imported = 0;
+
+        /* 1. الشكل الجديد الذى أرسلته (nafes_exam) */
+        if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
+          let ok = 0;
+          for (const q of data.nafes_exam) {
+            if (!q.subject || !q.question || !Array.isArray(q.options) || q.options.length < 4 || typeof q.correct !== 'number') continue;
+
+            const stamped = {
+              subject     : q.subject,
+              question    : q.question,
+              options     : q.options,
+              correct     : q.correct,
+              explanation : q.explanation || '',
+              image       : null,
+              createdAt   : new Date().toLocaleString('ar-SA')
+            };
+
+            /* نحدد نوع الاختبار حسب عدد الأسئلة فى الملف */
+            await saveQuestion(data.nafes_exam.length <= 10 ? 'daily' : 'weekly', stamped);
+            ok++;
+          }
+          if (ok) showSuccess(`✅ تم استيراد ${ok} سؤال بنجاح`);
+          else   showError('❌ لم يُعثر على أسئلة صالحة بالصيغة الجديدة');
+          return;
+        }
+
+        /* 2. الشكل القديم (daily / weekly) */
+        let ok = 0;
         if (data.daily && Array.isArray(data.daily)) {
-          for (const q of data.daily) if (isValidQuestion(q)) { await saveQuestion('daily', {...q, id:Date.now()+Math.random(),createdAt:q.createdAt||new Date().toLocaleString('ar-SA')}); imported++; }
+          for (const q of data.daily) { if (isValidOld(q)) { await saveQuestion('daily', fixOld(q)); ok++; } }
         }
         if (data.weekly && Array.isArray(data.weekly)) {
-          for (const q of data.weekly) if (isValidQuestion(q)) { await saveQuestion('weekly', {...q, id:Date.now()+Math.random(),createdAt:q.createdAt||new Date().toLocaleString('ar-SA')}); imported++; }
+          for (const q of data.weekly) { if (isValidOld(q)) { await saveQuestion('weekly', fixOld(q)); ok++; } }
         }
-        if (imported === 0) return showError('لم يتم العثور على أسئلة صحيحة في الملف');
-        showSuccess(`تم استيراد ${imported} سؤال بنجاح!`);
-      } catch(err) { showError('خطأ في قراءة الملف'); }
+        if (ok) showSuccess(`✅ تم استيراد ${ok} سؤال بنجاح`);
+        else   showError('❌ لم يُعثر على أسئلة صالحة بالصيغة القديمة');
+
+      } catch (err) {
+        console.error(err);
+        showError('❌ خطأ في قراءة الملف – تأكد أنه JSON صحيح');
+      }
     };
     reader.readAsText(file);
   };
   input.click();
 };
 
-function isValidQuestion(q) {
-  return q && q.subject && q.question && q.options && Array.isArray(q.options) && q.options.length >= 4 && typeof q.correct === 'number' && q.explanation;
+/* مساعدات للشكل القديم */
+function isValidOld(q) {
+  return q && q.subject && q.question && Array.isArray(q.options) &&
+         q.options.length >= 4 && typeof q.correct === 'number';
+}
+function fixOld(q) {
+  return {
+    subject     : q.subject,
+    question    : q.question,
+    options     : q.options,
+    correct     : q.correct,
+    explanation : q.explanation || '',
+    image       : q.image || null,
+    createdAt   : q.createdAt || new Date().toLocaleString('ar-SA')
+  };
 }
 
 /* مسح جميع الأسئلة */
