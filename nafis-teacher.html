@@ -626,7 +626,7 @@
             }
         }
 
-        // Load questions from Firestore
+        // Load questions from Firestore - Enhanced to preserve local data
         async function loadQuestionsFromFirebase() {
             if (!isFirebaseConnected || !db) {
                 console.log('Firebase غير متاح - تحميل البيانات المحلية فقط');
@@ -634,6 +634,7 @@
             }
 
             try {
+                console.log('جاري تحميل الأسئلة من Firebase...');
                 const querySnapshot = await getDocs(collection(db, 'questions'));
                 const firebaseQuestions = [];
                 
@@ -646,42 +647,108 @@
                     });
                 });
 
+                console.log(`تم تحميل ${firebaseQuestions.length} سؤال من Firebase`);
+                
                 // Update cloud questions count
                 document.getElementById('cloudCount').textContent = firebaseQuestions.length;
                 
-                // Merge with local data if needed
-                mergeFirebaseWithLocal(firebaseQuestions);
-                
-                console.log(`تم تحميل ${firebaseQuestions.length} سؤال من Firebase`);
+                // دمج مع البيانات المحلية (بدلاً من الاستبدال)
+                if (firebaseQuestions.length > 0) {
+                    mergeFirebaseWithLocal(firebaseQuestions);
+                } else {
+                    console.log('لا توجد أسئلة في Firebase - الاحتفاظ بالبيانات المحلية');
+                }
                 
             } catch (error) {
                 console.error('خطأ في تحميل الأسئلة من Firebase:', error);
-                updateFirebaseStatus('error', 'خطأ في تحميل البيانات من Firebase');
+                updateFirebaseStatus('error', 'خطأ في تحميل البيانات من Firebase - سيتم الاحتفاظ بالبيانات المحلية');
             }
         }
 
-        // Merge Firebase data with local data
+        // Merge Firebase data with local data - Enhanced intelligent merge
         function mergeFirebaseWithLocal(firebaseQuestions) {
-            // This function can be enhanced to intelligently merge data
-            // For now, we prioritize Firebase data if available
-            if (firebaseQuestions.length > 0) {
-                const dailyFromFirebase = firebaseQuestions.filter(q => q.type === 'daily');
-                const weeklyFromFirebase = firebaseQuestions.filter(q => q.type === 'weekly');
-                
-                if (dailyFromFirebase.length > 0) {
-                    window.dailyQuestions = dailyFromFirebase;
-                    localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyFromFirebase));
-                }
-                
-                if (weeklyFromFirebase.length > 0) {
-                    window.weeklyQuestions = weeklyFromFirebase;
-                    localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyFromFirebase));
-                }
-                
-                // Update display
-                if (typeof updateStats === 'function') updateStats();
-                if (typeof displayQuestions === 'function') displayQuestions();
+            if (firebaseQuestions.length === 0) {
+                console.log('لا توجد أسئلة في Firebase للدمج');
+                return;
             }
+
+            // تصنيف أسئلة Firebase
+            const dailyFromFirebase = firebaseQuestions.filter(q => q.type === 'daily');
+            const weeklyFromFirebase = firebaseQuestions.filter(q => q.type === 'weekly');
+            
+            // دمج ذكي للأسئلة اليومية
+            if (dailyFromFirebase.length > 0) {
+                const mergedDaily = mergeQuestionArrays(window.dailyQuestions || [], dailyFromFirebase);
+                window.dailyQuestions = mergedDaily;
+                localStorage.setItem('adminDailyQuestions', JSON.stringify(mergedDaily));
+                console.log(`تم دمج ${mergedDaily.length} سؤال يومي (${dailyFromFirebase.length} من Firebase)`);
+            }
+            
+            // دمج ذكي للأسئلة الأسبوعية
+            if (weeklyFromFirebase.length > 0) {
+                const mergedWeekly = mergeQuestionArrays(window.weeklyQuestions || [], weeklyFromFirebase);
+                window.weeklyQuestions = mergedWeekly;
+                localStorage.setItem('adminWeeklyQuestions', JSON.stringify(mergedWeekly));
+                console.log(`تم دمج ${mergedWeekly.length} سؤال أسبوعي (${weeklyFromFirebase.length} من Firebase)`);
+            }
+            
+            // Update display
+            if (typeof updateStats === 'function') updateStats();
+            if (typeof displayQuestions === 'function') displayQuestions();
+        }
+
+        // دالة دمج المصفوفات بذكاء
+        function mergeQuestionArrays(localQuestions, firebaseQuestions) {
+            const merged = [...localQuestions];
+            
+            firebaseQuestions.forEach(fbQuestion => {
+                // البحث عن السؤال في الأسئلة المحلية
+                const existingIndex = merged.findIndex(localQ => 
+                    localQ.id === fbQuestion.id || 
+                    localQ.firebaseId === fbQuestion.firebaseId ||
+                    (localQ.question === fbQuestion.question && localQ.subject === fbQuestion.subject)
+                );
+                
+                if (existingIndex !== -1) {
+                    // السؤال موجود - تحديث البيانات بأحدث نسخة
+                    const localQ = merged[existingIndex];
+                    const fbQ = fbQuestion;
+                    
+                    // استخدام التاريخ الأحدث
+                    const localDate = new Date(localQ.lastModified || localQ.createdAt);
+                    const fbDate = new Date(fbQ.lastModified || fbQ.createdAt);
+                    
+                    if (fbDate > localDate) {
+                        // نسخة Firebase أحدث
+                        merged[existingIndex] = {
+                            ...fbQ,
+                            id: localQ.id, // المحافظة على المعرف المحلي
+                            firebaseId: fbQ.firebaseId || fbQ.id
+                        };
+                        console.log(`تم تحديث السؤال: ${fbQ.question.substring(0, 50)}...`);
+                    } else {
+                        // النسخة المحلية أحدث - إضافة معرف Firebase إن لم يكن موجوداً
+                        if (!localQ.firebaseId && fbQ.firebaseId) {
+                            merged[existingIndex].firebaseId = fbQ.firebaseId;
+                        }
+                    }
+                } else {
+                    // السؤال غير موجود محلياً - إضافته
+                    merged.push({
+                        ...fbQuestion,
+                        id: fbQuestion.id || Date.now() + Math.random(),
+                        firebaseId: fbQuestion.firebaseId || fbQuestion.id
+                    });
+                    console.log(`تم إضافة سؤال جديد من Firebase: ${fbQuestion.question.substring(0, 50)}...`);
+                }
+            });
+            
+            // ترتيب حسب تاريخ الإنشاء (الأحدث أولاً)
+            return merged.sort((a, b) => {
+                const dateA = new Date(a.createdAt);
+                const dateB = new Date(b.createdAt);
+                return dateB - dateA;
+            });
         }
 
         // Delete question from Firebase
@@ -1383,6 +1450,7 @@
                         <button type="button" class="btn export-btn" onclick="updateMainPlatformQuestions()">تحديث المنصة الرئيسية</button>
                         <button type="button" class="btn btn-secondary" onclick="syncWithFirebase()">مزامنة مع Firebase</button>
                         <button type="button" class="btn export-btn" onclick="generateReport()">تقرير شامل</button>
+                        <button type="button" class="btn btn-secondary" onclick="uploadLocalQuestionsToFirebase()" style="background: linear-gradient(45deg, #fd7e14, #e55100);">رفع الأسئلة المحلية للسحابة</button>
                     </div>
                     <div style="border-top: 1px solid #dee2e6; padding-top: 15px;">
                         <small style="color: #6c757d; font-size: 12px;">
@@ -1472,6 +1540,80 @@
 • أسئلة أسبوعية: ${reportData.summary.weeklyQuestions}
 • متزامن مع Firebase: ${firebaseSynced} (${reportData.summary.syncPercentage}%)
 • فترة البيانات: ${reportData.dateRange.daysSpan} يوم`);
+        }
+
+        // رفع الأسئلة المحلية إلى Firebase
+        async function uploadLocalQuestionsToFirebase() {
+            if (!window.isFirebaseConnected) {
+                showError('Firebase غير متصل - لا يمكن رفع الأسئلة');
+                return;
+            }
+
+            const localQuestions = [...dailyQuestions, ...weeklyQuestions];
+            const questionsWithoutFirebaseId = localQuestions.filter(q => !q.firebaseId);
+            
+            if (questionsWithoutFirebaseId.length === 0) {
+                showSuccess('جميع الأسئلة متزامنة مع Firebase بالفعل!');
+                return;
+            }
+
+            if (!confirm(`تم العثور على ${questionsWithoutFirebaseId.length} سؤال محلي غير متزامن مع Firebase.\nهل تريد رفعها إلى السحابة؟`)) {
+                return;
+            }
+
+            try {
+                showSuccess(`جاري رفع ${questionsWithoutFirebaseId.length} سؤال إلى Firebase...`);
+                let uploadedCount = 0;
+                let dailyUpdated = false;
+                let weeklyUpdated = false;
+
+                for (const question of questionsWithoutFirebaseId) {
+                    try {
+                        const firebaseId = await window.saveQuestionToFirebase(question);
+                        if (firebaseId) {
+                            // تحديث السؤال المحلي بمعرف Firebase
+                            question.firebaseId = firebaseId;
+                            uploadedCount++;
+
+                            // تحديد نوع السؤال لتحديث التخزين المحلي لاحقاً
+                            if (question.type === 'daily' || dailyQuestions.some(q => q.id === question.id)) {
+                                dailyUpdated = true;
+                            } else {
+                                weeklyUpdated = true;
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`خطأ في رفع السؤال ${question.id}:`, error);
+                    }
+                }
+
+                // تحديث التخزين المحلي
+                if (dailyUpdated) {
+                    localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+                }
+                if (weeklyUpdated) {
+                    localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                }
+
+                // تحديث عداد السحابة
+                const currentCloudCount = parseInt(document.getElementById('cloudCount').textContent);
+                document.getElementById('cloudCount').textContent = currentCloudCount + uploadedCount;
+
+                // تحديث العرض
+                displayQuestions();
+
+                if (uploadedCount === questionsWithoutFirebaseId.length) {
+                    showSuccess(`تم رفع جميع الأسئلة (${uploadedCount}) إلى Firebase بنجاح! 🎉`);
+                } else {
+                    showSuccess(`تم رفع ${uploadedCount} من ${questionsWithoutFirebaseId.length} سؤال إلى Firebase.`);
+                }
+
+                console.log(`تم رفع ${uploadedCount} سؤال إلى Firebase من أصل ${questionsWithoutFirebaseId.length}`);
+
+            } catch (error) {
+                console.error('خطأ عام في رفع الأسئلة:', error);
+                showError('حدث خطأ أثناء رفع الأسئلة إلى Firebase');
+            }
         }
 
         // مزامنة مع Firebase
