@@ -558,6 +558,8 @@
             init() {
                 this.loadQuestions();
                 this.setupStorageListener();
+                this.setupBroadcastListener();
+                this.setupMessageListener();
                 this.setupPeriodicCheck();
                 this.updateUI();
                 this.isInitialized = true;
@@ -566,50 +568,49 @@
             }
             
             loadQuestions() {
-                // تحميل من المصادر الأساسية
+                // تحميل من المصادر الأساسية أولاً (من لوحة المعلم)
+                const adminDaily = localStorage.getItem('adminDailyQuestions');
+                const adminWeekly = localStorage.getItem('adminWeeklyQuestions');
+                
+                // البحث في المصادر الاحتياطية
                 const mainDaily = localStorage.getItem('nafisMainDailyQuestions');
                 const mainWeekly = localStorage.getItem('nafisMainWeeklyQuestions');
                 
-                if (mainDaily) {
+                // تحميل الأسئلة اليومية (أولوية للوحة المعلم)
+                if (adminDaily) {
+                    try {
+                        window.dailyQuestions = JSON.parse(adminDaily);
+                        // نسخ إلى المفتاح الأساسي للتوافق
+                        localStorage.setItem('nafisMainDailyQuestions', adminDaily);
+                        console.log('تم تحميل الأسئلة اليومية من لوحة المعلم:', window.dailyQuestions.length);
+                    } catch (e) {
+                        console.error('خطأ في تحليل الأسئلة اليومية من لوحة المعلم');
+                    }
+                } else if (mainDaily) {
                     try {
                         window.dailyQuestions = JSON.parse(mainDaily);
-                        console.log('تم تحميل الأسئلة اليومية الأساسية:', window.dailyQuestions.length);
+                        console.log('تم تحميل الأسئلة اليومية من المصدر الاحتياطي:', window.dailyQuestions.length);
                     } catch (e) {
-                        console.error('خطأ في تحليل الأسئلة اليومية');
+                        console.error('خطأ في تحليل الأسئلة اليومية الاحتياطية');
                     }
                 }
                 
-                if (mainWeekly) {
+                // تحميل الأسئلة الأسبوعية (أولوية للوحة المعلم)
+                if (adminWeekly) {
+                    try {
+                        window.weeklyQuestions = JSON.parse(adminWeekly);
+                        // نسخ إلى المفتاح الأساسي للتوافق
+                        localStorage.setItem('nafisMainWeeklyQuestions', adminWeekly);
+                        console.log('تم تحميل الأسئلة الأسبوعية من لوحة المعلم:', window.weeklyQuestions.length);
+                    } catch (e) {
+                        console.error('خطأ في تحليل الأسئلة الأسبوعية من لوحة المعلم');
+                    }
+                } else if (mainWeekly) {
                     try {
                         window.weeklyQuestions = JSON.parse(mainWeekly);
-                        console.log('تم تحميل الأسئلة الأسبوعية الأساسية:', window.weeklyQuestions.length);
+                        console.log('تم تحميل الأسئلة الأسبوعية من المصدر الاحتياطي:', window.weeklyQuestions.length);
                     } catch (e) {
-                        console.error('خطأ في تحليل الأسئلة الأسبوعية');
-                    }
-                }
-                
-                // البحث في البيانات الاحتياطية
-                if (!window.dailyQuestions || window.dailyQuestions.length === 0) {
-                    const adminDaily = localStorage.getItem('adminDailyQuestions');
-                    if (adminDaily) {
-                        try {
-                            window.dailyQuestions = JSON.parse(adminDaily);
-                            console.log('استخدام البيانات الاحتياطية للأسئلة اليومية');
-                        } catch (e) {
-                            console.error('خطأ في البيانات الاحتياطية اليومية');
-                        }
-                    }
-                }
-                
-                if (!window.weeklyQuestions || window.weeklyQuestions.length === 0) {
-                    const adminWeekly = localStorage.getItem('adminWeeklyQuestions');
-                    if (adminWeekly) {
-                        try {
-                            window.weeklyQuestions = JSON.parse(adminWeekly);
-                            console.log('استخدام البيانات الاحتياطية للأسئلة الأسبوعية');
-                        } catch (e) {
-                            console.error('خطأ في البيانات الاحتياطية الأسبوعية');
-                        }
+                        console.error('خطأ في تحليل الأسئلة الأسبوعية الاحتياطية');
                     }
                 }
                 
@@ -619,31 +620,93 @@
             }
             
             setupStorageListener() {
-                // مراقبة تغييرات localStorage
+                // مراقبة تغييرات localStorage مع التركيز على مفاتيح لوحة المعلم
                 window.addEventListener('storage', (e) => {
-                    if (e.key && (e.key.includes('nafisMain') || e.key.includes('adminDaily') || e.key.includes('adminWeekly'))) {
+                    if (e.key && (
+                        e.key === 'adminDailyQuestions' || 
+                        e.key === 'adminWeeklyQuestions' ||
+                        e.key.includes('nafisMain') || 
+                        e.key.includes('nafisLast')
+                    )) {
+                        console.log('تغيير في localStorage:', e.key);
                         this.handleUpdate('storage_event');
                     }
                 });
                 
-                // مراقبة تغييرات مباشرة
+                // مراقبة تغييرات مباشرة للمفاتيح الأساسية
+                let lastAdminDaily = localStorage.getItem('adminDailyQuestions');
+                let lastAdminWeekly = localStorage.getItem('adminWeeklyQuestions');
+                let lastUpdate = localStorage.getItem('nafisLastUpdate') || '0';
+                
                 setInterval(() => {
+                    const currentAdminDaily = localStorage.getItem('adminDailyQuestions');
+                    const currentAdminWeekly = localStorage.getItem('adminWeeklyQuestions');
                     const currentUpdate = localStorage.getItem('nafisLastUpdate') || '0';
-                    if (currentUpdate !== this.lastUpdate && currentUpdate !== '0') {
-                        this.lastUpdate = currentUpdate;
-                        this.handleUpdate('periodic_check');
+                    
+                    if (currentAdminDaily !== lastAdminDaily || 
+                        currentAdminWeekly !== lastAdminWeekly || 
+                        currentUpdate !== lastUpdate) {
+                        
+                        lastAdminDaily = currentAdminDaily;
+                        lastAdminWeekly = currentAdminWeekly;
+                        lastUpdate = currentUpdate;
+                        
+                        console.log('تم اكتشاف تغيير في بيانات لوحة المعلم');
+                        this.handleUpdate('direct_monitoring');
                     }
-                }, 3000);
+                }, 2000);
+            }
+            
+            setupBroadcastListener() {
+                // استمع للتحديثات من لوحة المعلم عبر BroadcastChannel
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const channel = new BroadcastChannel('nafis-teacher-updates');
+                    channel.addEventListener('message', (e) => {
+                        if (e.data.type === 'QUESTIONS_UPDATED') {
+                            console.log('تحديث من BroadcastChannel:', e.data);
+                            this.handleUpdate('broadcast_channel');
+                        }
+                    });
+                    
+                    // قناة إضافية للتأكد
+                    const updateChannel = new BroadcastChannel('nafis-updates');
+                    updateChannel.addEventListener('message', (e) => {
+                        if (e.data.type === 'QUESTIONS_UPDATED') {
+                            console.log('تحديث من قناة التحديثات:', e.data);
+                            this.handleUpdate('update_channel');
+                        }
+                    });
+                }
+            }
+            
+            setupMessageListener() {
+                // استمع لرسائل النوافذ
+                window.addEventListener('message', (e) => {
+                    if (e.data && (
+                        e.data.type === 'NAFIS_UPDATE_DAILY' || 
+                        e.data.type === 'NAFIS_UPDATE_WEEKLY' ||
+                        e.data.type === 'NAFIS_FORCE_REFRESH' ||
+                        e.data.type === 'QUESTIONS_UPDATED'
+                    )) {
+                        console.log('تحديث من window message:', e.data.type);
+                        this.handleUpdate('window_message');
+                    }
+                });
             }
             
             setupPeriodicCheck() {
                 // فحص دوري للتأكد من التحديث
                 setInterval(() => {
                     if (this.isInitialized) {
-                        this.loadQuestions();
-                        this.updateUI();
+                        this.reloadQuestions();
                     }
                 }, 10000);
+            }
+            
+            reloadQuestions() {
+                // إعادة تحميل الأسئلة من جميع المصادر
+                this.loadQuestions();
+                this.updateUI();
             }
             
             handleUpdate(source) {
@@ -662,12 +725,16 @@
                 const newDailyCount = window.dailyQuestions ? window.dailyQuestions.length : 0;
                 const newWeeklyCount = window.weeklyQuestions ? window.weeklyQuestions.length : 0;
                 
+                // تحديث الواجهة دائماً
+                this.updateUI();
+                
+                // إظهار إشعار فقط إذا تغير العدد فعلياً
                 if (newDailyCount !== oldDailyCount || newWeeklyCount !== oldWeeklyCount) {
-                    this.updateUI();
                     this.showNotification(newDailyCount, newWeeklyCount);
                     this.lastNotification = now;
-                    console.log(`تحديث من ${source}: يومي ${newDailyCount}, أسبوعي ${newWeeklyCount}`);
                 }
+                
+                console.log(`تحديث من ${source}: يومي ${newDailyCount}, أسبوعي ${newWeeklyCount}`);
             }
             
             updateUI() {
@@ -678,11 +745,19 @@
                 const weeklyElement = document.getElementById('weeklyQuestionCount');
                 
                 if (dailyElement) {
-                    dailyElement.textContent = `${dailyCount} أسئلة متنوعة في المواد الثلاث`;
+                    if (dailyCount > 0) {
+                        dailyElement.textContent = `${dailyCount} أسئلة متنوعة في المواد الثلاث`;
+                    } else {
+                        dailyElement.textContent = 'لا توجد أسئلة يومية متاحة حالياً';
+                    }
                 }
                 
                 if (weeklyElement) {
-                    weeklyElement.textContent = `${weeklyCount} سؤال شامل لجميع المواد`;
+                    if (weeklyCount > 0) {
+                        weeklyElement.textContent = `${weeklyCount} سؤال شامل لجميع المواد`;
+                    } else {
+                        weeklyElement.textContent = 'لا توجد أسئلة أسبوعية متاحة حالياً';
+                    }
                 }
                 
                 // تحديث مؤشر التزامن
@@ -691,6 +766,8 @@
                     syncElement.className = 'sync-indicator updated';
                     syncElement.innerHTML = '<div class="connection-dot"></div><span>محدث</span>';
                 }
+                
+                console.log(`واجهة محدثة - يومي: ${dailyCount}, أسبوعي: ${weeklyCount}`);
             }
             
             showNotification(dailyCount, weeklyCount) {
@@ -704,7 +781,7 @@
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 20px;">✅</span>
                         <div>
-                            <strong>تم التحديث!</strong><br>
+                            <strong>تم تحديث الأسئلة!</strong><br>
                             <small>يومي: ${dailyCount} | أسبوعي: ${weeklyCount}</small>
                         </div>
                     </div>
@@ -716,6 +793,12 @@
                     notification.style.animation = 'slideOut 0.3s ease';
                     setTimeout(() => notification.remove(), 300);
                 }, 4000);
+            }
+            
+            // دالة لفرض التحديث يدوياً
+            forceUpdate() {
+                console.log('فرض التحديث يدوياً...');
+                this.handleUpdate('manual_force');
             }
         }
 
