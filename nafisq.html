@@ -78,6 +78,11 @@
             color: #2ecc71;
         }
 
+        .sync-indicator.error {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+
         .connection-dot {
             width: 8px;
             height: 8px;
@@ -215,6 +220,12 @@
             background: linear-gradient(135deg, #fd79a8, #e84393);
         }
 
+        .test-card.disabled {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
         .question-container {
             display: none;
             text-align: center;
@@ -325,6 +336,10 @@
             animation: slideIn 0.3s ease;
         }
 
+        .notification.error {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
@@ -342,6 +357,17 @@
             color: white;
             margin-top: 40px;
             border-radius: 15px;
+        }
+
+        .debug-info {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            display: none;
         }
 
         @media (max-width: 768px) {
@@ -374,13 +400,19 @@
             <div class="logo-icon">ناقس</div>
             <div class="school-info">
                 <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
-                <p>مكتب قطاع أحد والعوالي</p>
+                <p>مكتب قطاع أحد والعواليّ</p>
                 <p>مدير المدرسة: الأستاذ خالد المطيري</p>
             </div>
         </div>
     </div>
 
     <div class="container">
+        <!-- معلومات التطوير -->
+        <div class="debug-info" id="debugInfo">
+            <strong>معلومات التزامن:</strong><br>
+            <span id="debugContent">جاري التحضير...</span>
+        </div>
+
         <!-- نموذج تسجيل الطالب -->
         <div class="card" id="studentForm">
             <h2 class="section-title">تسجيل بيانات الطالب</h2>
@@ -425,6 +457,7 @@
             </div>
             <button class="btn" onclick="registerStudent()">استخراج رقمي الخاص</button>
             <button class="btn" onclick="showLoginForm()" style="background: linear-gradient(45deg, #e67e22, #d35400);">لدي حساب مسبقاً</button>
+            <button class="btn" onclick="toggleDebug()" style="background: linear-gradient(45deg, #8e44ad, #9b59b6);">معلومات التطوير</button>
         </div>
 
         <!-- عرض الرقم الخاص -->
@@ -472,12 +505,12 @@
             </div>
             
             <div class="test-sections">
-                <div class="test-card" onclick="confirmAndStartTest('daily')">
+                <div class="test-card" id="dailyTestCard" onclick="confirmAndStartTest('daily')">
                     <h3>سؤال اليوم</h3>
                     <p id="dailyQuestionCount">تحميل...</p>
                     <p><strong>الرياضيات - القراءة - العلوم</strong></p>
                 </div>
-                <div class="test-card weekly" onclick="confirmAndStartTest('weekly')">
+                <div class="test-card weekly" id="weeklyTestCard" onclick="confirmAndStartTest('weekly')">
                     <h3>أسئلة الأسبوع</h3>
                     <p id="weeklyQuestionCount">تحميل...</p>
                     <p><strong>اختبار تنافسي أسبوعي</strong></p>
@@ -529,145 +562,156 @@
         <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
     </div>
 
-    <!-- Firebase والتزامن -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaobeGSq0ra52WWNHIUgVZyoTg_NME5DY",
-            authDomain: "nafis-exam.firebaseapp.com",
-            projectId: "nafis-exam",
-            storageBucket: "nafis-exam.firebasestorage.app",
-            messagingSenderId: "985354903005",
-            appId: "1:985354903005:web:d0d028d80d47bd30392a34",
-            measurementId: "G-MME7J94SRN"
-        };
-
-        // نظام التزامن المبسط والقوي
-        class SimpleSyncManager {
+    <script>
+        // نظام التزامن المحسن والقوي للطلاب
+        class StudentSyncManager {
             constructor() {
-                this.lastUpdate = localStorage.getItem('nafisLastUpdate') || '0';
-                this.isInitialized = false;
+                this.isDebugMode = false;
+                this.lastUpdate = Date.now();
+                this.syncAttempts = 0;
+                this.maxSyncAttempts = 5;
+                this.syncInterval = null;
+                
                 this.init();
             }
             
             init() {
+                console.log('🚀 بدء تشغيل نظام التزامن للطلاب');
                 this.loadQuestions();
                 this.setupListeners();
+                this.startPeriodicSync();
                 this.updateUI();
-                this.isInitialized = true;
-                console.log('نظام التزامن جاهز');
+                this.updateSyncStatus('updated', 'محدث');
             }
             
+            // تحميل الأسئلة مع أولوية واضحة
             loadQuestions() {
+                let dailyLoaded = false;
+                let weeklyLoaded = false;
+                
                 // الأولوية الأولى: بيانات المعلم المباشرة
                 const adminDaily = localStorage.getItem('adminDailyQuestions');
                 const adminWeekly = localStorage.getItem('adminWeeklyQuestions');
                 
-                // الأولوية الثانية: البيانات الرئيسية
-                const mainDaily = localStorage.getItem('nafisMainDailyQuestions');
-                const mainWeekly = localStorage.getItem('nafisMainWeeklyQuestions');
-                
-                // تحميل الأسئلة اليومية
                 if (adminDaily) {
                     try {
                         window.dailyQuestions = JSON.parse(adminDaily);
+                        dailyLoaded = true;
+                        this.log(`✅ تم تحميل ${window.dailyQuestions.length} سؤال يومي من لوحة المعلم`);
+                        
+                        // نسخ للمصدر الرئيسي
                         localStorage.setItem('nafisMainDailyQuestions', adminDaily);
-                        console.log('تم تحميل الأسئلة اليومية من لوحة المعلم:', window.dailyQuestions.length);
                     } catch (e) {
-                        console.error('خطأ في تحليل الأسئلة اليومية من لوحة المعلم');
-                    }
-                } else if (mainDaily) {
-                    try {
-                        window.dailyQuestions = JSON.parse(mainDaily);
-                        console.log('تم تحميل الأسئلة اليومية من المصدر الاحتياطي:', window.dailyQuestions.length);
-                    } catch (e) {
-                        console.error('خطأ في تحليل الأسئلة اليومية الاحتياطية');
+                        this.log('❌ خطأ في تحليل الأسئلة اليومية من لوحة المعلم');
                     }
                 }
                 
-                // تحميل الأسئلة الأسبوعية
                 if (adminWeekly) {
                     try {
                         window.weeklyQuestions = JSON.parse(adminWeekly);
+                        weeklyLoaded = true;
+                        this.log(`✅ تم تحميل ${window.weeklyQuestions.length} سؤال أسبوعي من لوحة المعلم`);
+                        
+                        // نسخ للمصدر الرئيسي
                         localStorage.setItem('nafisMainWeeklyQuestions', adminWeekly);
-                        console.log('تم تحميل الأسئلة الأسبوعية من لوحة المعلم:', window.weeklyQuestions.length);
                     } catch (e) {
-                        console.error('خطأ في تحليل الأسئلة الأسبوعية من لوحة المعلم');
-                    }
-                } else if (mainWeekly) {
-                    try {
-                        window.weeklyQuestions = JSON.parse(mainWeekly);
-                        console.log('تم تحميل الأسئلة الأسبوعية من المصدر الاحتياطي:', window.weeklyQuestions.length);
-                    } catch (e) {
-                        console.error('خطأ في تحليل الأسئلة الأسبوعية الاحتياطية');
+                        this.log('❌ خطأ في تحليل الأسئلة الأسبوعية من لوحة المعلم');
                     }
                 }
                 
-                // التأكد من وجود بيانات على الأقل
+                // الأولوية الثانية: البيانات الرئيسية
+                if (!dailyLoaded) {
+                    const mainDaily = localStorage.getItem('nafisMainDailyQuestions');
+                    if (mainDaily) {
+                        try {
+                            window.dailyQuestions = JSON.parse(mainDaily);
+                            this.log(`📋 تم تحميل ${window.dailyQuestions.length} سؤال يومي من المصدر الرئيسي`);
+                        } catch (e) {
+                            this.log('❌ خطأ في تحليل الأسئلة اليومية الرئيسية');
+                        }
+                    }
+                }
+                
+                if (!weeklyLoaded) {
+                    const mainWeekly = localStorage.getItem('nafisMainWeeklyQuestions');
+                    if (mainWeekly) {
+                        try {
+                            window.weeklyQuestions = JSON.parse(mainWeekly);
+                            this.log(`📋 تم تحميل ${window.weeklyQuestions.length} سؤال أسبوعي من المصدر الرئيسي`);
+                        } catch (e) {
+                            this.log('❌ خطأ في تحليل الأسئلة الأسبوعية الرئيسية');
+                        }
+                    }
+                }
+                
+                // ضمان وجود المصفوفات
                 if (!window.dailyQuestions) window.dailyQuestions = [];
                 if (!window.weeklyQuestions) window.weeklyQuestions = [];
+                
+                this.log(`📊 إجمالي الأسئلة: يومي ${window.dailyQuestions.length}, أسبوعي ${window.weeklyQuestions.length}`);
             }
             
+            // إعداد المستمعين
             setupListeners() {
                 // مراقبة تغييرات localStorage
                 window.addEventListener('storage', (e) => {
                     if (e.key && (
                         e.key === 'adminDailyQuestions' || 
                         e.key === 'adminWeeklyQuestions' ||
-                        e.key.includes('nafisMain') || 
+                        e.key.includes('nafisMain') ||
                         e.key.includes('nafisLast')
                     )) {
-                        console.log('تغيير في localStorage:', e.key);
+                        this.log(`🔄 تغيير في localStorage: ${e.key}`);
                         this.handleUpdate('storage_event');
                     }
                 });
                 
                 // مراقبة BroadcastChannel
                 if (typeof BroadcastChannel !== 'undefined') {
-                    const channels = ['nafis-teacher-updates', 'nafis-updates'];
-                    channels.forEach(channelName => {
-                        try {
+                    try {
+                        const channels = ['nafis-teacher-sync', 'nafis-teacher-updates', 'nafis-updates'];
+                        channels.forEach(channelName => {
                             const channel = new BroadcastChannel(channelName);
                             channel.addEventListener('message', (e) => {
-                                if (e.data.type === 'QUESTIONS_UPDATED') {
-                                    console.log('تحديث من BroadcastChannel:', e.data);
+                                if (e.data.type === 'QUESTIONS_UPDATED' || e.data.type === 'HEARTBEAT') {
+                                    this.log(`📡 رسالة من ${channelName}: ${e.data.type}`);
                                     this.handleUpdate('broadcast_channel');
                                 }
                             });
-                        } catch (error) {
-                            console.warn('BroadcastChannel غير متاح');
-                        }
-                    });
+                        });
+                        
+                        this.log('📡 تم تفعيل مراقبة BroadcastChannel');
+                    } catch (error) {
+                        this.log('⚠️ BroadcastChannel غير متاح');
+                    }
                 }
                 
                 // مراقبة رسائل النوافذ
                 window.addEventListener('message', (e) => {
                     if (e.data && (
                         e.data.type === 'QUESTIONS_UPDATED' ||
-                        e.data.type === 'NAFIS_UPDATE_ALL' ||
-                        e.data.type === 'NAFIS_FORCE_REFRESH'
+                        e.data.type === 'NAFIS_FORCE_UPDATE' ||
+                        e.data.type === 'STUDENT_REFRESH_REQUIRED' ||
+                        e.data.type === 'QUESTIONS_SYNC_UPDATE'
                     )) {
-                        console.log('تحديث من window message:', e.data.type);
+                        this.log(`💬 رسالة نافذة: ${e.data.type}`);
                         this.handleUpdate('window_message');
                     }
                 });
-                
-                // فحص دوري
-                setInterval(() => {
-                    this.reloadQuestions();
-                }, 5000);
             }
             
-            reloadQuestions() {
-                this.loadQuestions();
-                this.updateUI();
+            // بدء المزامنة الدورية
+            startPeriodicSync() {
+                // فحص كل 3 ثوانٍ
+                this.syncInterval = setInterval(() => {
+                    this.performSync();
+                }, 3000);
+                
+                this.log('⏰ تم تفعيل المزامنة الدورية (كل 3 ثوانٍ)');
             }
             
-            handleUpdate(source) {
-                if (!this.isInitialized) return;
-                
+            // تنفيذ المزامنة
+            performSync() {
                 const oldDailyCount = window.dailyQuestions ? window.dailyQuestions.length : 0;
                 const oldWeeklyCount = window.weeklyQuestions ? window.weeklyQuestions.length : 0;
                 
@@ -676,63 +720,128 @@
                 const newDailyCount = window.dailyQuestions ? window.dailyQuestions.length : 0;
                 const newWeeklyCount = window.weeklyQuestions ? window.weeklyQuestions.length : 0;
                 
-                this.updateUI();
-                
                 if (newDailyCount !== oldDailyCount || newWeeklyCount !== oldWeeklyCount) {
+                    this.log(`🔄 تحديث: يومي ${oldDailyCount}→${newDailyCount}, أسبوعي ${oldWeeklyCount}→${newWeeklyCount}`);
+                    this.updateUI();
                     this.showNotification(newDailyCount, newWeeklyCount);
+                    this.updateSyncStatus('updated', 'تم التحديث');
+                } else {
+                    this.updateSyncStatus('active', 'متزامن');
                 }
-                
-                console.log(`تحديث من ${source}: يومي ${newDailyCount}, أسبوعي ${newWeeklyCount}`);
             }
             
+            // معالجة التحديث
+            handleUpdate(source) {
+                this.log(`🔄 معالجة تحديث من: ${source}`);
+                this.performSync();
+            }
+            
+            // تحديث واجهة المستخدم
             updateUI() {
                 const dailyCount = window.dailyQuestions ? window.dailyQuestions.length : 0;
                 const weeklyCount = window.weeklyQuestions ? window.weeklyQuestions.length : 0;
                 
+                this.updateQuestionCounts(dailyCount, weeklyCount);
+                this.updateTestCards(dailyCount, weeklyCount);
+                this.log(`🖥️ واجهة محدثة - يومي: ${dailyCount}, أسبوعي: ${weeklyCount}`);
+            }
+            
+            // تحديث عدادات الأسئلة
+            updateQuestionCounts(dailyCount, weeklyCount) {
                 const dailyElement = document.getElementById('dailyQuestionCount');
                 const weeklyElement = document.getElementById('weeklyQuestionCount');
                 
                 if (dailyElement) {
                     if (dailyCount > 0) {
                         dailyElement.textContent = `${dailyCount} أسئلة متنوعة في المواد الثلاث`;
+                        dailyElement.style.color = '#2ecc71';
                     } else {
                         dailyElement.textContent = 'لا توجد أسئلة يومية متاحة حالياً';
+                        dailyElement.style.color = '#e74c3c';
                     }
                 }
                 
                 if (weeklyElement) {
                     if (weeklyCount > 0) {
                         weeklyElement.textContent = `${weeklyCount} سؤال شامل لجميع المواد`;
+                        weeklyElement.style.color = '#2ecc71';
                     } else {
                         weeklyElement.textContent = 'لا توجد أسئلة أسبوعية متاحة حالياً';
+                        weeklyElement.style.color = '#e74c3c';
+                    }
+                }
+            }
+            
+            // تحديث بطاقات الاختبار
+            updateTestCards(dailyCount, weeklyCount) {
+                const dailyCard = document.getElementById('dailyTestCard');
+                const weeklyCard = document.getElementById('weeklyTestCard');
+                
+                if (dailyCard) {
+                    if (dailyCount === 0) {
+                        dailyCard.classList.add('disabled');
+                        dailyCard.onclick = () => this.showNoQuestionsMessage('daily');
+                    } else {
+                        dailyCard.classList.remove('disabled');
+                        dailyCard.onclick = () => confirmAndStartTest('daily');
                     }
                 }
                 
-                // تحديث مؤشر التزامن
-                const syncElement = document.getElementById('syncStatus');
-                if (syncElement) {
-                    syncElement.className = 'sync-indicator updated';
-                    syncElement.innerHTML = '<div class="connection-dot"></div><span>محدث</span>';
+                if (weeklyCard) {
+                    if (weeklyCount === 0) {
+                        weeklyCard.classList.add('disabled');
+                        weeklyCard.onclick = () => this.showNoQuestionsMessage('weekly');
+                    } else {
+                        weeklyCard.classList.remove('disabled');
+                        weeklyCard.onclick = () => confirmAndStartTest('weekly');
+                    }
                 }
-                
-                console.log(`واجهة محدثة - يومي: ${dailyCount}, أسبوعي: ${weeklyCount}`);
             }
             
-            showNotification(dailyCount, weeklyCount) {
+            // رسالة عدم وجود أسئلة
+            showNoQuestionsMessage(type) {
+                const typeName = type === 'daily' ? 'الأسئلة اليومية' : 'الأسئلة الأسبوعية';
+                this.showNotification(0, 0, `لا توجد ${typeName} متاحة حالياً. يرجى المحاولة لاحقاً.`, true);
+            }
+            
+            // تحديث مؤشر التزامن
+            updateSyncStatus(status, message) {
+                const syncElement = document.getElementById('syncStatus');
+                if (syncElement) {
+                    syncElement.className = `sync-indicator ${status}`;
+                    syncElement.innerHTML = `<div class="connection-dot"></div><span>${message}</span>`;
+                }
+            }
+            
+            // عرض الإشعارات
+            showNotification(dailyCount, weeklyCount, customMessage = null, isError = false) {
+                // إزالة الإشعارات السابقة
                 const existing = document.querySelectorAll('.notification');
                 existing.forEach(n => n.remove());
                 
                 const notification = document.createElement('div');
-                notification.className = 'notification';
-                notification.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 20px;">✅</span>
-                        <div>
-                            <strong>تم تحديث الأسئلة!</strong><br>
-                            <small>يومي: ${dailyCount} | أسبوعي: ${weeklyCount}</small>
+                notification.className = `notification ${isError ? 'error' : ''}`;
+                
+                if (customMessage) {
+                    notification.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">${isError ? '⚠️' : '✅'}</span>
+                            <div>
+                                <strong>${customMessage}</strong>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    notification.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">🔄</span>
+                            <div>
+                                <strong>تم تحديث الأسئلة!</strong><br>
+                                <small>يومي: ${dailyCount} | أسبوعي: ${weeklyCount}</small>
+                            </div>
+                        </div>
+                    `;
+                }
                 
                 document.body.appendChild(notification);
                 
@@ -741,58 +850,52 @@
                     setTimeout(() => notification.remove(), 300);
                 }, 4000);
             }
-        }
-
-        // إعداد Firebase
-        try {
-            const app = initializeApp(firebaseConfig);
-            const db = getFirestore(app);
             
-            let firebaseTimeout = null;
-            onSnapshot(collection(db, 'questions'), (snapshot) => {
-                if (firebaseTimeout) clearTimeout(firebaseTimeout);
+            // تسجيل الأحداث
+            log(message) {
+                const timestamp = new Date().toLocaleTimeString('ar-SA');
+                const logMessage = `[${timestamp}] ${message}`;
+                console.log(logMessage);
                 
-                firebaseTimeout = setTimeout(() => {
-                    const questions = [];
-                    snapshot.forEach((doc) => {
-                        questions.push({ id: doc.id, ...doc.data() });
-                    });
-                    
-                    const daily = questions.filter(q => q.type === 'daily');
-                    const weekly = questions.filter(q => q.type === 'weekly');
-                    
-                    if (daily.length > 0) {
-                        localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(daily));
+                if (this.isDebugMode) {
+                    const debugContent = document.getElementById('debugContent');
+                    if (debugContent) {
+                        const currentText = debugContent.innerHTML;
+                        debugContent.innerHTML = logMessage + '<br>' + currentText;
+                        
+                        // الحد الأقصى للسجلات
+                        const lines = debugContent.innerHTML.split('<br>');
+                        if (lines.length > 15) {
+                            debugContent.innerHTML = lines.slice(0, 15).join('<br>');
+                        }
                     }
-                    
-                    if (weekly.length > 0) {
-                        localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weekly));
-                    }
-                    
-                    localStorage.setItem('nafisLastUpdate', Date.now().toString());
-                    
-                    if (window.syncManager && window.syncManager.isInitialized) {
-                        window.syncManager.handleUpdate('firebase');
-                    }
-                }, 1000);
-            });
+                }
+            }
             
-            window.updateConnectionStatus(true);
+            // تبديل وضع التطوير
+            toggleDebug() {
+                this.isDebugMode = !this.isDebugMode;
+                const debugElement = document.getElementById('debugInfo');
+                
+                if (this.isDebugMode) {
+                    debugElement.style.display = 'block';
+                    this.log('🔧 تم تفعيل وضع التطوير');
+                    this.log(`📊 الحالة الحالية: يومي ${window.dailyQuestions.length}, أسبوعي ${window.weeklyQuestions.length}`);
+                } else {
+                    debugElement.style.display = 'none';
+                }
+            }
             
-        } catch (error) {
-            console.error('خطأ في Firebase:', error);
-            window.updateConnectionStatus(false);
+            // إيقاف المزامنة
+            destroy() {
+                if (this.syncInterval) {
+                    clearInterval(this.syncInterval);
+                    this.log('⏹️ تم إيقاف المزامنة الدورية');
+                }
+            }
         }
 
-        // إنشاء مدير التزامن
-        window.dailyQuestions = [];
-        window.weeklyQuestions = [];
-        window.syncManager = new SimpleSyncManager();
-    </script>
-
-    <!-- الكود الأساسي للتطبيق -->
-    <script>
-        // المتغيرات الأساسية
+        // متغيرات التطبيق الأساسية
         let currentStudent = {};
         let currentTest = {};
         let currentQuestionIndex = 0;
@@ -802,6 +905,11 @@
         let questionStartTime = 0;
         let questionTimes = [];
         let studentDatabase = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
+        let syncManager = null;
+
+        // تهيئة النظام
+        window.dailyQuestions = [];
+        window.weeklyQuestions = [];
 
         // وظائف النظام الأساسية
         function updateConnectionStatus(isOnline) {
@@ -940,11 +1048,23 @@
 
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('testSelection').style.display = 'block';
+            
+            // تحديث فوري للواجهة
+            if (syncManager) {
+                syncManager.updateUI();
+            }
         }
 
         function confirmAndStartTest(type) {
             const testName = type === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع';
-            const confirmation = confirm(`هل أنت متأكد من بدء اختبار "${testName}"؟\n\nتذكر: يُسمح بإجراء كل اختبار مرة واحدة فقط!`);
+            const questions = type === 'daily' ? window.dailyQuestions : window.weeklyQuestions;
+            
+            if (!questions || questions.length === 0) {
+                alert(`لا توجد ${testName} متاحة حالياً. يرجى المحاولة لاحقاً.`);
+                return;
+            }
+            
+            const confirmation = confirm(`هل أنت متأكد من بدء اختبار "${testName}"?\n\nتذكر: يُسمح بإجراء كل اختبار مرة واحدة فقط!`);
             
             if (confirmation) {
                 startTest(type);
@@ -993,9 +1113,9 @@
             questionStartTime = Date.now();
 
             document.getElementById('questionNumber').textContent = 
-                `السؤال ${currentQuestionIndex + 1} من ${totalQuestions} - ${question.subject}`;
+                `السؤال ${currentQuestionIndex + 1} من ${totalQuestions} - ${question.subject || 'عام'}`;
 
-            let questionHTML = `<p><strong>${question.subject}:</strong> ${question.question}</p>`;
+            let questionHTML = `<p><strong>${question.subject || 'عام'}:</strong> ${question.question}</p>`;
             if (question.image) {
                 questionHTML += `<img src="${question.image}" style="max-width: 100%; height: auto; margin: 15px 0;" alt="صورة السؤال">`;
             }
@@ -1051,7 +1171,7 @@
 
             document.getElementById('questionText').innerHTML += 
                 `<div style="margin-top: 15px; padding: 15px; background: #e8f5e8; border-radius: 8px;">
-                    <strong>التفسير:</strong> ${question.explanation}<br>
+                    <strong>التفسير:</strong> ${question.explanation || 'لا يوجد تفسير'}<br>
                     <small style="color: #666;">الوقت: ${timeSpent} ثانية</small>
                 </div>`;
 
@@ -1202,6 +1322,13 @@
             document.getElementById('progressBar').style.width = '0%';
         }
 
+        // تبديل وضع التطوير
+        function toggleDebug() {
+            if (syncManager) {
+                syncManager.toggleDebug();
+            }
+        }
+
         // منع الغش والنسخ
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', function(e) {
@@ -1213,15 +1340,18 @@
         
         // تهيئة التطبيق
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('تم تحميل منصة ناقس بنجاح');
+            console.log('🚀 تم تحميل منصة ناقس بنجاح');
             updateConnectionStatus(navigator.onLine);
             
-            // تحديث واجهة المستخدم بعد التحميل
+            // إنشاء مدير التزامن
+            syncManager = new StudentSyncManager();
+            
+            // تحديث فوري للواجهة
             setTimeout(() => {
-                if (window.syncManager) {
-                    window.syncManager.updateUI();
+                if (syncManager) {
+                    syncManager.updateUI();
                 }
-            }, 2000);
+            }, 1000);
         });
 
         // مراقبة الاتصال
@@ -1237,10 +1367,25 @@
         };
 
         window.forceUpdate = () => {
-            if (window.syncManager) {
-                window.syncManager.handleUpdate('manual');
+            if (syncManager) {
+                syncManager.handleUpdate('manual');
             }
         };
+
+        window.checkStorage = () => {
+            console.log('localStorage keys:', Object.keys(localStorage));
+            console.log('adminDailyQuestions:', localStorage.getItem('adminDailyQuestions'));
+            console.log('adminWeeklyQuestions:', localStorage.getItem('adminWeeklyQuestions'));
+            console.log('nafisMainDailyQuestions:', localStorage.getItem('nafisMainDailyQuestions'));
+            console.log('nafisMainWeeklyQuestions:', localStorage.getItem('nafisMainWeeklyQuestions'));
+        };
+
+        // تنظيف عند إغلاق الصفحة
+        window.addEventListener('beforeunload', () => {
+            if (syncManager) {
+                syncManager.destroy();
+            }
+        });
     </script>
 </body>
 </html>
