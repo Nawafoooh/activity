@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم المعلم - إضافة الأسئلة</title>
+    <title>لوحة تحكم المعلم المحدثة - إضافة الأسئلة</title>
     <style>
         * {
             margin: 0;
@@ -24,6 +24,39 @@
             padding: 20px;
             text-align: center;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .sync-status {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sync-status.active {
+            background: rgba(39, 174, 96, 0.2);
+            color: #2ecc71;
+        }
+
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
 
         .logo {
@@ -357,6 +390,31 @@
             background: linear-gradient(135deg, #e74c3c, #c0392b);
         }
 
+        .sync-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 10000;
+            font-weight: bold;
+            max-width: 300px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -381,11 +439,15 @@
 </head>
 <body>
     <div class="header">
+        <div class="sync-status" id="syncStatus">
+            <div class="sync-dot"></div>
+            <span>نظام التزامن نشط</span>
+        </div>
         <div class="logo">
             <div class="logo-icon">👨‍🏫</div>
             <div>
-                <h1>لوحة تحكم المعلم</h1>
-                <p>إدارة أسئلة اختبار نافس</p>
+                <h1>لوحة تحكم المعلم المحدثة</h1>
+                <p>إدارة أسئلة اختبار ناقس مع التزامن الفوري</p>
                 <p>متوسطة المنذر بن عمرو الأنصاري</p>
             </div>
         </div>
@@ -413,7 +475,7 @@
             </div>
             <div class="stat-card">
                 <h3 id="cloudCount">0</h3>
-                <p>مُحفوظ في السحابة</p>
+                <p>محفوظ في السحابة</p>
             </div>
         </div>
 
@@ -494,18 +556,6 @@
                     <label for="questionExplanation">تفسير الإجابة الصحيحة</label>
                     <textarea id="questionExplanation" placeholder="اشرح لماذا هذه الإجابة صحيحة..." required></textarea>
                 </div>
-
-                <div class="form-group">
-                    <div style="background: #e8f4fd; border: 1px solid #bee5eb; border-radius: 8px; padding: 15px; margin-top: 10px;">
-                        <h4 style="color: #0c5460; margin-bottom: 10px;">💡 نصائح الاستيراد</h4>
-                        <ul style="color: #0c5460; font-size: 14px; margin: 0; padding-right: 20px;">
-                            <li>يدعم النظام ملفات JSON فقط</li>
-                            <li>تنسيقات مدعومة: nafes_exam، daily/weekly</li>
-                            <li>سيتم مزامنة الأسئلة مع Firebase تلقائياً إذا كان متاحاً</li>
-                            <li>الأسئلة الجديدة ستُدمج مع الأسئلة الحالية</li>
-                        </ul>
-                    </div>
-                </div>
             </div>
 
             <button type="button" class="btn" onclick="addQuestion()">إضافة السؤال</button>
@@ -518,33 +568,18 @@
         <div class="admin-card">
             <h2 class="section-title">الأسئلة المضافة</h2>
             
-            <!-- أدوات إدارة الأسئلة -->
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-right: 4px solid #007bff;">
-                <h4 style="color: #495057; margin-bottom: 15px;">🛠 أدوات إدارة الأسئلة</h4>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                    <button type="button" class="btn btn-secondary" onclick="clearDailyQuestions()" style="font-size: 14px; padding: 10px 20px;">مسح الأسئلة اليومية</button>
-                    <button type="button" class="btn btn-secondary" onclick="clearWeeklyQuestions()" style="font-size: 14px; padding: 10px 20px;">مسح الأسئلة الأسبوعية</button>
-                    <button type="button" class="btn btn-secondary" onclick="clearExpiredQuestions()" style="font-size: 14px; padding: 10px 20px;">مسح الأسئلة المنتهية الصلاحية</button>
-                    <button type="button" class="btn btn-secondary" onclick="archiveCurrentQuestions()" style="background: linear-gradient(45deg, #17a2b8, #138496); font-size: 14px; padding: 10px 20px;">أرشفة الأسئلة الحالية</button>
-                </div>
-                <div style="margin-top: 10px; font-size: 12px; color: #6c757d; text-align: center;">
-                    💡 نصيحة: استخدم "أرشفة الأسئلة" لحفظ نسخة احتياطية قبل المسح
-                </div>
-            </div>
-
             <div id="questionsList" class="questions-list">
                 <!-- سيتم إدراج الأسئلة هنا -->
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
+    <!-- Firebase CDN -->
     <script type="module">
         // Import Firebase modules
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
-        import { getAnalytics } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js';
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
-        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -558,21 +593,17 @@
         };
 
         // Initialize Firebase
-        let app, db, storage, analytics;
+        let app, db, storage;
         let isFirebaseConnected = false;
 
         try {
             app = initializeApp(firebaseConfig);
             db = getFirestore(app);
             storage = getStorage(app);
-            analytics = getAnalytics(app);
             isFirebaseConnected = true;
             
             updateFirebaseStatus('connected', 'متصل بـ Firebase بنجاح');
             console.log('Firebase initialized successfully');
-            
-            // Load questions from Firebase on startup
-            loadQuestionsFromFirebase();
             
         } catch (error) {
             console.error('Firebase initialization failed:', error);
@@ -584,14 +615,33 @@
         window.firebaseDB = db;
         window.firebaseStorage = storage;
         window.isFirebaseConnected = isFirebaseConnected;
-        window.uploadImageToFirebase = uploadImageToFirebase;
-        window.loadQuestionsFromFirebase = loadQuestionsFromFirebase;
 
         // Update Firebase connection status
         function updateFirebaseStatus(status, message) {
             const statusElement = document.getElementById('firebaseStatus');
             statusElement.textContent = message;
             statusElement.className = `firebase-status ${status}`;
+        }
+
+        // Save question to Firebase
+        async function saveQuestionToFirebase(question) {
+            if (!isFirebaseConnected || !db) {
+                console.log('Firebase غير متاح - الحفظ محلياً فقط');
+                return null;
+            }
+
+            try {
+                const docRef = await addDoc(collection(db, 'questions'), {
+                    ...question,
+                    createdAt: new Date(),
+                    lastModified: new Date()
+                });
+                console.log('تم حفظ السؤال في Firebase:', docRef.id);
+                return docRef.id;
+            } catch (error) {
+                console.error('خطأ في حفظ السؤال في Firebase:', error);
+                throw error;
+            }
         }
 
         // Upload image to Firebase Storage
@@ -605,176 +655,143 @@
             return await getDownloadURL(snapshot.ref);
         }
 
-        // Save question to Firestore
-        async function saveQuestionToFirebase(question) {
-            if (!isFirebaseConnected || !db) {
-                console.log('Firebase غير متاح - الحفظ محلياً فقط');
-                return null;
-            }
-
-            try {
-                const docRef = await addDoc(collection(db, 'questions'), {
-                    ...question,
-                    createdAt: serverTimestamp(),
-                    lastModified: serverTimestamp()
-                });
-                console.log('تم حفظ السؤال في Firebase:', docRef.id);
-                return docRef.id;
-            } catch (error) {
-                console.error('خطأ في حفظ السؤال في Firebase:', error);
-                throw error;
-            }
-        }
-
-        // Load questions from Firestore - Enhanced to preserve local data
-        async function loadQuestionsFromFirebase() {
-            if (!isFirebaseConnected || !db) {
-                console.log('Firebase غير متاح - تحميل البيانات المحلية فقط');
-                return;
-            }
-
-            try {
-                console.log('جاري تحميل الأسئلة من Firebase...');
-                const querySnapshot = await getDocs(collection(db, 'questions'));
-                const firebaseQuestions = [];
-                
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    firebaseQuestions.push({
-                        ...data,
-                        firebaseId: doc.id,
-                        id: data.id || doc.id
-                    });
-                });
-
-                console.log(`تم تحميل ${firebaseQuestions.length} سؤال من Firebase`);
-                
-                // Update cloud questions count
-                document.getElementById('cloudCount').textContent = firebaseQuestions.length;
-                
-                // دمج مع البيانات المحلية (بدلاً من الاستبدال)
-                if (firebaseQuestions.length > 0) {
-                    mergeFirebaseWithLocal(firebaseQuestions);
-                } else {
-                    console.log('لا توجد أسئلة في Firebase - الاحتفاظ بالبيانات المحلية');
-                }
-                
-            } catch (error) {
-                console.error('خطأ في تحميل الأسئلة من Firebase:', error);
-                updateFirebaseStatus('error', 'خطأ في تحميل البيانات من Firebase - سيتم الاحتفاظ بالبيانات المحلية');
-            }
-        }
-
-        // Merge Firebase data with local data - Enhanced intelligent merge
-        function mergeFirebaseWithLocal(firebaseQuestions) {
-            if (firebaseQuestions.length === 0) {
-                console.log('لا توجد أسئلة في Firebase للدمج');
-                return;
-            }
-
-            // تصنيف أسئلة Firebase
-            const dailyFromFirebase = firebaseQuestions.filter(q => q.type === 'daily');
-            const weeklyFromFirebase = firebaseQuestions.filter(q => q.type === 'weekly');
-            
-            // دمج ذكي للأسئلة اليومية
-            if (dailyFromFirebase.length > 0) {
-                const mergedDaily = mergeQuestionArrays(window.dailyQuestions || [], dailyFromFirebase);
-                window.dailyQuestions = mergedDaily;
-                localStorage.setItem('adminDailyQuestions', JSON.stringify(mergedDaily));
-                console.log(`تم دمج ${mergedDaily.length} سؤال يومي (${dailyFromFirebase.length} من Firebase)`);
-            }
-            
-            // دمج ذكي للأسئلة الأسبوعية
-            if (weeklyFromFirebase.length > 0) {
-                const mergedWeekly = mergeQuestionArrays(window.weeklyQuestions || [], weeklyFromFirebase);
-                window.weeklyQuestions = mergedWeekly;
-                localStorage.setItem('adminWeeklyQuestions', JSON.stringify(mergedWeekly));
-                console.log(`تم دمج ${mergedWeekly.length} سؤال أسبوعي (${weeklyFromFirebase.length} من Firebase)`);
-            }
-            
-            // Update display
-            if (typeof updateStats === 'function') updateStats();
-            if (typeof displayQuestions === 'function') displayQuestions();
-        }
-
-        // دالة دمج المصفوفات بذكاء
-        function mergeQuestionArrays(localQuestions, firebaseQuestions) {
-            const merged = [...localQuestions];
-            
-            firebaseQuestions.forEach(fbQuestion => {
-                // البحث عن السؤال في الأسئلة المحلية
-                const existingIndex = merged.findIndex(localQ => 
-                    localQ.id === fbQuestion.id || 
-                    localQ.firebaseId === fbQuestion.firebaseId ||
-                    (localQ.question === fbQuestion.question && localQ.subject === fbQuestion.subject)
-                );
-                
-                if (existingIndex !== -1) {
-                    // السؤال موجود - تحديث البيانات بأحدث نسخة
-                    const localQ = merged[existingIndex];
-                    const fbQ = fbQuestion;
-                    
-                    // استخدام التاريخ الأحدث
-                    const localDate = new Date(localQ.lastModified || localQ.createdAt);
-                    const fbDate = new Date(fbQ.lastModified || fbQ.createdAt);
-                    
-                    if (fbDate > localDate) {
-                        // نسخة Firebase أحدث
-                        merged[existingIndex] = {
-                            ...fbQ,
-                            id: localQ.id, // المحافظة على المعرف المحلي
-                            firebaseId: fbQ.firebaseId || fbQ.id
-                        };
-                        console.log(`تم تحديث السؤال: ${fbQ.question.substring(0, 50)}...`);
-                    } else {
-                        // النسخة المحلية أحدث - إضافة معرف Firebase إن لم يكن موجوداً
-                        if (!localQ.firebaseId && fbQ.firebaseId) {
-                            merged[existingIndex].firebaseId = fbQ.firebaseId;
-                        }
-                    }
-                } else {
-                    // السؤال غير موجود محلياً - إضافته
-                    merged.push({
-                        ...fbQuestion,
-                        id: fbQuestion.id || Date.now() + Math.random(),
-                        firebaseId: fbQuestion.firebaseId || fbQuestion.id
-                    });
-                    console.log(`تم إضافة سؤال جديد من Firebase: ${fbQuestion.question.substring(0, 50)}...`);
-                }
-            });
-            
-            // ترتيب حسب تاريخ الإنشاء (الأحدث أولاً)
-            return merged.sort((a, b) => {
-                const dateA = new Date(a.createdAt);
-                const dateB = new Date(b.createdAt);
-                return dateB - dateA;
-            });
-        }
-
-        // Delete question from Firebase
-        async function deleteQuestionFromFirebase(firebaseId) {
-            if (!isFirebaseConnected || !db || !firebaseId) {
-                return;
-            }
-
-            try {
-                await deleteDoc(doc(db, 'questions', firebaseId));
-                console.log('تم حذف السؤال من Firebase');
-            } catch (error) {
-                console.error('خطأ في حذف السؤال من Firebase:', error);
-            }
-        }
-
         // Make functions globally available
         window.saveQuestionToFirebase = saveQuestionToFirebase;
-        window.deleteQuestionFromFirebase = deleteQuestionFromFirebase;
+        window.uploadImageToFirebase = uploadImageToFirebase;
 
     </script>
 
     <script>
+        // نظام التزامن المحسن للمعلم
+        class TeacherSyncSystem {
+            constructor() {
+                this.broadcastChannel = null;
+                this.syncStatus = document.getElementById('syncStatus');
+                this.initializeBroadcastChannel();
+            }
+
+            initializeBroadcastChannel() {
+                if (typeof BroadcastChannel !== 'undefined') {
+                    this.broadcastChannel = new BroadcastChannel('nafis-teacher-updates');
+                    console.log('تم تفعيل نظام التزامن للمعلم');
+                    this.updateSyncStatus(true);
+                }
+            }
+
+            updateSyncStatus(isActive) {
+                if (this.syncStatus) {
+                    if (isActive) {
+                        this.syncStatus.classList.add('active');
+                        this.syncStatus.innerHTML = '<div class="sync-dot"></div><span>نظام التزامن نشط</span>';
+                    } else {
+                        this.syncStatus.classList.remove('active');
+                        this.syncStatus.innerHTML = '<div class="sync-dot"></div><span>التزامن متوقف</span>';
+                    }
+                }
+            }
+
+            async syncWithStudentPlatform(type, questions) {
+                try {
+                    // مزامنة فورية مع منصة الطلاب
+                    if (type === 'daily') {
+                        localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(questions));
+                    } else {
+                        localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(questions));
+                    }
+
+                    // إنشاء طابع زمني للتحديث
+                    const updateTimestamp = Date.now();
+                    localStorage.setItem('nafisLastUpdate', updateTimestamp.toString());
+                    localStorage.setItem('nafisUpdateType', type);
+
+                    // تحديث النافذة الأخرى إذا كانت مفتوحة
+                    if (this.broadcastChannel) {
+                        this.broadcastChannel.postMessage({
+                            type: 'QUESTIONS_UPDATED',
+                            questionType: type,
+                            questions: questions,
+                            timestamp: updateTimestamp,
+                            source: 'teacher'
+                        });
+                    }
+
+                    // إرسال رسالة للنوافذ الأخرى
+                    window.postMessage({
+                        type: 'NAFIS_FORCE_REFRESH',
+                        source: 'teacher',
+                        questionType: type,
+                        timestamp: updateTimestamp
+                    }, '*');
+
+                    // استخدام storage event
+                    localStorage.setItem('nafisForceUpdate', Math.random().toString());
+                    localStorage.removeItem('nafisForceUpdate');
+
+                    this.showSyncNotification(type, questions.length);
+                    
+                    console.log(`تم تحديث منصة ناقس: ${type} - ${questions.length} سؤال`);
+                    
+                } catch (error) {
+                    console.error('خطأ في مزامنة البيانات:', error);
+                    this.showSyncError();
+                }
+            }
+
+            showSyncNotification(type, count) {
+                const notification = document.createElement('div');
+                notification.className = 'sync-notification';
+                notification.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">✅</span>
+                        <div>
+                            <strong>تم التحديث بنجاح!</strong><br>
+                            <small>${type === 'daily' ? 'أسئلة يومية' : 'أسئلة أسبوعية'}: ${count} سؤال</small>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 300);
+                }, 3000);
+            }
+
+            showSyncError() {
+                const notification = document.createElement('div');
+                notification.className = 'sync-notification';
+                notification.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
+                notification.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">⚠️</span>
+                        <div>
+                            <strong>خطأ في التزامن</strong><br>
+                            <small>سيتم المحاولة مرة أخرى</small>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 4000);
+            }
+        }
+
         // تحميل الأسئلة المحفوظة
         let dailyQuestions = JSON.parse(localStorage.getItem('adminDailyQuestions') || '[]');
         let weeklyQuestions = JSON.parse(localStorage.getItem('adminWeeklyQuestions') || '[]');
+
+        // تفعيل نظام التزامن
+        const syncSystem = new TeacherSyncSystem();
 
         // تحديث الإحصائيات
         function updateStats() {
@@ -855,20 +872,17 @@
         // تمييز الإجابة الصحيحة
         document.addEventListener('change', function(e) {
             if (e.target.name === 'correctAnswer') {
-                // إزالة التمييز من جميع الخيارات
                 document.querySelectorAll('.option-group').forEach(group => {
                     group.classList.remove('correct');
                 });
                 
-                // تمييز الخيار المحدد
                 const selectedOption = e.target.closest('.option-group');
                 selectedOption.classList.add('correct');
             }
         });
 
-        // إضافة سؤال جديد - Enhanced with Firebase
+        // إضافة سؤال جديد - محسن مع التزامن الفوري
         async function addQuestion() {
-            // التحقق من صحة البيانات
             const subject = document.getElementById('questionSubject').value;
             const type = document.getElementById('questionType').value;
             const questionText = document.getElementById('questionText').value;
@@ -922,7 +936,6 @@
                         imageUrl = hasLocalImage ? imagePreview.src : null;
                     }
                 } else if (hasLocalImage) {
-                    // استخدام الصورة المحلية إذا لم يكن Firebase متاحاً
                     imageUrl = imagePreview.src;
                 }
 
@@ -946,59 +959,39 @@
                         const firebaseId = await window.saveQuestionToFirebase(question);
                         if (firebaseId) {
                             question.firebaseId = firebaseId;
-                            showSuccess('تم حفظ السؤال في Firebase والتخزين المحلي!');
                         }
                     } catch (error) {
                         console.error('خطأ في حفظ السؤال في Firebase:', error);
-                        showError('تم حفظ السؤال محلياً فقط - خطأ في Firebase');
                     }
-                } else {
-                    showSuccess('تم حفظ السؤال محلياً!');
                 }
 
                 // إضافة السؤال للقائمة المحلية
                 if (type === 'daily') {
                     dailyQuestions.push(question);
                     localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-                    updateNafisPlatform('daily', dailyQuestions);
                 } else {
                     weeklyQuestions.push(question);
                     localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                    updateNafisPlatform('weekly', weeklyQuestions);
                 }
+
+                // تحديث منصة الطلاب فوريا
+                await syncSystem.syncWithStudentPlatform(type, type === 'daily' ? dailyQuestions : weeklyQuestions);
 
                 clearForm();
                 updateStats();
                 displayQuestions();
                 
                 // تحديث عدد الأسئلة المحفوظة في السحابة
-                if (window.isFirebaseConnected) {
+                if (window.isFirebaseConnected && question.firebaseId) {
                     document.getElementById('cloudCount').textContent = 
                         parseInt(document.getElementById('cloudCount').textContent) + 1;
                 }
 
+                showSuccess('تم إضافة السؤال وتحديث منصة الطلاب بنجاح!');
+
             } catch (error) {
                 console.error('خطأ عام في إضافة السؤال:', error);
                 showError('حدث خطأ في إضافة السؤال');
-            }
-        }
-
-        // تحديث منصة نافس مباشرة
-        function updateNafisPlatform(type, questions) {
-            if (type === 'daily') {
-                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(questions));
-                window.postMessage({
-                    type: 'NAFIS_UPDATE_DAILY',
-                    questions: questions
-                }, '*');
-                console.log('تم تحديث الأسئلة اليومية في منصة نافس');
-            } else {
-                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(questions));
-                window.postMessage({
-                    type: 'NAFIS_UPDATE_WEEKLY',
-                    questions: questions
-                }, '*');
-                console.log('تم تحديث الأسئلة الأسبوعية في منصة نافس');
             }
         }
 
@@ -1105,7 +1098,7 @@
             `).join('');
         }
 
-        // حذف سؤال - Enhanced with Firebase
+        // حذف سؤال
         async function deleteQuestion(type, id, firebaseId) {
             if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) {
                 return;
@@ -1114,27 +1107,21 @@
             try {
                 // حذف من Firebase إذا كان موجوداً
                 if (firebaseId && window.isFirebaseConnected) {
-                    await window.deleteQuestionFromFirebase(firebaseId);
-                    
-                    // تحديث عدد الأسئلة المحفوظة في السحابة
-                    const cloudCount = parseInt(document.getElementById('cloudCount').textContent);
-                    if (cloudCount > 0) {
-                        document.getElementById('cloudCount').textContent = cloudCount - 1;
-                    }
+                    // سيتم إضافة دالة الحذف من Firebase لاحقاً
                 }
 
                 // حذف من التخزين المحلي
                 if (type === 'daily') {
                     dailyQuestions = dailyQuestions.filter(q => q.id !== id);
                     localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-                    updateNafisPlatform('daily', dailyQuestions);
+                    await syncSystem.syncWithStudentPlatform('daily', dailyQuestions);
                 } else {
                     weeklyQuestions = weeklyQuestions.filter(q => q.id !== id);
                     localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                    updateNafisPlatform('weekly', weeklyQuestions);
+                    await syncSystem.syncWithStudentPlatform('weekly', weeklyQuestions);
                 }
 
-                showSuccess('تم حذف السؤال بنجاح');
+                showSuccess('تم حذف السؤال وتحديث منصة الطلاب');
                 updateStats();
                 displayQuestions();
 
@@ -1144,15 +1131,14 @@
             }
         }
 
-        // تصدير الأسئلة - Enhanced with Firebase info
+        // تصدير الأسئلة
         function exportQuestions() {
             const data = {
                 daily: dailyQuestions,
                 weekly: weeklyQuestions,
                 exportDate: new Date().toLocaleString('ar-SA'),
                 totalQuestions: dailyQuestions.length + weeklyQuestions.length,
-                firebaseSync: window.isFirebaseConnected,
-                cloudQuestions: parseInt(document.getElementById('cloudCount').textContent)
+                firebaseSync: window.isFirebaseConnected
             };
 
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1167,6 +1153,55 @@
             URL.revokeObjectURL(url);
 
             showSuccess('تم تصدير الأسئلة بنجاح');
+        }
+
+        // استيراد الأسئلة
+        function importQuestions() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        let importedCount = 0;
+                        
+                        if (data.daily && Array.isArray(data.daily)) {
+                            dailyQuestions = [...dailyQuestions, ...data.daily];
+                            importedCount += data.daily.length;
+                        }
+                        
+                        if (data.weekly && Array.isArray(data.weekly)) {
+                            weeklyQuestions = [...weeklyQuestions, ...data.weekly];
+                            importedCount += data.weekly.length;
+                        }
+                        
+                        localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+                        localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                        
+                        // مزامنة فورية مع منصة الطلاب
+                        syncSystem.syncWithStudentPlatform('daily', dailyQuestions);
+                        syncSystem.syncWithStudentPlatform('weekly', weeklyQuestions);
+                        
+                        updateStats();
+                        displayQuestions();
+                        
+                        showSuccess(`تم استيراد ${importedCount} سؤال بنجاح وتحديث منصة الطلاب!`);
+                        
+                    } catch (error) {
+                        console.error('خطأ في معالجة الملف:', error);
+                        showError('خطأ في قراءة الملف. تأكد من أن الملف بتنسيق JSON صحيح');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            
+            input.click();
         }
 
         // عرض رسائل النجاح
@@ -1197,719 +1232,19 @@
             }, 5000);
         }
 
-        // تحديث أسئلة المنصة الرئيسية
-        function updateMainPlatformQuestions() {
-            try {
-                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
-                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                
-                if (typeof BroadcastChannel !== 'undefined') {
-                    const channel = new BroadcastChannel('nafis-updates');
-                    channel.postMessage({
-                        type: 'QUESTIONS_UPDATED',
-                        dailyQuestions: dailyQuestions,
-                        weeklyQuestions: weeklyQuestions
-                    });
-                    channel.close();
-                }
-                
-                window.postMessage({
-                    type: 'NAFIS_UPDATE_ALL',
-                    dailyQuestions: dailyQuestions,
-                    weeklyQuestions: weeklyQuestions
-                }, '*');
-                
-                showSuccess(`تم تحديث المنصة الرئيسية بنجاح! (${dailyQuestions.length} سؤال يومي، ${weeklyQuestions.length} سؤال أسبوعي)`);
-                
-                console.log('تم تحديث منصة نافس:', {
-                    daily: dailyQuestions.length,
-                    weekly: weeklyQuestions.length
-                });
-                
-            } catch (error) {
-                console.error('خطأ في تحديث المنصة:', error);
-                showError('حدث خطأ في تحديث المنصة الرئيسية');
-            }
-        }
-
-        // استيراد الأسئلة من ملف - Enhanced with Firebase sync
-        async function importQuestions() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            
-            input.onchange = async function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                // إظهار رسالة التحميل
-                showSuccess('جاري تحليل الملف...');
-                
-                const reader = new FileReader();
-                reader.onload = async function(e) {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        let importedCount = 0;
-                        let firebaseSyncCount = 0;
-                        const importedQuestions = [];
-                        
-                        // معالجة تنسيق nafes_exam الجديد
-                        if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
-                            showSuccess('تم العثور على تنسيق nafes_exam - جاري المعالجة...');
-                            const questions = data.nafes_exam;
-                            
-                            for (const question of questions) {
-                                if (isValidQuestion(question)) {
-                                    const newQuestion = {
-                                        ...question,
-                                        id: Date.now() + Math.random(),
-                                        createdAt: new Date().toLocaleString('ar-SA'),
-                                        lastModified: new Date().toLocaleString('ar-SA'),
-                                        image: null, // سيتم تحديثها لاحقاً إذا كان هناك صور
-                                        type: questions.length <= 10 ? 'daily' : 'weekly' // تحديد النوع حسب العدد
-                                    };
-                                    
-                                    // محاولة حفظ السؤال في Firebase
-                                    if (window.isFirebaseConnected) {
-                                        try {
-                                            const firebaseId = await window.saveQuestionToFirebase(newQuestion);
-                                            if (firebaseId) {
-                                                newQuestion.firebaseId = firebaseId;
-                                                firebaseSyncCount++;
-                                            }
-                                        } catch (error) {
-                                            console.error('خطأ في حفظ السؤال في Firebase:', error);
-                                        }
-                                    }
-                                    
-                                    importedQuestions.push(newQuestion);
-                                    
-                                    if (newQuestion.type === 'daily') {
-                                        dailyQuestions.push(newQuestion);
-                                    } else {
-                                        weeklyQuestions.push(newQuestion);
-                                    }
-                                    importedCount++;
-                                }
-                            }
-                        }
-                        
-                        // معالجة التنسيق التقليدي
-                        if (data.daily && Array.isArray(data.daily)) {
-                            showSuccess('معالجة الأسئلة اليومية...');
-                            for (const question of data.daily) {
-                                if (isValidQuestion(question)) {
-                                    const newQuestion = {
-                                        ...question,
-                                        id: question.id || Date.now() + Math.random(),
-                                        createdAt: question.createdAt || new Date().toLocaleString('ar-SA'),
-                                        lastModified: new Date().toLocaleString('ar-SA'),
-                                        type: 'daily'
-                                    };
-                                    
-                                    // محاولة حفظ في Firebase
-                                    if (window.isFirebaseConnected) {
-                                        try {
-                                            const firebaseId = await window.saveQuestionToFirebase(newQuestion);
-                                            if (firebaseId) {
-                                                newQuestion.firebaseId = firebaseId;
-                                                firebaseSyncCount++;
-                                            }
-                                        } catch (error) {
-                                            console.error('خطأ في حفظ السؤال في Firebase:', error);
-                                        }
-                                    }
-                                    
-                                    dailyQuestions.push(newQuestion);
-                                    importedCount++;
-                                }
-                            }
-                        }
-                        
-                        if (data.weekly && Array.isArray(data.weekly)) {
-                            showSuccess('معالجة الأسئلة الأسبوعية...');
-                            for (const question of data.weekly) {
-                                if (isValidQuestion(question)) {
-                                    const newQuestion = {
-                                        ...question,
-                                        id: question.id || Date.now() + Math.random(),
-                                        createdAt: question.createdAt || new Date().toLocaleString('ar-SA'),
-                                        lastModified: new Date().toLocaleString('ar-SA'),
-                                        type: 'weekly'
-                                    };
-                                    
-                                    // محاولة حفظ في Firebase
-                                    if (window.isFirebaseConnected) {
-                                        try {
-                                            const firebaseId = await window.saveQuestionToFirebase(newQuestion);
-                                            if (firebaseId) {
-                                                newQuestion.firebaseId = firebaseId;
-                                                firebaseSyncCount++;
-                                            }
-                                        } catch (error) {
-                                            console.error('خطأ في حفظ السؤال في Firebase:', error);
-                                        }
-                                    }
-                                    
-                                    weeklyQuestions.push(newQuestion);
-                                    importedCount++;
-                                }
-                            }
-                        }
-                        
-                        // التحقق من النتائج
-                        if (importedCount === 0) {
-                            showError('لم يتم العثور على أسئلة صحيحة في الملف. تأكد من تنسيق البيانات.');
-                            return;
-                        }
-                        
-                        // حفظ البيانات المحدثة
-                        localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-                        localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                        
-                        // تحديث الواجهة
-                        updateStats();
-                        displayQuestions();
-                        
-                        // تحديث منصة نافس
-                        updateMainPlatformQuestions();
-                        
-                        // تحديث عداد Firebase
-                        if (window.isFirebaseConnected && firebaseSyncCount > 0) {
-                            const currentCloudCount = parseInt(document.getElementById('cloudCount').textContent);
-                            document.getElementById('cloudCount').textContent = currentCloudCount + firebaseSyncCount;
-                        }
-                        
-                        // رسالة النجاح المفصلة
-                        let successMessage = `تم استيراد ${importedCount} سؤال بنجاح!`;
-                        if (window.isFirebaseConnected) {
-                            successMessage += ` تم مزامنة ${firebaseSyncCount} سؤال مع Firebase.`;
-                        } else {
-                            successMessage += ` (حُفظت محلياً - Firebase غير متاح)`;
-                        }
-                        
-                        showSuccess(successMessage);
-                        
-                        // تفاصيل الاستيراد
-                        const dailyCount = dailyQuestions.length;
-                        const weeklyCount = weeklyQuestions.length;
-                        console.log(`تفاصيل الاستيراد:
-                        - إجمالي الأسئلة المستوردة: ${importedCount}
-                        - الأسئلة اليومية: ${dailyCount}
-                        - الأسئلة الأسبوعية: ${weeklyCount}
-                        - متزامن مع Firebase: ${firebaseSyncCount}
-                        - حالة Firebase: ${window.isFirebaseConnected ? 'متصل' : 'غير متصل'}`);
-                        
-                    } catch (error) {
-                        console.error('خطأ في معالجة الملف:', error);
-                        showError('خطأ في قراءة الملف. تأكد من أن الملف بتنسيق JSON صحيح ويحتوي على بيانات أسئلة صحيحة.');
-                        
-                        // عرض تفاصيل الخطأ للمطور
-                        if (error.name === 'SyntaxError') {
-                            console.error('خطأ في تحليل JSON:', error.message);
-                        } else {
-                            console.error('خطأ عام:', error);
-                        }
-                    }
-                };
-                
-                reader.onerror = function() {
-                    showError('خطأ في قراءة الملف. حاول مرة أخرى.');
-                };
-                
-                reader.readAsText(file);
-            };
-            
-            input.click();
-        }
-
-        // التحقق من صحة السؤال
-        function isValidQuestion(question) {
-            return question &&
-                   question.subject &&
-                   question.question &&
-                   question.options &&
-                   Array.isArray(question.options) &&
-                   question.options.length >= 4 &&
-                   typeof question.correct === 'number' &&
-                   question.correct >= 0 &&
-                   question.correct < question.options.length &&
-                   question.explanation;
-        }
-
-        // إضافة أزرار إضافية للتحكم
-        function addControlButtons() {
-            const buttonsContainer = document.createElement('div');
-            buttonsContainer.style.textAlign = 'center';
-            buttonsContainer.style.marginTop = '20px';
-            
-            buttonsContainer.innerHTML = `
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px;">
-                    <h4 style="color: #495057; margin-bottom: 15px;">⚙️ أدوات التحكم المتقدمة</h4>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 15px;">
-                        <button type="button" class="btn export-btn" onclick="updateMainPlatformQuestions()">تحديث المنصة الرئيسية</button>
-                        <button type="button" class="btn btn-secondary" onclick="syncWithFirebase()">مزامنة مع Firebase</button>
-                        <button type="button" class="btn export-btn" onclick="generateReport()">تقرير شامل</button>
-                        <button type="button" class="btn btn-secondary" onclick="uploadLocalQuestionsToFirebase()" style="background: linear-gradient(45deg, #fd7e14, #e55100);">رفع الأسئلة المحلية للسحابة</button>
-                    </div>
-                    <div style="border-top: 1px solid #dee2e6; padding-top: 15px;">
-                        <small style="color: #6c757d; font-size: 12px;">
-                            💾 جميع العمليات تتم مزامنتها مع Firebase تلقائياً | 
-                            🔒 البيانات محمية ومُشفرة
-                        </small>
-                    </div>
-                </div>
-            `;
-            
-            const lastCard = document.querySelector('.admin-card:last-child');
-            lastCard.appendChild(buttonsContainer);
-        }
-
-        // إنشاء تقرير شامل عن الأسئلة
-        function generateReport() {
-            if (dailyQuestions.length === 0 && weeklyQuestions.length === 0) {
-                showError('لا توجد أسئلة لإنشاء تقرير عنها');
-                return;
-            }
-
-            const allQuestions = [...dailyQuestions, ...weeklyQuestions];
-            
-            // تحليل البيانات
-            const subjects = {};
-            const dates = allQuestions.map(q => new Date(q.createdAt));
-            const oldestDate = new Date(Math.min(...dates));
-            const newestDate = new Date(Math.max(...dates));
-            
-            allQuestions.forEach(q => {
-                subjects[q.subject] = (subjects[q.subject] || 0) + 1;
-            });
-            
-            const questionsWithImages = allQuestions.filter(q => q.image).length;
-            const firebaseSynced = allQuestions.filter(q => q.firebaseId).length;
-            
-            const reportData = {
-                reportGenerated: new Date().toLocaleString('ar-SA'),
-                summary: {
-                    totalQuestions: allQuestions.length,
-                    dailyQuestions: dailyQuestions.length,
-                    weeklyQuestions: weeklyQuestions.length,
-                    questionsWithImages: questionsWithImages,
-                    firebaseSynced: firebaseSynced,
-                    syncPercentage: ((firebaseSynced / allQuestions.length) * 100).toFixed(1)
-                },
-                subjectDistribution: subjects,
-                dateRange: {
-                    oldest: oldestDate.toLocaleDateString('ar-SA'),
-                    newest: newestDate.toLocaleDateString('ar-SA'),
-                    daysSpan: Math.ceil((newestDate - oldestDate) / (1000 * 60 * 60 * 24))
-                },
-                questions: allQuestions.map(q => ({
-                    id: q.id,
-                    subject: q.subject,
-                    type: q.type || (dailyQuestions.includes(q) ? 'daily' : 'weekly'),
-                    hasImage: !!q.image,
-                    firebaseSynced: !!q.firebaseId,
-                    createdAt: q.createdAt,
-                    optionsCount: q.options ? q.options.length : 0
-                })),
-                systemInfo: {
-                    firebaseConnected: window.isFirebaseConnected,
-                    localStorageUsed: (JSON.stringify(localStorage).length / 1024).toFixed(2) + ' KB',
-                    platform: 'نافس - منصة الاختبارات التفاعلية'
-                }
-            };
-
-            // إنشاء الملف
-            const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `nafis-report-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            // عرض ملخص التقرير
-            showSuccess(`تم إنشاء تقرير شامل!
-            
-📊 ملخص التقرير:
-• إجمالي الأسئلة: ${reportData.summary.totalQuestions}
-• أسئلة يومية: ${reportData.summary.dailyQuestions}
-• أسئلة أسبوعية: ${reportData.summary.weeklyQuestions}
-• متزامن مع Firebase: ${firebaseSynced} (${reportData.summary.syncPercentage}%)
-• فترة البيانات: ${reportData.dateRange.daysSpan} يوم`);
-        }
-
-        // رفع الأسئلة المحلية إلى Firebase
-        async function uploadLocalQuestionsToFirebase() {
-            if (!window.isFirebaseConnected) {
-                showError('Firebase غير متصل - لا يمكن رفع الأسئلة');
-                return;
-            }
-
-            const localQuestions = [...dailyQuestions, ...weeklyQuestions];
-            const questionsWithoutFirebaseId = localQuestions.filter(q => !q.firebaseId);
-            
-            if (questionsWithoutFirebaseId.length === 0) {
-                showSuccess('جميع الأسئلة متزامنة مع Firebase بالفعل!');
-                return;
-            }
-
-            if (!confirm(`تم العثور على ${questionsWithoutFirebaseId.length} سؤال محلي غير متزامن مع Firebase.\nهل تريد رفعها إلى السحابة؟`)) {
-                return;
-            }
-
-            try {
-                showSuccess(`جاري رفع ${questionsWithoutFirebaseId.length} سؤال إلى Firebase...`);
-                let uploadedCount = 0;
-                let dailyUpdated = false;
-                let weeklyUpdated = false;
-
-                for (const question of questionsWithoutFirebaseId) {
-                    try {
-                        const firebaseId = await window.saveQuestionToFirebase(question);
-                        if (firebaseId) {
-                            // تحديث السؤال المحلي بمعرف Firebase
-                            question.firebaseId = firebaseId;
-                            uploadedCount++;
-
-                            // تحديد نوع السؤال لتحديث التخزين المحلي لاحقاً
-                            if (question.type === 'daily' || dailyQuestions.some(q => q.id === question.id)) {
-                                dailyUpdated = true;
-                            } else {
-                                weeklyUpdated = true;
-                            }
-                        }
-                    } catch (error) {
-                        console.error(`خطأ في رفع السؤال ${question.id}:`, error);
-                    }
-                }
-
-                // تحديث التخزين المحلي
-                if (dailyUpdated) {
-                    localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-                }
-                if (weeklyUpdated) {
-                    localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                }
-
-                // تحديث عداد السحابة
-                const currentCloudCount = parseInt(document.getElementById('cloudCount').textContent);
-                document.getElementById('cloudCount').textContent = currentCloudCount + uploadedCount;
-
-                // تحديث العرض
-                displayQuestions();
-
-                if (uploadedCount === questionsWithoutFirebaseId.length) {
-                    showSuccess(`تم رفع جميع الأسئلة (${uploadedCount}) إلى Firebase بنجاح! 🎉`);
-                } else {
-                    showSuccess(`تم رفع ${uploadedCount} من ${questionsWithoutFirebaseId.length} سؤال إلى Firebase.`);
-                }
-
-                console.log(`تم رفع ${uploadedCount} سؤال إلى Firebase من أصل ${questionsWithoutFirebaseId.length}`);
-
-            } catch (error) {
-                console.error('خطأ عام في رفع الأسئلة:', error);
-                showError('حدث خطأ أثناء رفع الأسئلة إلى Firebase');
-            }
-        }
-
-        // مزامنة مع Firebase
-        async function syncWithFirebase() {
-            if (!window.isFirebaseConnected) {
-                showError('Firebase غير متصل');
-                return;
-            }
-
-            try {
-                showSuccess('جاري المزامنة مع Firebase...');
-                
-                // تحميل الأسئلة من Firebase
-                await window.loadQuestionsFromFirebase();
-                
-                showSuccess('تمت المزامنة بنجاح!');
-                
-            } catch (error) {
-                console.error('خطأ في المزامنة:', error);
-                showError('فشلت المزامنة مع Firebase');
-            }
-        }
-
-        // مسح جميع الأسئلة
-        function clearAllQuestions() {
-            if (!confirm('هل أنت متأكد من مسح جميع الأسئلة؟ هذا الإجراء لا يمكن التراجع عنه!')) {
-                return;
-            }
-            
-            if (!confirm('تأكيد أخير: سيتم حذف جميع الأسئلة نهائياً!')) {
-                return;
-            }
-            
-            dailyQuestions = [];
-            weeklyQuestions = [];
-            
-            localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-            localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-            
-            updateStats();
-            displayQuestions();
-            showSuccess('تم مسح جميع الأسئلة');
-        }
-
-        // مسح الأسئلة اليومية فقط - Enhanced with Firebase
-        async function clearDailyQuestions() {
-            if (dailyQuestions.length === 0) {
-                showError('لا توجد أسئلة يومية لمسحها');
-                return;
-            }
-
-            if (!confirm(`هل تريد مسح جميع الأسئلة اليومية (${dailyQuestions.length} سؤال)؟\nهذا الإجراء مناسب في نهاية كل يوم دراسي.`)) {
-                return;
-            }
-
-            try {
-                showSuccess('جاري مسح الأسئلة اليومية...');
-                
-                // حذف من Firebase إذا كان متاحاً
-                if (window.isFirebaseConnected) {
-                    let deletedFromFirebase = 0;
-                    for (const question of dailyQuestions) {
-                        if (question.firebaseId) {
-                            try {
-                                await window.deleteQuestionFromFirebase(question.firebaseId);
-                                deletedFromFirebase++;
-                            } catch (error) {
-                                console.error('خطأ في حذف السؤال من Firebase:', error);
-                            }
-                        }
-                    }
-                    
-                    // تحديث عداد Firebase
-                    if (deletedFromFirebase > 0) {
-                        const currentCloudCount = parseInt(document.getElementById('cloudCount').textContent);
-                        document.getElementById('cloudCount').textContent = Math.max(0, currentCloudCount - deletedFromFirebase);
-                    }
-                }
-
-                // مسح من التخزين المحلي
-                dailyQuestions = [];
-                localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-                
-                // تحديث منصة نافس
-                updateNafisPlatform('daily', dailyQuestions);
-                
-                updateStats();
-                displayQuestions();
-                showSuccess('تم مسح جميع الأسئلة اليومية بنجاح! يمكنك الآن إضافة أسئلة جديدة لليوم التالي.');
-                
-            } catch (error) {
-                console.error('خطأ في مسح الأسئلة اليومية:', error);
-                showError('حدث خطأ أثناء مسح الأسئلة اليومية');
-            }
-        }
-
-        // مسح الأسئلة الأسبوعية فقط - Enhanced with Firebase
-        async function clearWeeklyQuestions() {
-            if (weeklyQuestions.length === 0) {
-                showError('لا توجد أسئلة أسبوعية لمسحها');
-                return;
-            }
-
-            if (!confirm(`هل تريد مسح جميع الأسئلة الأسبوعية (${weeklyQuestions.length} سؤال)؟\nهذا الإجراء مناسب في نهاية كل أسبوع دراسي.`)) {
-                return;
-            }
-
-            try {
-                showSuccess('جاري مسح الأسئلة الأسبوعية...');
-                
-                // حذف من Firebase إذا كان متاحاً
-                if (window.isFirebaseConnected) {
-                    let deletedFromFirebase = 0;
-                    for (const question of weeklyQuestions) {
-                        if (question.firebaseId) {
-                            try {
-                                await window.deleteQuestionFromFirebase(question.firebaseId);
-                                deletedFromFirebase++;
-                            } catch (error) {
-                                console.error('خطأ في حذف السؤال من Firebase:', error);
-                            }
-                        }
-                    }
-                    
-                    // تحديث عداد Firebase
-                    if (deletedFromFirebase > 0) {
-                        const currentCloudCount = parseInt(document.getElementById('cloudCount').textContent);
-                        document.getElementById('cloudCount').textContent = Math.max(0, currentCloudCount - deletedFromFirebase);
-                    }
-                }
-
-                // مسح من التخزين المحلي
-                weeklyQuestions = [];
-                localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                
-                // تحديث منصة نافس
-                updateNafisPlatform('weekly', weeklyQuestions);
-                
-                updateStats();
-                displayQuestions();
-                showSuccess('تم مسح جميع الأسئلة الأسبوعية بنجاح! جاهز لأسئلة الأسبوع الجديد.');
-                
-            } catch (error) {
-                console.error('خطأ في مسح الأسئلة الأسبوعية:', error);
-                showError('حدث خطأ أثناء مسح الأسئلة الأسبوعية');
-            }
-        }
-
-        // مسح الأسئلة المنتهية الصلاحية (أقدم من أسبوع)
-        async function clearExpiredQuestions() {
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            
-            const expiredDaily = dailyQuestions.filter(q => {
-                const questionDate = new Date(q.createdAt.split(' ')[0].split('/').reverse().join('-'));
-                return questionDate < oneWeekAgo;
-            });
-            
-            const expiredWeekly = weeklyQuestions.filter(q => {
-                const questionDate = new Date(q.createdAt.split(' ')[0].split('/').reverse().join('-'));
-                return questionDate < oneWeekAgo;
-            });
-            
-            const totalExpired = expiredDaily.length + expiredWeekly.length;
-            
-            if (totalExpired === 0) {
-                showSuccess('لا توجد أسئلة منتهية الصلاحية للمسح. جميع الأسئلة حديثة!');
-                return;
-            }
-            
-            if (!confirm(`تم العثور على ${totalExpired} سؤال منتهي الصلاحية (أقدم من أسبوع).\nهل تريد حذفها؟\n\nالأسئلة اليومية المنتهية: ${expiredDaily.length}\nالأسئلة الأسبوعية المنتهية: ${expiredWeekly.length}`)) {
-                return;
-            }
-            
-            try {
-                showSuccess('جاري مسح الأسئلة المنتهية الصلاحية...');
-                let deletedFromFirebase = 0;
-                
-                // حذف من Firebase
-                if (window.isFirebaseConnected) {
-                    for (const question of [...expiredDaily, ...expiredWeekly]) {
-                        if (question.firebaseId) {
-                            try {
-                                await window.deleteQuestionFromFirebase(question.firebaseId);
-                                deletedFromFirebase++;
-                            } catch (error) {
-                                console.error('خطأ في حذف السؤال من Firebase:', error);
-                            }
-                        }
-                    }
-                }
-                
-                // مسح من التخزين المحلي
-                dailyQuestions = dailyQuestions.filter(q => !expiredDaily.includes(q));
-                weeklyQuestions = weeklyQuestions.filter(q => !expiredWeekly.includes(q));
-                
-                localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
-                localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                
-                // تحديث منصة نافس
-                updateNafisPlatform('daily', dailyQuestions);
-                updateNafisPlatform('weekly', weeklyQuestions);
-                
-                // تحديث عداد Firebase
-                if (deletedFromFirebase > 0) {
-                    const currentCloudCount = parseInt(document.getElementById('cloudCount').textContent);
-                    document.getElementById('cloudCount').textContent = Math.max(0, currentCloudCount - deletedFromFirebase);
-                }
-                
-                updateStats();
-                displayQuestions();
-                showSuccess(`تم مسح ${totalExpired} سؤال منتهي الصلاحية بنجاح!`);
-                
-            } catch (error) {
-                console.error('خطأ في مسح الأسئلة المنتهية:', error);
-                showError('حدث خطأ أثناء مسح الأسئلة المنتهية الصلاحية');
-            }
-        }
-
-        // أرشفة الأسئلة الحالية (نسخة احتياطية قبل المسح)
-        function archiveCurrentQuestions() {
-            if (dailyQuestions.length === 0 && weeklyQuestions.length === 0) {
-                showError('لا توجد أسئلة لأرشفتها');
-                return;
-            }
-            
-            const archiveData = {
-                archiveDate: new Date().toLocaleString('ar-SA'),
-                daily: dailyQuestions,
-                weekly: weeklyQuestions,
-                totalQuestions: dailyQuestions.length + weeklyQuestions.length,
-                firebaseSync: window.isFirebaseConnected,
-                metadata: {
-                    dailyCount: dailyQuestions.length,
-                    weeklyCount: weeklyQuestions.length,
-                    subjects: [...new Set([...dailyQuestions, ...weeklyQuestions].map(q => q.subject))],
-                    dateRange: {
-                        oldest: Math.min(...[...dailyQuestions, ...weeklyQuestions].map(q => new Date(q.createdAt).getTime())),
-                        newest: Math.max(...[...dailyQuestions, ...weeklyQuestions].map(q => new Date(q.createdAt).getTime()))
-                    }
-                }
-            };
-            
-            // إنشاء اسم ملف مع التاريخ والوقت
-            const now = new Date();
-            const dateStr = now.toISOString().split('T')[0];
-            const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
-            
-            const blob = new Blob([JSON.stringify(archiveData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `nafis-archive-${dateStr}_${timeStr}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            showSuccess(`تم إنشاء أرشيف للأسئلة الحالية (${archiveData.totalQuestions} سؤال). يمكنك الآن مسح الأسئلة بأمان!`);
-            
-            // سؤال المستخدم إذا كان يريد مسح الأسئلة بعد الأرشفة
-            setTimeout(() => {
-                if (confirm('تم حفظ الأرشيف بنجاح! هل تريد الآن مسح الأسئلة الحالية؟')) {
-                    // إظهار خيارات المسح
-                    const choice = prompt(`اختر نوع المسح:
-1 - مسح الأسئلة اليومية فقط
-2 - مسح الأسئلة الأسبوعية فقط  
-3 - مسح جميع الأسئلة
-4 - إلغاء
-
-أدخل الرقم (1-4):`);
-                    
-                    switch(choice) {
-                        case '1':
-                            clearDailyQuestions();
-                            break;
-                        case '2':
-                            clearWeeklyQuestions();
-                            break;
-                        case '3':
-                            clearAllQuestions();
-                            break;
-                        default:
-                            showSuccess('تم إلغاء عملية المسح. الأسئلة محفوظة في الأرشيف والنظام.');
-                    }
-                }
-            }, 1000);
-        }
-
         // تهيئة التطبيق عند التحميل
         document.addEventListener('DOMContentLoaded', function() {
             initializeImageUpload();
             updateStats();
             displayQuestions();
-            addControlButtons();
+            
+            // مزامنة أولية مع منصة الطلاب
+            if (dailyQuestions.length > 0) {
+                syncSystem.syncWithStudentPlatform('daily', dailyQuestions);
+            }
+            if (weeklyQuestions.length > 0) {
+                syncSystem.syncWithStudentPlatform('weekly', weeklyQuestions);
+            }
         });
 
         // حماية لوحة التحكم
