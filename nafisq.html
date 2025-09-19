@@ -81,6 +81,11 @@
             color: #3498db;
         }
 
+        .sync-indicator.updated {
+            background: rgba(39, 174, 96, 0.2);
+            color: #2ecc71;
+        }
+
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -339,6 +344,19 @@
             border-radius: 15px;
         }
 
+        .debug-info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            max-width: 300px;
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -469,12 +487,12 @@
             <div class="test-sections">
                 <div class="test-card" onclick="confirmAndStartTest('daily')">
                     <h3>سؤال اليوم</h3>
-                    <p>7 أسئلة متنوعة في المواد الثلاث</p>
+                    <p id="dailyQuestionCount">0 أسئلة متنوعة في المواد الثلاث</p>
                     <p><strong>الرياضيات - القراءة - العلوم</strong></p>
                 </div>
                 <div class="test-card weekly" onclick="confirmAndStartTest('weekly')">
                     <h3>أسئلة الأسبوع</h3>
-                    <p>40 سؤال شامل لجميع المواد</p>
+                    <p id="weeklyQuestionCount">0 سؤال شامل لجميع المواد</p>
                     <p><strong>اختبار تنافسي أسبوعي</strong></p>
                 </div>
             </div>
@@ -524,10 +542,371 @@
         <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
     </div>
 
-    <!-- Firebase Scripts -->
+    <!-- معلومات التشخيص -->
+    <div class="debug-info" id="debugInfo">
+        <div>عدد الأسئلة اليومية: <span id="debugDaily">0</span></div>
+        <div>عدد الأسئلة الأسبوعية: <span id="debugWeekly">0</span></div>
+        <div>آخر تحديث: <span id="debugLastUpdate">لا يوجد</span></div>
+        <div>مصدر البيانات: <span id="debugSource">محلي</span></div>
+    </div>
+
+    <!-- نظام التزامن الشامل -->
     <script type="module">
+        // نظام التزامن المتقدم والشامل
+        class SuperSync {
+            constructor() {
+                this.isActive = false;
+                this.lastKnownUpdate = '0';
+                this.syncAttempts = 0;
+                this.maxSyncAttempts = 50;
+                this.syncInterval = null;
+                this.storageListeners = [];
+                this.messageListeners = [];
+                this.broadcastChannel = null;
+                this.debug = true; // تفعيل وضع التشخيص
+                
+                this.init();
+            }
+            
+            init() {
+                console.log('🚀 بدء نظام التزامن الشامل...');
+                this.setupStorageMonitoring();
+                this.setupMessageMonitoring();
+                this.setupBroadcastChannel();
+                this.setupPeriodicSync();
+                this.loadInitialData();
+                this.updateDebugInfo();
+            }
+            
+            // مراقبة localStorage بجميع الطرق الممكنة
+            setupStorageMonitoring() {
+                // 1. Storage Event العادي
+                window.addEventListener('storage', (e) => {
+                    if (e.key && this.isRelevantKey(e.key)) {
+                        console.log('📡 Storage Event:', e.key);
+                        this.handleDataUpdate('storage_event');
+                    }
+                });
+                
+                // 2. مراقبة مباشرة للمفاتيح الأساسية
+                const keysToWatch = [
+                    'nafisMainDailyQuestions',
+                    'nafisMainWeeklyQuestions', 
+                    'nafisLastUpdate',
+                    'nafisUpdateType',
+                    'nafisForceRefresh',
+                    'nafisStudentRefresh',
+                    'nafisConfirmSync'
+                ];
+                
+                keysToWatch.forEach(key => {
+                    let lastValue = localStorage.getItem(key);
+                    setInterval(() => {
+                        const currentValue = localStorage.getItem(key);
+                        if (currentValue !== lastValue) {
+                            console.log(`🔄 تغيير في ${key}:`, currentValue);
+                            lastValue = currentValue;
+                            this.handleDataUpdate('direct_monitoring');
+                        }
+                    }, 500);
+                });
+                
+                // 3. مراقبة عامة للتغييرات
+                setInterval(() => {
+                    const currentUpdate = localStorage.getItem('nafisLastUpdate') || '0';
+                    if (currentUpdate !== this.lastKnownUpdate) {
+                        console.log('⚡ تحديث جديد اكتُشف:', currentUpdate);
+                        this.lastKnownUpdate = currentUpdate;
+                        this.handleDataUpdate('periodic_check');
+                    }
+                }, 1000);
+            }
+            
+            // مراقبة رسائل النوافذ
+            setupMessageMonitoring() {
+                const messageTypes = [
+                    'NAFIS_FORCE_REFRESH',
+                    'QUESTIONS_UPDATED', 
+                    'STUDENT_REFRESH_REQUIRED',
+                    'QUESTIONS_SYNC_UPDATE'
+                ];
+                
+                window.addEventListener('message', (e) => {
+                    if (e.data && messageTypes.includes(e.data.type)) {
+                        console.log('💬 رسالة تحديث:', e.data);
+                        this.handleDataUpdate('window_message');
+                    }
+                });
+            }
+            
+            // قناة البث المباشر
+            setupBroadcastChannel() {
+                if (typeof BroadcastChannel !== 'undefined') {
+                    this.broadcastChannel = new BroadcastChannel('nafis-teacher-updates');
+                    this.broadcastChannel.addEventListener('message', (e) => {
+                        if (e.data.type === 'QUESTIONS_UPDATED') {
+                            console.log('📺 BroadcastChannel update:', e.data);
+                            this.handleDataUpdate('broadcast_channel');
+                        }
+                    });
+                }
+            }
+            
+            // تزامن دوري قوي
+            setupPeriodicSync() {
+                // فحص كل ثانيتين
+                this.syncInterval = setInterval(() => {
+                    this.performSyncCheck();
+                }, 2000);
+                
+                // فحص أقوى كل 5 ثوانٍ
+                setInterval(() => {
+                    this.forceSyncCheck();
+                }, 5000);
+            }
+            
+            // تحميل البيانات الأولية
+            loadInitialData() {
+                console.log('🔧 تحميل البيانات الأولية...');
+                this.reloadQuestions();
+                this.updateUI();
+            }
+            
+            // تحديد المفاتيح ذات الصلة
+            isRelevantKey(key) {
+                const relevantKeys = [
+                    'nafisMain',
+                    'nafisLast',
+                    'nafisUpdate',
+                    'nafisForce',
+                    'nafisStudent',
+                    'nafisConfirm',
+                    'nafisQuest'
+                ];
+                return relevantKeys.some(k => key.includes(k));
+            }
+            
+            // معالجة تحديث البيانات
+            handleDataUpdate(source) {
+                console.log(`🔄 تحديث من ${source}`);
+                this.reloadQuestions();
+                this.updateUI();
+                this.showUpdateNotification(source);
+                this.updateDebugInfo();
+            }
+            
+            // إعادة تحميل الأسئلة
+            reloadQuestions() {
+                try {
+                    // البيانات الأساسية
+                    const dailyData = localStorage.getItem('nafisMainDailyQuestions');
+                    const weeklyData = localStorage.getItem('nafisMainWeeklyQuestions');
+                    
+                    if (dailyData) {
+                        window.dailyQuestions = JSON.parse(dailyData);
+                        console.log('✅ تم تحديث الأسئلة اليومية:', window.dailyQuestions.length);
+                    }
+                    
+                    if (weeklyData) {
+                        window.weeklyQuestions = JSON.parse(weeklyData);
+                        console.log('✅ تم تحديث الأسئلة الأسبوعية:', window.weeklyQuestions.length);
+                    }
+                    
+                    // البيانات الاحتياطية
+                    if (!window.dailyQuestions || window.dailyQuestions.length === 0) {
+                        const adminDaily = localStorage.getItem('adminDailyQuestions');
+                        if (adminDaily) {
+                            window.dailyQuestions = JSON.parse(adminDaily);
+                            console.log('🔄 استخدام البيانات الاحتياطية للأسئلة اليومية');
+                        }
+                    }
+                    
+                    if (!window.weeklyQuestions || window.weeklyQuestions.length === 0) {
+                        const adminWeekly = localStorage.getItem('adminWeeklyQuestions');
+                        if (adminWeekly) {
+                            window.weeklyQuestions = JSON.parse(adminWeekly);
+                            console.log('🔄 استخدام البيانات الاحتياطية للأسئلة الأسبوعية');
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ خطأ في إعادة تحميل الأسئلة:', error);
+                }
+            }
+            
+            // تحديث واجهة المستخدم
+            updateUI() {
+                try {
+                    // تحديث عدد الأسئلة في كروت الاختبار
+                    const dailyCount = window.dailyQuestions ? window.dailyQuestions.length : 0;
+                    const weeklyCount = window.weeklyQuestions ? window.weeklyQuestions.length : 0;
+                    
+                    const dailyElement = document.getElementById('dailyQuestionCount');
+                    const weeklyElement = document.getElementById('weeklyQuestionCount');
+                    
+                    if (dailyElement) {
+                        dailyElement.textContent = `${dailyCount} أسئلة متنوعة في المواد الثلاث`;
+                    }
+                    
+                    if (weeklyElement) {
+                        weeklyElement.textContent = `${weeklyCount} سؤال شامل لجميع المواد`;
+                    }
+                    
+                    // تحديث مؤشر التزامن
+                    this.updateSyncIndicator(true);
+                    
+                    console.log(`تم تحديث الواجهة - يومي: ${dailyCount}, أسبوعي: ${weeklyCount}`);
+                    
+                } catch (error) {
+                    console.error('خطأ في تحديث الواجهة:', error);
+                }
+            }
+            
+            // فحص التزامن الدوري
+            performSyncCheck() {
+                this.syncAttempts++;
+                
+                // فحص التحديثات المختلفة
+                const updateIndicators = [
+                    localStorage.getItem('nafisLastUpdate'),
+                    localStorage.getItem('nafisStudentRefresh'),
+                    localStorage.getItem('nafisForceRefresh'),
+                    localStorage.getItem('nafisConfirmSync')
+                ];
+                
+                const hasUpdate = updateIndicators.some(indicator => 
+                    indicator && indicator !== this.lastKnownUpdate
+                );
+                
+                if (hasUpdate) {
+                    console.log('تم اكتشاف تحديث في الفحص الدوري');
+                    this.handleDataUpdate('periodic_sync');
+                }
+            }
+            
+            // فحص تزامن قوي
+            forceSyncCheck() {
+                // قراءة مباشرة للبيانات والمقارنة
+                const currentDaily = localStorage.getItem('nafisMainDailyQuestions');
+                const currentWeekly = localStorage.getItem('nafisMainWeeklyQuestions');
+                
+                let needsUpdate = false;
+                
+                if (currentDaily) {
+                    try {
+                        const newDaily = JSON.parse(currentDaily);
+                        if (!window.dailyQuestions || 
+                            JSON.stringify(newDaily) !== JSON.stringify(window.dailyQuestions)) {
+                            needsUpdate = true;
+                        }
+                    } catch (e) {
+                        console.error('خطأ في تحليل البيانات اليومية:', e);
+                    }
+                }
+                
+                if (currentWeekly) {
+                    try {
+                        const newWeekly = JSON.parse(currentWeekly);
+                        if (!window.weeklyQuestions || 
+                            JSON.stringify(newWeekly) !== JSON.stringify(window.weeklyQuestions)) {
+                            needsUpdate = true;
+                        }
+                    } catch (e) {
+                        console.error('خطأ في تحليل البيانات الأسبوعية:', e);
+                    }
+                }
+                
+                if (needsUpdate) {
+                    console.log('فحص قوي: تم اكتشاف تحديث في البيانات');
+                    this.handleDataUpdate('force_sync_check');
+                }
+            }
+            
+            // تحديث مؤشر التزامن
+            updateSyncIndicator(isActive) {
+                const syncElement = document.getElementById('syncStatus');
+                if (!syncElement) return;
+                
+                if (isActive) {
+                    syncElement.className = 'sync-indicator updated';
+                    syncElement.innerHTML = '<div class="connection-dot"></div><span>محدث</span>';
+                } else {
+                    syncElement.className = 'sync-indicator active';
+                    syncElement.innerHTML = '<div class="connection-dot"></div><span>نشط</span>';
+                }
+            }
+            
+            // إشعار التحديث
+            showUpdateNotification(source) {
+                // إزالة الإشعارات السابقة
+                const existingNotifications = document.querySelectorAll('.notification');
+                existingNotifications.forEach(n => n.remove());
+                
+                const notification = document.createElement('div');
+                notification.className = 'notification';
+                notification.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">🔄</span>
+                        <div>
+                            <strong>تم التحديث!</strong><br>
+                            <small>الأسئلة محدثة (${source})</small>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 300);
+                }, 3000);
+            }
+            
+            // معلومات التشخيص
+            updateDebugInfo() {
+                if (!this.debug) return;
+                
+                const debugElement = document.getElementById('debugInfo');
+                if (!debugElement) return;
+                
+                const dailyCount = window.dailyQuestions ? window.dailyQuestions.length : 0;
+                const weeklyCount = window.weeklyQuestions ? window.weeklyQuestions.length : 0;
+                const lastUpdate = localStorage.getItem('nafisLastUpdate') || 'لا يوجد';
+                const hasMain = localStorage.getItem('nafisMainDailyQuestions') ? 'رئيسي' : 'احتياطي';
+                
+                document.getElementById('debugDaily').textContent = dailyCount;
+                document.getElementById('debugWeekly').textContent = weeklyCount;
+                document.getElementById('debugLastUpdate').textContent = new Date(parseInt(lastUpdate)).toLocaleString('ar-SA');
+                document.getElementById('debugSource').textContent = hasMain;
+                
+                debugElement.style.display = 'block';
+            }
+            
+            // تشغيل التشخيص
+            enableDebug() {
+                this.debug = true;
+                this.updateDebugInfo();
+            }
+            
+            // إيقاف التشخيص
+            disableDebug() {
+                this.debug = false;
+                const debugElement = document.getElementById('debugInfo');
+                if (debugElement) debugElement.style.display = 'none';
+            }
+        }
+
+        // إنشاء نظام التزامن الشامل
+        const superSync = new SuperSync();
+        window.superSync = superSync;
+
+        // إعداد Firebase إضافي
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, addDoc, getDocs, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaobeGSq0ra52WWNHIUgVZyoTg_NME5DY",
@@ -539,30 +918,13 @@
             measurementId: "G-MME7J94SRN"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        
-        window.firebaseApp = app;
-        window.firestoreDb = db;
-
-        // نظام مراقبة Firebase
-        class FirebaseSync {
-            constructor() {
-                this.isListening = false;
-            }
+        try {
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
             
-            startSync() {
-                if (this.isListening) return;
-                
-                this.isListening = true;
-                console.log('بدء مراقبة Firebase...');
-                
-                onSnapshot(collection(db, 'questions'), (snapshot) => {
-                    this.handleUpdate(snapshot);
-                });
-            }
-            
-            handleUpdate(snapshot) {
+            // مراقبة Firebase للتحديثات المباشرة
+            onSnapshot(collection(db, 'questions'), (snapshot) => {
+                console.log('تحديث Firebase مباشر');
                 const questions = [];
                 snapshot.forEach((doc) => {
                     questions.push({ id: doc.id, ...doc.data() });
@@ -572,107 +934,26 @@
                 const weekly = questions.filter(q => q.type === 'weekly');
                 
                 if (daily.length > 0) {
-                    window.dailyQuestions = daily;
                     localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(daily));
                 }
                 
                 if (weekly.length > 0) {
-                    window.weeklyQuestions = weekly;
                     localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weekly));
                 }
                 
-                this.showNotification();
-            }
+                superSync.handleDataUpdate('firebase_realtime');
+            });
             
-            showNotification() {
-                const notification = document.createElement('div');
-                notification.className = 'notification';
-                notification.textContent = 'تم تحديث الأسئلة!';
-                document.body.appendChild(notification);
-                
-                setTimeout(() => {
-                    notification.style.animation = 'slideOut 0.3s ease';
-                    setTimeout(() => notification.remove(), 300);
-                }, 3000);
-            }
+            window.updateConnectionStatus(true);
+            
+        } catch (error) {
+            console.error('خطأ في Firebase:', error);
+            window.updateConnectionStatus(false);
         }
-
-        window.firebaseSync = new FirebaseSync();
-        
-        window.addEventListener('load', () => {
-            updateConnectionStatus(true);
-            setTimeout(() => window.firebaseSync.startSync(), 2000);
-        });
     </script>
 
-    <!-- Main JavaScript -->
+    <!-- الكود الأساسي للتطبيق -->
     <script>
-        // نظام مراقبة التحديثات
-        class UpdateMonitor {
-            constructor() {
-                this.lastUpdate = localStorage.getItem('nafisLastUpdate') || '0';
-                this.isMonitoring = false;
-            }
-            
-            start() {
-                if (this.isMonitoring) return;
-                this.isMonitoring = true;
-                
-                // مراقبة التغييرات المحلية
-                setInterval(() => {
-                    const current = localStorage.getItem('nafisLastUpdate') || '0';
-                    if (current !== this.lastUpdate) {
-                        this.lastUpdate = current;
-                        this.loadQuestions();
-                    }
-                }, 2000);
-                
-                // مراقبة storage events
-                window.addEventListener('storage', (e) => {
-                    if (e.key && e.key.includes('nafisMain')) {
-                        this.loadQuestions();
-                    }
-                });
-                
-                // مراقبة window messages
-                window.addEventListener('message', (e) => {
-                    if (e.data.type === 'NAFIS_FORCE_REFRESH') {
-                        this.loadQuestions();
-                    }
-                });
-            }
-            
-            loadQuestions() {
-                const daily = localStorage.getItem('nafisMainDailyQuestions');
-                const weekly = localStorage.getItem('nafisMainWeeklyQuestions');
-                
-                if (daily) window.dailyQuestions = JSON.parse(daily);
-                if (weekly) window.weeklyQuestions = JSON.parse(weekly);
-                
-                this.showNotification();
-            }
-            
-            showNotification() {
-                const notification = document.createElement('div');
-                notification.className = 'notification';
-                notification.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 20px;">🎉</span>
-                        <div>
-                            <strong>تحديث جديد!</strong><br>
-                            <small>تم تحديث الأسئلة</small>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.appendChild(notification);
-                setTimeout(() => {
-                    notification.style.animation = 'slideOut 0.3s ease';
-                    setTimeout(() => notification.remove(), 300);
-                }, 4000);
-            }
-        }
-
         // البيانات الأساسية
         let currentStudent = {};
         let currentTest = {};
@@ -684,8 +965,8 @@
         let questionTimes = [];
         let studentDatabase = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
 
-        // الأسئلة الافتراضية
-        let dailyQuestions = JSON.parse(localStorage.getItem('nafisMainDailyQuestions') || JSON.stringify([
+        // الأسئلة الافتراضية - سيتم تحديثها من نظام التزامن
+        let dailyQuestions = [
             {
                 subject: 'رياضيات',
                 question: 'ما ناتج 15 + 28؟',
@@ -700,12 +981,9 @@
                 correct: 1,
                 explanation: 'مسرور هو مرادف سعيد'
             }
-        ]));
+        ];
 
-        let weeklyQuestions = JSON.parse(localStorage.getItem('nafisMainWeeklyQuestions') || JSON.stringify(dailyQuestions));
-
-        // تفعيل نظام المراقبة
-        const updateMonitor = new UpdateMonitor();
+        let weeklyQuestions = [...dailyQuestions];
 
         // الدوال الأساسية
         function updateConnectionStatus(isOnline) {
@@ -849,6 +1127,25 @@
 
             document.getElementById('loginForm').style.display = 'none';
             document.getElementById('testSelection').style.display = 'block';
+            
+            // تحديث عداد الأسئلة عند عرض صفحة الاختيار
+            updateQuestionCounts();
+        }
+
+        function updateQuestionCounts() {
+            const dailyCount = dailyQuestions ? dailyQuestions.length : 0;
+            const weeklyCount = weeklyQuestions ? weeklyQuestions.length : 0;
+            
+            const dailyElement = document.getElementById('dailyQuestionCount');
+            const weeklyElement = document.getElementById('weeklyQuestionCount');
+            
+            if (dailyElement) {
+                dailyElement.textContent = `${dailyCount} أسئلة متنوعة في المواد الثلاث`;
+            }
+            
+            if (weeklyElement) {
+                weeklyElement.textContent = `${weeklyCount} سؤال شامل لجميع المواد`;
+            }
         }
 
         function confirmAndStartTest(type) {
@@ -886,7 +1183,7 @@
             };
 
             if (!currentTest.questions || currentTest.questions.length === 0) {
-                alert('لا توجد أسئلة متاحة حالياً.');
+                alert('لا توجد أسئلة متاحة حالياً. يرجى المحاولة لاحقاً.');
                 return;
             }
 
@@ -1126,8 +1423,14 @@
         
         // تهيئة التطبيق
         document.addEventListener('DOMContentLoaded', function() {
-            updateMonitor.start();
             console.log('تم تحميل منصة ناقس بنجاح');
+            updateQuestionCounts();
+            
+            // تحميل البيانات الأولية من نظام التزامن
+            if (window.superSync) {
+                window.superSync.reloadQuestions();
+                window.superSync.updateUI();
+            }
         });
 
         // مراقبة الاتصال
@@ -1136,6 +1439,11 @@
         
         // بدء التطبيق
         updateConnectionStatus(navigator.onLine);
+
+        // إضافة دوال للتحكم في التشخيص (للمطورين)
+        window.enableDebug = () => window.superSync && window.superSync.enableDebug();
+        window.disableDebug = () => window.superSync && window.superSync.disableDebug();
+        window.forceSync = () => window.superSync && window.superSync.handleDataUpdate('manual_force');
     </script>
 </body>
 </html>
