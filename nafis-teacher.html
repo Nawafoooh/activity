@@ -744,33 +744,8 @@
                             return;
                         }
                         
-                        // استيراد كل سؤال إلى Firebase
-                        questionsToImport.forEach(async (q) => {
-                            try {
-                                const questionData = {
-                                    subject: q.subject || 'عام',
-                                    question: q.question || '',
-                                    options: q.options || [],
-                                    correct: q.correct !== undefined ? q.correct : 0,
-                                    explanation: q.explanation || '',
-                                    type: q.type || 'weekly',
-                                    createdAt: new Date().toISOString(),
-                                    lastModified: new Date().toISOString()
-                                };
-                                
-                                // إضافة إلى Firebase إذا كان متاحاً
-                                if (window.questionsRef) {
-                                    await addDoc(window.questionsRef, questionData);
-                                    imported++;
-                                }
-                            } catch (error) {
-                                console.error('خطأ في استيراد سؤال:', error);
-                            }
-                        });
-                        
-                        setTimeout(() => {
-                            showMessage('تم استيراد ' + questionsToImport.length + ' سؤال إلى Firebase', 'success');
-                        }, 1000);
+                        // استيراد كل سؤال إلى Firebase بشكل متتالي
+                        importQuestionsToFirebase(questionsToImport);
                         
                     } catch (error) {
                         showMessage('خطأ في قراءة الملف: ' + error.message, 'error');
@@ -809,10 +784,69 @@
             }
         });
 
-        // جعل الوظائف متاحة عالمياً
-        window.clearForm = clearForm;
-        window.exportData = exportData;
-        window.importData = importData;
+        // دالة استيراد الأسئلة إلى Firebase
+        async function importQuestionsToFirebase(questionsArray) {
+            if (!window.questionsRef || !window.isFirebaseReady) {
+                showMessage('قاعدة البيانات غير متاحة', 'error');
+                return;
+            }
+
+            showMessage('جاري رفع الأسئلة إلى Firebase...', 'success');
+            let successCount = 0;
+            let failCount = 0;
+
+            try {
+                // استيراد الأسئلة واحد تلو الآخر
+                for (let i = 0; i < questionsArray.length; i++) {
+                    const q = questionsArray[i];
+                    
+                    try {
+                        const questionData = {
+                            subject: q.subject || 'عام',
+                            question: q.question || '',
+                            options: Array.isArray(q.options) ? q.options : [],
+                            correct: q.correct !== undefined ? parseInt(q.correct) : 0,
+                            explanation: q.explanation || 'لا يوجد تفسير',
+                            type: q.type || 'weekly',
+                            createdAt: new Date().toISOString(),
+                            lastModified: new Date().toISOString()
+                        };
+
+                        // التحقق من صحة البيانات
+                        if (questionData.question.length > 0 && questionData.options.length >= 4) {
+                            const { addDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                            await addDoc(window.questionsRef, questionData);
+                            successCount++;
+                            console.log('تم رفع السؤال:', i + 1);
+                        } else {
+                            failCount++;
+                            console.log('تم تجاهل سؤال غير صالح:', i + 1);
+                        }
+                        
+                        // تأخير بسيط لتجنب حد المعدل
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
+                    } catch (error) {
+                        failCount++;
+                        console.error('خطأ في رفع السؤال', i + 1, ':', error);
+                    }
+                }
+
+                // عرض النتيجة النهائية
+                if (successCount > 0) {
+                    showMessage(`تم رفع ${successCount} سؤال بنجاح إلى Firebase${failCount > 0 ? ` (فشل ${failCount})` : ''}`, 'success');
+                } else {
+                    showMessage('فشل في رفع الأسئلة. تحقق من صحة البيانات.', 'error');
+                }
+
+            } catch (error) {
+                console.error('خطأ عام في الاستيراد:', error);
+                showMessage('حدث خطأ أثناء رفع الأسئلة: ' + error.message, 'error');
+            }
+        }
+
+        // جعل الدالة متاحة عالمياً
+        window.importQuestionsToFirebase = importQuestionsToFirebase;
     </script>
 </body>
 </html>
