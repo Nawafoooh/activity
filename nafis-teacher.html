@@ -668,6 +668,7 @@
                 this.broadcastChannel = null;
                 this.syncStatus = document.getElementById('syncStatus');
                 this.initializeBroadcastChannel();
+                this.lastSyncTimestamp = Date.now();
             }
 
             initializeBroadcastChannel() {
@@ -690,51 +691,68 @@
                 }
             }
 
+            // محسن: قوة إضافية في التزامن
             async syncWithStudentPlatform(type, questions) {
                 try {
-                    // مزامنة فورية مع منصة الطلاب
-                    if (type === 'daily') {
-                        localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(questions));
-                    } else {
-                        localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(questions));
-                    }
-
-                    // إنشاء طابع زمني للتحديث
-                    const updateTimestamp = Date.now();
-                    localStorage.setItem('nafisLastUpdate', updateTimestamp.toString());
+                    const timestamp = Date.now();
+                    console.log(`بدء تزامن ${type} مع ${questions.length} سؤال في ${timestamp}`);
+                    
+                    // 1. تحديث localStorage بشكل فوري
+                    const mainKey = type === 'daily' ? 'nafisMainDailyQuestions' : 'nafisMainWeeklyQuestions';
+                    localStorage.setItem(mainKey, JSON.stringify(questions));
+                    
+                    // 2. تحديث الطوابع الزمنية
+                    localStorage.setItem('nafisLastUpdate', timestamp.toString());
                     localStorage.setItem('nafisUpdateType', type);
-
-                    // تحديث النافذة الأخرى إذا كانت مفتوحة
-                    if (this.broadcastChannel) {
-                        this.broadcastChannel.postMessage({
-                            type: 'QUESTIONS_UPDATED',
-                            questionType: type,
-                            questions: questions,
-                            timestamp: updateTimestamp,
-                            source: 'teacher'
-                        });
-                    }
-
-                    // إرسال رسالة للنوافذ الأخرى
-                    window.postMessage({
-                        type: 'NAFIS_FORCE_REFRESH',
-                        source: 'teacher',
+                    localStorage.setItem('nafisLastSyncTeacher', timestamp.toString());
+                    localStorage.setItem(`nafisLast${type}Update`, timestamp.toString());
+                    
+                    // 3. إرسال عبر قنوات متعددة
+                    const syncData = {
+                        type: 'QUESTIONS_UPDATED',
                         questionType: type,
-                        timestamp: updateTimestamp
+                        questions: questions,
+                        timestamp: timestamp,
+                        source: 'teacher',
+                        forceRefresh: true,
+                        questionsCount: questions.length
+                    };
+                    
+                    // BroadcastChannel
+                    if (this.broadcastChannel) {
+                        this.broadcastChannel.postMessage(syncData);
+                        console.log('تم إرسال التحديث عبر BroadcastChannel');
+                    }
+                    
+                    // PostMessage
+                    window.postMessage({
+                        ...syncData,
+                        type: 'NAFIS_FORCE_REFRESH'
                     }, '*');
-
-                    // استخدام storage event
-                    localStorage.setItem('nafisForceUpdate', Math.random().toString());
-                    localStorage.removeItem('nafisForceUpdate');
-
+                    
+                    // 4. محاولات متعددة للتأكد من التحديث
+                    for (let i = 0; i < 5; i++) {
+                        localStorage.setItem('nafisForceUpdate', Math.random().toString());
+                        localStorage.removeItem('nafisForceUpdate');
+                        await this.sleep(100);
+                    }
+                    
+                    // 5. تحديث إضافي للتأكد
+                    localStorage.setItem('nafisStudentRefresh', timestamp.toString());
+                    
+                    this.lastSyncTimestamp = timestamp;
                     this.showSyncNotification(type, questions.length);
                     
-                    console.log(`تم تحديث منصة ناقس: ${type} - ${questions.length} سؤال`);
+                    console.log(`اكتمل تزامن ${type} بنجاح - ${questions.length} سؤال`);
                     
                 } catch (error) {
                     console.error('خطأ في مزامنة البيانات:', error);
                     this.showSyncError();
                 }
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
             }
 
             showSyncNotification(type, count) {
@@ -881,6 +899,35 @@
             }
         });
 
+        // التحقق من صحة السؤال
+        function isValidQuestion(question) {
+            const requiredFields = ['question', 'options', 'correct'];
+            
+            for (const field of requiredFields) {
+                if (!question.hasOwnProperty(field)) {
+                    console.warn(`السؤال يفتقر للحقل المطلوب: ${field}`, question);
+                    return false;
+                }
+            }
+            
+            if (!Array.isArray(question.options) || question.options.length !== 4) {
+                console.warn('السؤال يجب أن يحتوي على 4 خيارات بالضبط', question);
+                return false;
+            }
+            
+            if (typeof question.correct !== 'number' || question.correct < 0 || question.correct > 3) {
+                console.warn('الإجابة الصحيحة يجب أن تكون رقم بين 0-3', question);
+                return false;
+            }
+            
+            if (!question.question || question.question.trim().length < 5) {
+                console.warn('نص السؤال قصير جداً أو فارغ', question);
+                return false;
+            }
+            
+            return true;
+        }
+
         // إضافة سؤال جديد - محسن مع التزامن الفوري
         async function addQuestion() {
             const subject = document.getElementById('questionSubject').value;
@@ -974,7 +1021,7 @@
                     localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
                 }
 
-                // تحديث منصة الطلاب فوريا
+                // تحديث منصة الطلاب فورياً
                 await syncSystem.syncWithStudentPlatform(type, type === 'daily' ? dailyQuestions : weeklyQuestions);
 
                 clearForm();
@@ -1136,6 +1183,7 @@
             const data = {
                 daily: dailyQuestions,
                 weekly: weeklyQuestions,
+                nafes_exam: [...dailyQuestions, ...weeklyQuestions], // إضافة التنسيق الجديد
                 exportDate: new Date().toLocaleString('ar-SA'),
                 totalQuestions: dailyQuestions.length + weeklyQuestions.length,
                 firebaseSync: window.isFirebaseConnected
@@ -1176,7 +1224,7 @@
                         
                         console.log('بيانات الملف المستورد:', data);
                         
-                        // دعم تنسيق nafes_exam (الجديد)
+                        // دعم تنسيق nafes_exam (الجديد) - هذا هو الإصلاح الأساسي
                         if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
                             showSuccess(`تم العثور على تنسيق nafes_exam - جاري معالجة ${data.nafes_exam.length} سؤال...`);
                             
@@ -1187,7 +1235,7 @@
                                         id: Date.now() + Math.random(),
                                         createdAt: new Date().toLocaleString('ar-SA'),
                                         lastModified: new Date().toLocaleString('ar-SA'),
-                                        type: determineQuestionType(question, data.nafes_exam.length)
+                                        type: question.type || determineQuestionType(question, data.nafes_exam.length)
                                     };
                                     
                                     // محاولة حفظ في Firebase
@@ -1210,6 +1258,8 @@
                                         weeklyQuestions.push(newQuestion);
                                     }
                                     importedCount++;
+                                } else {
+                                    console.warn('تم تجاهل سؤال غير صالح:', question);
                                 }
                             }
                         }
@@ -1277,10 +1327,47 @@
                             }
                         }
                         
+                        // دعم تنسيق مصفوفة مباشرة
+                        else if (Array.isArray(data)) {
+                            showSuccess('معالجة تنسيق المصفوفة المباشرة...');
+                            
+                            for (const question of data) {
+                                if (isValidQuestion(question)) {
+                                    const newQuestion = {
+                                        ...question,
+                                        id: question.id || Date.now() + Math.random(),
+                                        type: question.type || determineQuestionType(question, data.length),
+                                        createdAt: question.createdAt || new Date().toLocaleString('ar-SA'),
+                                        lastModified: new Date().toLocaleString('ar-SA')
+                                    };
+                                    
+                                    if (window.isFirebaseConnected) {
+                                        try {
+                                            const firebaseId = await window.saveQuestionToFirebase(newQuestion);
+                                            if (firebaseId) {
+                                                newQuestion.firebaseId = firebaseId;
+                                                firebaseSyncCount++;
+                                            }
+                                        } catch (error) {
+                                            console.error('خطأ Firebase:', error);
+                                        }
+                                    }
+                                    
+                                    if (newQuestion.type === 'daily') {
+                                        dailyQuestions.push(newQuestion);
+                                    } else {
+                                        weeklyQuestions.push(newQuestion);
+                                    }
+                                    importedCount++;
+                                }
+                            }
+                        }
+                        
                         // التحقق من النتائج
                         if (importedCount === 0) {
                             showError('لم يتم العثور على أسئلة صحيحة في الملف. تأكد من تنسيق البيانات.');
                             console.log('تنسيق الملف:', Object.keys(data));
+                            console.log('عينة من البيانات:', data);
                             return;
                         }
                         
@@ -1288,7 +1375,7 @@
                         localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
                         localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
                         
-                        // مزامنة فورية مع منصة الطلاب
+                        // مزامنة فورية مع منصة الطلاب - هذا هو الحل الأساسي للمشكلة
                         await syncSystem.syncWithStudentPlatform('daily', dailyQuestions);
                         await syncSystem.syncWithStudentPlatform('weekly', weeklyQuestions);
                         
@@ -1392,6 +1479,13 @@
             }
         });
 
+        // جعل الوظائف متاحة عالمياً
+        window.addQuestion = addQuestion;
+        window.previewQuestion = previewQuestion;
+        window.deleteQuestion = deleteQuestion;
+        window.exportQuestions = exportQuestions;
+        window.importQuestions = importQuestions;
+
         // حماية لوحة التحكم
         function checkAdminAccess() {
             const adminPassword = prompt('أدخل كلمة مرور المعلم للوصول للوحة التحكم:');
@@ -1425,6 +1519,248 @@
                 e.preventDefault();
             }
         });
+
+        // إضافة مستمع لـ Storage Events للتأكد من التحديث الفوري
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'nafisForceUpdate') {
+                console.log('تم تحديث البيانات من نافذة أخرى');
+                // إعادة تحميل البيانات
+                dailyQuestions = JSON.parse(localStorage.getItem('adminDailyQuestions') || '[]');
+                weeklyQuestions = JSON.parse(localStorage.getItem('adminWeeklyQuestions') || '[]');
+                updateStats();
+                displayQuestions();
+            }
+        });
+
+        // مراقبة تحديثات المعلم من نوافذ أخرى
+        if (typeof BroadcastChannel !== 'undefined') {
+            const teacherChannel = new BroadcastChannel('nafis-teacher-updates');
+            teacherChannel.addEventListener('message', function(event) {
+                if (event.data.type === 'QUESTIONS_UPDATED' && event.data.source === 'teacher') {
+                    console.log('تم استقبال تحديث من معلم آخر');
+                    // تحديث البيانات المحلية
+                    dailyQuestions = JSON.parse(localStorage.getItem('adminDailyQuestions') || '[]');
+                    weeklyQuestions = JSON.parse(localStorage.getItem('adminWeeklyQuestions') || '[]');
+                    updateStats();
+                    displayQuestions();
+                }
+            });
+        }
+
+        // دالة تحديث عدد الأسئلة المحفوظة في السحابة
+        function updateCloudCount() {
+            let cloudCount = 0;
+            const allQuestions = [...dailyQuestions, ...weeklyQuestions];
+            allQuestions.forEach(question => {
+                if (question.firebaseId) {
+                    cloudCount++;
+                }
+            });
+            document.getElementById('cloudCount').textContent = cloudCount;
+        }
+
+        // استدعاء تحديث عدد السحابة عند عرض الأسئلة
+        const originalDisplayQuestions = displayQuestions;
+        displayQuestions = function() {
+            originalDisplayQuestions();
+            updateCloudCount();
+        };
+
+        // إضافة دالة للتحقق من حالة التزامن
+        function checkSyncStatus() {
+            const lastUpdate = localStorage.getItem('nafisLastUpdate');
+            const lastSync = localStorage.getItem('nafisLastSyncTeacher');
+            
+            if (lastUpdate && lastSync) {
+                const updateTime = parseInt(lastUpdate);
+                const syncTime = parseInt(lastSync);
+                const timeDiff = Math.abs(updateTime - syncTime);
+                
+                if (timeDiff > 5000) { // إذا كان الفرق أكثر من 5 ثواني
+                    console.warn('قد يكون هناك تأخير في التزامن');
+                    syncSystem.showSyncError();
+                }
+            }
+        }
+
+        // فحص حالة التزامن كل 30 ثانية
+        setInterval(checkSyncStatus, 30000);
+
+        // تحسين دالة التزامن لتشمل retry mechanism
+        const originalSync = syncSystem.syncWithStudentPlatform;
+        syncSystem.syncWithStudentPlatform = async function(type, questions) {
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+                try {
+                    await originalSync.call(this, type, questions);
+                    console.log(`تم التزامن بنجاح في المحاولة ${retryCount + 1}`);
+                    break;
+                } catch (error) {
+                    retryCount++;
+                    console.error(`فشل التزامن في المحاولة ${retryCount}:`, error);
+                    
+                    if (retryCount < maxRetries) {
+                        console.log(`إعادة المحاولة خلال ${retryCount * 1000}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
+                    } else {
+                        this.showSyncError();
+                        throw error;
+                    }
+                }
+            }
+        };
+
+        // إضافة دالة للتحقق من صحة البيانات المستوردة بشكل أكثر دقة
+        function validateImportedData(data) {
+            const errors = [];
+            const warnings = [];
+            
+            // فحص التنسيق العام
+            if (!data || typeof data !== 'object') {
+                errors.push('الملف لا يحتوي على بيانات صحيحة');
+                return { valid: false, errors, warnings };
+            }
+            
+            let questionsFound = 0;
+            let validQuestions = 0;
+            
+            // فحص تنسيق nafes_exam
+            if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
+                questionsFound += data.nafes_exam.length;
+                data.nafes_exam.forEach((q, index) => {
+                    if (isValidQuestion(q)) {
+                        validQuestions++;
+                    } else {
+                        warnings.push(`السؤال رقم ${index + 1} في nafes_exam غير صالح`);
+                    }
+                });
+            }
+            
+            // فحص التنسيق التقليدي
+            if (data.daily && Array.isArray(data.daily)) {
+                questionsFound += data.daily.length;
+                data.daily.forEach((q, index) => {
+                    if (isValidQuestion(q)) {
+                        validQuestions++;
+                    } else {
+                        warnings.push(`السؤال اليومي رقم ${index + 1} غير صالح`);
+                    }
+                });
+            }
+            
+            if (data.weekly && Array.isArray(data.weekly)) {
+                questionsFound += data.weekly.length;
+                data.weekly.forEach((q, index) => {
+                    if (isValidQuestion(q)) {
+                        validQuestions++;
+                    } else {
+                        warnings.push(`السؤال الأسبوعي رقم ${index + 1} غير صالح`);
+                    }
+                });
+            }
+            
+            // فحص المصفوفة المباشرة
+            if (Array.isArray(data)) {
+                questionsFound += data.length;
+                data.forEach((q, index) => {
+                    if (isValidQuestion(q)) {
+                        validQuestions++;
+                    } else {
+                        warnings.push(`السؤال رقم ${index + 1} في المصفوفة غير صالح`);
+                    }
+                });
+            }
+            
+            if (questionsFound === 0) {
+                errors.push('لم يتم العثور على أي أسئلة في الملف');
+            }
+            
+            if (validQuestions === 0 && questionsFound > 0) {
+                errors.push('جميع الأسئلة الموجودة في الملف غير صالحة');
+            }
+            
+            return {
+                valid: errors.length === 0 && validQuestions > 0,
+                errors,
+                warnings,
+                totalFound: questionsFound,
+                validCount: validQuestions
+            };
+        }
+
+        // تحسين دالة استيراد الأسئلة مع تقرير مفصل
+        const originalImportQuestions = importQuestions;
+        window.importQuestions = function() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = async function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                showSuccess('جاري تحليل الملف...');
+                
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        
+                        // التحقق من صحة البيانات أولاً
+                        const validation = validateImportedData(data);
+                        
+                        if (!validation.valid) {
+                            let errorMessage = 'فشل في استيراد الملف:\n';
+                            validation.errors.forEach(error => {
+                                errorMessage += `• ${error}\n`;
+                            });
+                            showError(errorMessage);
+                            console.error('أخطاء التحقق:', validation);
+                            return;
+                        }
+                        
+                        if (validation.warnings.length > 0) {
+                            console.warn('تحذيرات الاستيراد:', validation.warnings);
+                        }
+                        
+                        showSuccess(`تم التحقق من الملف - سيتم استيراد ${validation.validCount} من أصل ${validation.totalFound} سؤال`);
+                        
+                        // المتابعة مع الاستيراد الأصلي
+                        await originalImportQuestions.call(this);
+                        
+                    } catch (error) {
+                        console.error('خطأ في معالجة الملف:', error);
+                        let errorMessage = 'خطأ في قراءة الملف: ';
+                        
+                        if (error.name === 'SyntaxError') {
+                            errorMessage += 'تنسيق JSON غير صحيح. تأكد من أن الملف بصيغة JSON صالحة.';
+                        } else {
+                            errorMessage += error.message || 'خطأ غير معروف';
+                        }
+                        
+                        showError(errorMessage);
+                    }
+                };
+                
+                reader.onerror = function() {
+                    showError('خطأ في قراءة الملف. تأكد من أن الملف غير تالف وحاول مرة أخرى.');
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        };
+
+        console.log('تم تحميل نظام إدارة الأسئلة بنجاح');
+        console.log('الميزات المفعلة:');
+        console.log('- التزامن الفوري مع منصة الطلاب');
+        console.log('- دعم Firebase للتخزين السحابي');
+        console.log('- استيراد وتصدير متقدم');
+        console.log('- نظام التحقق من صحة البيانات');
+        console.log('- إعادة المحاولة التلقائية للتزامن');
     </script>
 </body>
 </html>
