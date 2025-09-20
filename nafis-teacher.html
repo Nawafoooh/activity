@@ -955,21 +955,40 @@
         };
 
         function handleFile(file) {
+            if (!file) {
+                showAlert('لم يتم اختيار ملف', 'error');
+                return;
+            }
+
             if (!file.name.endsWith('.json')) {
                 showAlert('يرجى تحديد ملف JSON فقط', 'error');
                 return;
             }
 
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                showAlert('حجم الملف كبير جداً (الحد الأقصى 5 ميجابايت)', 'error');
+                return;
+            }
+
+            showAlert('جاري قراءة الملف...', 'success');
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
+                    console.log('تم تحليل الملف بنجاح:', data);
                     importQuestions(data);
                 } catch (error) {
+                    console.error('خطأ في تحليل JSON:', error);
                     showAlert('خطأ في قراءة الملف. تأكد من صحة تنسيق JSON', 'error');
                 }
             };
-            reader.readAsText(file);
+            
+            reader.onerror = function() {
+                showAlert('فشل في قراءة الملف', 'error');
+            };
+            
+            reader.readAsText(file, 'UTF-8');
         }
 
         async function importQuestions(data) {
@@ -977,17 +996,17 @@
                 let questions = [];
                 
                 // Handle different JSON structures
-                if (data.daily) {
+                if (data.daily && Array.isArray(data.daily)) {
                     questions = [...questions, ...data.daily.map(q => ({...q, type: 'daily'}))];
                 }
-                if (data.weekly) {
+                if (data.weekly && Array.isArray(data.weekly)) {
                     questions = [...questions, ...data.weekly.map(q => ({...q, type: 'weekly'}))];
                 }
-                if (data.nafes_exam) {
+                if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
                     questions = [...questions, ...data.nafes_exam.map(q => ({...q, type: 'weekly'}))];
                 }
                 if (Array.isArray(data)) {
-                    questions = data;
+                    questions = data.map(q => ({...q, type: q.type || 'daily'}));
                 }
 
                 if (questions.length === 0) {
@@ -995,31 +1014,58 @@
                     return;
                 }
 
+                showAlert(`جاري استيراد ${questions.length} سؤال...`, 'success');
+
                 // Save questions to Firebase
                 let importedCount = 0;
+                let failedCount = 0;
+
                 for (const question of questions) {
-                    const questionData = {
-                        subject: question.subject,
-                        question: question.question,
-                        options: question.options,
-                        correct: question.correct,
-                        explanation: question.explanation,
-                        type: question.type || 'daily',
-                        createdAt: new Date(),
-                        active: true
-                    };
-                    
-                    await addDoc(collection(db, 'questions'), questionData);
-                    importedCount++;
+                    try {
+                        // Validate question structure
+                        if (!question.subject || !question.question || !question.options || !Array.isArray(question.options) || question.correct === undefined) {
+                            console.warn('سؤال غير صالح:', question);
+                            failedCount++;
+                            continue;
+                        }
+
+                        const questionData = {
+                            subject: question.subject,
+                            question: question.question,
+                            options: question.options,
+                            correct: parseInt(question.correct),
+                            explanation: question.explanation || 'لا يوجد تفسير',
+                            type: question.type || 'daily',
+                            createdAt: new Date(),
+                            active: true
+                        };
+                        
+                        await addDoc(collection(db, 'questions'), questionData);
+                        importedCount++;
+                        
+                        // Update progress
+                        showAlert(`تم استيراد ${importedCount} من ${questions.length} أسئلة...`, 'success');
+                        
+                    } catch (error) {
+                        console.error('خطأ في حفظ السؤال:', error);
+                        failedCount++;
+                    }
                 }
 
-                showAlert(`تم استيراد ${importedCount} سؤال بنجاح!`, 'success');
+                const message = failedCount > 0 
+                    ? `تم استيراد ${importedCount} سؤال بنجاح! فشل في استيراد ${failedCount} أسئلة.`
+                    : `تم استيراد ${importedCount} سؤال بنجاح!`;
+                
+                showAlert(message, 'success');
                 loadQuestions();
                 updateSyncStatus('success', 'تم التحديث');
                 
+                // Clear file input
+                document.getElementById('fileInput').value = '';
+                
             } catch (error) {
                 console.error('خطأ في استيراد الأسئلة:', error);
-                showAlert('حدث خطأ أثناء استيراد الأسئلة', 'error');
+                showAlert('حدث خطأ أثناء استيراد الأسئلة: ' + error.message, 'error');
                 updateSyncStatus('error', 'خطأ في التحديث');
             }
         }
@@ -1524,15 +1570,96 @@
         }
 
         // Initialize Dashboard
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
+            // Test Firebase connection first
+            try {
+                await getDocs(collection(db, 'questions'));
+                updateSyncStatus('success', 'متصل');
+                console.log('تم الاتصال بـ Firebase بنجاح');
+            } catch (error) {
+                console.error('فشل الاتصال بـ Firebase:', error);
+                updateSyncStatus('error', 'فشل الاتصال');
+                showAlert('تحذير: لا يمكن الاتصال بقاعدة البيانات. بعض الميزات قد لا تعمل.', 'error');
+            }
+            
             loadDashboardStats();
             setupRealTimeUpdates();
-            
-            // Test connection
-            setTimeout(() => {
-                updateSyncStatus('success', 'متصل');
-            }, 1000);
         });
+
+        // Improved alert system
+        function showAlert(message, type) {
+            // Remove any existing alerts
+            const existingAlert = document.getElementById('importAlert');
+            existingAlert.classList.remove('show');
+            
+            setTimeout(() => {
+                existingAlert.className = `alert alert-${type} show`;
+                existingAlert.textContent = message;
+                
+                // Auto hide success messages
+                if (type === 'success') {
+                    setTimeout(() => {
+                        existingAlert.classList.remove('show');
+                    }, 3000);
+                }
+            }, 100);
+        }
+
+        // Add import test button to the import section
+        document.getElementById('importSection').innerHTML += `
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                <button class="upload-btn" onclick="testImport()" style="background: #17a2b8;">
+                    اختبار الاستيراد
+                </button>
+                <button class="upload-btn" onclick="forceLoadQuestions()" style="background: #28a745;">
+                    إعادة تحميل الأسئلة
+                </button>
+                <button class="upload-btn" onclick="checkFirebaseConnection()" style="background: #6f42c1;">
+                    فحص الاتصال
+                </button>
+            </div>
+        `;
+
+        // Firebase connection checker
+        window.checkFirebaseConnection = async function() {
+            try {
+                showAlert('جاري فحص الاتصال...', 'success');
+                
+                // Test read
+                const testRead = await getDocs(collection(db, 'questions'));
+                console.log('اختبار القراءة نجح، عدد الأسئلة:', testRead.size);
+                
+                // Test write
+                const testDoc = {
+                    test: true,
+                    timestamp: new Date(),
+                    message: 'اختبار الاتصال'
+                };
+                
+                const docRef = await addDoc(collection(db, 'test'), testDoc);
+                console.log('اختبار الكتابة نجح، ID:', docRef.id);
+                
+                showAlert('الاتصال بـ Firebase يعمل بشكل طبيعي!', 'success');
+                updateSyncStatus('success', 'اتصال ممتاز');
+                
+            } catch (error) {
+                console.error('فشل اختبار الاتصال:', error);
+                showAlert('فشل في الاتصال بـ Firebase: ' + error.message, 'error');
+                updateSyncStatus('error', 'فشل الاتصال');
+            }
+        };
+
+        // Add manual trigger for testing
+        window.forceLoadQuestions = async function() {
+            try {
+                showAlert('جاري إعادة تحميل الأسئلة...', 'success');
+                await loadQuestions();
+                showAlert('تم تحميل الأسئلة بنجاح', 'success');
+            } catch (error) {
+                console.error('خطأ في إعادة التحميل:', error);
+                showAlert('فشل في إعادة تحميل الأسئلة', 'error');
+            }
+        };
 
         // Close modal when clicking outside
         window.addEventListener('click', (event) => {
