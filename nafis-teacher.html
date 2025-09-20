@@ -984,102 +984,288 @@
     </div>
 
     <script>
-        // بيانات التطبيق مع إصلاح الأخطاء
+        // متغيرات البيانات الأساسية
         let dailyQuestions = [];
         let weeklyQuestions = [];
 
         // نظام التزامن المحسن
-        class ProfessionalSyncSystem {
+        class SyncSystem {
             constructor() {
-                this.broadcastChannel = null;
+                this.channels = [];
                 this.syncStatus = document.getElementById('syncStatus');
-                this.initializeBroadcastChannel();
-                this.startHeartbeat();
+                this.firebaseStatusCard = document.getElementById('firebaseStatusCard');
+                this.isOnline = navigator.onLine;
+                this.lastSyncTime = 0;
+                this.retryCount = 0;
+                this.maxRetries = 3;
+                
+                this.init();
             }
 
-            initializeBroadcastChannel() {
+            init() {
+                this.initializeChannels();
+                this.setupEventListeners();
+                this.startSyncLoop();
+                this.updateStatus('نظام التزامن نشط', 'syncing');
+                console.log('🔄 تم تهيئة نظام التزامن');
+            }
+
+            initializeChannels() {
+                const channelNames = [
+                    'nafis-teacher-updates',
+                    'nafis-student-updates',
+                    'nafis-sync-updates',
+                    'nafis-main-updates'
+                ];
+
                 if (typeof BroadcastChannel !== 'undefined') {
-                    try {
-                        this.broadcastChannel = new BroadcastChannel('nafis-teacher-updates');
-                        this.updateSyncStatus('syncing', 'نظام التزامن نشط');
-                    } catch (error) {
-                        console.error('خطأ في تهيئة BroadcastChannel:', error);
+                    channelNames.forEach(name => {
+                        try {
+                            const channel = new BroadcastChannel(name);
+                            channel.addEventListener('message', (e) => this.handleChannelMessage(e.data, name));
+                            this.channels.push({ name, channel });
+                        } catch (error) {
+                            console.error(`فشل في إنشاء قناة ${name}:`, error);
+                        }
+                    });
+                }
+            }
+
+            setupEventListeners() {
+                window.addEventListener('online', () => {
+                    this.isOnline = true;
+                    this.updateStatus('عاد الاتصال - جاري المزامنة', 'syncing');
+                    this.processQueue();
+                });
+
+                window.addEventListener('offline', () => {
+                    this.isOnline = false;
+                    this.updateStatus('لا يوجد اتصال - العمل محلياً', 'warning');
+                });
+
+                window.addEventListener('storage', (e) => {
+                    if (e.key && (e.key.includes('admin') || e.key.includes('nafis'))) {
+                        this.handleStorageChange(e);
                     }
-                }
+                });
+
+                window.addEventListener('message', (e) => {
+                    if (e.data && e.data.type && e.data.type.startsWith('NAFIS_')) {
+                        this.handleWindowMessage(e.data);
+                    }
+                });
             }
 
-            updateSyncStatus(status, message) {
-                if (this.syncStatus) {
-                    this.syncStatus.innerHTML = `<div class="status-dot"></div>${message}`;
-                }
-            }
+            startSyncLoop() {
+                setInterval(() => {
+                    this.performPeriodicSync();
+                }, 5000);
 
-            startHeartbeat() {
                 setInterval(() => {
                     this.sendHeartbeat();
-                }, 10000);
+                }, 15000);
             }
 
-            sendHeartbeat() {
-                if (this.broadcastChannel) {
-                    try {
-                        this.broadcastChannel.postMessage({
-                            type: 'HEARTBEAT',
-                            timestamp: Date.now(),
-                            source: 'teacher',
-                            dailyCount: dailyQuestions ? dailyQuestions.length : 0,
-                            weeklyCount: weeklyQuestions ? weeklyQuestions.length : 0
-                        });
-                    } catch (error) {
-                        console.error('خطأ في إرسال الـ heartbeat:', error);
-                    }
+            handleChannelMessage(data, channelName) {
+                if (!data || !data.type) return;
+
+                console.log(`📨 رسالة من ${channelName}:`, data.type);
+
+                switch (data.type) {
+                    case 'SYNC_REQUEST':
+                        this.performSync('all');
+                        break;
+                    case 'HEARTBEAT':
+                        this.handleHeartbeat(data);
+                        break;
+                    case 'QUESTIONS_UPDATED':
+                        this.handleRemoteUpdate(data);
+                        break;
+                }
+            }
+
+            handleStorageChange(event) {
+                console.log(`🔄 تغيير في التخزين: ${event.key}`);
+                this.performSync('storage_change');
+            }
+
+            handleWindowMessage(data) {
+                console.log(`🪟 رسالة نافذة: ${data.type}`);
+                
+                switch (data.type) {
+                    case 'NAFIS_FORCE_SYNC':
+                        this.performSync('force');
+                        break;
+                    case 'NAFIS_STATUS_REQUEST':
+                        this.sendStatusUpdate();
+                        break;
                 }
             }
 
             async syncWithStudentPlatform(type, questions) {
                 try {
-                    // التأكد من وجود البيانات
                     if (!questions || !Array.isArray(questions)) {
                         throw new Error('البيانات غير صحيحة');
                     }
 
-                    const mainKey = type === 'daily' ? 'nafisMainDailyQuestions' : 'nafisMainWeeklyQuestions';
-                    const adminKey = type === 'daily' ? 'adminDailyQuestions' : 'adminWeeklyQuestions';
+                    const timestamp = Date.now();
                     
-                    localStorage.setItem(mainKey, JSON.stringify(questions));
-                    localStorage.setItem(adminKey, JSON.stringify(questions));
-                    
+                    const keys = {
+                        daily: {
+                            admin: 'adminDailyQuestions',
+                            main: 'nafisMainDailyQuestions',
+                            lastUpdate: 'nafisLastDailyUpdate'
+                        },
+                        weekly: {
+                            admin: 'adminWeeklyQuestions', 
+                            main: 'nafisMainWeeklyQuestions',
+                            lastUpdate: 'nafisLastWeeklyUpdate'
+                        }
+                    };
+
+                    const typeKeys = keys[type];
+                    if (typeKeys) {
+                        const questionsJson = JSON.stringify(questions);
+                        
+                        localStorage.setItem(typeKeys.admin, questionsJson);
+                        localStorage.setItem(typeKeys.main, questionsJson);
+                        localStorage.setItem(typeKeys.lastUpdate, timestamp.toString());
+                        localStorage.setItem('nafisLastUpdate', timestamp.toString());
+                    }
+
                     const syncData = {
                         type: 'QUESTIONS_UPDATED',
                         questionType: type,
                         questions: questions,
-                        timestamp: Date.now(),
-                        source: 'teacher'
+                        count: questions.length,
+                        timestamp: timestamp,
+                        source: 'teacher-dashboard'
                     };
+
+                    this.broadcastToAll(syncData);
                     
-                    if (this.broadcastChannel) {
-                        this.broadcastChannel.postMessage(syncData);
-                    }
-                    
-                    window.postMessage(syncData, '*');
-                    
-                    localStorage.setItem('nafisLastUpdate', Date.now().toString());
-                    localStorage.setItem(`nafisLast${type}Update`, Date.now().toString());
-                    
-                    this.showNotification(`تم تحديث ${type === 'daily' ? 'الأسئلة اليومية' : 'الأسئلة الأسبوعية'} بنجاح`, 'success');
-                    
+                    this.lastSyncTime = timestamp;
+                    this.showNotification(
+                        `تم تحديث ${type === 'daily' ? 'الأسئلة اليومية' : 'الأسئلة الأسبوعية'} (${questions.length} سؤال)`,
+                        'success'
+                    );
+
+                    this.updateStatus('تم التحديث بنجاح', 'success');
+
                 } catch (error) {
                     console.error('خطأ في المزامنة:', error);
-                    this.showNotification('خطأ في تحديث البيانات', 'error');
+                    this.showNotification(`خطأ في التحديث: ${error.message}`, 'error');
+                    this.updateStatus('خطأ في التزامن', 'error');
+                }
+            }
+
+            performSync(reason = 'periodic') {
+                try {
+                    const dailyCount = dailyQuestions ? dailyQuestions.length : 0;
+                    const weeklyCount = weeklyQuestions ? weeklyQuestions.length : 0;
+
+                    if (dailyCount > 0) {
+                        this.syncWithStudentPlatform('daily', dailyQuestions);
+                    }
+
+                    if (weeklyCount > 0) {
+                        this.syncWithStudentPlatform('weekly', weeklyQuestions);
+                    }
+
+                    console.log(`🔄 مزامنة (${reason}): يومي ${dailyCount}, أسبوعي ${weeklyCount}`);
+
+                } catch (error) {
+                    console.error('خطأ في المزامنة:', error);
+                }
+            }
+
+            performPeriodicSync() {
+                const oldDaily = this.lastDailyCount || 0;
+                const oldWeekly = this.lastWeeklyCount || 0;
+                
+                const newDaily = dailyQuestions ? dailyQuestions.length : 0;
+                const newWeekly = weeklyQuestions ? weeklyQuestions.length : 0;
+
+                if (newDaily !== oldDaily || newWeekly !== oldWeekly) {
+                    this.performSync('detected_change');
+                    this.lastDailyCount = newDaily;
+                    this.lastWeeklyCount = newWeekly;
+                }
+            }
+
+            sendHeartbeat() {
+                const heartbeatData = {
+                    type: 'HEARTBEAT',
+                    source: 'teacher-dashboard',
+                    timestamp: Date.now(),
+                    dailyCount: dailyQuestions ? dailyQuestions.length : 0,
+                    weeklyCount: weeklyQuestions ? weeklyQuestions.length : 0,
+                    isOnline: this.isOnline,
+                    lastSync: this.lastSyncTime
+                };
+
+                this.broadcastToAll(heartbeatData);
+            }
+
+            broadcastToAll(data) {
+                this.channels.forEach(({ channel, name }) => {
+                    try {
+                        channel.postMessage(data);
+                    } catch (error) {
+                        console.error(`خطأ في إرسال رسالة عبر ${name}:`, error);
+                    }
+                });
+
+                try {
+                    window.postMessage(data, '*');
+                } catch (error) {
+                    console.error('خطأ في إرسال window message:', error);
+                }
+
+                try {
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.postMessage(data, '*');
+                    }
+                } catch (error) {
+                    // تجاهل أخطاء النوافذ المغلقة
+                }
+            }
+
+            updateStatus(message, type) {
+                if (this.syncStatus) {
+                    this.syncStatus.innerHTML = `<div class="status-dot"></div>${message}`;
+                    
+                    const classes = {
+                        'success': 'online',
+                        'error': 'offline', 
+                        'warning': 'syncing',
+                        'syncing': 'syncing'
+                    };
+                    
+                    this.syncStatus.className = `status-badge ${classes[type] || 'syncing'}`;
+                }
+
+                if (this.firebaseStatusCard) {
+                    const statusClasses = {
+                        'success': 'connected',
+                        'error': 'error',
+                        'warning': 'connecting',
+                        'syncing': 'connecting'
+                    };
+
+                    this.firebaseStatusCard.className = `firebase-status ${statusClasses[type] || 'connecting'}`;
+                    this.firebaseStatusCard.textContent = message;
                 }
             }
 
             showNotification(message, type = 'success') {
+                document.querySelectorAll('.notification').forEach(n => n.remove());
+
                 const notification = document.createElement('div');
                 notification.className = `notification ${type}`;
                 notification.innerHTML = `
                     <div style="display: flex; align-items: center; gap: 1rem;">
-                        <div style="font-size: 1.5rem;">${type === 'success' ? '✅' : '❌'}</div>
+                        <div style="font-size: 1.5rem;">${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}</div>
                         <div>
                             <strong>${message}</strong>
                             <div style="font-size: 0.85rem; opacity: 0.8;">${new Date().toLocaleTimeString('ar-SA')}</div>
@@ -1094,17 +1280,39 @@
                     setTimeout(() => notification.remove(), 300);
                 }, 4000);
             }
+
+            getSystemStatus() {
+                return {
+                    isOnline: this.isOnline,
+                    lastSync: this.lastSyncTime,
+                    dailyCount: dailyQuestions ? dailyQuestions.length : 0,
+                    weeklyCount: weeklyQuestions ? weeklyQuestions.length : 0,
+                    channelsActive: this.channels.length,
+                    timestamp: Date.now()
+                };
+            }
+
+            forceSync() {
+                this.updateStatus('جاري المزامنة القسرية...', 'syncing');
+                this.performSync('force');
+                
+                this.broadcastToAll({
+                    type: 'FORCE_SYNC_REQUESTED',
+                    source: 'teacher-dashboard',
+                    timestamp: Date.now()
+                });
+            }
         }
 
-        const syncSystem = new ProfessionalSyncSystem();
+        // إنشاء نظام التزامن
+        const syncSystem = new SyncSystem();
 
-        // تحديث الإحصائيات مع معالجة الأخطاء
+        // تحديث الإحصائيات
         function updateAllStats() {
             try {
                 const dailyCount = (dailyQuestions && Array.isArray(dailyQuestions)) ? dailyQuestions.length : 0;
                 const weeklyCount = (weeklyQuestions && Array.isArray(weeklyQuestions)) ? weeklyQuestions.length : 0;
                 
-                // تحديث الإحصائيات الأساسية
                 const dailyElement = document.getElementById('dailyCount');
                 const weeklyElement = document.getElementById('weeklyCount');
                 const totalElement = document.getElementById('totalCount');
@@ -1114,7 +1322,6 @@
                 if (weeklyElement) weeklyElement.textContent = weeklyCount;
                 if (totalElement) totalElement.textContent = dailyCount + weeklyCount;
                 
-                // حساب الأسئلة المرفوعة للسحابة
                 let cloudCount = 0;
                 if (dailyQuestions && weeklyQuestions) {
                     [...dailyQuestions, ...weeklyQuestions].forEach(q => {
@@ -1123,7 +1330,6 @@
                 }
                 if (cloudElement) cloudElement.textContent = cloudCount;
                 
-                // إحصائيات المواد
                 const subjects = {
                     'رياضيات': 0,
                     'قراءة': 0,
@@ -1148,6 +1354,18 @@
                 if (readingElement) readingElement.textContent = subjects['قراءة'];
                 if (scienceElement) scienceElement.textContent = subjects['علوم'];
                 if (arabicElement) arabicElement.textContent = subjects['لغة عربية'];
+
+                syncSystem.broadcastToAll({
+                    type: 'STATS_UPDATED',
+                    source: 'teacher-dashboard',
+                    stats: {
+                        daily: dailyCount,
+                        weekly: weeklyCount,
+                        total: dailyCount + weeklyCount,
+                        subjects: subjects
+                    },
+                    timestamp: Date.now()
+                });
                 
             } catch (error) {
                 console.error('خطأ في تحديث الإحصائيات:', error);
@@ -1161,10 +1379,7 @@
             const preview = document.getElementById('imagePreview');
             const removeBtn = document.getElementById('removeImage');
 
-            if (!uploadZone || !fileInput || !preview || !removeBtn) {
-                console.error('عناصر رفع الصور غير موجودة');
-                return;
-            }
+            if (!uploadZone || !fileInput || !preview || !removeBtn) return;
 
             uploadZone.addEventListener('click', () => fileInput.click());
 
@@ -1251,7 +1466,7 @@
             }
         });
 
-        // إضافة سؤال جديد مع معالجة الأخطاء
+        // إضافة سؤال جديد
         async function addQuestion() {
             try {
                 const subject = document.getElementById('questionSubject')?.value;
@@ -1286,7 +1501,6 @@
                 const questionId = Date.now();
                 let imageUrl = null;
 
-                const imageFile = document.getElementById('questionImage')?.files[0];
                 const imagePreview = document.getElementById('imagePreview');
                 const hasLocalImage = imagePreview && imagePreview.style.display !== 'none';
 
@@ -1425,13 +1639,12 @@
             }
         }
 
-        // عرض الأسئلة مع معالجة الأخطاء المحسنة
+        // عرض الأسئلة
         function displayQuestions() {
             const container = document.getElementById('questionsList');
             if (!container) return;
 
             try {
-                // التأكد من وجود البيانات وأنها من النوع الصحيح
                 const validDailyQuestions = (dailyQuestions && Array.isArray(dailyQuestions)) ? 
                     dailyQuestions.filter(q => q && typeof q === 'object' && q.id) : [];
                 
@@ -1455,7 +1668,6 @@
                 }
 
                 container.innerHTML = allQuestions.map(question => {
-                    // معالجة البيانات المفقودة
                     const questionText = question.question || 'نص السؤال غير متوفر';
                     const subject = question.subject || 'غير محدد';
                     const explanation = question.explanation || 'لا يوجد تفسير';
@@ -1513,7 +1725,7 @@
             }
         }
 
-        // حذف سؤال مع معالجة محسنة للأخطاء
+        // حذف سؤال
         async function deleteQuestion(type, id, firebaseId) {
             if (!confirm('هل أنت متأكد من حذف هذا السؤال؟\n\nلا يمكن التراجع عن هذا الإجراء.')) {
                 return;
@@ -1522,7 +1734,6 @@
             showLoading(true);
 
             try {
-                // التأكد من صحة المعاملات
                 if (!type || !id) {
                     throw new Error('معلومات السؤال غير صحيحة');
                 }
@@ -1532,7 +1743,6 @@
                     throw new Error('معرف السؤال غير صحيح');
                 }
 
-                // حذف من التخزين المحلي
                 if (type === 'daily') {
                     if (dailyQuestions && Array.isArray(dailyQuestions)) {
                         dailyQuestions = dailyQuestions.filter(q => q && q.id !== questionId);
@@ -1589,7 +1799,7 @@
             }
         }
 
-        // استيراد الأسئلة مع معالجة محسنة
+        // استيراد الأسئلة
         function importQuestions() {
             const input = document.createElement('input');
             input.type = 'file';
@@ -1624,34 +1834,22 @@
                                     lastModified: new Date().toLocaleString('ar-SA')
                                 };
                                 
-                                // معالجة الخيارات
                                 if (question.options) {
                                     if (Array.isArray(question.options)) {
                                         newQuestion.options = [...question.options];
                                     } else if (typeof question.options === 'string') {
                                         newQuestion.options = question.options.split('|').map(opt => opt.trim());
                                     }
-                                } else if (question.خيارات) {
-                                    if (Array.isArray(question.خيارات)) {
-                                        newQuestion.options = [...question.خيارات];
-                                    } else if (typeof question.خيارات === 'string') {
-                                        newQuestion.options = question.خيارات.split('|').map(opt => opt.trim());
-                                    }
                                 }
                                 
-                                // ضمان وجود 4 خيارات
                                 while (newQuestion.options.length < 4) {
                                     newQuestion.options.push(`خيار ${newQuestion.options.length + 1}`);
                                 }
                                 
-                                // معالجة الإجابة الصحيحة
                                 if (question.correct !== undefined && !isNaN(question.correct)) {
                                     newQuestion.correct = parseInt(question.correct);
-                                } else if (question.الصحيح !== undefined && !isNaN(question.الصحيح)) {
-                                    newQuestion.correct = parseInt(question.الصحيح);
                                 }
                                 
-                                // التأكد من صحة رقم الإجابة
                                 if (newQuestion.correct < 0 || newQuestion.correct >= newQuestion.options.length) {
                                     newQuestion.correct = 0;
                                 }
@@ -1671,13 +1869,6 @@
                                 return false;
                             }
                         };
-                        
-                        // معالجة أنواع البيانات المختلفة
-                        if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
-                            for (const question of data.nafes_exam) {
-                                await processQuestion(question, 'weekly');
-                            }
-                        }
                         
                         if (data.daily && Array.isArray(data.daily)) {
                             for (const question of data.daily) {
@@ -1731,8 +1922,13 @@
         async function syncAllQuestions() {
             showLoading(true);
             try {
+                syncSystem.updateStatus('جاري المزامنة الشاملة...', 'syncing');
+                
                 await syncSystem.syncWithStudentPlatform('daily', dailyQuestions || []);
                 await syncSystem.syncWithStudentPlatform('weekly', weeklyQuestions || []);
+                
+                syncSystem.forceSync();
+                
                 showAlert('تم مزامنة جميع الأسئلة بنجاح', 'success');
                 updateAllStats();
             } catch (error) {
@@ -1745,6 +1941,15 @@
 
         // فتح صفحة التزامن
         function openSyncPage() {
+            const systemData = {
+                type: 'SYSTEM_STATUS_SHARE',
+                source: 'teacher-dashboard',
+                data: syncSystem.getSystemStatus(),
+                timestamp: Date.now()
+            };
+
+            localStorage.setItem('nafis-sync-temp-data', JSON.stringify(systemData));
+            
             window.open('nafis-sync.html', '_blank');
         }
 
@@ -1782,12 +1987,79 @@
             }
         }
 
-        // تهيئة التطبيق مع معالجة شاملة للأخطاء
+        // إضافة بيانات تجريبية للاختبار
+        function addSampleData() {
+            const sampleDaily = [
+                {
+                    id: Date.now(),
+                    subject: "رياضيات",
+                    question: "ما هو ناتج 7 × 8؟",
+                    options: ["54", "56", "58", "60"],
+                    correct: 1,
+                    explanation: "7 × 8 = 56",
+                    type: "daily",
+                    createdAt: new Date().toLocaleString('ar-SA'),
+                    lastModified: new Date().toLocaleString('ar-SA')
+                },
+                {
+                    id: Date.now() + 1,
+                    subject: "علوم",
+                    question: "ما هو أسرع الحيوانات البرية؟",
+                    options: ["الأسد", "الفهد", "الذئب", "الغزال"],
+                    correct: 1,
+                    explanation: "الفهد هو أسرع الحيوانات البرية ويمكنه الوصول لسرعة 120 كم/ساعة",
+                    type: "daily",
+                    createdAt: new Date().toLocaleString('ar-SA'),
+                    lastModified: new Date().toLocaleString('ar-SA')
+                }
+            ];
+
+            const sampleWeekly = [
+                {
+                    id: Date.now() + 2,
+                    subject: "لغة عربية",
+                    question: "من هو شاعر المتنبي؟",
+                    options: ["أبو الطيب المتنبي", "أبو فراس الحمداني", "البحتري", "أبو تمام"],
+                    correct: 0,
+                    explanation: "أبو الطيب المتنبي هو أحد أعظم شعراء العربية",
+                    type: "weekly",
+                    createdAt: new Date().toLocaleString('ar-SA'),
+                    lastModified: new Date().toLocaleString('ar-SA')
+                },
+                {
+                    id: Date.now() + 3,
+                    subject: "تاريخ",
+                    question: "في أي عام تأسست المملكة العربية السعودية؟",
+                    options: ["1930", "1932", "1934", "1936"],
+                    correct: 1,
+                    explanation: "تأسست المملكة العربية السعودية عام 1932م على يد الملك عبدالعزيز",
+                    type: "weekly",
+                    createdAt: new Date().toLocaleString('ar-SA'),
+                    lastModified: new Date().toLocaleString('ar-SA')
+                }
+            ];
+
+            dailyQuestions = sampleDaily;
+            weeklyQuestions = sampleWeekly;
+
+            localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+            localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
+
+            setTimeout(async () => {
+                await syncSystem.syncWithStudentPlatform('daily', dailyQuestions);
+                await syncSystem.syncWithStudentPlatform('weekly', weeklyQuestions);
+                updateAllStats();
+                displayQuestions();
+                
+                showAlert('تم إضافة بيانات تجريبية للاختبار', 'success');
+            }, 500);
+        }
+
+        // تهيئة التطبيق
         function initializeApp() {
             try {
                 console.log('بدء تهيئة التطبيق...');
                 
-                // تحميل البيانات من localStorage مع معالجة الأخطاء
                 const savedDaily = localStorage.getItem('adminDailyQuestions');
                 const savedWeekly = localStorage.getItem('adminWeeklyQuestions');
                 
@@ -1813,34 +2085,33 @@
                     }
                 }
                 
-                // تهيئة الواجهة
                 initializeImageUpload();
                 updateAllStats();
                 displayQuestions();
                 
-                // تحديث حالة Firebase
                 const firebaseCard = document.getElementById('firebaseStatusCard');
                 if (firebaseCard) {
                     firebaseCard.className = 'firebase-status connected';
-                    firebaseCard.textContent = 'جاهز للعمل';
+                    firebaseCard.textContent = 'نظام التزامن نشط';
                 }
                 
                 console.log('تم تحميل لوحة تحكم المعلم بنجاح');
                 console.log(`الأسئلة المحملة: ${dailyQuestions.length} يومي، ${weeklyQuestions.length} أسبوعي`);
                 
-                // مزامنة أولية
-                if (dailyQuestions.length > 0) {
-                    syncSystem.syncWithStudentPlatform('daily', dailyQuestions);
+                if (dailyQuestions.length > 0 || weeklyQuestions.length > 0) {
+                    setTimeout(() => {
+                        syncSystem.performSync('initial');
+                    }, 1000);
                 }
-                if (weeklyQuestions.length > 0) {
-                    syncSystem.syncWithStudentPlatform('weekly', weeklyQuestions);
+
+                if (dailyQuestions.length === 0 && weeklyQuestions.length === 0) {
+                    addSampleData();
                 }
                 
             } catch (error) {
                 console.error('خطأ في تهيئة التطبيق:', error);
                 showAlert('حدث خطأ في تهيئة التطبيق. سيتم العمل في الوضع الأساسي.', 'error');
                 
-                // تهيئة أساسية في حالة الخطأ
                 dailyQuestions = [];
                 weeklyQuestions = [];
                 updateAllStats();
@@ -1859,6 +2130,8 @@
         window.importQuestions = importQuestions;
         window.syncAllQuestions = syncAllQuestions;
         window.openSyncPage = openSyncPage;
+        window.nafisSyncSystem = syncSystem;
+        window.addSampleData = addSampleData;
 
         // مراقبة تحديثات localStorage
         window.addEventListener('storage', function(e) {
@@ -1887,15 +2160,25 @@
             }
         });
 
-        console.log('✅ تم تحميل لوحة تحكم المعلم الاحترافية بنجاح');
-        console.log('🔧 الميزات المتقدمة:');
-        console.log('  - واجهة احترافية ومتجاوبة');
-        console.log('  - معالجة شاملة للأخطاء');
-        console.log('  - إحصائيات تفصيلية محدثة');
-        console.log('  - معاينة الأسئلة المحسنة');
-        console.log('  - استيراد وتصدير متقدم');
-        console.log('  - إشعارات ذكية');
-        console.log('  - حماية البيانات من التلف');
+        // معالجة رسائل من صفحة التزامن
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type && e.data.type.startsWith('NAFIS_SYNC_')) {
+                switch (e.data.type) {
+                    case 'NAFIS_SYNC_REQUEST_STATUS':
+                        e.source.postMessage({
+                            type: 'NAFIS_TEACHER_STATUS_RESPONSE',
+                            data: syncSystem.getSystemStatus()
+                        }, '*');
+                        break;
+                    
+                    case 'NAFIS_SYNC_FORCE_UPDATE':
+                        syncSystem.forceSync();
+                        break;
+                }
+            }
+        });
+
+        console.log('✅ تم تحميل لوحة تحكم المعلم الاحترافية مع التزامن المحسن');
     </script>
 </body>
 </html>
