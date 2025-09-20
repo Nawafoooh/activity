@@ -894,14 +894,19 @@
         window.continueWithPreviousStudent = function() {
             const savedStudent = localStorage.getItem('nafisStudent');
             if (savedStudent) {
-                currentStudent = JSON.parse(savedStudent);
-                document.getElementById('studentId').textContent = currentStudent.id;
-                document.getElementById('displayName').textContent = currentStudent.name;
-                document.getElementById('displayGradeSection').textContent = 
-                    getGradeName(currentStudent.grade) + ' - شعبة ' + currentStudent.section;
-                document.getElementById('studentCard').classList.remove('hidden');
-                document.getElementById('previousStudentCard').classList.add('hidden');
-                document.getElementById('newStudentForm').style.display = 'none';
+                try {
+                    currentStudent = JSON.parse(savedStudent);
+                    document.getElementById('studentId').textContent = currentStudent.id;
+                    document.getElementById('displayName').textContent = currentStudent.name;
+                    document.getElementById('displayGradeSection').textContent = 
+                        getGradeName(currentStudent.grade) + ' - شعبة ' + currentStudent.section;
+                    document.getElementById('studentCard').classList.remove('hidden');
+                    document.getElementById('previousStudentCard').classList.add('hidden');
+                    document.getElementById('newStudentForm').style.display = 'none';
+                } catch (error) {
+                    console.error('خطأ في تحميل بيانات الطالب:', error);
+                    alert('حدث خطأ في تحميل بيانات الطالب. الرجاء المحاولة مرة أخرى.');
+                }
             }
         };
 
@@ -940,6 +945,10 @@
                 document.getElementById('displayGradeSection').textContent = 
                     getGradeName(grade) + ' - شعبة ' + section;
                 document.getElementById('studentCard').classList.remove('hidden');
+                
+                // Hide form and previous student card
+                document.getElementById('newStudentForm').style.display = 'none';
+                document.getElementById('previousStudentCard').classList.add('hidden');
                 
                 // Save to localStorage for future visits
                 localStorage.setItem('nafisStudent', JSON.stringify(studentData));
@@ -1261,19 +1270,49 @@
             return gradeNames[grade] || grade;
         }
 
+        // Debug function to check if elements exist
+        function checkElements() {
+            const elements = [
+                'studentName', 'studentGrade', 'studentSection',
+                'prevStudentId', 'prevDisplayName', 'prevDisplayGradeSection',
+                'studentId', 'displayName', 'displayGradeSection',
+                'previousStudentCard', 'newStudentForm', 'studentCard'
+            ];
+            
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                if (!element) {
+                    console.error(`Element with ID '${id}' not found`);
+                } else {
+                    console.log(`Element '${id}' found`);
+                }
+            });
+        }
+
+        // Call debug function on load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM Content Loaded');
+            checkElements();
+        });
+
         // Check for existing student on page load
         window.addEventListener('load', () => {
             const savedStudent = localStorage.getItem('nafisStudent');
             if (savedStudent) {
-                currentStudent = JSON.parse(savedStudent);
-                
-                // Show previous student card
-                document.getElementById('prevStudentId').textContent = currentStudent.id;
-                document.getElementById('prevDisplayName').textContent = currentStudent.name;
-                document.getElementById('prevDisplayGradeSection').textContent = 
-                    getGradeName(currentStudent.grade) + ' - شعبة ' + currentStudent.section;
-                document.getElementById('previousStudentCard').classList.remove('hidden');
-                document.getElementById('newStudentForm').style.display = 'none';
+                try {
+                    currentStudent = JSON.parse(savedStudent);
+                    
+                    // Show previous student card
+                    document.getElementById('prevStudentId').textContent = currentStudent.id;
+                    document.getElementById('prevDisplayName').textContent = currentStudent.name;
+                    document.getElementById('prevDisplayGradeSection').textContent = 
+                        getGradeName(currentStudent.grade) + ' - شعبة ' + currentStudent.section;
+                    document.getElementById('previousStudentCard').classList.remove('hidden');
+                    document.getElementById('newStudentForm').style.display = 'none';
+                } catch (error) {
+                    console.error('خطأ في تحميل بيانات الطالب المحفوظة:', error);
+                    document.getElementById('newStudentForm').style.display = 'block';
+                }
             } else {
                 document.getElementById('newStudentForm').style.display = 'block';
             }
