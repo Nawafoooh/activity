@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم المعلم - نظام نافس</title>
+    <title>لوحة تحكم المعلم - نظام نافس (نظام التزامن الاحترافي)</title>
     <style>
         * {
             margin: 0;
@@ -15,6 +15,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            color: #333;
             direction: rtl;
         }
 
@@ -40,6 +41,7 @@
         .logo h1 {
             color: #667eea;
             font-size: 1.8rem;
+            font-weight: bold;
         }
 
         .sync-status {
@@ -58,107 +60,167 @@
             color: #c62828;
         }
 
+        .sync-status.syncing {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .sync-status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        .dashboard-nav {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .nav-tabs {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .nav-tab {
-            padding: 12px 25px;
-            background: #f8f9fa;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 16px;
-        }
-
-        .nav-tab.active {
-            background: #667eea;
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
-        }
-
-        .tab-content {
+        .admin-card {
             background: white;
             border-radius: 15px;
             padding: 30px;
-            margin: 20px 0;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            display: none;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
         }
 
-        .tab-content.active {
-            display: block;
+        .admin-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            color: #2c3e50;
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
 
         .stat-card {
-            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             padding: 25px;
             border-radius: 15px;
             text-align: center;
         }
 
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: bold;
+        .stat-card h3 {
+            font-size: 32px;
             margin-bottom: 10px;
         }
 
-        .import-section {
-            background: #f8f9fa;
-            border: 2px dashed #dee2e6;
-            border-radius: 15px;
-            padding: 40px;
-            text-align: center;
-            margin: 20px 0;
-            transition: all 0.3s;
+        .form-grid {
+            display: grid;
+            gap: 20px;
         }
 
-        .import-section:hover {
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            font-size: 16px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
             border-color: #667eea;
-            background: #f0f4ff;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .options-container {
+            display: grid;
+            gap: 15px;
+        }
+
+        .option-group {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 15px;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .option-group:hover {
+            border-color: #bdc3c7;
+        }
+
+        .option-group.correct {
+            border-color: #27ae60;
+            background: #f0fdf4;
+        }
+
+        .option-label {
+            background: #667eea;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 50%;
+            font-weight: bold;
+            text-align: center;
+            min-width: 40px;
+        }
+
+        .option-input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .correct-radio {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
         }
 
         .btn {
             background: #667eea;
             color: white;
-            padding: 15px 30px;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            font-weight: bold;
             margin: 10px;
         }
 
         .btn:hover {
             background: #5a67d8;
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
         .btn-success {
@@ -169,187 +231,124 @@
             background: #dc3545;
         }
 
+        .btn-secondary {
+            background: #6c757d;
+        }
+
         .questions-list {
-            max-height: 600px;
-            overflow-y: auto;
+            margin-top: 30px;
         }
 
         .question-item {
             background: #f8f9fa;
-            border-radius: 10px;
             padding: 20px;
-            margin: 15px 0;
-            border-left: 4px solid #667eea;
-        }
-
-        .question-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-radius: 10px;
             margin-bottom: 15px;
+            border-right: 5px solid #667eea;
         }
 
-        .subject-tag {
+        .question-item h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .question-item .subject-badge {
             background: #667eea;
             color: white;
             padding: 5px 15px;
             border-radius: 15px;
-            font-size: 0.9rem;
+            font-size: 12px;
+            margin-bottom: 10px;
+            display: inline-block;
         }
 
-        .question-actions {
-            display: flex;
-            gap: 10px;
+        .question-options {
+            margin: 10px 0;
         }
 
-        .btn-small {
-            padding: 8px 15px;
-            border: none;
-            border-radius: 15px;
-            cursor: pointer;
-            font-size: 0.9rem;
+        .question-options div {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
         }
 
-        .btn-edit {
-            background: #ffa726;
-            color: white;
-        }
-
-        .btn-delete {
-            background: #ef5350;
-            color: white;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .options-container {
-            display: grid;
-            gap: 15px;
-        }
-
-        .option-input {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-
-        .modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin: 15px 0;
-            display: none;
-        }
-
-        .alert.show {
-            display: block;
-        }
-
-        .alert-success {
+        .correct-answer {
             background: #d4edda;
             color: #155724;
-            border: 1px solid #c3e6cb;
+            font-weight: bold;
         }
 
-        .alert-error {
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            float: left;
+            margin-top: 10px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+            display: none;
+        }
+
+        .error-message {
             background: #f8d7da;
             color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
             border: 1px solid #f5c6cb;
+            display: none;
+        }
+
+        .progress-container {
+            width: 100%;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: none;
         }
 
         .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #e1e5e9;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 15px 0;
-            display: none;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: #667eea;
             width: 0%;
-            transition: width 0.3s;
+            height: 30px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 10px;
+            transition: width 0.3s ease;
             text-align: center;
             color: white;
-            line-height: 20px;
-            font-size: 12px;
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-
-        .table th {
-            background: #667eea;
-            color: white;
-            padding: 15px;
-            text-align: center;
-        }
-
-        .table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #e1e5e9;
-            text-align: center;
+            line-height: 30px;
+            font-size: 14px;
+            font-weight: bold;
         }
 
         .file-input {
             display: none;
+        }
+
+        .sync-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
         }
 
         @media (max-width: 768px) {
@@ -357,12 +356,19 @@
                 padding: 10px;
             }
             
-            .nav-tabs {
-                flex-direction: column;
+            .admin-card {
+                padding: 20px;
             }
             
-            .stats-grid {
-                grid-template-columns: 1fr;
+            .option-group {
+                grid-template-columns: auto 1fr;
+                gap: 10px;
+            }
+            
+            .correct-radio {
+                grid-column: span 2;
+                justify-self: center;
+                margin-top: 10px;
             }
         }
     </style>
@@ -371,751 +377,984 @@
     <div class="header">
         <div class="header-content">
             <div class="logo">
-                <h1>لوحة تحكم المعلم - نظام نافس</h1>
+                <h1>لوحة تحكم المعلم - نظام نافس الاحترافي</h1>
             </div>
             <div class="sync-status" id="syncStatus">
-                <span>متصل</span>
+                <span>جاري التحميل...</span>
             </div>
         </div>
     </div>
 
     <div class="container">
-        <!-- Navigation -->
-        <div class="dashboard-nav">
-            <div class="nav-tabs">
-                <button class="nav-tab active" onclick="showTab('dashboard')">لوحة القيادة</button>
-                <button class="nav-tab" onclick="showTab('questions')">إدارة الأسئلة</button>
-                <button class="nav-tab" onclick="showTab('results')">النتائج</button>
+        <!-- الإحصائيات -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3 id="dailyCount">0</h3>
+                <p>أسئلة يومية</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="weeklyCount">0</h3>
+                <p>أسئلة أسبوعية</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="totalCount">0</h3>
+                <p>إجمالي الأسئلة</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="syncCount">0</h3>
+                <p>آخر مزامنة</p>
             </div>
         </div>
 
-        <!-- Dashboard Tab -->
-        <div class="tab-content active" id="dashboardTab">
-            <h2>الإحصائيات العامة</h2>
-            
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="totalQuestions">0</div>
-                    <div>إجمالي الأسئلة</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="dailyQuestions">0</div>
-                    <div>الأسئلة اليومية</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="weeklyQuestions">0</div>
-                    <div>الأسئلة الأسبوعية</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="totalResults">0</div>
-                    <div>النتائج المسجلة</div>
-                </div>
-            </div>
+        <!-- رسائل التأكيد -->
+        <div id="successMessage" class="success-message"></div>
+        <div id="errorMessage" class="error-message"></div>
+
+        <!-- شريط التقدم -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar">0%</div>
         </div>
 
-        <!-- Questions Tab -->
-        <div class="tab-content" id="questionsTab">
-            <h2>إدارة الأسئلة</h2>
+        <!-- نموذج إضافة سؤال جديد -->
+        <div class="admin-card">
+            <h2 class="section-title">إضافة سؤال جديد</h2>
             
-            <!-- Import Section -->
-            <div class="import-section">
-                <h3>استيراد الأسئلة</h3>
-                <p>اختر ملف JSON لاستيراد الأسئلة</p>
-                <input type="file" id="fileInput" class="file-input" accept=".json">
-                <button class="btn" onclick="document.getElementById('fileInput').click()">
-                    اختيار ملف
-                </button>
-                <button class="btn btn-success" onclick="showAddQuestionModal()">
-                    إضافة سؤال جديد
-                </button>
-            </div>
-
-            <div class="alert" id="importAlert"></div>
-            <div class="progress-bar" id="progressBar">
-                <div class="progress-fill" id="progressFill">0%</div>
-            </div>
-
-            <!-- Questions List -->
-            <h3>الأسئلة الحالية</h3>
-            <div class="questions-list" id="questionsList">
-                <!-- Questions will be loaded here -->
-            </div>
-        </div>
-
-        <!-- Results Tab -->
-        <div class="tab-content" id="resultsTab">
-            <h2>النتائج والإحصائيات</h2>
-            
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>اسم الطالب</th>
-                        <th>الصف</th>
-                        <th>نوع الاختبار</th>
-                        <th>النتيجة</th>
-                        <th>التاريخ</th>
-                    </tr>
-                </thead>
-                <tbody id="resultsTable">
-                    <tr>
-                        <td colspan="5">جاري تحميل النتائج...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Add Question Modal -->
-    <div class="modal" id="questionModal">
-        <div class="modal-content">
-            <h3 id="modalTitle">إضافة سؤال جديد</h3>
-            
-            <form id="questionForm">
+            <div class="form-grid">
                 <div class="form-group">
-                    <label>المادة</label>
+                    <label for="questionSubject">المادة</label>
                     <select id="questionSubject" required>
                         <option value="">اختر المادة</option>
                         <option value="رياضيات">رياضيات</option>
-                        <option value="علوم">علوم</option>
                         <option value="قراءة">قراءة</option>
+                        <option value="علوم">علوم</option>
+                        <option value="لغة عربية">لغة عربية</option>
+                        <option value="تاريخ">تاريخ</option>
+                        <option value="جغرافيا">جغرافيا</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>نص السؤال</label>
-                    <textarea id="questionText" required></textarea>
+                    <label for="questionType">نوع الاختبار</label>
+                    <select id="questionType" required>
+                        <option value="">اختر نوع الاختبار</option>
+                        <option value="daily">سؤال اليوم</option>
+                        <option value="weekly">أسئلة الأسبوع</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
-                    <label>الخيارات</label>
+                    <label for="questionText">نص السؤال</label>
+                    <textarea id="questionText" placeholder="أدخل نص السؤال هنا..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>خيارات الإجابة</label>
                     <div class="options-container">
-                        <div class="option-input">
-                            <input type="radio" name="correct" value="0" required>
-                            <input type="text" id="option1" placeholder="الخيار الأول" required>
+                        <div class="option-group" data-option="0">
+                            <div class="option-label">أ</div>
+                            <input type="text" class="option-input" placeholder="الخيار الأول" required>
+                            <input type="radio" name="correctAnswer" value="0" class="correct-radio">
                         </div>
-                        <div class="option-input">
-                            <input type="radio" name="correct" value="1" required>
-                            <input type="text" id="option2" placeholder="الخيار الثاني" required>
+                        <div class="option-group" data-option="1">
+                            <div class="option-label">ب</div>
+                            <input type="text" class="option-input" placeholder="الخيار الثاني" required>
+                            <input type="radio" name="correctAnswer" value="1" class="correct-radio">
                         </div>
-                        <div class="option-input">
-                            <input type="radio" name="correct" value="2" required>
-                            <input type="text" id="option3" placeholder="الخيار الثالث" required>
+                        <div class="option-group" data-option="2">
+                            <div class="option-label">ج</div>
+                            <input type="text" class="option-input" placeholder="الخيار الثالث" required>
+                            <input type="radio" name="correctAnswer" value="2" class="correct-radio">
                         </div>
-                        <div class="option-input">
-                            <input type="radio" name="correct" value="3" required>
-                            <input type="text" id="option4" placeholder="الخيار الرابع" required>
+                        <div class="option-group" data-option="3">
+                            <div class="option-label">د</div>
+                            <input type="text" class="option-input" placeholder="الخيار الرابع" required>
+                            <input type="radio" name="correctAnswer" value="3" class="correct-radio">
                         </div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>التفسير</label>
-                    <textarea id="questionExplanation" required></textarea>
+                    <label for="questionExplanation">تفسير الإجابة الصحيحة</label>
+                    <textarea id="questionExplanation" placeholder="اشرح لماذا هذه الإجابة صحيحة..." required></textarea>
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label>نوع الاختبار</label>
-                    <select id="questionType" required>
-                        <option value="">اختر النوع</option>
-                        <option value="daily">يومي</option>
-                        <option value="weekly">أسبوعي</option>
-                    </select>
-                </div>
+            <div style="text-align: center; margin-top: 30px;">
+                <button type="button" class="btn" onclick="addQuestion()">إضافة السؤال</button>
+                <button type="button" class="btn btn-secondary" onclick="previewQuestion()">معاينة</button>
+                <button type="button" class="btn btn-success" onclick="exportQuestions()">تصدير الأسئلة</button>
+                <button type="button" class="btn btn-secondary" onclick="importQuestions()">استيراد أسئلة</button>
+                <button type="button" class="btn btn-secondary" onclick="forceSyncAll()">مزامنة فورية</button>
+            </div>
+        </div>
 
-                <div style="display: flex; gap: 15px; justify-content: flex-end;">
-                    <button type="button" class="btn" onclick="closeModal()">إلغاء</button>
-                    <button type="submit" class="btn btn-success">حفظ</button>
-                </div>
-            </form>
+        <!-- قائمة الأسئلة الحالية -->
+        <div class="admin-card">
+            <h2 class="section-title">الأسئلة المضافة</h2>
+            
+            <div id="questionsList" class="questions-list">
+                <!-- سيتم إدراج الأسئلة هنا -->
+            </div>
+        </div>
+
+        <!-- سجل المزامنة -->
+        <div class="admin-card">
+            <h2 class="section-title">سجل المزامنة</h2>
+            <div id="syncLog" class="sync-log">
+                سيتم عرض تفاصيل المزامنة هنا...
+            </div>
         </div>
     </div>
 
-    <!-- Firebase -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            getDocs, 
-            deleteDoc, 
-            doc, 
-            query, 
-            orderBy 
-        } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaobeGSq0ra52WWNHIUgVZyoTg_NME5DY",
-            authDomain: "nafis-exam.firebaseapp.com",
-            projectId: "nafis-exam",
-            storageBucket: "nafis-exam.firebasestorage.app",
-            messagingSenderId: "985354903005",
-            appId: "1:985354903005:web:d0d028d80d47bd30392a34",
-            measurementId: "G-MME7J94SRN"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // Make Firebase available globally
-        window.db = db;
-        window.addDoc = addDoc;
-        window.collection = collection;
-        window.getDocs = getDocs;
-        window.deleteDoc = deleteDoc;
-        window.doc = doc;
-        window.query = query;
-        window.orderBy = orderBy;
-
-        console.log('Firebase initialized successfully');
-    </script>
-
     <script>
-        // Global variables
-        let currentQuestions = [];
-        let editingQuestionId = null;
-
-        // Tab management
-        function showTab(tabName) {
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Remove active class from nav tabs
-            document.querySelectorAll('.nav-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Show selected tab
-            document.getElementById(tabName + 'Tab').classList.add('active');
-            event.target.classList.add('active');
-            
-            // Load data for the tab
-            if (tabName === 'questions') {
-                loadQuestions();
-            } else if (tabName === 'results') {
-                loadResults();
-            } else if (tabName === 'dashboard') {
-                loadDashboardStats();
-            }
-        }
-
-        // Load questions
-        async function loadQuestions() {
-            try {
-                const questionsQuery = query(collection(window.db, 'questions'), orderBy('createdAt', 'desc'));
-                const querySnapshot = await getDocs(questionsQuery);
+        // نظام المزامنة الاحترافي مبني على أفضل الممارسات العالمية
+        class ProfessionalSyncSystem {
+            constructor() {
+                this.syncLog = [];
+                this.broadcastChannel = null;
+                this.isOnline = navigator.onLine;
+                this.syncQueue = [];
+                this.lastSyncTimestamp = 0;
+                this.retryAttempts = 0;
+                this.maxRetries = 5;
                 
-                currentQuestions = [];
-                querySnapshot.forEach((doc) => {
-                    currentQuestions.push({ id: doc.id, ...doc.data() });
+                this.initializeSystem();
+                this.setupEventListeners();
+                this.startHeartbeat();
+            }
+
+            // تهيئة النظام
+            initializeSystem() {
+                this.log('🚀 تهيئة نظام المزامنة الاحترافي...');
+                
+                // إنشاء BroadcastChannel للتزامن بين التبويبات
+                try {
+                    this.broadcastChannel = new BroadcastChannel('nafis-sync-channel');
+                    this.broadcastChannel.onmessage = (event) => this.handleBroadcastMessage(event);
+                    this.log('✅ BroadcastChannel جاهز');
+                } catch (error) {
+                    this.log('⚠️ BroadcastChannel غير متاح، استخدام بديل localStorage');
+                    this.initializeFallbackSync();
+                }
+
+                // تطهير البيانات القديمة
+                this.cleanupOldData();
+                
+                // تحديث حالة الاتصال
+                this.updateSyncStatus('success', 'نظام المزامنة جاهز');
+            }
+
+            // بديل للـ BroadcastChannel باستخدام localStorage
+            initializeFallbackSync() {
+                window.addEventListener('storage', (event) => {
+                    if (event.key && event.key.startsWith('nafis-sync-')) {
+                        this.handleStorageEvent(event);
+                    }
+                });
+            }
+
+            // إعداد مستمعي الأحداث
+            setupEventListeners() {
+                // مراقبة حالة الإنترنت
+                window.addEventListener('online', () => {
+                    this.isOnline = true;
+                    this.log('🌐 الاتصال بالإنترنت متاح');
+                    this.processSyncQueue();
                 });
 
-                displayQuestions();
-                updateStats();
+                window.addEventListener('offline', () => {
+                    this.isOnline = false;
+                    this.log('📵 الاتصال بالإنترنت منقطع - العمل في وضع غير متصل');
+                });
+
+                // مراقبة تغييرات localStorage
+                this.setupStorageWatcher();
+
+                // تنظيف عند إغلاق الصفحة
+                window.addEventListener('beforeunload', () => {
+                    if (this.broadcastChannel) {
+                        this.broadcastChannel.close();
+                    }
+                });
+            }
+
+            // مراقب تغييرات localStorage المحسن
+            setupStorageWatcher() {
+                const originalSetItem = localStorage.setItem;
+                localStorage.setItem = (key, value) => {
+                    originalSetItem.call(localStorage, key, value);
+                    
+                    if (key.includes('Questions') || key.includes('nafis')) {
+                        this.log(`💾 تحديث localStorage: ${key}`);
+                        this.triggerSync(key, value);
+                    }
+                };
+            }
+
+            // معالجة رسائل BroadcastChannel
+            handleBroadcastMessage(event) {
+                const { type, data, timestamp, source } = event.data;
                 
-            } catch (error) {
-                console.error('Error loading questions:', error);
-                showAlert('خطأ في تحميل الأسئلة', 'error');
+                this.log(`📨 رسالة واردة: ${type} من ${source}`);
+                
+                switch (type) {
+                    case 'QUESTIONS_SYNC':
+                        this.handleQuestionsSync(data);
+                        break;
+                    case 'FORCE_REFRESH':
+                        this.handleForceRefresh(data);
+                        break;
+                    case 'HEARTBEAT':
+                        this.handleHeartbeat(data);
+                        break;
+                }
+            }
+
+            // معالجة أحداث localStorage
+            handleStorageEvent(event) {
+                if (event.key.includes('Questions')) {
+                    this.log(`🔄 تحديث localStorage خارجي: ${event.key}`);
+                    this.broadcastStorageChange(event.key, event.newValue);
+                }
+            }
+
+            // مزامنة الأسئلة مع صفحة الطلاب
+            async syncQuestionsToStudent(type, questions) {
+                const timestamp = Date.now();
+                this.log(`🔄 بدء مزامنة ${type} - ${questions.length} سؤال`);
+
+                try {
+                    // الخطوة 1: تنظيف البيانات السابقة
+                    await this.cleanupPreviousData(type);
+
+                    // الخطوة 2: حفظ البيانات الجديدة بتنسيق صفحة الطلاب
+                    const studentKey = type === 'daily' ? 'nafisMainDailyQuestions' : 'nafisMainWeeklyQuestions';
+                    const processedQuestions = this.processQuestionsForStudent(questions);
+                    
+                    localStorage.setItem(studentKey, JSON.stringify(processedQuestions));
+                    this.log(`✅ حفظ ${questions.length} سؤال في ${studentKey}`);
+
+                    // الخطوة 3: تحديث المؤشرات الزمنية
+                    const updateKeys = {
+                        'nafisLastUpdate': timestamp,
+                        'nafisUpdateType': type,
+                        [`nafisLast${type}Update`]: timestamp,
+                        'nafisQuestionCount': questions.length,
+                        'nafisTeacherSync': timestamp,
+                        'nafisDataVersion': Date.now()
+                    };
+
+                    Object.entries(updateKeys).forEach(([key, value]) => {
+                        localStorage.setItem(key, value.toString());
+                    });
+
+                    // الخطوة 4: إرسال رسائل التزامن
+                    await this.broadcastSyncMessage(type, processedQuestions, timestamp);
+
+                    // الخطوة 5: التحقق من نجاح المزامنة
+                    await this.verifySyncSuccess(type, questions.length);
+
+                    this.lastSyncTimestamp = timestamp;
+                    this.retryAttempts = 0;
+                    this.log(`✅ اكتملت مزامنة ${type} بنجاح`);
+
+                    this.updateSyncStatus('success', `تم تحديث ${type === 'daily' ? 'الأسئلة اليومية' : 'الأسئلة الأسبوعية'} (${questions.length})`);
+
+                } catch (error) {
+                    this.log(`❌ خطأ في مزامنة ${type}: ${error.message}`);
+                    this.handleSyncError(type, questions, error);
+                }
+            }
+
+            // تنظيف البيانات السابقة
+            async cleanupPreviousData(type) {
+                const keysToClean = [
+                    type === 'daily' ? 'nafisMainDailyQuestions' : 'nafisMainWeeklyQuestions',
+                    `nafisLast${type}Update`,
+                    'nafisUpdateType'
+                ];
+
+                keysToClean.forEach(key => {
+                    if (localStorage.getItem(key)) {
+                        localStorage.removeItem(key);
+                        this.log(`🗑️ تنظيف البيانات القديمة: ${key}`);
+                    }
+                });
+
+                // انتظار قصير لضمان التنظيف
+                await this.sleep(100);
+            }
+
+            // معالجة الأسئلة لتوافق تنسيق صفحة الطلاب
+            processQuestionsForStudent(questions) {
+                return questions.map(q => ({
+                    id: q.id || Date.now() + Math.random(),
+                    subject: q.subject || 'عام',
+                    question: q.question || '',
+                    options: Array.isArray(q.options) ? q.options : [],
+                    correct: typeof q.correct === 'number' ? q.correct : 0,
+                    explanation: q.explanation || '',
+                    type: q.type || 'weekly',
+                    timestamp: Date.now(),
+                    source: 'teacher'
+                })).filter(q => q.question.trim() && q.options.length >= 4);
+            }
+
+            // إرسال رسائل التزامن عبر قنوات متعددة
+            async broadcastSyncMessage(type, questions, timestamp) {
+                const message = {
+                    type: 'QUESTIONS_SYNC',
+                    data: {
+                        questionType: type,
+                        questions: questions,
+                        count: questions.length,
+                        timestamp: timestamp
+                    },
+                    timestamp: timestamp,
+                    source: 'teacher'
+                };
+
+                // BroadcastChannel
+                if (this.broadcastChannel) {
+                    this.broadcastChannel.postMessage(message);
+                    await this.sleep(50);
+                }
+
+                // رسائل متعددة للضمان
+                const messageTypes = [
+                    'QUESTIONS_UPDATED',
+                    'STUDENT_REFRESH_REQUIRED',
+                    'FORCE_SYNC_UPDATE',
+                    'NAFIS_DATA_CHANGE'
+                ];
+
+                messageTypes.forEach((msgType, index) => {
+                    setTimeout(() => {
+                        window.postMessage({
+                            ...message,
+                            type: msgType
+                        }, '*');
+                        
+                        // localStorage event للتوافق مع النظم القديمة
+                        const eventKey = `nafis-sync-${msgType}-${timestamp}`;
+                        localStorage.setItem(eventKey, JSON.stringify(message));
+                        setTimeout(() => localStorage.removeItem(eventKey), 1000);
+                        
+                    }, index * 100);
+                });
+
+                this.log(`📡 إرسال رسائل التزامن عبر ${messageTypes.length + 1} قناة`);
+            }
+
+            // التحقق من نجاح المزامنة
+            async verifySyncSuccess(type, expectedCount) {
+                await this.sleep(500);
+                
+                const studentKey = type === 'daily' ? 'nafisMainDailyQuestions' : 'nafisMainWeeklyQuestions';
+                const savedData = localStorage.getItem(studentKey);
+                
+                if (savedData) {
+                    const questions = JSON.parse(savedData);
+                    if (questions.length === expectedCount) {
+                        this.log(`✅ تم التحقق من نجاح المزامنة: ${questions.length} سؤال`);
+                        return true;
+                    }
+                }
+                
+                throw new Error(`فشل التحقق من المزامنة: البيانات المحفوظة لا تطابق المتوقع`);
+            }
+
+            // معالجة أخطاء المزامنة
+            async handleSyncError(type, questions, error) {
+                this.retryAttempts++;
+                this.log(`⚠️ محاولة ${this.retryAttempts}/${this.maxRetries} للمزامنة`);
+
+                if (this.retryAttempts < this.maxRetries) {
+                    await this.sleep(1000 * this.retryAttempts);
+                    await this.syncQuestionsToStudent(type, questions);
+                } else {
+                    this.updateSyncStatus('error', 'فشل المزامنة - تحقق من الاتصال');
+                    this.addToSyncQueue(type, questions);
+                }
+            }
+
+            // إضافة للطابور للمحاولة لاحقاً
+            addToSyncQueue(type, questions) {
+                this.syncQueue.push({
+                    type,
+                    questions,
+                    timestamp: Date.now(),
+                    attempts: 0
+                });
+                this.log(`📋 إضافة للطابور: ${type} - ${questions.length} سؤال`);
+            }
+
+            // معالجة طابور المزامنة
+            async processSyncQueue() {
+                if (this.syncQueue.length === 0) return;
+
+                this.log(`⏳ معالجة ${this.syncQueue.length} عنصر في الطابور`);
+                
+                const item = this.syncQueue.shift();
+                item.attempts++;
+
+                try {
+                    await this.syncQuestionsToStudent(item.type, item.questions);
+                    this.log(`✅ تمت معالجة ${item.type} من الطابور`);
+                } catch (error) {
+                    if (item.attempts < this.maxRetries) {
+                        this.syncQueue.unshift(item);
+                        this.log(`🔄 إعادة إضافة ${item.type} للطابور`);
+                    } else {
+                        this.log(`❌ فشل نهائي في مزامنة ${item.type}`);
+                    }
+                }
+            }
+
+            // نبضة القلب للتأكد من التزامن
+            startHeartbeat() {
+                setInterval(() => {
+                    if (this.broadcastChannel) {
+                        this.broadcastChannel.postMessage({
+                            type: 'HEARTBEAT',
+                            timestamp: Date.now(),
+                            source: 'teacher'
+                        });
+                    }
+                    
+                    // معالجة الطابور
+                    if (this.isOnline && this.syncQueue.length > 0) {
+                        this.processSyncQueue();
+                    }
+                }, 30000); // كل 30 ثانية
+            }
+
+            // تنظيف البيانات القديمة
+            cleanupOldData() {
+                const now = Date.now();
+                const oneHour = 60 * 60 * 1000;
+                
+                // حذف المفاتيح المؤقتة القديمة
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('nafis-sync-') || key.startsWith('nafisUpdate_')) {
+                        try {
+                            const data = JSON.parse(localStorage.getItem(key));
+                            if (data.timestamp && (now - data.timestamp) > oneHour) {
+                                localStorage.removeItem(key);
+                            }
+                        } catch (e) {
+                            localStorage.removeItem(key);
+                        }
+                    }
+                });
+                
+                this.log('🧹 تنظيف البيانات القديمة مكتمل');
+            }
+
+            // مزامنة فورية شاملة
+            async forceSyncAll() {
+                this.log('🚀 بدء المزامنة الفورية الشاملة');
+                this.updateSyncStatus('syncing', 'جاري المزامنة الفورية...');
+
+                try {
+                    if (dailyQuestions.length > 0) {
+                        await this.syncQuestionsToStudent('daily', dailyQuestions);
+                    }
+                    
+                    if (weeklyQuestions.length > 0) {
+                        await this.syncQuestionsToStudent('weekly', weeklyQuestions);
+                    }
+
+                    // إرسال رسالة تحديث شاملة
+                    const globalMessage = {
+                        type: 'FORCE_REFRESH',
+                        data: {
+                            daily: dailyQuestions,
+                            weekly: weeklyQuestions,
+                            totalCount: dailyQuestions.length + weeklyQuestions.length
+                        },
+                        timestamp: Date.now(),
+                        source: 'teacher-force'
+                    };
+
+                    if (this.broadcastChannel) {
+                        this.broadcastChannel.postMessage(globalMessage);
+                    }
+
+                    // تحديث جميع المؤشرات
+                    localStorage.setItem('nafisForceRefresh', Date.now().toString());
+                    localStorage.setItem('nafisGlobalUpdate', JSON.stringify(globalMessage));
+
+                    this.updateSyncStatus('success', 'اكتملت المزامنة الفورية بنجاح');
+                    showSuccess('تمت المزامنة الفورية لجميع الأسئلة بنجاح!');
+
+                } catch (error) {
+                    this.log(`❌ خطأ في المزامنة الفورية: ${error.message}`);
+                    this.updateSyncStatus('error', 'فشلت المزامنة الفورية');
+                    showError('حدث خطأ في المزامنة الفورية');
+                }
+            }
+
+            // معالجة رسائل التزامن
+            handleQuestionsSync(data) {
+                this.log(`🔄 معالجة تزامن: ${data.questionType} - ${data.count} سؤال`);
+            }
+
+            handleForceRefresh(data) {
+                this.log(`🔄 تحديث إجباري: ${data.totalCount} سؤال إجمالي`);
+            }
+
+            handleHeartbeat(data) {
+                // نبضة هادئة للتأكد من التواصل
+            }
+
+            // إرسال تغيير localStorage
+            broadcastStorageChange(key, value) {
+                if (this.broadcastChannel) {
+                    this.broadcastChannel.postMessage({
+                        type: 'STORAGE_CHANGE',
+                        data: { key, value },
+                        timestamp: Date.now(),
+                        source: 'teacher'
+                    });
+                }
+            }
+
+            // تحديث حالة المزامنة
+            updateSyncStatus(status, message) {
+                const syncElement = document.getElementById('syncStatus');
+                if (syncElement) {
+                    syncElement.className = `sync-status ${status}`;
+                    syncElement.innerHTML = `<span>${message}</span>`;
+                }
+                this.log(`📊 حالة التزامن: ${message}`);
+            }
+
+            // إضافة لسجل المزامنة
+            log(message) {
+                const timestamp = new Date().toLocaleTimeString('ar-SA');
+                const logEntry = `[${timestamp}] ${message}`;
+                
+                this.syncLog.push(logEntry);
+                if (this.syncLog.length > 100) {
+                    this.syncLog.shift();
+                }
+
+                const logElement = document.getElementById('syncLog');
+                if (logElement) {
+                    logElement.textContent = this.syncLog.join('\n');
+                    logElement.scrollTop = logElement.scrollHeight;
+                }
+
+                console.log(`[Nafis Sync] ${logEntry}`);
+            }
+
+            // دالة مساعدة للانتظار
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            // تشغيل تزامن تلقائي
+            triggerSync(key, value) {
+                if (key.includes('DailyQuestions')) {
+                    setTimeout(() => {
+                        this.syncQuestionsToStudent('daily', dailyQuestions);
+                    }, 500);
+                } else if (key.includes('WeeklyQuestions')) {
+                    setTimeout(() => {
+                        this.syncQuestionsToStudent('weekly', weeklyQuestions);
+                    }, 500);
+                }
             }
         }
 
-        // Display questions
-        function displayQuestions() {
-            const container = document.getElementById('questionsList');
-            
-            if (currentQuestions.length === 0) {
-                container.innerHTML = '<p style="text-align: center; padding: 40px; color: #666;">لا توجد أسئلة</p>';
+        // البيانات المحلية
+        let dailyQuestions = JSON.parse(localStorage.getItem('adminDailyQuestions') || '[]');
+        let weeklyQuestions = JSON.parse(localStorage.getItem('adminWeeklyQuestions') || '[]');
+
+        // تفعيل النظام الاحترافي
+        const syncSystem = new ProfessionalSyncSystem();
+
+        // تحديث الإحصائيات
+        function updateStats() {
+            document.getElementById('dailyCount').textContent = dailyQuestions.length;
+            document.getElementById('weeklyCount').textContent = weeklyQuestions.length;
+            document.getElementById('totalCount').textContent = dailyQuestions.length + weeklyQuestions.length;
+            document.getElementById('syncCount').textContent = new Date(syncSystem.lastSyncTimestamp || Date.now()).toLocaleTimeString('ar-SA');
+        }
+
+        // تمييز الإجابة الصحيحة
+        document.addEventListener('change', function(e) {
+            if (e.target.name === 'correctAnswer') {
+                document.querySelectorAll('.option-group').forEach(group => {
+                    group.classList.remove('correct');
+                });
+                
+                const selectedOption = e.target.closest('.option-group');
+                selectedOption.classList.add('correct');
+            }
+        });
+
+        // إضافة سؤال جديد
+        async function addQuestion() {
+            const subject = document.getElementById('questionSubject').value;
+            const type = document.getElementById('questionType').value;
+            const questionText = document.getElementById('questionText').value;
+            const explanation = document.getElementById('questionExplanation').value;
+
+            if (!subject || !type || !questionText || !explanation) {
+                showError('يرجى تعبئة جميع الحقول المطلوبة');
                 return;
             }
 
-            container.innerHTML = currentQuestions.map(question => `
+            const options = [];
+            const optionInputs = document.querySelectorAll('.option-input');
+            
+            optionInputs.forEach(input => {
+                if (!input.value.trim()) {
+                    showError('يرجى تعبئة جميع خيارات الإجابة');
+                    return;
+                }
+                options.push(input.value.trim());
+            });
+
+            if (options.length !== 4) return;
+
+            const correctAnswer = document.querySelector('input[name="correctAnswer"]:checked');
+            if (!correctAnswer) {
+                showError('يرجى اختيار الإجابة الصحيحة');
+                return;
+            }
+
+            const questionId = Date.now();
+
+            try {
+                const question = {
+                    id: questionId,
+                    subject: subject,
+                    question: questionText,
+                    options: options,
+                    correct: parseInt(correctAnswer.value),
+                    explanation: explanation,
+                    type: type,
+                    createdAt: new Date().toLocaleString('ar-SA'),
+                    lastModified: new Date().toLocaleString('ar-SA')
+                };
+
+                // إضافة للقائمة المحلية
+                if (type === 'daily') {
+                    dailyQuestions.push(question);
+                    localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+                } else {
+                    weeklyQuestions.push(question);
+                    localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                }
+
+                // مزامنة فورية مع صفحة الطلاب
+                await syncSystem.syncQuestionsToStudent(type, type === 'daily' ? dailyQuestions : weeklyQuestions);
+
+                clearForm();
+                updateStats();
+                displayQuestions();
+                
+                showSuccess('تم إضافة السؤال ومزامنته مع صفحة الطلاب بنجاح!');
+
+            } catch (error) {
+                console.error('خطأ في إضافة السؤال:', error);
+                showError('حدث خطأ في إضافة السؤال');
+            }
+        }
+
+        // معاينة السؤال
+        function previewQuestion() {
+            const questionText = document.getElementById('questionText').value;
+            const subject = document.getElementById('questionSubject').value;
+            
+            if (!questionText || !subject) {
+                showError('يرجى إدخال نص السؤال والمادة أولاً');
+                return;
+            }
+
+            const options = [];
+            document.querySelectorAll('.option-input').forEach(input => {
+                options.push(input.value || 'خيار فارغ');
+            });
+
+            const correctAnswer = document.querySelector('input[name="correctAnswer"]:checked');
+            const correctIndex = correctAnswer ? parseInt(correctAnswer.value) : -1;
+
+            let previewHTML = `
+                <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto;">
+                    <h3 style="color: #2c3e50; margin-bottom: 15px;">${subject}: ${questionText}</h3>
+                    <div style="display: grid; gap: 10px;">
+            `;
+
+            options.forEach((option, index) => {
+                const isCorrect = index === correctIndex;
+                const style = isCorrect ? 'background: #d4edda; color: #155724; font-weight: bold;' : 'background: #f8f9fa;';
+                previewHTML += `<div style="padding: 12px; border-radius: 8px; ${style}">${String.fromCharCode(65 + index)}) ${option}</div>`;
+            });
+
+            previewHTML += `</div></div>`;
+
+            const newWindow = window.open('', 'معاينة السؤال', 'width=700,height=600');
+            newWindow.document.write(`
+                <html dir="rtl">
+                    <head>
+                        <title>معاينة السؤال</title>
+                        <meta charset="UTF-8">
+                        <style>body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6fa; padding: 20px; }</style>
+                    </head>
+                    <body>${previewHTML}</body>
+                </html>
+            `);
+        }
+
+        // مسح النموذج
+        function clearForm() {
+            document.getElementById('questionSubject').value = '';
+            document.getElementById('questionType').value = '';
+            document.getElementById('questionText').value = '';
+            document.getElementById('questionExplanation').value = '';
+            
+            document.querySelectorAll('.option-input').forEach(input => input.value = '');
+            document.querySelectorAll('input[name="correctAnswer"]').forEach(radio => radio.checked = false);
+            document.querySelectorAll('.option-group').forEach(group => group.classList.remove('correct'));
+        }
+
+        // عرض الأسئلة
+        function displayQuestions() {
+            const container = document.getElementById('questionsList');
+            const allQuestions = [
+                ...dailyQuestions.map(q => ({...q, type: 'daily', typeName: 'سؤال اليوم'})),
+                ...weeklyQuestions.map(q => ({...q, type: 'weekly', typeName: 'أسئلة الأسبوع'}))
+            ].sort((a, b) => b.id - a.id);
+
+            if (allQuestions.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">لا توجد أسئلة مضافة حتى الآن</p>';
+                return;
+            }
+
+            container.innerHTML = allQuestions.map(question => `
                 <div class="question-item">
-                    <div class="question-header">
-                        <div class="subject-tag">${question.subject}</div>
-                        <div class="question-actions">
-                            <button class="btn-small btn-edit" onclick="editQuestion('${question.id}')">تعديل</button>
-                            <button class="btn-small btn-delete" onclick="deleteQuestion('${question.id}')">حذف</button>
-                        </div>
-                    </div>
-                    <div style="font-weight: bold; margin-bottom: 10px;">${question.question}</div>
-                    <div style="margin: 10px 0;">
+                    <div class="subject-badge">${question.subject}</div>
+                    <h4>${question.question}</h4>
+                    <div class="question-options">
                         ${question.options.map((option, index) => 
-                            `<div style="padding: 5px; ${index === question.correct ? 'background: #e8f5e8; font-weight: bold;' : ''}">${['أ', 'ب', 'ج', 'د'][index]}) ${option}</div>`
+                            `<div class="${index === question.correct ? 'correct-answer' : ''}">${String.fromCharCode(65 + index)}) ${option}</div>`
                         ).join('')}
                     </div>
-                    <div style="color: #666; font-size: 0.9rem;">
-                        <strong>التفسير:</strong> ${question.explanation}
-                    </div>
-                    <div style="color: #999; font-size: 0.8rem; margin-top: 5px;">
-                        النوع: ${question.type === 'daily' ? 'يومي' : 'أسبوعي'}
-                    </div>
+                    <p><strong>التفسير:</strong> ${question.explanation}</p>
+                    <p><small>النوع: ${question.typeName} | تاريخ الإضافة: ${question.createdAt}</small></p>
+                    <button class="delete-btn" onclick="deleteQuestion('${question.type}', ${question.id})">حذف السؤال</button>
                 </div>
             `).join('');
         }
 
-        // File import
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            if (!file.name.endsWith('.json')) {
-                showAlert('يرجى اختيار ملف JSON', 'error');
+        // حذف سؤال
+        async function deleteQuestion(type, id) {
+            if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) {
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    importQuestions(data);
-                } catch (error) {
-                    showAlert('خطأ في قراءة الملف', 'error');
-                }
-            };
-            reader.readAsText(file);
-        });
-
-        // Import questions
-        async function importQuestions(data) {
             try {
-                showProgress(0, 'بدء الاستيراد...');
+                if (type === 'daily') {
+                    dailyQuestions = dailyQuestions.filter(q => q.id !== id);
+                    localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+                    await syncSystem.syncQuestionsToStudent('daily', dailyQuestions);
+                } else {
+                    weeklyQuestions = weeklyQuestions.filter(q => q.id !== id);
+                    localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                    await syncSystem.syncQuestionsToStudent('weekly', weeklyQuestions);
+                }
+
+                showSuccess('تم حذف السؤال وتحديث صفحة الطلاب');
+                updateStats();
+                displayQuestions();
+
+            } catch (error) {
+                console.error('خطأ في حذف السؤال:', error);
+                showError('حدث خطأ في حذف السؤال');
+            }
+        }
+
+        // تصدير الأسئلة
+        function exportQuestions() {
+            const data = {
+                daily: dailyQuestions,
+                weekly: weeklyQuestions,
+                nafes_exam: [...dailyQuestions, ...weeklyQuestions],
+                exportDate: new Date().toLocaleString('ar-SA'),
+                totalQuestions: dailyQuestions.length + weeklyQuestions.length
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nafis-questions-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showSuccess('تم تصدير الأسئلة بنجاح');
+        }
+
+        // استيراد الأسئلة
+        function importQuestions() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = async function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
                 
-                let questions = [];
-                
-                // Handle different formats
-                if (data.daily && Array.isArray(data.daily)) {
-                    questions.push(...data.daily.map(q => ({...q, type: 'daily'})));
-                }
-                if (data.weekly && Array.isArray(data.weekly)) {
-                    questions.push(...data.weekly.map(q => ({...q, type: 'weekly'})));
-                }
-                if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
-                    questions.push(...data.nafes_exam.map(q => ({...q, type: 'weekly'})));
-                }
-                if (Array.isArray(data)) {
-                    questions.push(...data.map(q => ({...q, type: q.type || 'weekly'})));
-                }
-
-                if (questions.length === 0) {
-                    showAlert('لا توجد أسئلة في الملف', 'error');
-                    hideProgress();
-                    return;
-                }
-
-                let imported = 0;
-                const total = questions.length;
-
-                for (let i = 0; i < questions.length; i++) {
-                    const question = questions[i];
-                    
-                    if (!question.question || !question.options || !Array.isArray(question.options)) {
-                        continue;
-                    }
-
+                const reader = new FileReader();
+                reader.onload = async function(e) {
                     try {
-                        await addDoc(collection(window.db, 'questions'), {
-                            subject: question.subject || 'عام',
-                            question: question.question,
-                            options: question.options,
-                            correct: parseInt(question.correct) || 0,
-                            explanation: question.explanation || 'لا يوجد تفسير',
-                            type: question.type,
-                            createdAt: new Date(),
-                            active: true
-                        });
+                        const data = JSON.parse(e.target.result);
+                        let importedCount = 0;
                         
-                        imported++;
-                        showProgress((i + 1) / total * 100, `تم استيراد ${imported} من ${total}`);
+                        const processQuestion = (question, questionType) => {
+                            const newQuestion = {
+                                id: Date.now() + Math.random() * 1000,
+                                subject: question.subject || 'عام',
+                                question: question.question || '',
+                                options: Array.isArray(question.options) ? question.options : [],
+                                correct: question.correct !== undefined ? question.correct : 0,
+                                explanation: question.explanation || 'لا يوجد تفسير',
+                                type: questionType || question.type || 'weekly',
+                                createdAt: new Date().toLocaleString('ar-SA'),
+                                lastModified: new Date().toLocaleString('ar-SA')
+                            };
+                            
+                            while (newQuestion.options.length < 4) {
+                                newQuestion.options.push(`خيار ${newQuestion.options.length + 1}`);
+                            }
+                            
+                            if (!newQuestion.question.trim()) return false;
+                            
+                            if (newQuestion.type === 'daily') {
+                                dailyQuestions.push(newQuestion);
+                            } else {
+                                weeklyQuestions.push(newQuestion);
+                            }
+                            
+                            importedCount++;
+                            return true;
+                        };
+                        
+                        if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
+                            data.nafes_exam.forEach(question => processQuestion(question, 'weekly'));
+                        }
+                        
+                        if (data.daily && Array.isArray(data.daily)) {
+                            data.daily.forEach(question => processQuestion(question, 'daily'));
+                        }
+                        
+                        if (data.weekly && Array.isArray(data.weekly)) {
+                            data.weekly.forEach(question => processQuestion(question, 'weekly'));
+                        }
+                        
+                        if (Array.isArray(data)) {
+                            data.forEach(question => processQuestion(question, 'weekly'));
+                        }
+                        
+                        if (importedCount === 0) {
+                            showError('لم يتم استيراد أي أسئلة. تأكد من صحة تنسيق الملف.');
+                            return;
+                        }
+                        
+                        localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+                        localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                        
+                        // مزامنة فورية
+                        await syncSystem.syncQuestionsToStudent('daily', dailyQuestions);
+                        await syncSystem.syncQuestionsToStudent('weekly', weeklyQuestions);
+                        
+                        updateStats();
+                        displayQuestions();
+                        
+                        showSuccess(`تم استيراد ${importedCount} سؤال ومزامنتها مع صفحة الطلاب بنجاح!`);
                         
                     } catch (error) {
-                        console.error('Error importing question:', error);
+                        console.error('خطأ في معالجة الملف:', error);
+                        showError(`خطأ في معالجة الملف: ${error.message}`);
                     }
-                }
-
-                hideProgress();
-                showAlert(`تم استيراد ${imported} سؤال بنجاح`, 'success');
-                loadQuestions();
-                syncWithStudents();
-                
-            } catch (error) {
-                console.error('Import error:', error);
-                hideProgress();
-                showAlert('خطأ في الاستيراد', 'error');
-            }
-        }
-
-        // Enhanced sync with detailed logging and force refresh
-        function syncWithStudents() {
-            try {
-                const timestamp = Date.now();
-                console.log('🔄 بدء تزامن محسن مع منصة الطلاب...');
-                
-                // Get current questions from Firebase data
-                const dailyQuestions = currentQuestions.filter(q => q.type === 'daily');
-                const weeklyQuestions = currentQuestions.filter(q => q.type === 'weekly');
-                
-                console.log(`📊 الأسئلة المتاحة - يومية: ${dailyQuestions.length}, أسبوعية: ${weeklyQuestions.length}`);
-                
-                // Clear existing data first
-                localStorage.removeItem('nafisMainDailyQuestions');
-                localStorage.removeItem('nafisMainWeeklyQuestions');
-                
-                // Set new data with proper format
-                if (dailyQuestions.length > 0) {
-                    localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
-                    console.log('✅ تم تحديث الأسئلة اليومية:', dailyQuestions.length);
-                }
-                
-                if (weeklyQuestions.length > 0) {
-                    localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
-                    console.log('✅ تم تحديث الأسئلة الأسبوعية:', weeklyQuestions.length);
-                }
-                
-                // Multiple sync indicators
-                const syncKeys = {
-                    'nafisLastUpdate': timestamp,
-                    'nafisUpdateType': 'both',
-                    'nafisLastSyncTeacher': timestamp,
-                    'nafisLastdailyUpdate': timestamp,
-                    'nafisLastweeklyUpdate': timestamp,
-                    'nafisForceRefresh': timestamp,
-                    'nafisStudentRefresh': timestamp,
-                    'nafisQuestionCount': currentQuestions.length,
-                    'nafisTeacherSync': timestamp,
-                    'nafisDataReady': 'true'
                 };
                 
-                Object.entries(syncKeys).forEach(([key, value]) => {
-                    localStorage.setItem(key, value.toString());
-                });
-                
-                // Enhanced messaging system
-                const messages = [
-                    { type: 'NAFIS_FORCE_REFRESH', timestamp, source: 'teacher' },
-                    { type: 'QUESTIONS_UPDATED', dailyCount: dailyQuestions.length, weeklyCount: weeklyQuestions.length, timestamp },
-                    { type: 'STUDENT_REFRESH_REQUIRED', action: 'reload_questions', timestamp },
-                    { type: 'FORCE_UPDATE', data: { daily: dailyQuestions, weekly: weeklyQuestions }, timestamp }
-                ];
-                
-                messages.forEach((msg, index) => {
-                    setTimeout(() => {
-                        window.postMessage(msg, '*');
-                        console.log(`📤 رسالة ${index + 1} تم إرسالها:`, msg.type);
-                    }, index * 100);
-                });
-                
-                // Storage events for cross-tab communication
-                for (let i = 0; i < 5; i++) {
-                    setTimeout(() => {
-                        const eventKey = `nafisUpdateEvent_${i}_${timestamp}`;
-                        localStorage.setItem(eventKey, JSON.stringify({
-                            type: 'FORCE_REFRESH',
-                            timestamp,
-                            dailyCount: dailyQuestions.length,
-                            weeklyCount: weeklyQuestions.length
-                        }));
-                        localStorage.removeItem(eventKey);
-                    }, i * 50);
-                }
-                
-                // Final confirmation
-                localStorage.setItem('nafisConfirmSync', JSON.stringify({
-                    timestamp,
-                    dailyCount: dailyQuestions.length,
-                    weeklyCount: weeklyQuestions.length,
-                    status: 'success',
-                    lastSync: new Date().toISOString()
-                }));
-                
-                console.log('✅ تم إكمال التزامن بنجاح');
-                showSyncNotification(dailyQuestions.length, weeklyQuestions.length);
-                
-                // Force reload for student platform
-                setTimeout(() => {
-                    if (window.opener) {
-                        window.opener.postMessage({ type: 'NAFIS_RELOAD_QUESTIONS' }, '*');
-                    }
-                    // Broadcast to all open tabs
-                    const channel = new BroadcastChannel('nafis-sync');
-                    channel.postMessage({
-                        type: 'QUESTIONS_UPDATED',
-                        timestamp,
-                        dailyCount: dailyQuestions.length,
-                        weeklyCount: weeklyQuestions.length
-                    });
-                    channel.close();
-                }, 500);
-                
-            } catch (error) {
-                console.error('❌ خطأ في التزامن:', error);
-                showAlert('خطأ في تزامن البيانات مع منصة الطلاب', 'error');
-            }
+                reader.readAsText(file, 'utf-8');
+            };
+            
+            input.click();
         }
 
-        // Show sync notification
-        function showSyncNotification(dailyCount, weeklyCount) {
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: linear-gradient(45deg, #27ae60, #2ecc71);
-                color: white;
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                z-index: 10000;
-                font-weight: bold;
-                max-width: 350px;
-                animation: slideIn 0.3s ease;
-            `;
+        // مزامنة فورية شاملة
+        async function forceSyncAll() {
+            await syncSystem.forceSyncAll();
+        }
+
+        // عرض رسائل النجاح والخطأ
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            const errorDiv = document.getElementById('errorMessage');
             
-            notification.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <div style="font-size: 30px;">🔄</div>
-                    <div>
-                        <div style="font-size: 16px; margin-bottom: 5px;">تم التحديث بنجاح!</div>
-                        <div style="font-size: 14px; opacity: 0.9;">
-                            أسئلة يومية: ${dailyCount}<br>
-                            أسئلة أسبوعية: ${weeklyCount}
-                        </div>
-                        <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">
-                            تم تحديث منصة الطلاب
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
+            errorDiv.style.display = 'none';
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
             
             setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 300);
+                successDiv.style.display = 'none';
             }, 5000);
         }
 
-        // Add diagnostic function
-        function diagnoseStudentPlatform() {
-            console.log('🔍 تشخيص حالة منصة الطلاب...');
+        function showError(message) {
+            const successDiv = document.getElementById('successMessage');
+            const errorDiv = document.getElementById('errorMessage');
             
-            const daily = localStorage.getItem('nafisMainDailyQuestions');
-            const weekly = localStorage.getItem('nafisMainWeeklyQuestions');
+            successDiv.style.display = 'none';
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
             
-            console.log('📊 البيانات المحفوظة في localStorage:');
-            console.log('الأسئلة اليومية:', daily ? JSON.parse(daily).length : 'لا توجد');
-            console.log('الأسئلة الأسبوعية:', weekly ? JSON.parse(weekly).length : 'لا توجد');
-            
-            const lastUpdate = localStorage.getItem('nafisLastUpdate');
-            console.log('آخر تحديث:', lastUpdate ? new Date(parseInt(lastUpdate)).toLocaleString('ar-SA') : 'لا يوجد');
-            
-            // Show diagnostic results
-            const results = {
-                dailyQuestions: daily ? JSON.parse(daily).length : 0,
-                weeklyQuestions: weekly ? JSON.parse(weekly).length : 0,
-                lastUpdate: lastUpdate ? new Date(parseInt(lastUpdate)).toLocaleString('ar-SA') : 'لا يوجد',
-                syncStatus: lastUpdate ? 'مفعل' : 'غير مفعل'
-            };
-            
-            showAlert(`تشخيص المنصة:\nيومية: ${results.dailyQuestions}\nأسبوعية: ${results.weeklyQuestions}\nآخر تحديث: ${results.lastUpdate}`, 'success');
-            
-            return results;
-        }
-
-        // Add manual sync button and diagnostic tools
-        function addDiagnosticTools() {
-            const importSection = document.querySelector('.import-section');
-            if (importSection) {
-                const diagnosticHTML = `
-                    <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #ddd;">
-                        <h4 style="margin-bottom: 15px; color: #667eea;">أدوات التشخيص والإصلاح</h4>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                            <button class="btn" onclick="forceSyncNow()" style="background: #28a745;">
-                                تزامن فوري مع الطلاب
-                            </button>
-                            <button class="btn" onclick="diagnoseStudentPlatform()" style="background: #17a2b8;">
-                                تشخيص المنصة
-                            </button>
-                            <button class="btn" onclick="clearAndResync()" style="background: #fd7e14;">
-                                مسح وإعادة تزامن
-                            </button>
-                        </div>
-                    </div>
-                `;
-                importSection.innerHTML += diagnosticHTML;
-            }
-        }
-
-        // Force sync function
-        function forceSyncNow() {
-            console.log('🚀 تنفيذ تزامن إجباري...');
-            
-            if (currentQuestions.length === 0) {
-                showAlert('لا توجد أسئلة للتزامن. يرجى إضافة أسئلة أولاً.', 'error');
-                return;
-            }
-            
-            syncWithStudents();
-            showAlert('تم تنفيذ التزامن الإجباري', 'success');
-        }
-
-        // Clear and resync function
-        function clearAndResync() {
-            console.log('🧹 مسح البيانات وإعادة التزامن...');
-            
-            // Clear all sync-related localStorage
-            const keysToRemove = [
-                'nafisMainDailyQuestions',
-                'nafisMainWeeklyQuestions',
-                'nafisLastUpdate',
-                'nafisUpdateType',
-                'nafisLastSyncTeacher',
-                'nafisLastdailyUpdate',
-                'nafisLastweeklyUpdate',
-                'nafisForceRefresh',
-                'nafisStudentRefresh',
-                'nafisQuestionCount',
-                'nafisTeacherSync',
-                'nafisDataReady',
-                'nafisConfirmSync'
-            ];
-            
-            keysToRemove.forEach(key => {
-                localStorage.removeItem(key);
-            });
-            
-            // Wait and resync
             setTimeout(() => {
-                syncWithStudents();
-                showAlert('تم مسح البيانات وإعادة التزامن', 'success');
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // تهيئة التطبيق
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStats();
+            displayQuestions();
+            
+            // مزامنة أولية
+            setTimeout(async () => {
+                if (dailyQuestions.length > 0) {
+                    await syncSystem.syncQuestionsToStudent('daily', dailyQuestions);
+                }
+                if (weeklyQuestions.length > 0) {
+                    await syncSystem.syncQuestionsToStudent('weekly', weeklyQuestions);
+                }
             }, 1000);
-        }
-
-        // Make diagnostic functions globally available
-        window.forceSyncNow = forceSyncNow;
-        window.clearAndResync = clearAndResync;
-        window.diagnoseStudentPlatform = diagnoseStudentPlatform;
-
-        // Modal functions
-        function showAddQuestionModal() {
-            editingQuestionId = null;
-            document.getElementById('modalTitle').textContent = 'إضافة سؤال جديد';
-            document.getElementById('questionForm').reset();
-            document.getElementById('questionModal').classList.add('active');
-        }
-
-        function editQuestion(questionId) {
-            const question = currentQuestions.find(q => q.id === questionId);
-            if (!question) return;
-
-            editingQuestionId = questionId;
-            document.getElementById('modalTitle').textContent = 'تعديل السؤال';
-            
-            document.getElementById('questionSubject').value = question.subject;
-            document.getElementById('questionText').value = question.question;
-            document.getElementById('option1').value = question.options[0];
-            document.getElementById('option2').value = question.options[1];
-            document.getElementById('option3').value = question.options[2];
-            document.getElementById('option4').value = question.options[3];
-            document.getElementById('questionExplanation').value = question.explanation;
-            document.getElementById('questionType').value = question.type;
-            
-            document.querySelector(`input[name="correct"][value="${question.correct}"]`).checked = true;
-            
-            document.getElementById('questionModal').classList.add('active');
-        }
-
-        function closeModal() {
-            document.getElementById('questionModal').classList.remove('active');
-        }
-
-        async function deleteQuestion(questionId) {
-            if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
-
-            try {
-                await deleteDoc(doc(window.db, 'questions', questionId));
-                showAlert('تم حذف السؤال', 'success');
-                loadQuestions();
-                syncWithStudents();
-            } catch (error) {
-                console.error('Delete error:', error);
-                showAlert('خطأ في الحذف', 'error');
-            }
-        }
-
-        // Form submission
-        document.getElementById('questionForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            try {
-                const questionData = {
-                    subject: document.getElementById('questionSubject').value,
-                    question: document.getElementById('questionText').value,
-                    options: [
-                        document.getElementById('option1').value,
-                        document.getElementById('option2').value,
-                        document.getElementById('option3').value,
-                        document.getElementById('option4').value
-                    ],
-                    correct: parseInt(document.querySelector('input[name="correct"]:checked').value),
-                    explanation: document.getElementById('questionExplanation').value,
-                    type: document.getElementById('questionType').value,
-                    createdAt: new Date(),
-                    active: true
-                };
-
-                await addDoc(collection(window.db, 'questions'), questionData);
-                
-                showAlert('تم حفظ السؤال', 'success');
-                closeModal();
-                loadQuestions();
-                syncWithStudents();
-                
-            } catch (error) {
-                console.error('Save error:', error);
-                showAlert('خطأ في الحفظ', 'error');
-            }
         });
 
-        // Load dashboard stats
-        async function loadDashboardStats() {
-            try {
-                const questionsSnapshot = await getDocs(collection(window.db, 'questions'));
-                const resultsSnapshot = await getDocs(collection(window.db, 'testResults'));
-                
-                const questions = [];
-                questionsSnapshot.forEach(doc => questions.push(doc.data()));
-                
-                document.getElementById('totalQuestions').textContent = questions.length;
-                document.getElementById('dailyQuestions').textContent = questions.filter(q => q.type === 'daily').length;
-                document.getElementById('weeklyQuestions').textContent = questions.filter(q => q.type === 'weekly').length;
-                document.getElementById('totalResults').textContent = resultsSnapshot.size;
-                
-            } catch (error) {
-                console.error('Stats error:', error);
-            }
-        }
+        // جعل الوظائف متاحة عالمياً
+        window.addQuestion = addQuestion;
+        window.previewQuestion = previewQuestion;
+        window.deleteQuestion = deleteQuestion;
+        window.exportQuestions = exportQuestions;
+        window.importQuestions = importQuestions;
+        window.forceSyncAll = forceSyncAll;
 
-        // Load results
-        async function loadResults() {
-            try {
-                const resultsSnapshot = await getDocs(collection(window.db, 'testResults'));
-                const tbody = document.getElementById('resultsTable');
-                
-                if (resultsSnapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="5">لا توجد نتائج</td></tr>';
-                    return;
-                }
-                
-                let html = '';
-                resultsSnapshot.forEach(doc => {
-                    const result = doc.data();
-                    html += `
-                        <tr>
-                            <td>${result.studentName || 'غير محدد'}</td>
-                            <td>${result.grade || 'غير محدد'}</td>
+        console.log('🚀 نظام إدارة الأسئلة الاحترافي جاهز');
+        console.log('✅ المميزات المفعلة:');
+        console.log('  - نظام تزامن احترافي مع BroadcastChannel');
+        console.log('  - مزامنة فورية مع صفحة الطلاب');
+        console.log('  - نظام إعادة المحاولة التلقائي');
+        console.log('  - سجل مفصل للمزامنة');
+        console.log('  - نظام نبضة القلب للتأكد من التواصل');
+    </script>
+</body>
+</html>
