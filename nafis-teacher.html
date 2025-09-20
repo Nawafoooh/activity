@@ -922,7 +922,7 @@
             displayQuestions();
         }
 
-        // File import
+        // File import with enhanced processing
         document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -932,150 +932,816 @@
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    importQuestions(data);
-                } catch (error) {
-                    showAlert('خطأ في قراءة الملف: تأكد من صحة تنسيق JSON', 'error');
-                }
-            };
-            reader.readAsText(file);
+            processFileImport(file);
         });
 
-        // Import questions with better error handling
-        async function importQuestions(data) {
-            try {
-                updateSyncStatus('syncing', '🔄 جاري الاستيراد...');
-                showProgress(0, 'بدء الاستيراد...');
-                
-                let questions = [];
-                
-                console.log('Import data received:', data);
-                
-                // Handle different data formats
-                if (data.daily && Array.isArray(data.daily)) {
-                    questions.push(...data.daily.map(q => ({...q, type: 'daily'})));
-                    console.log('Found daily questions:', data.daily.length);
+        // Enhanced file processing function
+        async function processFileImport(file) {
+            updateSyncStatus('syncing', '🔄 جاري معالجة الملف...');
+            showProgress(0, 'بدء قراءة الملف...');
+            
+            const reader = new FileReader();
+            
+            reader.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentLoaded = Math.round((e.loaded / e.total) * 30);
+                    showProgress(percentLoaded, 'قراءة الملف...');
                 }
-                if (data.weekly && Array.isArray(data.weekly)) {
-                    questions.push(...data.weekly.map(q => ({...q, type: 'weekly'})));
-                    console.log('Found weekly questions:', data.weekly.length);
-                }
-                if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
-                    questions.push(...data.nafes_exam.map(q => ({...q, type: 'weekly'})));
-                    console.log('Found nafes_exam questions:', data.nafes_exam.length);
-                }
-                // Handle new format with nafes_exam (different spelling)
-                if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
-                    questions.push(...data.nafes_exam.map(q => ({...q, type: 'weekly'})));
-                    console.log('Found nafes_exam questions:', data.nafes_exam.length);
-                }
-                if (Array.isArray(data)) {
-                    questions.push(...data.map(q => ({...q, type: q.type || 'weekly'})));
-                    console.log('Found direct array questions:', data.length);
-                }
-
-                console.log('Total questions found:', questions.length);
-
-                if (questions.length === 0) {
-                    console.log('No questions found. Data structure:', Object.keys(data));
-                    showAlert(`لا توجد أسئلة صالحة في الملف المحدد. تم العثور على المفاتيح التالية: ${Object.keys(data).join(', ')}`, 'error');
+            };
+            
+            reader.onload = async function(e) {
+                try {
+                    showProgress(40, 'تحليل البيانات...');
+                    
+                    const data = JSON.parse(e.target.result);
+                    console.log('بيانات الملف المستورد:', data);
+                    
+                    // Validate data first
+                    const validation = validateImportedData(data);
+                    
+                    if (!validation.valid) {
+                        hideProgress();
+                        updateSyncStatus('error', '❌ خطأ في البيانات');
+                        showAlert(`خطأ في البيانات: ${validation.errors.join(', ')}`, 'error');
+                        return;
+                    }
+                    
+                    if (validation.warnings.length > 0) {
+                        console.warn('تحذيرات:', validation.warnings);
+                    }
+                    
+                    showProgress(50, `معالجة ${validation.validCount} سؤال...`);
+                    
+                    await importQuestionsEnhanced(data, validation);
+                    
+                } catch (error) {
+                    console.error('خطأ في معالجة الملف:', error);
                     hideProgress();
-                    updateSyncStatus('connected', '✅ متصل');
-                    return;
+                    updateSyncStatus('error', '❌ خطأ في المعالجة');
+                    showAlert('خطأ في معالجة الملف: ' + error.message, 'error');
                 }
+            };
+            
+            reader.onerror = function() {
+                hideProgress();
+                updateSyncStatus('error', '❌ خطأ في القراءة');
+                showAlert('خطأ في قراءة الملف. حاول مرة أخرى.', 'error');
+            };
+            
+            reader.readAsText(file, 'utf-8');
+        }
 
+        // Enhanced data validation
+        function validateImportedData(data) {
+            const errors = [];
+            const warnings = [];
+            
+            if (!data || typeof data !== 'object') {
+                errors.push('الملف لا يحتوي على بيانات صحيحة');
+                return { valid: false, errors, warnings };
+            }
+            
+            let questionsFound = 0;
+            let validQuestions = 0;
+            
+            // Check nafes_exam format
+            if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
+                questionsFound += data.nafes_exam.length;
+                data.nafes_exam.forEach((q, index) => {
+                    if (isValidQuestion(q)) {
+                        validQuestions++;
+                    } else {
+                        warnings.push(`السؤال رقم ${index + 1} في nafes_exam غير صالح`);
+                    }
+                });
+            }
+            
+            // Check traditional format
+            if (data.daily && Array.isArray(data.daily)) {
+                questionsFound += data.daily.length;
+                data.daily.forEach((q, index) => {
+                    if (isValidQuestion(q)) {
+                        validQuestions++;
+                    } else {
+                        warnings.push(`السؤال اليومي رقم ${index + 1} غير صالح`);
+                    }
+                });
+            }
+            
+            if (data.weekly && Array.isArray(data.weekly)) {
+                questionsFound += data.weekly.length;
+                data.weekly.forEach((q, index) => {
+                    if (isValidQuestion(q)) {
+                        validQuestions++;
+                    } else {
+                        warnings.push(`السؤال الأسبوعي رقم ${index + 1} غير صالح`);
+                    }
+                });
+            }
+            
+            // Check direct array
+            if (Array.isArray(data)) {
+                questionsFound += data.length;
+                data.forEach((q, index) => {
+                    if (isValidQuestion(q)) {
+                        validQuestions++;
+                    } else {
+                        warnings.push(`السؤال رقم ${index + 1} غير صالح`);
+                    }
+                });
+            }
+            
+            if (questionsFound === 0) {
+                errors.push('لم يتم العثور على أي أسئلة في الملف');
+            }
+            
+            if (validQuestions === 0 && questionsFound > 0) {
+                errors.push('جميع الأسئلة الموجودة في الملف غير صالحة');
+            }
+            
+            return {
+                valid: errors.length === 0 && validQuestions > 0,
+                errors,
+                warnings,
+                totalFound: questionsFound,
+                validCount: validQuestions
+            };
+        }
+
+        // Question validation helper
+        function isValidQuestion(question) {
+            if (!question || typeof question !== 'object') return false;
+            
+            const hasQuestion = question.question && typeof question.question === 'string' && question.question.trim();
+            const hasOptions = question.options && Array.isArray(question.options) && question.options.length >= 4;
+            const hasCorrect = question.correct !== undefined && question.correct !== null && 
+                             !isNaN(parseInt(question.correct)) && parseInt(question.correct) >= 0 && parseInt(question.correct) <= 3;
+            
+            return hasQuestion && hasOptions && hasCorrect;
+        }
+
+        // Enhanced import function
+        async function importQuestionsEnhanced(data, validation) {
+            try {
                 let imported = 0;
                 let skipped = 0;
-                const total = questions.length;
-
-                for (let i = 0; i < questions.length; i++) {
-                    const question = questions[i];
+                let processed = 0;
+                const total = validation.validCount;
+                
+                // Helper function to process a single question
+                const processQuestion = async (question, questionType) => {
+                    processed++;
+                    const progressPercent = 50 + Math.round((processed / total) * 40);
+                    showProgress(progressPercent, `معالجة السؤال ${processed} من ${total}...`);
                     
-                    console.log(`Processing question ${i + 1}:`, question);
-                    
-                    // Enhanced validation
-                    if (!question.question || typeof question.question !== 'string') {
-                        console.log(`Skipping question ${i + 1}: missing or invalid question text`);
+                    if (!isValidQuestion(question)) {
                         skipped++;
-                        continue;
+                        return false;
                     }
                     
-                    if (!question.options || !Array.isArray(question.options) || question.options.length < 4) {
-                        console.log(`Skipping question ${i + 1}: missing or invalid options`);
-                        skipped++;
-                        continue;
-                    }
-                    
-                    if (question.correct === undefined || question.correct === null || 
-                        isNaN(parseInt(question.correct)) || parseInt(question.correct) < 0 || parseInt(question.correct) > 3) {
-                        console.log(`Skipping question ${i + 1}: missing or invalid correct answer`);
-                        skipped++;
-                        continue;
-                    }
-
                     try {
+                        // Enhanced question object
                         const questionData = {
-                            subject: question.subject || 'عام',
-                            question: question.question.trim(),
-                            options: question.options.map(opt => (opt || '').toString().trim()),
-                            correct: parseInt(question.correct),
-                            explanation: question.explanation || 'لا يوجد تفسير متاح',
-                            type: question.type || 'weekly',
+                            subject: question.subject || question.مادة || question.المادة || 'عام',
+                            question: (question.question || question.سؤال || question.السؤال || '').trim(),
+                            options: Array.isArray(question.options) 
+                                ? question.options.map(opt => (opt || '').toString().trim())
+                                : typeof question.options === 'string' 
+                                    ? question.options.split('|').map(opt => opt.trim())
+                                    : ['خيار 1', 'خيار 2', 'خيار 3', 'خيار 4'],
+                            correct: parseInt(question.correct !== undefined ? question.correct : 
+                                           question.الصحيح !== undefined ? question.الصحيح : 0),
+                            explanation: question.explanation || question.تفسير || question.التفسير || 'لا يوجد تفسير متاح',
+                            type: questionType || question.type || question.نوع || 'weekly',
                             createdAt: new Date(),
                             active: true,
                             imported: true,
-                            importSource: 'json-file'
+                            importSource: 'enhanced-json-file',
+                            importTimestamp: new Date().toISOString()
                         };
                         
-                        console.log(`Adding question ${i + 1} to database:`, questionData);
+                        // Ensure exactly 4 options
+                        while (questionData.options.length < 4) {
+                            questionData.options.push(`خيار ${questionData.options.length + 1}`);
+                        }
+                        
+                        // Limit to 4 options if more
+                        questionData.options = questionData.options.slice(0, 4);
+                        
+                        console.log(`إضافة السؤال ${processed}:`, questionData);
                         
                         await window.addDoc(window.collection(window.db, 'questions'), questionData);
                         
                         imported++;
-                        console.log(`Successfully imported question ${i + 1}`);
+                        console.log(`✅ تم استيراد السؤال ${processed} بنجاح`);
+                        
+                        // Small delay to prevent overwhelming Firebase
+                        if (processed % 5 === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+                        
+                        return true;
                         
                     } catch (error) {
-                        console.error(`Error importing question ${i + 1}:`, error);
+                        console.error(`خطأ في استيراد السؤال ${processed}:`, error);
                         skipped++;
+                        return false;
                     }
-                    
-                    showProgress((i + 1) / total * 100, `تم استيراد ${imported} من ${total} (تم تجاهل ${skipped})`);
-                    
-                    // Add small delay to prevent overwhelming Firebase
-                    if (i % 5 === 0) {
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                };
+                
+                // Process different data formats
+                if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
+                    console.log(`معالجة ${data.nafes_exam.length} سؤال من nafes_exam`);
+                    for (const question of data.nafes_exam) {
+                        await processQuestion(question, 'weekly');
                     }
                 }
-
-                hideProgress();
                 
-                console.log(`Import completed. Imported: ${imported}, Skipped: ${skipped}`);
+                if (data.daily && Array.isArray(data.daily)) {
+                    console.log(`معالجة ${data.daily.length} سؤال يومي`);
+                    for (const question of data.daily) {
+                        await processQuestion(question, 'daily');
+                    }
+                }
+                
+                if (data.weekly && Array.isArray(data.weekly)) {
+                    console.log(`معالجة ${data.weekly.length} سؤال أسبوعي`);
+                    for (const question of data.weekly) {
+                        await processQuestion(question, 'weekly');
+                    }
+                }
+                
+                if (Array.isArray(data)) {
+                    console.log(`معالجة ${data.length} سؤال من المصفوفة المباشرة`);
+                    for (const question of data) {
+                        await processQuestion(question, question.type || 'weekly');
+                    }
+                }
+                
+                showProgress(95, 'إنهاء العملية...');
                 
                 if (imported > 0) {
-                    showAlert(`✅ تم استيراد ${imported} سؤال بنجاح${skipped > 0 ? ` (تم تجاهل ${skipped} سؤال غير صالح)` : ''}`, 'success');
-                    // Real-time listener will handle the UI update
+                    // Enhanced sync with student platform
+                    console.log('🔄 بدء التزامن المحسن مع منصة الطلاب...');
+                    await enhancedSyncWithStudents();
+                    
+                    showProgress(100, 'مكتمل!');
+                    
+                    let successMessage = `✅ تم استيراد ${imported} سؤال بنجاح!`;
+                    if (skipped > 0) {
+                        successMessage += ` (تم تجاهل ${skipped} سؤال غير صالح)`;
+                    }
+                    if (validation.warnings.length > 0) {
+                        successMessage += `\n⚠️ تحذيرات: ${validation.warnings.length}`;
+                    }
+                    
+                    showAlert(successMessage, 'success');
+                    updateSyncStatus('connected', '✅ متصل ومتزامن');
+                    
                 } else {
-                    showAlert('❌ لم يتم استيراد أي سؤال - تحقق من تنسيق الملف ومن وحدة التحكم للتفاصيل', 'error');
-                    console.log('Sample question structure expected:', {
-                        subject: 'المادة',
-                        question: 'نص السؤال',
-                        options: ['خيار 1', 'خيار 2', 'خيار 3', 'خيار 4'],
-                        correct: 0, // رقم الخيار الصحيح (0-3)
-                        explanation: 'التفسير',
-                        type: 'daily أو weekly'
-                    });
+                    showAlert('❌ لم يتم استيراد أي سؤال - جميع الأسئلة غير صالحة', 'error');
+                    updateSyncStatus('error', '❌ فشل الاستيراد');
                 }
                 
-                updateSyncStatus('connected', '✅ متصل');
+                hideProgress();
+                
+                console.log(`📊 نتيجة الاستيراد: ${imported} نجح، ${skipped} فشل`);
                 
             } catch (error) {
-                console.error('Import error:', error);
+                console.error('خطأ في الاستيراد المحسن:', error);
                 hideProgress();
-                showAlert('خطأ في الاستيراد: ' + error.message + ' - تحقق من وحدة التحكم للتفاصيل', 'error');
-                updateSyncStatus('error', '❌ خطأ في التزامن');
+                showAlert('خطأ في عملية الاستيراد: ' + error.message, 'error');
+                updateSyncStatus('error', '❌ خطأ في الاستيراد');
+            }
+        }
+
+        // Enhanced sync with student platform
+        async function enhancedSyncWithStudents() {
+            try {
+                console.log('بدء التزامن المحسن...');
+                
+                // Get fresh data from Firebase
+                const questionsSnapshot = await window.getDocs(window.collection(window.db, 'questions'));
+                const allQuestions = [];
+                questionsSnapshot.forEach(doc => {
+                    allQuestions.push({id: doc.id, ...doc.data()});
+                });
+                
+                // Separate by type
+                const dailyQuestions = allQuestions.filter(q => q.type === 'daily').map(q => ({
+                    subject: q.subject,
+                    question: q.question,
+                    options: q.options,
+                    correct: q.correct,
+                    explanation: q.explanation,
+                    type: q.type
+                }));
+                
+                const weeklyQuestions = allQuestions.filter(q => q.type === 'weekly').map(q => ({
+                    subject: q.subject,
+                    question: q.question,
+                    options: q.options,
+                    correct: q.correct,
+                    explanation: q.explanation,
+                    type: q.type
+                }));
+                
+                const timestamp = Date.now();
+                
+                // Multi-method sync for maximum compatibility
+                
+                // Method 1: localStorage
+                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                localStorage.setItem('nafisLastUpdate', timestamp.toString());
+                localStorage.setItem('nafisTeacherSync', JSON.stringify({
+                    timestamp: timestamp,
+                    dailyCount: dailyQuestions.length,
+                    weeklyCount: weeklyQuestions.length,
+                    totalCount: allQuestions.length,
+                    lastSync: new Date().toISOString()
+                }));
+                
+                // Method 2: BroadcastChannel
+                try {
+                    const channel = new BroadcastChannel('nafis-sync');
+                    channel.postMessage({
+                        type: 'QUESTIONS_UPDATE',
+                        data: {
+                            daily: dailyQuestions,
+                            weekly: weeklyQuestions,
+                            timestamp: timestamp
+                        },
+                        source: 'teacher-dashboard-enhanced'
+                    });
+                    channel.close();
+                    console.log('BroadcastChannel sync completed');
+                } catch (e) {
+                    console.log('BroadcastChannel not supported');
+                }
+                
+                // Method 3: PostMessage
+                window.postMessage({
+                    type: 'NAFIS_FORCE_REFRESH',
+                    timestamp: timestamp,
+                    source: 'teacher-dashboard-enhanced',
+                    data: {
+                        daily: dailyQuestions,
+                        weekly: weeklyQuestions
+                    }
+                }, '*');
+                
+                // Method 4: Storage event trigger
+                localStorage.setItem('nafisForceUpdate', timestamp.toString());
+                
+                // Method 5: Custom event
+                window.dispatchEvent(new CustomEvent('nafisDataUpdate', {
+                    detail: {
+                        daily: dailyQuestions,
+                        weekly: weeklyQuestions,
+                        timestamp: timestamp
+                    }
+                }));
+                
+                console.log('تم التزامن بنجاح:', {
+                    daily: dailyQuestions.length,
+                    weekly: weeklyQuestions.length,
+                    total: allQuestions.length,
+                    timestamp: new Date(timestamp).toLocaleString('ar-SA')
+                });
+                
+                return true;
+                
+            } catch (error) {
+                console.error('خطأ في التزامن المحسن:', error);
+                throw error;
+            }
+        }
+
+        // Auto-sync functionality
+        function setupAutoSync() {
+            // Sync every 30 seconds
+            setInterval(async () => {
+                try {
+                    await enhancedSyncWithStudents();
+                    console.log('تزامن تلقائي مكتمل');
+                } catch (error) {
+                    console.error('خطأ في التزامن التلقائي:', error);
+                }
+            }, 30000);
+        }
+
+        // Check sync status periodically
+        function checkSyncStatus() {
+            const lastUpdate = localStorage.getItem('nafisLastUpdate');
+            const lastSync = localStorage.getItem('nafisTeacherSync');
+            
+            if (lastUpdate && lastSync) {
+                try {
+                    const syncData = JSON.parse(lastSync);
+                    const updateTime = parseInt(lastUpdate);
+                    const syncTime = syncData.timestamp;
+                    const timeDiff = Math.abs(updateTime - syncTime);
+                    
+                    if (timeDiff > 10000) { // More than 10 seconds
+                        console.warn('قد يكون هناك تأخير في التزامن');
+                        updateSyncStatus('syncing', 'إعادة التزامن...');
+                        enhancedSyncWithStudents();
+                    }
+                } catch (error) {
+                    console.error('خطأ في فحص حالة التزامن:', error);
+                }
+            }
+        }
+
+        // Initialize enhanced features
+        document.addEventListener('DOMContentLoaded', function() {
+            // Setup auto-sync
+            setupAutoSync();
+            
+            // Check sync status every minute
+            setInterval(checkSyncStatus, 60000);
+            
+            // Listen for visibility changes to sync when page becomes visible
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    console.log('الصفحة أصبحت مرئية - تزامن فوري');
+                    enhancedSyncWithStudents();
+                }
+            });
+        });
+
+        // Replace original sync function with enhanced version
+        function syncWithStudents() {
+            return enhancedSyncWithStudents();
+        }
+
+        // Update sync info display
+        function updateSyncInfo() {
+            const syncData = localStorage.getItem('nafisTeacherSync');
+            if (syncData) {
+                try {
+                    const data = JSON.parse(syncData);
+                    document.getElementById('lastSync').textContent = new Date(data.lastSync).toLocaleString('ar-SA');
+                    document.getElementById('syncedQuestions').textContent = data.totalCount;
+                } catch (error) {
+                    console.error('خطأ في تحديث معلومات التزامن:', error);
+                }
+            }
+        }
+
+        // Enhanced load sync info
+        function loadSyncInfo() {
+            updateSyncInfo();
+            updateConnectionStatus();
+        }
+
+        // Enhanced display questions to show sync status
+        const originalDisplayQuestions = displayQuestions;
+        displayQuestions = function() {
+            originalDisplayQuestions();
+            updateSyncInfo();
+        };
+
+        // Enhanced test connection with retry
+        async function testConnection() {
+            updateSyncStatus('syncing', 'اختبار الاتصال...');
+            
+            let attempts = 0;
+            const maxAttempts = 3;
+            
+            while (attempts < maxAttempts) {
+                try {
+                    await window.getDocs(window.query(window.collection(window.db, 'questions'), window.orderBy('createdAt', 'desc')));
+                    updateSyncStatus('connected', 'الاتصال سليم');
+                    showAlert('الاتصال بقاعدة البيانات سليم', 'success');
+                    
+                    // Test sync as well
+                    await enhancedSyncWithStudents();
+                    showAlert('الاتصال والتزامن يعملان بشكل سليم', 'success');
+                    return;
+                    
+                } catch (error) {
+                    attempts++;
+                    console.error(`فشل اختبار الاتصال - المحاولة ${attempts}:`, error);
+                    
+                    if (attempts < maxAttempts) {
+                        console.log(`إعادة المحاولة خلال ${attempts * 1000}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, attempts * 1000));
+                    } else {
+                        updateSyncStatus('error', 'فشل الاتصال');
+                        showAlert('فشل في الاتصال بعد ' + maxAttempts + ' محاولات: ' + error.message, 'error');
+                    }
+                }
+            }
+        }
+
+        // Enhanced export with metadata
+        function exportQuestions() {
+            try {
+                const exportData = {
+                    export_info: {
+                        timestamp: new Date().toISOString(),
+                        total_questions: currentQuestions.length,
+                        exported_by: "nafis-teacher-dashboard-enhanced",
+                        version: "2.0"
+                    },
+                    nafes_exam: currentQuestions.map(q => ({
+                        subject: q.subject,
+                        question: q.question,
+                        options: q.options,
+                        correct: q.correct,
+                        explanation: q.explanation,
+                        type: q.type
+                    })),
+                    daily: currentQuestions.filter(q => q.type === 'daily').map(q => ({
+                        subject: q.subject,
+                        question: q.question,
+                        options: q.options,
+                        correct: q.correct,
+                        explanation: q.explanation,
+                        type: q.type
+                    })),
+                    weekly: currentQuestions.filter(q => q.type === 'weekly').map(q => ({
+                        subject: q.subject,
+                        question: q.question,
+                        options: q.options,
+                        correct: q.correct,
+                        explanation: q.explanation,
+                        type: q.type
+                    })),
+                    total: currentQuestions.length,
+                    exportDate: new Date().toLocaleString('ar-SA')
+                };
+                
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `nafis-questions-enhanced-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showAlert('تم تصدير الأسئلة بنجاح', 'success');
+                
+            } catch (error) {
+                console.error('Export error:', error);
+                showAlert('خطأ في تصدير الأسئلة', 'error');
+            }
+        }
+
+        console.log('تم تحميل نظام إدارة الأسئلة المحسن بنجاح');
+        console.log('المميزات المفعلة:');
+        console.log('- استيراد محسن مع معالجة أفضل للأخطاء');
+        console.log('- تزامن متعدد الطرق مع منصة الطلاب');
+        console.log('- تزامن تلقائي كل 30 ثانية');
+        console.log('- فحص دوري لحالة التزامن');
+        console.log('- معالجة متقدمة لتنسيق nafes_exam');
+        console.log('- إعادة المحاولة التلقائية للعمليات الفاشلة');
+    </script>
+</body>
+</html> questionsSnapshot = await window.getDocs(window.collection(window.db, 'questions'));
+                const allQuestions = [];
+                questionsSnapshot.forEach(doc => {
+                    allQuestions.push({id: doc.id, ...doc.data()});
+                });
+                
+                // Separate by type
+                const dailyQuestions = allQuestions.filter(q => q.type === 'daily').map(q => ({
+                    subject: q.subject,
+                    question: q.question,
+                    options: q.options,
+                    correct: q.correct,
+                    explanation: q.explanation,
+                    type: q.type
+                }));
+                
+                const weeklyQuestions = allQuestions.filter(q => q.type === 'weekly').map(q => ({
+                    subject: q.subject,
+                    question: q.question,
+                    options: q.options,
+                    correct: q.correct,
+                    explanation: q.explanation,
+                    type: q.type
+                }));
+                
+                const timestamp = Date.now();
+                
+                // Multi-method sync for maximum compatibility
+                
+                // Method 1: localStorage
+                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                localStorage.setItem('nafisLastUpdate', timestamp.toString());
+                localStorage.setItem('nafisTeacherSync', JSON.stringify({
+                    timestamp: timestamp,
+                    dailyCount: dailyQuestions.length,
+                    weeklyCount: weeklyQuestions.length,
+                    totalCount: allQuestions.length,
+                    lastSync: new Date().toISOString()
+                }));
+                
+                // Method 2: BroadcastChannel
+                try {
+                    const channel = new BroadcastChannel('nafis-sync');
+                    channel.postMessage({
+                        type: 'QUESTIONS_UPDATE',
+                        data: {
+                            daily: dailyQuestions,
+                            weekly: weeklyQuestions,
+                            timestamp: timestamp
+                        },
+                        source: 'teacher-dashboard-enhanced'
+                    });
+                    channel.close();
+                    console.log('✅ BroadcastChannel sync completed');
+                } catch (e) {
+                    console.log('⚠️ BroadcastChannel not supported');
+                }
+                
+                // Method 3: PostMessage
+                window.postMessage({
+                    type: 'NAFIS_FORCE_REFRESH',
+                    timestamp: timestamp,
+                    source: 'teacher-dashboard-enhanced',
+                    data: {
+                        daily: dailyQuestions,
+                        weekly: weeklyQuestions
+                    }
+                }, '*');
+                
+                // Method 4: Storage event trigger
+                localStorage.setItem('nafisForceUpdate', timestamp.toString());
+                
+                // Method 5: Custom event
+                window.dispatchEvent(new CustomEvent('nafisDataUpdate', {
+                    detail: {
+                        daily: dailyQuestions,
+                        weekly: weeklyQuestions,
+                        timestamp: timestamp
+                    }
+                }));
+                
+                console.log('📡 تم التزامن بنجاح:', {
+                    daily: dailyQuestions.length,
+                    weekly: weeklyQuestions.length,
+                    total: allQuestions.length,
+                    timestamp: new Date(timestamp).toLocaleString('ar-SA')
+                });
+                
+                return true;
+                
+            } catch (error) {
+                console.error('❌ خطأ في التزامن المحسن:', error);
+                throw error;
+            }
+        }
+
+        // Auto-sync functionality
+        function setupAutoSync() {
+            // Sync every 30 seconds
+            setInterval(async () => {
+                try {
+                    await enhancedSyncWithStudents();
+                    console.log('🔄 تزامن تلقائي مكتمل');
+                } catch (error) {
+                    console.error('خطأ في التزامن التلقائي:', error);
+                }
+            }, 30000);
+        }
+
+        // Check sync status periodically
+        function checkSyncStatus() {
+            const lastUpdate = localStorage.getItem('nafisLastUpdate');
+            const lastSync = localStorage.getItem('nafisTeacherSync');
+            
+            if (lastUpdate && lastSync) {
+                try {
+                    const syncData = JSON.parse(lastSync);
+                    const updateTime = parseInt(lastUpdate);
+                    const syncTime = syncData.timestamp;
+                    const timeDiff = Math.abs(updateTime - syncTime);
+                    
+                    if (timeDiff > 10000) { // More than 10 seconds
+                        console.warn('⚠️ قد يكون هناك تأخير في التزامن');
+                        updateSyncStatus('syncing', '🔄 إعادة التزامن...');
+                        enhancedSyncWithStudents();
+                    }
+                } catch (error) {
+                    console.error('خطأ في فحص حالة التزامن:', error);
+                }
+            }
+        }
+
+        // Initialize enhanced features
+        document.addEventListener('DOMContentLoaded', function() {
+            // Setup auto-sync
+            setupAutoSync();
+            
+            // Check sync status every minute
+            setInterval(checkSyncStatus, 60000);
+            
+            // Listen for visibility changes to sync when page becomes visible
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden) {
+                    console.log('الصفحة أصبحت مرئية - تزامن فوري');
+                    enhancedSyncWithStudents();
+                }
+            });
+        }); questionsSnapshot = await window.getDocs(window.collection(window.db, 'questions'));
+                const allQuestions = [];
+                questionsSnapshot.forEach(doc => {
+                    allQuestions.push({id: doc.id, ...doc.data()});
+                });
+                
+                // Separate by type
+                const dailyQuestions = allQuestions.filter(q => q.type === 'daily').map(q => ({
+                    subject: q.subject,
+                    question: q.question,
+                    options: q.options,
+                    correct: q.correct,
+                    explanation: q.explanation,
+                    type: q.type
+                }));
+                
+                const weeklyQuestions = allQuestions.filter(q => q.type === 'weekly').map(q => ({
+                    subject: q.subject,
+                    question: q.question,
+                    options: q.options,
+                    correct: q.correct,
+                    explanation: q.explanation,
+                    type: q.type
+                }));
+                
+                const timestamp = Date.now();
+                
+                // Multi-method sync for maximum compatibility
+                
+                // Method 1: localStorage
+                localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                localStorage.setItem('nafisLastUpdate', timestamp.toString());
+                localStorage.setItem('nafisTeacherSync', JSON.stringify({
+                    timestamp: timestamp,
+                    dailyCount: dailyQuestions.length,
+                    weeklyCount: weeklyQuestions.length,
+                    totalCount: allQuestions.length,
+                    lastSync: new Date().toISOString()
+                }));
+                
+                // Method 2: BroadcastChannel
+                try {
+                    const channel = new BroadcastChannel('nafis-sync');
+                    channel.postMessage({
+                        type: 'QUESTIONS_UPDATE',
+                        data: {
+                            daily: dailyQuestions,
+                            weekly: weeklyQuestions,
+                            timestamp: timestamp
+                        },
+                        source: 'teacher-dashboard-enhanced'
+                    });
+                    channel.close();
+                    console.log('✅ BroadcastChannel sync completed');
+                } catch (e) {
+                    console.log('⚠️ BroadcastChannel not supported');
+                }
+                
+                // Method 3: PostMessage
+                window.postMessage({
+                    type: 'NAFIS_FORCE_REFRESH',
+                    timestamp: timestamp,
+                    source: 'teacher-dashboard-enhanced',
+                    data: {
+                        daily: dailyQuestions,
+                        weekly: weeklyQuestions
+                    }
+                }, '*');
+                
+                // Method 4: Storage event trigger
+                localStorage.setItem('nafisForceUpdate', timestamp.toString());
+                
+                // Method 5: Custom event
+                window.dispatchEvent(new CustomEvent('nafisDataUpdate', {
+                    detail: {
+                        daily: dailyQuestions,
+                        weekly: weeklyQuestions,
+                        timestamp: timestamp
+                    }
+                }));
+                
+                console.log('📡 تم التزامن بنجاح:', {
+                    daily: dailyQuestions.length,
+                    weekly: weeklyQuestions.length,
+                    total: allQuestions.length,
+                    timestamp: new Date(timestamp).toLocaleString('ar-SA')
+                });
+                
+                return true;
+                
+            } catch (error) {
+                console.error('❌ خطأ في التزامن المحسن:', error);
+                throw error;
             }
         }
 
