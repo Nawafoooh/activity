@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام اختبار نافس - NAFIS</title>
+    <title>نظام اختبار نافس - NAFIS Exam System</title>
     <style>
         * {
             margin: 0;
@@ -13,48 +13,109 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             direction: rtl;
+            color: #333;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(45deg, #1e3c72, #2a5298);
             color: white;
             padding: 20px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: relative;
         }
 
-        .header h1 {
-            font-size: 2.5rem;
+        .connection-indicator {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .connection-indicator.online {
+            background: rgba(39, 174, 96, 0.2);
+            color: #2ecc71;
+        }
+
+        .connection-indicator.offline {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        .sync-indicator {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sync-indicator.active {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .header .logo {
-            font-size: 1.2rem;
-            opacity: 0.9;
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: #4CAF50;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
         }
 
-        .school-info {
-            background: white;
-            padding: 15px;
-            margin: 20px auto;
-            border-radius: 10px;
-            max-width: 800px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-
-        .school-info h2 {
-            color: #667eea;
-            margin-bottom: 10px;
+        .school-info h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
         }
 
         .school-info p {
-            color: #666;
-            margin: 5px 0;
+            font-size: 0.9rem;
+            opacity: 0.9;
         }
 
         .container {
@@ -63,488 +124,357 @@
             padding: 20px;
         }
 
-        .login-section, .exam-section, .results-section {
+        .card {
             background: white;
             border-radius: 15px;
-            padding: 30px;
-            margin: 20px 0;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            display: none;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            transition: transform 0.3s ease;
         }
 
-        .login-section.active, .exam-section.active, .results-section.active {
-            display: block;
+        .card:hover {
+            transform: translateY(-2px);
         }
 
-        .form-group {
+        .section-title {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
             margin-bottom: 20px;
         }
 
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
         .form-group label {
-            display: block;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             font-weight: bold;
-            color: #333;
+            color: #555;
         }
 
         .form-group input, .form-group select {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e5e9;
+            padding: 12px;
+            border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
-            transition: border-color 0.3s;
+            transition: border-color 0.3s ease;
         }
 
         .form-group input:focus, .form-group select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #3498db;
         }
 
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(45deg, #3498db, #2980b9);
             color: white;
-            padding: 15px 30px;
             border: none;
-            border-radius: 8px;
+            padding: 15px 30px;
+            border-radius: 25px;
             font-size: 16px;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            width: 100%;
-            margin-top: 10px;
+            transition: all 0.3s ease;
+            text-align: center;
+            display: block;
+            margin: 10px auto;
         }
 
         .btn:hover {
+            background: linear-gradient(45deg, #2980b9, #1f5f99);
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
         }
 
         .btn-secondary {
-            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            background: linear-gradient(45deg, #e67e22, #d35400);
         }
 
-        .btn-success {
-            background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+        .btn-secondary:hover {
+            background: linear-gradient(45deg, #d35400, #a04000);
         }
 
-        .exam-types {
+        .test-sections {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 20px;
-            margin: 30px 0;
         }
 
-        .exam-card {
-            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+        .test-card {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
             color: white;
-            padding: 30px;
             border-radius: 15px;
+            padding: 25px;
             text-align: center;
             cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
-            position: relative;
-            overflow: hidden;
+            transition: all 0.3s ease;
         }
 
-        .exam-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        .test-card:hover {
+            transform: scale(1.05);
         }
 
-        .exam-card h3 {
-            font-size: 1.5rem;
-            margin-bottom: 15px;
+        .test-card.weekly {
+            background: linear-gradient(135deg, #fd79a8, #e84393);
         }
 
-        .exam-card .details {
-            opacity: 0.9;
+        .student-code-display {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .generated-code {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
             margin-bottom: 20px;
+            font-size: 32px;
+            font-weight: bold;
         }
 
         .question-container {
+            display: none;
+            text-align: center;
+        }
+
+        .question {
+            font-size: 18px;
+            margin-bottom: 25px;
+            padding: 20px;
             background: #f8f9fa;
             border-radius: 10px;
-            padding: 30px;
-            margin: 20px 0;
-        }
-
-        .question-header {
-            display: flex;
-            justify-content: between;
-            align-items: center;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-        }
-
-        .question-number {
-            background: #667eea;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 50%;
-            font-weight: bold;
-            margin-left: 15px;
-        }
-
-        .subject-tag {
-            background: #74b9ff;
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-        }
-
-        .question-text {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 20px;
-            line-height: 1.6;
         }
 
         .options {
             display: grid;
             gap: 15px;
+            margin-bottom: 25px;
         }
 
         .option {
-            background: white;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
             padding: 15px;
+            background: #e8f4fd;
+            border: 2px solid #ddd;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
+            transition: all 0.3s ease;
         }
 
         .option:hover {
-            background: #f0f4ff;
-            border-color: #667eea;
+            background: #d1ecf1;
+            border-color: #3498db;
         }
 
         .option.selected {
-            background: #e3f2fd;
-            border-color: #2196f3;
+            background: #3498db;
+            color: white;
         }
 
         .option.correct {
-            background: #e8f5e8;
-            border-color: #4caf50;
+            background: #27ae60;
+            color: white;
         }
 
         .option.wrong {
-            background: #ffebee;
-            border-color: #f44336;
+            background: #e74c3c;
+            color: white;
         }
 
-        .option-letter {
-            background: #667eea;
-            color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 15px;
-            font-weight: bold;
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
         }
 
         .progress-bar {
-            background: #e1e5e9;
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 20px 0;
-        }
-
-        .progress-fill {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             height: 100%;
-            transition: width 0.3s ease;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            width: 0%;
+            transition: width 0.5s ease;
         }
 
-        .navigation {
+        .nav-buttons {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-top: 30px;
-            flex-wrap: wrap;
-            gap: 15px;
+            margin: 20px 0;
         }
 
-        .timer {
-            background: #ff6b6b;
+        .nav-btn {
+            background: #95a5a6;
             color: white;
+            border: none;
             padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        .results-card {
-            background: white;
             border-radius: 15px;
-            padding: 30px;
+            cursor: pointer;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .score-display {
             text-align: center;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            margin: 20px 0;
-        }
-
-        .score-circle {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            background: conic-gradient(#4caf50 0deg, #4caf50 252deg, #e0e0e0 252deg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            position: relative;
-        }
-
-        .score-circle::before {
-            content: '';
-            width: 120px;
-            height: 120px;
-            background: white;
-            border-radius: 50%;
-            position: absolute;
-        }
-
-        .score-text {
-            font-size: 2rem;
+            font-size: 24px;
             font-weight: bold;
-            color: #4caf50;
-            z-index: 1;
-        }
-
-        .leaderboard {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
             margin: 20px 0;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            display: none;
         }
 
-        .leaderboard h3 {
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 10000;
+            font-weight: bold;
+            max-width: 300px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
             text-align: center;
-            color: #667eea;
-            margin-bottom: 25px;
-            font-size: 1.5rem;
+        }
+
+        .rank-display {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
         }
 
         .rank-item {
             display: flex;
+            justify-content: space-between;
             align-items: center;
             padding: 15px;
             margin: 10px 0;
-            background: #f8f9fa;
+            background: white;
             border-radius: 10px;
-            transition: transform 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
-        .rank-item:hover {
-            transform: translateX(-5px);
-        }
-
-        .rank-number {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-left: 15px;
-        }
-
-        .rank-1 { background: #ffd700; color: #fff; }
-        .rank-2 { background: #c0c0c0; color: #fff; }
-        .rank-3 { background: #cd7f32; color: #fff; }
-        .rank-other { background: #667eea; color: #fff; }
-
-        .student-info {
-            flex: 1;
-            margin-left: 15px;
-        }
-
-        .student-name {
-            font-weight: bold;
-            font-size: 1.1rem;
-            color: #333;
-        }
-
-        .student-details {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .student-score {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #667eea;
+        .rank-item.current-student {
+            background: #fff5f5;
+            border: 2px solid #e74c3c;
         }
 
         .footer {
-            background: #333;
-            color: white;
             text-align: center;
-            padding: 20px;
-            margin-top: 50px;
-        }
-
-        .explanation {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 15px;
-            display: none;
-        }
-
-        .explanation.show {
-            display: block;
-        }
-
-        .explanation h4 {
-            color: #856404;
-            margin-bottom: 10px;
-        }
-
-        .explanation p {
-            color: #856404;
-            line-height: 1.5;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .navbar {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-
-        .nav-btn {
-            padding: 10px 20px;
-            background: #f8f9fa;
-            border: 2px solid #e1e5e9;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .nav-btn.active {
-            background: #667eea;
+            padding: 30px 20px;
+            background: rgba(255,255,255,0.1);
             color: white;
-            border-color: #667eea;
-        }
-
-        .student-card {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            margin-top: 40px;
             border-radius: 15px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-            color: #333;
         }
 
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
-            }
-            
-            .container {
-                padding: 10px;
-            }
-            
-            .exam-types {
+            .form-grid {
                 grid-template-columns: 1fr;
             }
             
-            .question-header {
-                flex-direction: column;
-                gap: 10px;
-                text-align: center;
+            .test-sections {
+                grid-template-columns: 1fr;
             }
             
-            .navigation {
+            .nav-buttons {
                 flex-direction: column;
-                gap: 15px;
+                gap: 10px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
     <div class="header">
-        <h1>نظام اختبار نافس</h1>
-        <div class="logo">NAFIS Examination System</div>
-    </div>
-
-    <!-- School Info -->
-    <div class="school-info">
-        <h2>المملكة العربية السعودية</h2>
-        <p>وزارة التعليم</p>
-        <p>قطاع أحد والعوالي</p>
-        <p><strong>متوسطة المنذر بن عمرو الأنصاري</strong></p>
-        <p>مدير المدرسة: خالد المطيري</p>
+        <div class="connection-indicator offline" id="connectionStatus">
+            <div class="connection-dot"></div>
+            <span>غير متصل</span>
+        </div>
+        <div class="sync-indicator" id="syncStatus">
+            <div class="connection-dot"></div>
+            <span>جاري التحميل...</span>
+        </div>
+        <div class="logo">
+            <div class="logo-icon">نافس</div>
+            <div class="school-info">
+                <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
+                <p>المملكة العربية السعودية</p>
+                <p>وزارة التعليم - قطاع أحد والعوالي</p>
+                <p>مدير المدرسة: الأستاذ خالد المطيري</p>
+            </div>
+        </div>
     </div>
 
     <div class="container">
-        <!-- Navigation -->
-        <div class="navbar">
-            <div class="nav-btn active" onclick="showSection('login')">تسجيل الدخول</div>
-            <div class="nav-btn" onclick="showSection('results')">النتائج العامة</div>
-        </div>
-
-        <!-- Student Login Section -->
-        <div class="login-section active" id="loginSection">
-            <h2 style="text-align: center; color: #667eea; margin-bottom: 30px;">مرحباً بك في نظام اختبار نافس</h2>
-            
-            <!-- Previous Student Login -->
-            <div id="previousStudentCard" class="student-card hidden">
-                <h3>مرحباً بعودتك!</h3>
-                <p><strong>رقم الطالب:</strong> <span id="prevStudentId"></span></p>
-                <p><strong>الاسم:</strong> <span id="prevDisplayName"></span></p>
-                <p><strong>الصف والشعبة:</strong> <span id="prevDisplayGradeSection"></span></p>
-                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
-                    <button class="btn btn-success" onclick="continueWithPreviousStudent()">الدخول بحسابك السابق</button>
-                    <button class="btn" onclick="showNewStudentForm()">تسجيل حساب جديد</button>
-                </div>
-            </div>
-
-            <!-- New Student Registration -->
-            <div id="newStudentForm">
+        <!-- نموذج تسجيل الطالب -->
+        <div class="card" id="studentForm">
+            <h2 class="section-title">تسجيل بيانات الطالب</h2>
+            <div class="form-grid">
                 <div class="form-group">
-                    <label for="studentName">الاسم الثلاثي:</label>
-                    <input type="text" id="studentName" placeholder="أدخل اسمك الثلاثي" />
+                    <label>الاسم الأول</label>
+                    <input type="text" id="firstName" placeholder="أدخل الاسم الأول">
                 </div>
-
                 <div class="form-group">
-                    <label for="studentGrade">الصف:</label>
-                    <select id="studentGrade">
+                    <label>اسم الأب</label>
+                    <input type="text" id="fatherName" placeholder="أدخل اسم الأب">
+                </div>
+                <div class="form-group">
+                    <label>اسم الجد</label>
+                    <input type="text" id="grandFatherName" placeholder="أدخل اسم الجد">
+                </div>
+                <div class="form-group">
+                    <label>اسم العائلة</label>
+                    <input type="text" id="familyName" placeholder="أدخل اسم العائلة">
+                </div>
+                <div class="form-group">
+                    <label>الصف</label>
+                    <select id="grade">
                         <option value="">اختر الصف</option>
-                        <option value="first">الأول متوسط</option>
-                        <option value="second">الثاني متوسط</option>
-                        <option value="third">الثالث متوسط</option>
+                        <option value="أول متوسط">أول متوسط</option>
+                        <option value="ثاني متوسط">ثاني متوسط</option>
+                        <option value="ثالث متوسط">ثالث متوسط</option>
                     </select>
                 </div>
-
                 <div class="form-group">
-                    <label for="studentSection">الشعبة:</label>
-                    <select id="studentSection">
+                    <label>الشعبة</label>
+                    <select id="section">
                         <option value="">اختر الشعبة</option>
                         <option value="1">1</option>
                         <option value="2">2</option>
@@ -554,200 +484,116 @@
                         <option value="6">6</option>
                     </select>
                 </div>
-
-                <button class="btn" onclick="registerStudent()">إنشاء حساب والدخول</button>
             </div>
+            <button class="btn" onclick="registerStudent()">استخراج رقمي الخاص</button>
+            <button class="btn btn-secondary" onclick="showLoginForm()">لدي حساب مسبقاً</button>
+        </div>
 
-            <div id="studentCard" class="student-card hidden">
-                <h3>أهلاً بك!</h3>
-                <p><strong>رقم الطالب:</strong> <span id="studentId"></span></p>
-                <p><strong>الاسم:</strong> <span id="displayName"></span></p>
-                <p><strong>الصف والشعبة:</strong> <span id="displayGradeSection"></span></p>
-                <button class="btn btn-success" onclick="showExams()">ابدأ الاختبار</button>
+        <!-- عرض الرقم الخاص -->
+        <div class="card" id="studentCodeDisplay" style="display: none;">
+            <h2 class="section-title">تم إنشاء رقمك الخاص بنجاح</h2>
+            <div class="student-code-display">
+                <div class="generated-code">
+                    <h3>رقمك الخاص هو:</h3>
+                    <div id="generatedCode" style="margin-top: 15px;"></div>
+                </div>
+                <button class="btn" onclick="proceedToLogin()">المتابعة للاختبار</button>
             </div>
         </div>
 
-        <!-- Exam Selection Section -->
-        <div class="exam-section" id="examSection">
-            <h2 style="text-align: center; color: #667eea; margin-bottom: 30px;">اختر نوع الاختبار</h2>
+        <!-- تسجيل الدخول -->
+        <div class="card" id="loginForm" style="display: none;">
+            <h2 class="section-title">تسجيل الدخول للاختبار</h2>
+            <div class="form-grid" style="grid-template-columns: 1fr;">
+                <div class="form-group">
+                    <label>الاسم الرباعي الكامل</label>
+                    <input type="text" id="loginFullName" placeholder="أدخل اسمك الكامل">
+                </div>
+                <div class="form-group">
+                    <label>رقمك الخاص</label>
+                    <input type="text" id="studentCode" placeholder="أدخل رقمك الخاص (6 أرقام)" maxlength="6">
+                </div>
+            </div>
+            <button class="btn" onclick="loginStudent()">دخول الاختبار</button>
+            <button class="btn btn-secondary" onclick="backToRegistration()">العودة للتسجيل</button>
+        </div>
+
+        <!-- اختيار نوع الاختبار -->
+        <div class="card" id="testSelection" style="display: none;">
+            <h2 class="section-title">اختر نوع الاختبار</h2>
             
-            <div class="exam-types">
-                <div class="exam-card" onclick="startExam('daily')">
-                    <h3>الاختبار اليومي</h3>
-                    <div class="details">
-                        <p>7 أسئلة متنوعة</p>
-                        <p>الوقت: 10 دقائق</p>
-                        <p>المواد: رياضيات، علوم، قراءة</p>
-                    </div>
-                    <div class="btn btn-secondary" style="width: auto; padding: 10px 20px;">ابدأ الآن</div>
-                </div>
-
-                <div class="exam-card" onclick="startExam('weekly')">
-                    <h3>الاختبار الأسبوعي</h3>
-                    <div class="details">
-                        <p>40 سؤال شامل</p>
-                        <p>الوقت: 60 دقيقة</p>
-                        <p>إمكانية الحفظ والمتابعة</p>
-                    </div>
-                    <div class="btn btn-secondary" style="width: auto; padding: 10px 20px;">ابدأ الآن</div>
-                </div>
+            <div class="warning-box">
+                <h4>تنبيه مهم</h4>
+                <p><strong>يُسمح بإجراء كل اختبار مرة واحدة فقط!</strong></p>
             </div>
-
-            <button class="btn" onclick="showSection('login')">العودة للصفحة الرئيسية</button>
-        </div>
-
-        <!-- Question Section -->
-        <div class="exam-section" id="questionSection">
-            <div class="question-container">
-                <div class="question-header">
-                    <div style="display: flex; align-items: center;">
-                        <div class="question-number" id="questionNumber">1</div>
-                        <div>
-                            <div class="subject-tag" id="questionSubject">رياضيات</div>
-                        </div>
-                    </div>
-                    <div class="timer" id="timer">10:00</div>
+            
+            <div class="test-sections">
+                <div class="test-card" onclick="confirmAndStartTest('daily')">
+                    <h3>سؤال اليوم</h3>
+                    <p>7 أسئلة متنوعة في المواد الثلاث</p>
+                    <p><strong>الرياضيات - القراءة - العلوم</strong></p>
                 </div>
-
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-
-                <div class="question-text" id="questionText">
-                    ما قيمة 7 × (3 + 2) ؟
-                </div>
-
-                <div class="options" id="optionsContainer">
-                    <div class="option" onclick="selectOption(0)">
-                        <div class="option-letter">أ</div>
-                        <span>21</span>
-                    </div>
-                    <div class="option" onclick="selectOption(1)">
-                        <div class="option-letter">ب</div>
-                        <span>35</span>
-                    </div>
-                    <div class="option" onclick="selectOption(2)">
-                        <div class="option-letter">ج</div>
-                        <span>14</span>
-                    </div>
-                    <div class="option" onclick="selectOption(3)">
-                        <div class="option-letter">د</div>
-                        <span>10</span>
-                    </div>
-                </div>
-
-                <div class="explanation" id="explanation">
-                    <h4>التفسير:</h4>
-                    <p id="explanationText">نحسب داخل القوس أولاً 3+2=5، ثم 7×5=35.</p>
-                </div>
-
-                <div class="navigation">
-                    <button class="btn" id="prevBtn" onclick="previousQuestion()" disabled>السؤال السابق</button>
-                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                        <span id="questionProgress">السؤال 1 من 7</span>
-                        <button class="btn btn-secondary" onclick="showResults()">عرض النتيجة</button>
-                    </div>
-                    <button class="btn" id="nextBtn" onclick="nextQuestion()">السؤال التالي</button>
+                <div class="test-card weekly" onclick="confirmAndStartTest('weekly')">
+                    <h3>أسئلة الأسبوع</h3>
+                    <p>40 سؤال شامل لجميع المواد</p>
+                    <p><strong>اختبار تنافسي أسبوعي</strong></p>
                 </div>
             </div>
         </div>
 
-        <!-- Results Section -->
-        <div class="results-section" id="resultsSection">
-            <div class="results-card">
-                <h2 style="color: #667eea; margin-bottom: 30px;">نتيجة الاختبار</h2>
-                
-                <div class="score-circle" id="scoreCircle">
-                    <div class="score-text" id="scoreText">85%</div>
-                </div>
+        <!-- منطقة الأسئلة -->
+        <div class="card question-container" id="questionArea">
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            
+            <div class="nav-buttons">
+                <button class="nav-btn" id="prevBtn" onclick="previousQuestion()" disabled>السؤال السابق</button>
+                <span id="questionNumber">السؤال 1 من 7</span>
+                <button class="nav-btn" id="nextBtn" onclick="nextQuestion()">السؤال التالي</button>
+            </div>
 
-                <div style="margin: 30px 0;">
-                    <h3 id="scoreDetails">لقد أجبت على 6 من أصل 7 أسئلة بشكل صحيح</h3>
-                    <p style="color: #666; margin: 15px 0;">درجتك: <span id="totalScore">85/100</span></p>
-                    <p style="color: #666;">ترتيبك على الصف: <span id="classRank">3</span></p>
-                    <p style="color: #666;">ترتيبك على المدرسة: <span id="schoolRank">15</span></p>
-                </div>
+            <div class="question" id="questionText">
+                <p>مرحباً بك في اختبار نافس!</p>
+            </div>
 
-                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                    <button class="btn btn-success" onclick="startExam('daily')">إعادة الاختبار</button>
-                    <button class="btn" onclick="showExams()">اختبار آخر</button>
+            <div class="options" id="optionsContainer">
+                <!-- سيتم إدراج الخيارات هنا -->
+            </div>
+
+            <div class="score-display" id="scoreDisplay">
+                <p>درجتك النهائية: <span id="finalScore">0</span> من <span id="totalQuestions">7</span></p>
+                <p>النسبة المئوية: <span id="percentage">0%</span></p>
+                <div class="rank-display" id="rankDisplay">
+                    <h4>ترتيبك:</h4>
+                    <p>ترتيبك على الصف: <span id="classRank">-</span></p>
+                    <p>ترتيبك على المدرسة: <span id="schoolRank">-</span></p>
                 </div>
             </div>
 
-            <!-- Class Leaderboard -->
-            <div class="leaderboard">
-                <h3>أوائل الصف</h3>
-                <div id="classLeaderboard">
-                    <div class="rank-item">
-                        <div class="rank-number rank-1">1</div>
-                        <div class="student-info">
-                            <div class="student-name">أحمد محمد العلي</div>
-                            <div class="student-details">الأول متوسط - شعبة 1</div>
-                        </div>
-                        <div class="student-score">95</div>
-                    </div>
-                    <div class="rank-item">
-                        <div class="rank-number rank-2">2</div>
-                        <div class="student-info">
-                            <div class="student-name">فاطمة سعد الغامدي</div>
-                            <div class="student-details">الأول متوسط - شعبة 1</div>
-                        </div>
-                        <div class="student-score">92</div>
-                    </div>
-                    <div class="rank-item">
-                        <div class="rank-number rank-3">3</div>
-                        <div class="student-info">
-                            <div class="student-name">عبدالله خالد السعدي</div>
-                            <div class="student-details">الأول متوسط - شعبة 1</div>
-                        </div>
-                        <div class="student-score">85</div>
-                    </div>
-                </div>
-            </div>
+            <button class="btn" id="submitBtn" onclick="submitAnswer()" style="display: none;">تأكيد الإجابة</button>
+            <button class="btn" id="finishBtn" onclick="handleFinishTest()" style="display: none;">إنهاء الاختبار</button>
+            <button class="btn" id="homeBtn" onclick="goHome()" style="display: none;">العودة للرئيسية</button>
+        </div>
 
-            <!-- School Leaderboard -->
-            <div class="leaderboard">
-                <h3>أوائل المدرسة</h3>
-                <div id="schoolLeaderboard">
-                    <div class="rank-item">
-                        <div class="rank-number rank-1">1</div>
-                        <div class="student-info">
-                            <div class="student-name">محمد عبدالرحمن الأحمد</div>
-                            <div class="student-details">الثالث متوسط - شعبة 2</div>
-                        </div>
-                        <div class="student-score">98</div>
-                    </div>
-                    <div class="rank-item">
-                        <div class="rank-number rank-2">2</div>
-                        <div class="student-info">
-                            <div class="student-name">نورا صالح القحطاني</div>
-                            <div class="student-details">الثاني متوسط - شعبة 3</div>
-                        </div>
-                        <div class="student-score">96</div>
-                    </div>
-                    <div class="rank-item">
-                        <div class="rank-number rank-3">3</div>
-                        <div class="student-info">
-                            <div class="student-name">يوسف أحمد المطيري</div>
-                            <div class="student-details">الثالث متوسط - شعبة 1</div>
-                        </div>
-                        <div class="student-score">94</div>
-                    </div>
-                </div>
+        <!-- مرتبة الشرف -->
+        <div class="card" id="leaderboardCard" style="display: none;">
+            <h2 class="section-title">مرتبة الشرف</h2>
+            <div id="leaderboard">
+                <!-- سيتم إدراج النتائج هنا -->
             </div>
         </div>
     </div>
 
-    <!-- Footer -->
     <div class="footer">
-        <p>إشراف وتنفيذ: نواف الصبحي</p>
-        <p>نظام اختبار نافس - NAFIS Exam System © 2025</p>
+        <p><strong>إشراف وتنفيذ: الأستاذ نواف الصبحي</strong></p>
+        <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
     </div>
 
+    <!-- Firebase Scripts -->
     <script type="module">
-        // Firebase Configuration
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, onSnapshot, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaobeGSq0ra52WWNHIUgVZyoTg_NME5DY",
@@ -761,586 +607,567 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        
+        window.firebaseApp = app;
+        window.firestoreDb = db;
 
-        // Global variables
-        let currentStudent = null;
-        let currentExamType = null;
-        let currentQuestions = [];
+        // نظام مراقبة Firebase
+        class FirebaseSync {
+            constructor() {
+                this.isListening = false;
+            }
+            
+            startSync() {
+                if (this.isListening) return;
+                
+                this.isListening = true;
+                console.log('بدء مراقبة Firebase...');
+                
+                onSnapshot(collection(db, 'questions'), (snapshot) => {
+                    this.handleUpdate(snapshot);
+                });
+            }
+            
+            handleUpdate(snapshot) {
+                const questions = [];
+                snapshot.forEach((doc) => {
+                    questions.push({ id: doc.id, ...doc.data() });
+                });
+                
+                const daily = questions.filter(q => q.type === 'daily');
+                const weekly = questions.filter(q => q.type === 'weekly');
+                
+                if (daily.length > 0) {
+                    window.dailyQuestions = daily;
+                    localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(daily));
+                }
+                
+                if (weekly.length > 0) {
+                    window.weeklyQuestions = weekly;
+                    localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weekly));
+                }
+                
+                this.showNotification();
+            }
+            
+            showNotification() {
+                const notification = document.createElement('div');
+                notification.className = 'notification';
+                notification.textContent = 'تم تحديث الأسئلة!';
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+        }
+
+        window.firebaseSync = new FirebaseSync();
+        window.saveResultToFirebase = async function(resultData) {
+            try {
+                await addDoc(collection(db, 'testResults'), resultData);
+                console.log('تم حفظ النتيجة في Firebase');
+            } catch (error) {
+                console.error('خطأ في حفظ النتيجة:', error);
+            }
+        };
+        
+        window.addEventListener('load', () => {
+            updateConnectionStatus(true);
+            setTimeout(() => window.firebaseSync.startSync(), 2000);
+        });
+    </script>
+
+    <!-- Main JavaScript -->
+    <script>
+        // البيانات الأساسية
+        let currentStudent = {};
+        let currentTest = {};
         let currentQuestionIndex = 0;
-        let studentAnswers = [];
-        let examTimer = null;
-        let timeLeft = 0;
+        let userAnswers = [];
+        let score = 0;
+        let testType = '';
+        let questionStartTime = 0;
+        let questionTimes = [];
+        let studentDatabase = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
 
-        // Sample questions data (will be replaced with Firebase data)
-        const sampleQuestions = {
-            daily: [
-                {
-                    subject: "علوم",
-                    question: "أي مما يلي يعد من مصادر الطاقة المتجددة؟",
-                    options: ["الفحم", "النفط", "الرياح", "الغاز الطبيعي"],
-                    correct: 2,
-                    explanation: "الرياح مصدر طاقة متجددة لأنها لا تنفد."
-                },
-                {
-                    subject: "علوم",
-                    question: "العضو المسؤول عن تنقية الدم من الفضلات هو:",
-                    options: ["القلب", "الكبد", "الكلى", "الرئة"],
-                    correct: 2,
-                    explanation: "الكليتان تقومان بتنقية الدم من الفضلات وإخراجها في البول."
-                },
-                {
-                    subject: "قراءة",
-                    question: "نوع الأسلوب في: (ليت الشباب يعود يوماً) هو:",
-                    options: ["تمني", "نداء", "أمر", "استفهام"],
-                    correct: 0,
-                    explanation: "الجملة تبدأ بأداة التمني (ليت)."
-                },
-                {
-                    subject: "قراءة",
-                    question: "جمع كلمة (مدينة) هو:",
-                    options: ["مدن", "مدائن", "مدونات", "مديون"],
-                    correct: 0,
-                    explanation: "جمع كلمة مدينة هو مدن."
-                },
-                {
-                    subject: "رياضيات",
-                    question: "احسب: 8 × 7",
-                    options: ["54", "56", "64", "72"],
-                    correct: 1,
-                    explanation: "8 × 7 = 56."
-                },
-                {
-                    subject: "رياضيات",
-                    question: "إذا كان طول المستطيل 10 سم وعرضه 4 سم، فما مساحته؟",
-                    options: ["14", "20", "30", "40"],
-                    correct: 3,
-                    explanation: "المساحة = الطول × العرض = 10 × 4 = 40."
-                },
-                {
-                    subject: "رياضيات",
-                    question: "الناتج النهائي لـ 3² + 4² هو:",
-                    options: ["12", "17", "25", "49"],
-                    correct: 2,
-                    explanation: "3²=9 و 4²=16 → المجموع = 25."
-                }
-            ],
-            weekly: [
-                {
-                    subject: "رياضيات",
-                    question: "ما قيمة 7 × (3 + 2) ؟",
-                    options: ["21", "35", "14", "10"],
-                    correct: 1,
-                    explanation: "نحسب داخل القوس أولاً 3+2=5، ثم 7×5=35."
-                },
-                {
-                    subject: "رياضيات",
-                    question: "إذا كان محيط المربع 36 سم، فما طول ضلعه؟",
-                    options: ["6", "8", "9", "12"],
-                    correct: 2,
-                    explanation: "محيط المربع = 4 × الضلع → 36 ÷ 4 = 9."
-                },
-                {
-                    subject: "رياضيات",
-                    question: "الكسر المكافئ لـ 2/3 هو:",
-                    options: ["4/5", "6/9", "8/10", "10/18"],
-                    correct: 1,
-                    explanation: "2/3 × 3 = 6/9، إذن الكسر المكافئ 6/9."
-                },
-                {
-                    subject: "رياضيات",
-                    question: "إذا اشترى طالب 3 دفاتر سعر الواحد 5 ريالات، فكم دفع؟",
-                    options: ["8", "10", "12", "15"],
-                    correct: 3,
-                    explanation: "3 × 5 = 15 ريال."
-                },
-                {
-                    subject: "رياضيات",
-                    question: "ناتج 2/5 + 3/5 يساوي:",
-                    options: ["1/5", "5/5", "4/5", "2/10"],
-                    correct: 1,
-                    explanation: "المقام نفسه، نجمع البسط: 2+3=5، الناتج 5/5 = 1."
-                }
-            ]
-        };
-
-        // Functions
-        window.showSection = function(section) {
-            // Hide all sections
-            document.querySelectorAll('.login-section, .exam-section, .results-section').forEach(s => {
-                s.classList.remove('active');
-            });
-            
-            // Update navigation
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Show selected section
-            if (section === 'login') {
-                document.getElementById('loginSection').classList.add('active');
-                document.querySelector('.nav-btn').classList.add('active');
-            } else if (section === 'results') {
-                document.getElementById('resultsSection').classList.add('active');
-                document.querySelectorAll('.nav-btn')[1].classList.add('active');
-                loadLeaderboards();
+        // الأسئلة الافتراضية
+        let dailyQuestions = [
+            {
+                subject: 'رياضيات',
+                question: 'ما ناتج 15 + 28؟',
+                options: ['43', '42', '44', '41'],
+                correct: 0,
+                explanation: 'الإجابة الصحيحة هي 43'
+            },
+            {
+                subject: 'قراءة',
+                question: 'أي من الكلمات التالية مرادف لكلمة "سعيد"؟',
+                options: ['حزين', 'مسرور', 'غاضب', 'خائف'],
+                correct: 1,
+                explanation: 'مسرور هو مرادف سعيد'
             }
-        };
+        ];
 
-        window.showNewStudentForm = function() {
-            document.getElementById('previousStudentCard').classList.add('hidden');
-            document.getElementById('newStudentForm').style.display = 'block';
-        };
+        let weeklyQuestions = [...dailyQuestions];
 
-        window.continueWithPreviousStudent = function() {
-            const savedStudent = localStorage.getItem('nafisStudent');
-            if (savedStudent) {
-                try {
-                    currentStudent = JSON.parse(savedStudent);
-                    document.getElementById('studentId').textContent = currentStudent.id;
-                    document.getElementById('displayName').textContent = currentStudent.name;
-                    document.getElementById('displayGradeSection').textContent = 
-                        getGradeName(currentStudent.grade) + ' - شعبة ' + currentStudent.section;
-                    document.getElementById('studentCard').classList.remove('hidden');
-                    document.getElementById('previousStudentCard').classList.add('hidden');
-                    document.getElementById('newStudentForm').style.display = 'none';
-                } catch (error) {
-                    console.error('خطأ في تحميل بيانات الطالب:', error);
-                    alert('حدث خطأ في تحميل بيانات الطالب. الرجاء المحاولة مرة أخرى.');
-                }
+        // الدوال الأساسية
+        function updateConnectionStatus(isOnline) {
+            const indicator = document.getElementById('connectionStatus');
+            const syncIndicator = document.getElementById('syncStatus');
+            
+            if (isOnline) {
+                indicator.className = 'connection-indicator online';
+                indicator.innerHTML = '<div class="connection-dot"></div><span>متصل</span>';
+                syncIndicator.className = 'sync-indicator active';
+                syncIndicator.innerHTML = '<div class="connection-dot"></div><span>نظام التزامن نشط</span>';
+            } else {
+                indicator.className = 'connection-indicator offline';
+                indicator.innerHTML = '<div class="connection-dot"></div><span>غير متصل</span>';
+                syncIndicator.className = 'sync-indicator';
+                syncIndicator.innerHTML = '<div class="connection-dot"></div><span>غير متصل</span>';
             }
-        };
+        }
 
-        window.registerStudent = async function() {
-            const name = document.getElementById('studentName').value.trim();
-            const grade = document.getElementById('studentGrade').value;
-            const section = document.getElementById('studentSection').value;
+        function showLoginForm() {
+            document.getElementById('studentForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+        }
 
-            if (!name || !grade || !section) {
-                alert('الرجاء ملء جميع البيانات');
+        function registerStudent() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const fatherName = document.getElementById('fatherName').value.trim();
+            const grandFatherName = document.getElementById('grandFatherName').value.trim();
+            const familyName = document.getElementById('familyName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+
+            if (!firstName || !fatherName || !grandFatherName || !familyName || !grade || !section) {
+                alert('يرجى تعبئة جميع البيانات المطلوبة');
                 return;
             }
 
-            try {
-                // Generate student ID
-                const studentId = 'STU' + Date.now().toString().slice(-6);
-                
-                // Save student to Firebase
-                const studentData = {
-                    id: studentId,
-                    name: name,
-                    grade: grade,
-                    section: section,
-                    createdAt: new Date(),
-                    totalScore: 0,
-                    examsTaken: 0
-                };
-
-                await addDoc(collection(db, 'students'), studentData);
-                
-                currentStudent = studentData;
-                
-                // Show student card
-                document.getElementById('studentId').textContent = studentId;
-                document.getElementById('displayName').textContent = name;
-                document.getElementById('displayGradeSection').textContent = 
-                    getGradeName(grade) + ' - شعبة ' + section;
-                document.getElementById('studentCard').classList.remove('hidden');
-                
-                // Hide form and previous student card
-                document.getElementById('newStudentForm').style.display = 'none';
-                document.getElementById('previousStudentCard').classList.add('hidden');
-                
-                // Save to localStorage for future visits
-                localStorage.setItem('nafisStudent', JSON.stringify(studentData));
-                
-            } catch (error) {
-                console.error('خطأ في التسجيل:', error);
-                alert('حدث خطأ أثناء التسجيل. الرجاء المحاولة مرة أخرى.');
+            const fullName = `${firstName} ${fatherName} ${grandFatherName} ${familyName}`;
+            const studentKey = `${fullName}_${grade}_${section}`;
+            
+            if (studentDatabase[studentKey]) {
+                alert('تم تسجيلك مسبقاً! رقمك الخاص هو: ' + studentDatabase[studentKey].code);
+                return;
             }
-        };
 
-        window.showExams = function() {
-            document.getElementById('loginSection').classList.remove('active');
-            document.getElementById('examSection').classList.add('active');
-        };
+            const studentCode = generateStudentCode();
+            const studentData = {
+                fullName: fullName,
+                firstName, fatherName, grandFatherName, familyName,
+                grade: grade,
+                section: section,
+                code: studentCode,
+                registrationDate: new Date().toISOString()
+            };
+            
+            studentDatabase[studentKey] = studentData;
+            localStorage.setItem('nafisStudentDB', JSON.stringify(studentDatabase));
+            
+            document.getElementById('generatedCode').textContent = studentCode;
+            document.getElementById('studentForm').style.display = 'none';
+            document.getElementById('studentCodeDisplay').style.display = 'block';
+        }
 
-        window.startExam = function(type) {
-            currentExamType = type;
-            currentQuestions = [...sampleQuestions[type]];
+        function generateStudentCode() {
+            let code;
+            do {
+                code = Math.floor(Math.random() * 900000) + 100000;
+            } while (Object.values(studentDatabase).some(student => student.code === code.toString()));
+            
+            return code.toString();
+        }
+
+        function proceedToLogin() {
+            document.getElementById('studentCodeDisplay').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+        }
+
+        function backToRegistration() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('studentForm').style.display = 'block';
+            document.getElementById('loginFullName').value = '';
+            document.getElementById('studentCode').value = '';
+        }
+
+        function loginStudent() {
+            const fullName = document.getElementById('loginFullName').value.trim();
+            const code = document.getElementById('studentCode').value.trim();
+
+            if (!fullName || !code) {
+                alert('يرجى إدخال الاسم والرقم الخاص');
+                return;
+            }
+
+            if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+                alert('الرقم الخاص يجب أن يكون 6 أرقام بالضبط');
+                return;
+            }
+
+            const student = Object.values(studentDatabase).find(s => 
+                s.fullName.toLowerCase() === fullName.toLowerCase() && s.code === code
+            );
+
+            if (!student) {
+                alert('اسم الطالب أو الرقم الخاص غير صحيح!');
+                return;
+            }
+
+            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const hasCompletedDaily = existingResults.some(result => 
+                result.studentName === student.fullName && 
+                result.testType === 'daily'
+            );
+            const hasCompletedWeekly = existingResults.some(result => 
+                result.studentName === student.fullName && 
+                result.testType === 'weekly'
+            );
+
+            if (hasCompletedDaily && hasCompletedWeekly) {
+                alert('لقد أجريت جميع الاختبارات المتاحة مسبقاً!');
+                return;
+            }
+
+            currentStudent = student;
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('testSelection').style.display = 'block';
+        }
+
+        function confirmAndStartTest(type) {
+            const testName = type === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع';
+            
+            // Check if already completed
+            const existingResults = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const hasCompleted = existingResults.some(result => 
+                result.studentName === currentStudent.fullName && 
+                result.testType === type
+            );
+
+            if (hasCompleted) {
+                alert(`لقد أجريت اختبار "${testName}" مسبقاً!`);
+                return;
+            }
+
+            const confirmation = confirm(`هل أنت متأكد من بدء اختبار "${testName}"؟\n\nتذكر: يُسمح بإجراء كل اختبار مرة واحدة فقط!`);
+            
+            if (confirmation) {
+                startTest(type);
+            }
+        }
+
+        function startTest(type) {
+            testType = type;
             currentQuestionIndex = 0;
-            studentAnswers = new Array(currentQuestions.length).fill(-1);
-            
-            // Set timer
-            timeLeft = type === 'daily' ? 600 : 3600; // 10 min for daily, 60 min for weekly
-            
-            document.getElementById('examSection').classList.remove('active');
-            document.getElementById('questionSection').classList.add('active');
-            
-            startTimer();
-            loadQuestion();
-        };
+            userAnswers = [];
+            score = 0;
+            questionTimes = [];
 
-        function startTimer() {
-            examTimer = setInterval(() => {
-                timeLeft--;
-                updateTimerDisplay();
-                
-                if (timeLeft <= 0) {
-                    clearInterval(examTimer);
-                    finishExam();
-                }
-            }, 1000);
+            // Load questions from localStorage or use defaults
+            const savedDaily = localStorage.getItem('nafisMainDailyQuestions');
+            const savedWeekly = localStorage.getItem('nafisMainWeeklyQuestions');
+            
+            if (savedDaily) dailyQuestions = JSON.parse(savedDaily);
+            if (savedWeekly) weeklyQuestions = JSON.parse(savedWeekly);
+
+            currentTest = {
+                questions: type === 'daily' ? dailyQuestions : weeklyQuestions,
+                title: type === 'daily' ? 'سؤال اليوم' : 'أسئلة الأسبوع'
+            };
+
+            if (!currentTest.questions || currentTest.questions.length === 0) {
+                alert('لا توجد أسئلة متاحة حالياً.');
+                return;
+            }
+
+            document.getElementById('testSelection').style.display = 'none';
+            document.getElementById('questionArea').style.display = 'block';
+            showQuestion();
         }
 
-        function updateTimerDisplay() {
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            document.getElementById('timer').textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
+        function showQuestion() {
+            const question = currentTest.questions[currentQuestionIndex];
+            const totalQuestions = currentTest.questions.length;
 
-        function loadQuestion() {
-            const question = currentQuestions[currentQuestionIndex];
-            
-            document.getElementById('questionNumber').textContent = currentQuestionIndex + 1;
-            document.getElementById('questionSubject').textContent = question.subject;
-            document.getElementById('questionText').textContent = question.question;
-            document.getElementById('explanationText').textContent = question.explanation;
-            
-            // Load options
-            const optionsContainer = document.getElementById('optionsContainer');
-            optionsContainer.innerHTML = '';
-            
-            const optionLetters = ['أ', 'ب', 'ج', 'د'];
-            
-            question.options.forEach((option, index) => {
-                const optionDiv = document.createElement('div');
-                optionDiv.className = 'option';
-                optionDiv.onclick = () => selectOption(index);
-                
-                if (studentAnswers[currentQuestionIndex] === index) {
-                    optionDiv.classList.add('selected');
-                }
-                
-                optionDiv.innerHTML = `
-                    <div class="option-letter">${optionLetters[index]}</div>
-                    <span>${option}</span>
-                `;
-                
-                optionsContainer.appendChild(optionDiv);
-            });
-            
-            // Update progress
-            const progress = ((currentQuestionIndex + 1) / currentQuestions.length) * 100;
-            document.getElementById('progressFill').style.width = progress + '%';
-            document.getElementById('questionProgress').textContent = 
-                `السؤال ${currentQuestionIndex + 1} من ${currentQuestions.length}`;
-            
-            // Update navigation buttons
+            questionStartTime = Date.now();
+
+            document.getElementById('questionNumber').textContent = 
+                `السؤال ${currentQuestionIndex + 1} من ${totalQuestions} - ${question.subject}`;
+
+            let questionHTML = `<p><strong>${question.subject}:</strong> ${question.question}</p>`;
+            if (question.image) {
+                questionHTML += `<img src="${question.image}" style="max-width: 100%; height: auto; margin: 15px 0;" alt="صورة السؤال">`;
+            }
+
+            document.getElementById('questionText').innerHTML = questionHTML;
+
+            const optionsHtml = question.options.map((option, index) => 
+                `<div class="option" onclick="selectOption(${index})">${option}</div>`
+            ).join('');
+
+            document.getElementById('optionsContainer').innerHTML = optionsHtml;
+
+            const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+
             document.getElementById('prevBtn').disabled = currentQuestionIndex === 0;
-            document.getElementById('nextBtn').textContent = 
-                currentQuestionIndex === currentQuestions.length - 1 ? 'إنهاء الاختبار' : 'السؤال التالي';
+            document.getElementById('nextBtn').style.display = 'none';
+            document.getElementById('finishBtn').style.display = 
+                currentQuestionIndex === totalQuestions - 1 ? 'inline-block' : 'none';
             
-            // Hide explanation
-            document.getElementById('explanation').classList.remove('show');
+            document.getElementById('submitBtn').style.display = 'none';
         }
 
-        window.selectOption = function(optionIndex) {
-            studentAnswers[currentQuestionIndex] = optionIndex;
-            
-            // Update visual selection
-            document.querySelectorAll('.option').forEach((option, index) => {
-                option.classList.remove('selected');
-                if (index === optionIndex) {
-                    option.classList.add('selected');
-                }
-            });
-        };
+        function selectOption(optionIndex) {
+            const options = document.querySelectorAll('.option');
+            options.forEach(option => option.classList.remove('selected'));
+            options[optionIndex].classList.add('selected');
 
-        window.previousQuestion = function() {
+            userAnswers[currentQuestionIndex] = optionIndex;
+            document.getElementById('submitBtn').style.display = 'block';
+        }
+
+        function submitAnswer() {
+            const question = currentTest.questions[currentQuestionIndex];
+            const userAnswer = userAnswers[currentQuestionIndex];
+            const options = document.querySelectorAll('.option');
+
+            const timeSpent = Math.round((Date.now() - questionStartTime) / 1000);
+            questionTimes[currentQuestionIndex] = timeSpent;
+
+            options.forEach((option, index) => {
+                if (index === question.correct) {
+                    option.classList.add('correct');
+                } else if (index === userAnswer && index !== question.correct) {
+                    option.classList.add('wrong');
+                }
+                option.style.pointerEvents = 'none';
+            });
+
+            if (userAnswer === question.correct) {
+                score++;
+            }
+
+            document.getElementById('questionText').innerHTML += 
+                `<div style="margin-top: 15px; padding: 15px; background: #e8f5e8; border-radius: 8px;">
+                    <strong>التفسير:</strong> ${question.explanation}<br>
+                    <small style="color: #666;">الوقت: ${timeSpent} ثانية</small>
+                </div>`;
+
+            document.getElementById('submitBtn').style.display = 'none';
+            
+            if (currentQuestionIndex < currentTest.questions.length - 1) {
+                document.getElementById('nextBtn').style.display = 'inline-block';
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < currentTest.questions.length - 1) {
+                currentQuestionIndex++;
+                showQuestion();
+            }
+        }
+
+        function previousQuestion() {
             if (currentQuestionIndex > 0) {
                 currentQuestionIndex--;
-                loadQuestion();
+                showQuestion();
             }
-        };
-
-        window.nextQuestion = function() {
-            if (currentQuestionIndex < currentQuestions.length - 1) {
-                currentQuestionIndex++;
-                loadQuestion();
-            } else {
-                finishExam();
-            }
-        };
-
-        window.showResults = function() {
-            finishExam();
-        };
-
-        function finishExam() {
-            clearInterval(examTimer);
-            
-            // Calculate score
-            let correctAnswers = 0;
-            currentQuestions.forEach((question, index) => {
-                if (studentAnswers[index] === question.correct) {
-                    correctAnswers++;
-                }
-            });
-            
-            const percentage = Math.round((correctAnswers / currentQuestions.length) * 100);
-            const score = Math.round((correctAnswers / currentQuestions.length) * 100);
-            
-            // Save result to Firebase
-            saveExamResult(correctAnswers, currentQuestions.length, percentage);
-            
-            // Calculate and display student rankings
-            calculateStudentRanking(percentage);
-            
-            // Update UI
-            document.getElementById('scoreText').textContent = percentage + '%';
-            document.getElementById('scoreDetails').textContent = 
-                `لقد أجبت على ${correctAnswers} من أصل ${currentQuestions.length} أسئلة بشكل صحيح`;
-            document.getElementById('totalScore').textContent = `${score}/100`;
-            
-            // Update score circle
-            const circle = document.getElementById('scoreCircle');
-            const degrees = (percentage / 100) * 360;
-            circle.style.background = `conic-gradient(#4caf50 0deg, #4caf50 ${degrees}deg, #e0e0e0 ${degrees}deg)`;
-            
-            // Show results section
-            document.getElementById('questionSection').classList.remove('active');
-            document.getElementById('resultsSection').classList.add('active');
-            
-            // Load rankings
-            loadLeaderboards();
         }
 
-        async function calculateStudentRanking(studentScore) {
+        function handleFinishTest() {
+            if (userAnswers[currentQuestionIndex] !== undefined) {
+                submitAnswer();
+                setTimeout(() => finishTest(), 1500);
+            } else {
+                alert('يرجى اختيار إجابة أولاً');
+            }
+        }
+
+        async function finishTest() {
+            const totalQuestions = currentTest.questions.length;
+            const percentage = Math.round((score / totalQuestions) * 100);
+            const totalTime = questionTimes.reduce((sum, time) => sum + (time || 0), 0);
+
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('totalQuestions').textContent = totalQuestions;
+            document.getElementById('percentage').textContent = percentage + '%';
+            document.getElementById('scoreDisplay').style.display = 'block';
+
+            // Calculate rankings
+            await calculateRankings(percentage);
+
+            // Save result
+            saveResult();
+
+            document.getElementById('optionsContainer').style.display = 'none';
+            document.getElementById('questionText').style.display = 'none';
+            document.querySelector('.nav-buttons').style.display = 'none';
+            document.getElementById('finishBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('homeBtn').style.display = 'block';
+
+            showLeaderboard();
+        }
+
+        async function calculateRankings(studentPercentage) {
             try {
-                if (!currentStudent) return;
-
-                // Get all results for the same class
-                const classQuery = query(
-                    collection(db, 'testResults'),
-                    where('grade', '==', currentStudent.grade),
-                    where('section', '==', currentStudent.section),
-                    orderBy('percentage', 'desc')
+                const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+                
+                // Calculate class ranking
+                const classResults = results.filter(r => 
+                    r.grade === currentStudent.grade && 
+                    r.section === currentStudent.section &&
+                    r.testType === testType
                 );
                 
-                const classResults = await getDocs(classQuery);
-                const classScores = [];
-                const seenStudents = new Set();
-                
-                classResults.forEach(doc => {
-                    const data = doc.data();
-                    if (!seenStudents.has(data.studentId)) {
-                        classScores.push(data.percentage);
-                        seenStudents.add(data.studentId);
-                    }
-                });
-
-                // Calculate class rank
-                const higherClassScores = classScores.filter(score => score > studentScore);
+                const higherClassScores = classResults.filter(r => r.percentage > studentPercentage);
                 const classRank = higherClassScores.length + 1;
-
-                // Get all results for the school
-                const schoolQuery = query(
-                    collection(db, 'testResults'),
-                    orderBy('percentage', 'desc')
-                );
                 
-                const schoolResults = await getDocs(schoolQuery);
-                const schoolScores = [];
-                const seenSchoolStudents = new Set();
-                
-                schoolResults.forEach(doc => {
-                    const data = doc.data();
-                    if (!seenSchoolStudents.has(data.studentId)) {
-                        schoolScores.push(data.percentage);
-                        seenSchoolStudents.add(data.studentId);
-                    }
-                });
-
-                // Calculate school rank
-                const higherSchoolScores = schoolScores.filter(score => score > studentScore);
+                // Calculate school ranking
+                const schoolResults = results.filter(r => r.testType === testType);
+                const higherSchoolScores = schoolResults.filter(r => r.percentage > studentPercentage);
                 const schoolRank = higherSchoolScores.length + 1;
-
-                // Update UI
+                
                 document.getElementById('classRank').textContent = classRank;
                 document.getElementById('schoolRank').textContent = schoolRank;
-
+                
             } catch (error) {
                 console.error('خطأ في حساب الترتيب:', error);
                 document.getElementById('classRank').textContent = 'غير متاح';
                 document.getElementById('schoolRank').textContent = 'غير متاح';
             }
         }
-            try {
-                const result = {
-                    studentId: currentStudent.id,
-                    studentName: currentStudent.name,
-                    grade: currentStudent.grade,
-                    section: currentStudent.section,
-                    examType: currentExamType,
-                    correctAnswers: correct,
-                    totalQuestions: total,
-                    percentage: percentage,
-                    answers: studentAnswers,
-                    timestamp: new Date()
-                };
-                
-                await addDoc(collection(db, 'testResults'), result);
-                console.log('تم حفظ النتيجة بنجاح');
-            } catch (error) {
-                console.error('خطأ في حفظ النتيجة:', error);
-            }
-        }
 
-        async function loadLeaderboards() {
-            try {
-                // Load class leaderboard
-                if (currentStudent) {
-                    const classQuery = query(
-                        collection(db, 'testResults'),
-                        where('grade', '==', currentStudent.grade),
-                        where('section', '==', currentStudent.section),
-                        orderBy('percentage', 'desc')
-                    );
-                    
-                    const classResults = await getDocs(classQuery);
-                    displayLeaderboard('classLeaderboard', classResults, true);
-                }
-                
-                // Load school leaderboard
-                const schoolQuery = query(
-                    collection(db, 'testResults'),
-                    orderBy('percentage', 'desc')
-                );
-                
-                const schoolResults = await getDocs(schoolQuery);
-                displayLeaderboard('schoolLeaderboard', schoolResults, false);
-                
-            } catch (error) {
-                console.error('خطأ في تحميل النتائج:', error);
-            }
-        }
-
-        function displayLeaderboard(containerId, results, isClass) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
+        function saveResult() {
+            const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const totalTime = questionTimes.reduce((sum, time) => sum + (time || 0), 0);
             
-            const topStudents = [];
-            const seenStudents = new Set();
-            
-            results.forEach(doc => {
-                const data = doc.data();
-                if (!seenStudents.has(data.studentId) && topStudents.length < 3) {
-                    topStudents.push(data);
-                    seenStudents.add(data.studentId);
-                }
-            });
-            
-            topStudents.forEach((student, index) => {
-                const rankItem = document.createElement('div');
-                rankItem.className = 'rank-item';
-                
-                const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : 'rank-3';
-                const gradeText = getGradeName(student.grade);
-                
-                rankItem.innerHTML = `
-                    <div class="rank-number ${rankClass}">${index + 1}</div>
-                    <div class="student-info">
-                        <div class="student-name">${student.studentName}</div>
-                        <div class="student-details">${gradeText} - شعبة ${student.section}</div>
-                    </div>
-                    <div class="student-score">${student.percentage}</div>
-                `;
-                
-                container.appendChild(rankItem);
-            });
-        }
-
-        function getGradeName(grade) {
-            const gradeNames = {
-                'first': 'الأول متوسط',
-                'second': 'الثاني متوسط',
-                'third': 'الثالث متوسط'
+            const result = {
+                studentName: currentStudent.fullName,
+                studentId: currentStudent.code,
+                grade: currentStudent.grade,
+                section: currentStudent.section,
+                testType: testType,
+                score: score,
+                totalQuestions: currentTest.questions.length,
+                percentage: Math.round((score / currentTest.questions.length) * 100),
+                totalTime: totalTime,
+                date: new Date().toLocaleDateString('ar-SA'),
+                timestamp: Date.now()
             };
-            return gradeNames[grade] || grade;
-        }
 
-        // Debug function to check if elements exist
-        function checkElements() {
-            const elements = [
-                'studentName', 'studentGrade', 'studentSection',
-                'prevStudentId', 'prevDisplayName', 'prevDisplayGradeSection',
-                'studentId', 'displayName', 'displayGradeSection',
-                'previousStudentCard', 'newStudentForm', 'studentCard'
-            ];
+            results.push(result);
+            localStorage.setItem('nafisResults', JSON.stringify(results));
             
-            elements.forEach(id => {
-                const element = document.getElementById(id);
-                if (!element) {
-                    console.error(`Element with ID '${id}' not found`);
-                } else {
-                    console.log(`Element '${id}' found`);
-                }
-            });
+            // Save to Firebase if available
+            if (window.saveResultToFirebase) {
+                window.saveResultToFirebase(result);
+            }
         }
 
-        // Call debug function on load
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM Content Loaded');
-            checkElements();
-        });
-
-        // Check for existing student on page load
-        window.addEventListener('load', () => {
-            const savedStudent = localStorage.getItem('nafisStudent');
-            if (savedStudent) {
-                try {
-                    currentStudent = JSON.parse(savedStudent);
-                    
-                    // Show previous student card
-                    document.getElementById('prevStudentId').textContent = currentStudent.id;
-                    document.getElementById('prevDisplayName').textContent = currentStudent.name;
-                    document.getElementById('prevDisplayGradeSection').textContent = 
-                        getGradeName(currentStudent.grade) + ' - شعبة ' + currentStudent.section;
-                    document.getElementById('previousStudentCard').classList.remove('hidden');
-                    document.getElementById('newStudentForm').style.display = 'none';
-                } catch (error) {
-                    console.error('خطأ في تحميل بيانات الطالب المحفوظة:', error);
-                    document.getElementById('newStudentForm').style.display = 'block';
+        function showLeaderboard() {
+            const results = JSON.parse(localStorage.getItem('nafisResults') || '[]');
+            const filteredResults = results.filter(r => r.testType === testType);
+            
+            const sortedResults = filteredResults.sort((a, b) => {
+                if (b.percentage !== a.percentage) {
+                    return b.percentage - a.percentage;
                 }
+                return a.totalTime - b.totalTime;
+            });
+
+            const displayResults = sortedResults.slice(0, 10);
+            
+            if (displayResults.length === 0) {
+                document.getElementById('leaderboard').innerHTML = 
+                    '<p style="text-align: center; color: #666; padding: 20px;">لا توجد نتائج حتى الآن</p>';
             } else {
-                document.getElementById('newStudentForm').style.display = 'block';
+                const leaderboardHtml = displayResults.map((result, index) => {
+                    const isCurrentStudent = result.studentName === currentStudent.fullName;
+                    const highlightClass = isCurrentStudent ? 'current-student' : '';
+                    
+                    return `
+                        <div class="rank-item ${highlightClass}">
+                            <div>
+                                <strong>${index + 1}. ${result.studentName}</strong>
+                                ${isCurrentStudent ? '<span style="color: #e74c3c;"> (أنت)</span>' : ''}
+                                <br><small>${result.grade} - شعبة ${result.section}</small>
+                            </div>
+                            <div style="text-align: left;">
+                                <strong>${result.percentage}%</strong>
+                                <br><small>${result.totalTime}ث</small>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                document.getElementById('leaderboard').innerHTML = leaderboardHtml;
             }
+            
+            document.getElementById('leaderboardCard').style.display = 'block';
+        }
+
+        function goHome() {
+            // إعادة تعيين جميع المتغيرات
+            currentStudent = {};
+            currentTest = {};
+            currentQuestionIndex = 0;
+            userAnswers = [];
+            score = 0;
+            testType = '';
+            questionTimes = [];
+
+            // إخفاء جميع الأقسام وإظهار النموذج الرئيسي
+            document.getElementById('questionArea').style.display = 'none';
+            document.getElementById('leaderboardCard').style.display = 'none';
+            document.getElementById('testSelection').style.display = 'none';
+            document.getElementById('studentCodeDisplay').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('studentForm').style.display = 'block';
+            
+            // مسح البيانات المدخلة
+            document.getElementById('firstName').value = '';
+            document.getElementById('fatherName').value = '';
+            document.getElementById('grandFatherName').value = '';
+            document.getElementById('familyName').value = '';
+            document.getElementById('grade').value = '';
+            document.getElementById('section').value = '';
+            document.getElementById('loginFullName').value = '';
+            document.getElementById('studentCode').value = '';
+            
+            // إعادة تعيين واجهة الأسئلة
+            document.getElementById('optionsContainer').style.display = 'block';
+            document.getElementById('questionText').style.display = 'block';
+            document.querySelector('.nav-buttons').style.display = 'flex';
+            document.getElementById('scoreDisplay').style.display = 'none';
+            document.getElementById('progressBar').style.width = '0%';
+        }
+
+        // منع الغش والنسخ
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && (e.keyCode === 67 || e.keyCode === 65 || e.keyCode === 86 || e.keyCode === 83 || e.keyCode === 85)) {
+                e.preventDefault();
+            }
+            if (e.keyCode === 123) e.preventDefault();
+        });
+        
+        // تهيئة التطبيق
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('تم تحميل منصة نافس بنجاح');
         });
 
-        // Auto-save progress for weekly exams
-        setInterval(() => {
-            if (currentExamType === 'weekly' && studentAnswers.some(answer => answer !== -1)) {
-                // Save progress to localStorage
-                const progress = {
-                    examType: currentExamType,
-                    questionIndex: currentQuestionIndex,
-                    answers: studentAnswers,
-                    timeLeft: timeLeft,
-                    timestamp: Date.now()
-                };
-                localStorage.setItem('examProgress', JSON.stringify(progress));
-            }
-        }, 30000); // Save every 30 seconds
-
-        // Make functions globally available
-        window.db = db;
-        window.addDoc = addDoc;
-        window.collection = collection;
-        window.getDocs = getDocs;
-        window.query = query;
-        window.where = where;
-        window.orderBy = orderBy;
+        // مراقبة الاتصال
+        window.addEventListener('online', () => updateConnectionStatus(true));
+        window.addEventListener('offline', () => updateConnectionStatus(false));
+        
+        // بدء التطبيق
+        updateConnectionStatus(navigator.onLine);
     </script>
 </body>
 </html>
