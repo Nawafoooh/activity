@@ -952,22 +952,36 @@
                 
                 let questions = [];
                 
+                console.log('Import data received:', data);
+                
                 // Handle different data formats
                 if (data.daily && Array.isArray(data.daily)) {
                     questions.push(...data.daily.map(q => ({...q, type: 'daily'})));
+                    console.log('Found daily questions:', data.daily.length);
                 }
                 if (data.weekly && Array.isArray(data.weekly)) {
                     questions.push(...data.weekly.map(q => ({...q, type: 'weekly'})));
+                    console.log('Found weekly questions:', data.weekly.length);
                 }
                 if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
                     questions.push(...data.nafes_exam.map(q => ({...q, type: 'weekly'})));
+                    console.log('Found nafes_exam questions:', data.nafes_exam.length);
+                }
+                // Handle new format with nafes_exam (different spelling)
+                if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
+                    questions.push(...data.nafes_exam.map(q => ({...q, type: 'weekly'})));
+                    console.log('Found nafes_exam questions:', data.nafes_exam.length);
                 }
                 if (Array.isArray(data)) {
                     questions.push(...data.map(q => ({...q, type: q.type || 'weekly'})));
+                    console.log('Found direct array questions:', data.length);
                 }
 
+                console.log('Total questions found:', questions.length);
+
                 if (questions.length === 0) {
-                    showAlert('لا توجد أسئلة صالحة في الملف المحدد', 'error');
+                    console.log('No questions found. Data structure:', Object.keys(data));
+                    showAlert(`لا توجد أسئلة صالحة في الملف المحدد. تم العثور على المفاتيح التالية: ${Object.keys(data).join(', ')}`, 'error');
                     hideProgress();
                     updateSyncStatus('connected', '✅ متصل');
                     return;
@@ -980,42 +994,79 @@
                 for (let i = 0; i < questions.length; i++) {
                     const question = questions[i];
                     
-                    // Validate question structure
-                    if (!question.question || !question.options || !Array.isArray(question.options) || question.options.length < 4) {
+                    console.log(`Processing question ${i + 1}:`, question);
+                    
+                    // Enhanced validation
+                    if (!question.question || typeof question.question !== 'string') {
+                        console.log(`Skipping question ${i + 1}: missing or invalid question text`);
+                        skipped++;
+                        continue;
+                    }
+                    
+                    if (!question.options || !Array.isArray(question.options) || question.options.length < 4) {
+                        console.log(`Skipping question ${i + 1}: missing or invalid options`);
+                        skipped++;
+                        continue;
+                    }
+                    
+                    if (question.correct === undefined || question.correct === null || 
+                        isNaN(parseInt(question.correct)) || parseInt(question.correct) < 0 || parseInt(question.correct) > 3) {
+                        console.log(`Skipping question ${i + 1}: missing or invalid correct answer`);
                         skipped++;
                         continue;
                     }
 
                     try {
-                        await window.addDoc(window.collection(window.db, 'questions'), {
+                        const questionData = {
                             subject: question.subject || 'عام',
                             question: question.question.trim(),
-                            options: question.options.map(opt => opt.trim()),
-                            correct: parseInt(question.correct) || 0,
+                            options: question.options.map(opt => (opt || '').toString().trim()),
+                            correct: parseInt(question.correct),
                             explanation: question.explanation || 'لا يوجد تفسير متاح',
                             type: question.type || 'weekly',
                             createdAt: new Date(),
                             active: true,
-                            imported: true
-                        });
+                            imported: true,
+                            importSource: 'json-file'
+                        };
+                        
+                        console.log(`Adding question ${i + 1} to database:`, questionData);
+                        
+                        await window.addDoc(window.collection(window.db, 'questions'), questionData);
                         
                         imported++;
+                        console.log(`Successfully imported question ${i + 1}`);
                         
                     } catch (error) {
-                        console.error('Error importing question:', error);
+                        console.error(`Error importing question ${i + 1}:`, error);
                         skipped++;
                     }
                     
                     showProgress((i + 1) / total * 100, `تم استيراد ${imported} من ${total} (تم تجاهل ${skipped})`);
+                    
+                    // Add small delay to prevent overwhelming Firebase
+                    if (i % 5 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
                 }
 
                 hideProgress();
+                
+                console.log(`Import completed. Imported: ${imported}, Skipped: ${skipped}`);
                 
                 if (imported > 0) {
                     showAlert(`✅ تم استيراد ${imported} سؤال بنجاح${skipped > 0 ? ` (تم تجاهل ${skipped} سؤال غير صالح)` : ''}`, 'success');
                     // Real-time listener will handle the UI update
                 } else {
-                    showAlert('❌ لم يتم استيراد أي سؤال - تحقق من تنسيق الملف', 'error');
+                    showAlert('❌ لم يتم استيراد أي سؤال - تحقق من تنسيق الملف ومن وحدة التحكم للتفاصيل', 'error');
+                    console.log('Sample question structure expected:', {
+                        subject: 'المادة',
+                        question: 'نص السؤال',
+                        options: ['خيار 1', 'خيار 2', 'خيار 3', 'خيار 4'],
+                        correct: 0, // رقم الخيار الصحيح (0-3)
+                        explanation: 'التفسير',
+                        type: 'daily أو weekly'
+                    });
                 }
                 
                 updateSyncStatus('connected', '✅ متصل');
@@ -1023,7 +1074,7 @@
             } catch (error) {
                 console.error('Import error:', error);
                 hideProgress();
-                showAlert('خطأ في الاستيراد: ' + error.message, 'error');
+                showAlert('خطأ في الاستيراد: ' + error.message + ' - تحقق من وحدة التحكم للتفاصيل', 'error');
                 updateSyncStatus('error', '❌ خطأ في التزامن');
             }
         }
