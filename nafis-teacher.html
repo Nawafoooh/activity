@@ -1407,6 +1407,77 @@
             });
         }
 
+        // Dashboard Statistics
+        async function loadDashboardStats() {
+            try {
+                // Load students count
+                const studentsSnapshot = await getDocs(collection(db, 'students'));
+                document.getElementById('totalStudents').textContent = studentsSnapshot.size;
+
+                // Load questions count
+                const questionsSnapshot = await getDocs(collection(db, 'questions'));
+                document.getElementById('totalQuestions').textContent = questionsSnapshot.size;
+
+                // Load exams count and calculate average
+                const resultsSnapshot = await getDocs(collection(db, 'testResults'));
+                document.getElementById('totalExams').textContent = resultsSnapshot.size;
+
+                // Calculate average score
+                let totalScore = 0;
+                let count = 0;
+                resultsSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    totalScore += data.percentage;
+                    count++;
+                });
+
+                const averageScore = count > 0 ? Math.round(totalScore / count) : 0;
+                document.getElementById('averageScore').textContent = averageScore + '%';
+
+                // Load recent results
+                const recentQuery = query(
+                    collection(db, 'testResults'), 
+                    orderBy('timestamp', 'desc')
+                );
+                const recentSnapshot = await getDocs(recentQuery);
+                
+                const recentResults = [];
+                recentSnapshot.forEach(doc => {
+                    if (recentResults.length < 5) {
+                        recentResults.push(doc.data());
+                    }
+                });
+
+                displayRecentResults(recentResults);
+
+            } catch (error) {
+                console.error('خطأ في تحميل الإحصائيات:', error);
+            }
+        }
+
+        function displayRecentResults(results) {
+            const tbody = document.getElementById('recentResults');
+            tbody.innerHTML = '';
+
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                const gradeClass = getGradeClass(result.percentage);
+                const gradeText = result.grade || 'غير محدد';
+                const examTypeText = result.examType === 'daily' ? 'يومي' : 'أسبوعي';
+                const timeAgo = getTimeAgo(result.timestamp);
+
+                row.innerHTML = `
+                    <td>${result.studentName}</td>
+                    <td>${gradeText}</td>
+                    <td>${examTypeText}</td>
+                    <td><span class="grade-badge ${gradeClass}">${result.percentage}%</span></td>
+                    <td>${timeAgo}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
         // Filter Functions
         window.filterResults = function() {
             const gradeFilter = document.getElementById('filterGrade').value;
