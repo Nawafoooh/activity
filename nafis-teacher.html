@@ -993,37 +993,159 @@
 
         async function importQuestions(data) {
             try {
-                let questions = [];
+                const progressContainer = document.createElement('div');
+                progressContainer.className = 'progress-container';
+                progressContainer.style.cssText = `
+                    width: 100%;
+                    background-color: #f0f0f0;
+                    border-radius: 10px;
+                    margin: 10px 0;
+                    display: block;
+                `;
                 
-                // Handle different JSON structures
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+                progressBar.style.cssText = `
+                    width: 0%;
+                    height: 20px;
+                    background: linear-gradient(45deg, #27ae60, #2ecc71);
+                    border-radius: 10px;
+                    transition: width 0.3s ease;
+                    text-align: center;
+                    color: white;
+                    line-height: 20px;
+                    font-size: 12px;
+                `;
+                
+                progressContainer.appendChild(progressBar);
+                document.getElementById('importSection').appendChild(progressContainer);
+                
+                let questions = [];
+                let importedCount = 0;
+                let failedCount = 0;
+                
+                progressBar.style.width = '10%';
+                progressBar.textContent = 'معالجة البيانات...';
+                
+                // Handle different JSON structures with better validation
+                const processQuestionArray = (questionArray, type) => {
+                    if (!Array.isArray(questionArray)) return [];
+                    
+                    return questionArray.map(q => {
+                        if (!q || typeof q !== 'object') return null;
+                        
+                        return {
+                            subject: q.subject || 'عام',
+                            question: q.question || '',
+                            options: Array.isArray(q.options) ? q.options : [],
+                            correct: typeof q.correct === 'number' ? q.correct : 0,
+                            explanation: q.explanation || 'لا يوجد تفسير',
+                            type: type,
+                            image: q.image || null
+                        };
+                    }).filter(q => q && q.question && q.options.length >= 4);
+                };
+
                 if (data.daily && Array.isArray(data.daily)) {
-                    questions = [...questions, ...data.daily.map(q => ({...q, type: 'daily'}))];
+                    questions = [...questions, ...processQuestionArray(data.daily, 'daily')];
                 }
                 if (data.weekly && Array.isArray(data.weekly)) {
-                    questions = [...questions, ...data.weekly.map(q => ({...q, type: 'weekly'}))];
+                    questions = [...questions, ...processQuestionArray(data.weekly, 'weekly')];
                 }
                 if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
-                    questions = [...questions, ...data.nafes_exam.map(q => ({...q, type: 'weekly'}))];
+                    questions = [...questions, ...processQuestionArray(data.nafes_exam, 'weekly')];
                 }
                 if (Array.isArray(data)) {
-                    questions = data.map(q => ({...q, type: q.type || 'daily'}));
+                    questions = [...questions, ...processQuestionArray(data, 'weekly')];
                 }
 
                 if (questions.length === 0) {
-                    showAlert('لم يتم العثور على أسئلة في الملف', 'error');
+                    showAlert('لم يتم العثور على أسئلة صالحة في الملف', 'error');
+                    progressContainer.remove();
                     return;
                 }
 
-                showAlert(`جاري استيراد ${questions.length} سؤال...`, 'success');
+                progressBar.style.width = '30%';
+                progressBar.textContent = `معالجة ${questions.length} سؤال...`;
 
-                // Save questions to Firebase
-                let importedCount = 0;
-                let failedCount = 0;
+                // Enhanced sync system
+                const enhancedSync = async (type, questionsList) => {
+                    try {
+                        const timestamp = Date.now();
+                        const mainKey = type === 'daily' ? 'nafisMainDailyQuestions' : 'nafisMainWeeklyQuestions';
+                        
+                        // Clear and update localStorage
+                        localStorage.removeItem(mainKey);
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        localStorage.setItem(mainKey, JSON.stringify(questionsList));
+                        
+                        // Multiple update indicators
+                        const updateKeys = [
+                            'nafisLastUpdate',
+                            'nafisUpdateType',
+                            'nafisLastSyncTeacher',
+                            `nafisLast${type}Update`,
+                            'nafisForceRefresh',
+                            'nafisStudentRefresh',
+                            'nafisQuestionCount'
+                        ];
+                        
+                        updateKeys.forEach(key => {
+                            localStorage.setItem(key, timestamp.toString());
+                        });
+                        
+                        // Enhanced messaging
+                        const syncData = {
+                            type: 'QUESTIONS_UPDATED',
+                            questionType: type,
+                            questions: questionsList,
+                            timestamp: timestamp,
+                            source: 'teacher',
+                            forceRefresh: true,
+                            questionsCount: questionsList.length,
+                            action: 'FORCE_UPDATE',
+                            version: '2.0'
+                        };
+                        
+                        // Multiple message variants
+                        const messageVariants = [
+                            { ...syncData, type: 'NAFIS_FORCE_REFRESH' },
+                            { ...syncData, type: 'STUDENT_REFRESH_REQUIRED' },
+                            { ...syncData, type: 'QUESTIONS_SYNC_UPDATE' }
+                        ];
+                        
+                        messageVariants.forEach(msg => {
+                            window.postMessage(msg, '*');
+                        });
+                        
+                        // Storage events for notification
+                        for (let i = 0; i < 3; i++) {
+                            const eventKey = `nafisUpdate_${i}_${timestamp}`;
+                            localStorage.setItem(eventKey, JSON.stringify(syncData));
+                            localStorage.removeItem(eventKey);
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+                        
+                        console.log(`تم تزامن ${type} بنجاح - ${questionsList.length} سؤال`);
+                        
+                    } catch (error) {
+                        console.error('خطأ في التزامن:', error);
+                        throw error;
+                    }
+                };
 
-                for (const question of questions) {
+                // Save questions to Firebase and organize by type
+                const dailyQuestions = questions.filter(q => q.type === 'daily');
+                const weeklyQuestions = questions.filter(q => q.type === 'weekly');
+                const totalQuestions = questions.length;
+                
+                for (let i = 0; i < questions.length; i++) {
+                    const question = questions[i];
+                    
                     try {
                         // Validate question structure
-                        if (!question.subject || !question.question || !question.options || !Array.isArray(question.options) || question.correct === undefined) {
+                        if (!question.subject || !question.question || !Array.isArray(question.options) || 
+                            question.options.length < 4 || typeof question.correct !== 'number') {
                             console.warn('سؤال غير صالح:', question);
                             failedCount++;
                             continue;
@@ -1032,10 +1154,11 @@
                         const questionData = {
                             subject: question.subject,
                             question: question.question,
-                            options: question.options,
-                            correct: parseInt(question.correct),
+                            options: question.options.slice(0, 4), // Ensure only 4 options
+                            correct: Math.max(0, Math.min(3, question.correct)), // Ensure correct is 0-3
                             explanation: question.explanation || 'لا يوجد تفسير',
-                            type: question.type || 'daily',
+                            type: question.type,
+                            image: question.image,
                             createdAt: new Date(),
                             active: true
                         };
@@ -1044,7 +1167,9 @@
                         importedCount++;
                         
                         // Update progress
-                        showAlert(`تم استيراد ${importedCount} من ${questions.length} أسئلة...`, 'success');
+                        const progress = 30 + Math.round((i / totalQuestions) * 60);
+                        progressBar.style.width = progress + '%';
+                        progressBar.textContent = `تم استيراد ${importedCount} من ${totalQuestions}`;
                         
                     } catch (error) {
                         console.error('خطأ في حفظ السؤال:', error);
@@ -1052,22 +1177,82 @@
                     }
                 }
 
+                progressBar.style.width = '95%';
+                progressBar.textContent = 'تحديث منصة الطلاب...';
+
+                // Enhanced sync with student platform
+                if (dailyQuestions.length > 0) {
+                    await enhancedSync('daily', dailyQuestions);
+                }
+                if (weeklyQuestions.length > 0) {
+                    await enhancedSync('weekly', weeklyQuestions);
+                }
+
+                progressBar.style.width = '100%';
+                progressBar.textContent = 'مكتمل!';
+
                 const message = failedCount > 0 
                     ? `تم استيراد ${importedCount} سؤال بنجاح! فشل في استيراد ${failedCount} أسئلة.`
-                    : `تم استيراد ${importedCount} سؤال بنجاح!`;
+                    : `تم استيراد ${importedCount} سؤال بنجاح وتحديث منصة الطلاب!`;
                 
                 showAlert(message, 'success');
                 loadQuestions();
                 updateSyncStatus('success', 'تم التحديث');
                 
-                // Clear file input
+                // Show enhanced notification
+                showEnhancedNotification(importedCount, failedCount);
+                
+                // Clear file input and remove progress bar
                 document.getElementById('fileInput').value = '';
+                setTimeout(() => {
+                    progressContainer.remove();
+                }, 3000);
                 
             } catch (error) {
                 console.error('خطأ في استيراد الأسئلة:', error);
                 showAlert('حدث خطأ أثناء استيراد الأسئلة: ' + error.message, 'error');
                 updateSyncStatus('error', 'خطأ في التحديث');
             }
+        }
+
+        function showEnhancedNotification(successCount, failedCount) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(45deg, #27ae60, #2ecc71);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                z-index: 10000;
+                font-weight: bold;
+                max-width: 300px;
+                animation: slideIn 0.3s ease;
+            `;
+            
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 20px;">✅</span>
+                    <div>
+                        <strong>تم التحديث بنجاح!</strong><br>
+                        <small>تم استيراد: ${successCount} سؤال</small>
+                        ${failedCount > 0 ? `<br><small style="color: #ffeb3b;">فشل: ${failedCount} سؤال</small>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 4000);
         }
 
         // Questions Management
