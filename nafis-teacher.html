@@ -1073,6 +1073,7 @@
         // Questions Management
         async function loadQuestions() {
             try {
+                showAlert('جاري تحميل الأسئلة...', 'success');
                 const questionsQuery = query(collection(db, 'questions'), orderBy('createdAt', 'desc'));
                 const querySnapshot = await getDocs(questionsQuery);
                 
@@ -1082,15 +1083,21 @@
                 });
 
                 displayQuestions();
+                showAlert(`تم تحميل ${currentQuestions.length} سؤال`, 'success');
                 
             } catch (error) {
                 console.error('خطأ في تحميل الأسئلة:', error);
-                showAlert('حدث خطأ في تحميل الأسئلة', 'error');
+                showAlert('حدث خطأ في تحميل الأسئلة: ' + error.message, 'error');
             }
         }
 
         function displayQuestions() {
             const container = document.getElementById('questionsList');
+            if (!container) {
+                console.error('عنصر questionsList غير موجود');
+                return;
+            }
+
             container.innerHTML = '';
 
             if (currentQuestions.length === 0) {
@@ -1128,6 +1135,61 @@
                 container.appendChild(questionDiv);
             });
         }
+
+        // Make functions globally available
+        window.editQuestion = function(questionId) {
+            const question = currentQuestions.find(q => q.id === questionId);
+            if (!question) {
+                showAlert('السؤال غير موجود', 'error');
+                return;
+            }
+
+            editingQuestionId = questionId;
+            document.getElementById('modalTitle').textContent = 'تعديل السؤال';
+            
+            // Fill form with question data
+            document.getElementById('questionSubject').value = question.subject;
+            document.getElementById('questionText').value = question.question;
+            document.getElementById('option1').value = question.options[0] || '';
+            document.getElementById('option2').value = question.options[1] || '';
+            document.getElementById('option3').value = question.options[2] || '';
+            document.getElementById('option4').value = question.options[3] || '';
+            document.getElementById('questionExplanation').value = question.explanation;
+            document.getElementById('questionType').value = question.type;
+            
+            // Set correct answer
+            const correctRadio = document.querySelector(`input[name="correct"][value="${question.correct}"]`);
+            if (correctRadio) {
+                correctRadio.checked = true;
+            }
+            
+            document.getElementById('questionModal').classList.add('active');
+        };
+
+        window.deleteQuestion = async function(questionId) {
+            if (!confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
+
+            try {
+                await deleteDoc(doc(db, 'questions', questionId));
+                showAlert('تم حذف السؤال بنجاح', 'success');
+                loadQuestions();
+                updateSyncStatus('success', 'تم التحديث');
+            } catch (error) {
+                console.error('خطأ في حذف السؤال:', error);
+                showAlert('حدث خطأ في حذف السؤال: ' + error.message, 'error');
+            }
+        };
+
+        window.showAddQuestionModal = function() {
+            editingQuestionId = null;
+            document.getElementById('modalTitle').textContent = 'إضافة سؤال جديد';
+            document.getElementById('questionForm').reset();
+            document.getElementById('questionModal').classList.add('active');
+        };
+
+        window.closeModal = function() {
+            document.getElementById('questionModal').classList.remove('active');
+        };
 
         // Modal Management
         window.showAddQuestionModal = function() {
@@ -1228,6 +1290,7 @@
         // Results Management
         async function loadResults() {
             try {
+                showAlert('جاري تحميل النتائج...', 'success');
                 const resultsQuery = query(collection(db, 'testResults'), orderBy('timestamp', 'desc'));
                 const querySnapshot = await getDocs(resultsQuery);
                 
@@ -1237,15 +1300,21 @@
                 });
 
                 displayResults();
+                showAlert(`تم تحميل ${currentResults.length} نتيجة`, 'success');
                 
             } catch (error) {
                 console.error('خطأ في تحميل النتائج:', error);
-                showAlert('حدث خطأ في تحميل النتائج', 'error');
+                showAlert('حدث خطأ في تحميل النتائج: ' + error.message, 'error');
             }
         }
 
         function displayResults() {
             const tbody = document.getElementById('allResults');
+            if (!tbody) {
+                console.error('عنصر allResults غير موجود');
+                return;
+            }
+
             tbody.innerHTML = '';
 
             if (currentResults.length === 0) {
@@ -1256,7 +1325,116 @@
             currentResults.forEach(result => {
                 const row = document.createElement('tr');
                 const gradeClass = getGradeClass(result.percentage);
-                const gradeText = getGradeName(result.grade);
+                const gradeText = result.grade || 'غير محدد';
+                const examTypeText = result.examType === 'daily' ? 'يومي' : 'أسبوعي';
+                const dateText = formatDate(result.timestamp);
+
+                row.innerHTML = `
+                    <td>${result.studentName || 'غير محدد'}</td>
+                    <td>${result.studentId || 'غير محدد'}</td>
+                    <td>${gradeText}</td>
+                    <td>${result.section || 'غير محدد'}</td>
+                    <td>${examTypeText}</td>
+                    <td>${result.correctAnswers || 0}</td>
+                    <td>${result.totalQuestions || 0}</td>
+                    <td><span class="grade-badge ${gradeClass}">${result.percentage || 0}%</span></td>
+                    <td>${dateText}</td>
+                    <td>
+                        <button class="btn-small btn-edit" onclick="viewAnswers('${result.id}')">عرض الإجابات</button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Students Management
+        async function loadStudents() {
+            try {
+                showAlert('جاري تحميل الطلاب...', 'success');
+                const studentsQuery = query(collection(db, 'students'), orderBy('createdAt', 'desc'));
+                const querySnapshot = await getDocs(studentsQuery);
+                
+                currentStudents = [];
+                querySnapshot.forEach((doc) => {
+                    currentStudents.push({ id: doc.id, ...doc.data() });
+                });
+
+                displayStudents();
+                showAlert(`تم تحميل ${currentStudents.length} طالب`, 'success');
+                
+            } catch (error) {
+                console.error('خطأ في تحميل الطلاب:', error);
+                showAlert('حدث خطأ في تحميل الطلاب: ' + error.message, 'error');
+            }
+        }
+
+        function displayStudents() {
+            const tbody = document.getElementById('studentsList');
+            if (!tbody) {
+                console.error('عنصر studentsList غير موجود');
+                return;
+            }
+
+            tbody.innerHTML = '';
+
+            if (currentStudents.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666; padding: 40px;">لا يوجد طلاب مسجلون</td></tr>';
+                return;
+            }
+
+            currentStudents.forEach(student => {
+                const row = document.createElement('tr');
+                const gradeText = student.grade || 'غير محدد';
+                const dateText = formatDate(student.createdAt);
+                const avgScore = student.totalScore || 0;
+                const examsCount = student.examsTaken || 0;
+
+                row.innerHTML = `
+                    <td>${student.id}</td>
+                    <td>${student.name}</td>
+                    <td>${gradeText}</td>
+                    <td>${student.section}</td>
+                    <td>${examsCount}</td>
+                    <td><span class="grade-badge ${getGradeClass(avgScore)}">${avgScore}%</span></td>
+                    <td>${dateText}</td>
+                    <td>
+                        <button class="btn-small btn-edit" onclick="viewStudentDetails('${student.id}')">عرض التفاصيل</button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Filter Functions
+        window.filterResults = function() {
+            const gradeFilter = document.getElementById('filterGrade').value;
+            const sectionFilter = document.getElementById('filterSection').value;
+            const examTypeFilter = document.getElementById('filterExamType').value;
+
+            const filteredResults = currentResults.filter(result => {
+                return (!gradeFilter || result.grade === gradeFilter) &&
+                       (!sectionFilter || result.section === sectionFilter) &&
+                       (!examTypeFilter || result.examType === examTypeFilter);
+            });
+
+            displayFilteredResults(filteredResults);
+        };
+
+        function displayFilteredResults(results) {
+            const tbody = document.getElementById('allResults');
+            tbody.innerHTML = '';
+
+            if (results.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #666; padding: 40px;">لا توجد نتائج تطابق المرشحات</td></tr>';
+                return;
+            }
+
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                const gradeClass = getGradeClass(result.percentage);
+                const gradeText = result.grade || 'غير محدد';
                 const examTypeText = result.examType === 'daily' ? 'يومي' : 'أسبوعي';
                 const dateText = formatDate(result.timestamp);
 
@@ -1279,24 +1457,26 @@
             });
         }
 
-        // Students Management
-        async function loadStudents() {
-            try {
-                const studentsQuery = query(collection(db, 'students'), orderBy('createdAt', 'desc'));
-                const querySnapshot = await getDocs(studentsQuery);
-                
-                currentStudents = [];
-                querySnapshot.forEach((doc) => {
-                    currentStudents.push({ id: doc.id, ...doc.data() });
-                });
-
-                displayStudents();
-                
-            } catch (error) {
-                console.error('خطأ في تحميل الطلاب:', error);
-                showAlert('حدث خطأ في تحميل الطلاب', 'error');
+        // Additional Functions
+        window.viewAnswers = function(resultId) {
+            const result = currentResults.find(r => r.id === resultId);
+            if (!result) {
+                showAlert('النتيجة غير موجودة', 'error');
+                return;
             }
-        }
+
+            alert(`تفاصيل الاختبار:\nالطالب: ${result.studentName}\nالنتيجة: ${result.percentage}%\nالإجابات الصحيحة: ${result.correctAnswers}/${result.totalQuestions}`);
+        };
+
+        window.viewStudentDetails = function(studentId) {
+            const student = currentStudents.find(s => s.id === studentId);
+            if (!student) {
+                showAlert('الطالب غير موجود', 'error');
+                return;
+            }
+
+            alert(`تفاصيل الطالب:\nالاسم: ${student.name}\nرقم الطالب: ${student.id}\nالصف: ${student.grade}\nالشعبة: ${student.section}`);
+        };
 
         function displayStudents() {
             const tbody = document.getElementById('studentsList');
@@ -1524,19 +1704,134 @@
             }
         }
 
-        // Additional Functions
-        window.viewAnswers = function(resultId) {
-            const result = currentResults.find(r => r.id === resultId);
-            if (!result) return;
+        // Form Submission
+        document.getElementById('questionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const loading = document.getElementById('saveLoading');
+            loading.style.display = 'inline-block';
 
-            alert(`تفاصيل الاختبار:\nالطالب: ${result.studentName}\nالنتيجة: ${result.percentage}%\nالإجابات الصحيحة: ${result.correctAnswers}/${result.totalQuestions}`);
+            try {
+                const subject = document.getElementById('questionSubject').value;
+                const question = document.getElementById('questionText').value;
+                const option1 = document.getElementById('option1').value;
+                const option2 = document.getElementById('option2').value;
+                const option3 = document.getElementById('option3').value;
+                const option4 = document.getElementById('option4').value;
+                const explanation = document.getElementById('questionExplanation').value;
+                const type = document.getElementById('questionType').value;
+                const correctRadio = document.querySelector('input[name="correct"]:checked');
+
+                if (!subject || !question || !option1 || !option2 || !option3 || !option4 || !explanation || !type || !correctRadio) {
+                    showAlert('يرجى ملء جميع الحقول المطلوبة', 'error');
+                    return;
+                }
+
+                const questionData = {
+                    subject: subject,
+                    question: question,
+                    options: [option1, option2, option3, option4],
+                    correct: parseInt(correctRadio.value),
+                    explanation: explanation,
+                    type: type,
+                    updatedAt: new Date()
+                };
+
+                if (editingQuestionId) {
+                    // Update existing question
+                    await updateDoc(doc(db, 'questions', editingQuestionId), questionData);
+                    showAlert('تم تحديث السؤال بنجاح', 'success');
+                } else {
+                    // Add new question
+                    questionData.createdAt = new Date();
+                    questionData.active = true;
+                    await addDoc(collection(db, 'questions'), questionData);
+                    showAlert('تم إضافة السؤال بنجاح', 'success');
+                }
+
+                closeModal();
+                loadQuestions();
+                updateSyncStatus('success', 'تم التحديث');
+                
+            } catch (error) {
+                console.error('خطأ في حفظ السؤال:', error);
+                showAlert('حدث خطأ في حفظ السؤال: ' + error.message, 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Tab Management with proper error handling
+        window.showTab = function(tabName) {
+            try {
+                // Hide all tabs
+                document.querySelectorAll('.tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                // Remove active class from all nav tabs
+                document.querySelectorAll('.nav-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                // Show selected tab
+                const targetTab = document.getElementById(tabName + 'Tab');
+                if (targetTab) {
+                    targetTab.classList.add('active');
+                } else {
+                    console.error(`Tab ${tabName}Tab not found`);
+                    return;
+                }
+                
+                // Add active class to clicked nav tab
+                if (event && event.target) {
+                    event.target.classList.add('active');
+                }
+                
+                // Load data for the tab
+                if (tabName === 'questions') {
+                    loadQuestions();
+                } else if (tabName === 'results') {
+                    loadResults();
+                } else if (tabName === 'students') {
+                    loadStudents();
+                } else if (tabName === 'dashboard') {
+                    loadDashboardStats();
+                }
+            } catch (error) {
+                console.error('خطأ في تبديل التبويب:', error);
+                showAlert('حدث خطأ في تبديل التبويب', 'error');
+            }
         };
 
-        window.viewStudentDetails = function(studentId) {
-            const student = currentStudents.find(s => s.id === studentId);
-            if (!student) return;
+        // Test import function for debugging
+        window.testImport = function() {
+            const testData = {
+                "daily": [
+                    {
+                        "subject": "رياضيات",
+                        "question": "كم يساوي 2 + 2؟",
+                        "options": ["3", "4", "5", "6"],
+                        "correct": 1,
+                        "explanation": "2 + 2 = 4"
+                    }
+                ]
+            };
+            
+            console.log('اختبار الاستيراد مع البيانات:', testData);
+            importQuestions(testData);
+        };
 
-            alert(`تفاصيل الطالب:\nالاسم: ${student.name}\nرقم الطالب: ${student.id}\nالصف: ${getGradeName(student.grade)}\nالشعبة: ${student.section}`);
+        // Add manual trigger for testing
+        window.forceLoadQuestions = async function() {
+            try {
+                showAlert('جاري إعادة تحميل الأسئلة...', 'success');
+                await loadQuestions();
+                showAlert('تم تحميل الأسئلة بنجاح', 'success');
+            } catch (error) {
+                console.error('خطأ في إعادة التحميل:', error);
+                showAlert('فشل في إعادة تحميل الأسئلة: ' + error.message, 'error');
+            }
         };
 
         // Real-time updates
