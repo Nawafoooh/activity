@@ -99,6 +99,31 @@
             max-width: 300px;
             z-index: 9999;
             font-family: monospace;
+            display: none; /* مخفي بشكل افتراضي */
+            transition: all 0.3s ease;
+        }
+
+        .debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 10000;
+            transition: all 0.3s ease;
+        }
+
+        .debug-toggle:hover {
+            background: rgba(0,0,0,0.8);
+        }
+
+        .debug-panel.show {
+            display: block;
         }
 
         @keyframes pulse {
@@ -618,7 +643,12 @@
     </div>
 
     <!-- Debug Panel -->
+    <button class="debug-toggle" id="debugToggle" onclick="toggleDebugPanel()">🔧</button>
     <div class="debug-panel" id="debugPanel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <strong>سجل النظام</strong>
+            <button onclick="clearDebugLog()" style="background: none; border: none; color: #ff6b6b; cursor: pointer; font-size: 10px;">مسح</button>
+        </div>
         <div id="debugInfo">تحميل النظام...</div>
     </div>
 
@@ -869,6 +899,7 @@
                     debugElement.innerHTML = this.debugLog.join('<br>');
                 }
 
+                // طباعة في console فقط، بدون عرض مزعج
                 console.log(`[Nafis Student] ${logEntry}`);
             }
         }
@@ -1345,6 +1376,44 @@
             syncReceiver.log('🏠 العودة للصفحة الرئيسية');
         }
 
+        // إخفاء/إظهار لوحة التصحيح والدوال الإضافية
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debugPanel');
+            const button = document.getElementById('debugToggle');
+            
+            panel.classList.toggle('show');
+            
+            // تغيير رمز الزر
+            if (panel.classList.contains('show')) {
+                button.textContent = '❌';
+                localStorage.setItem('nafisDebugVisible', 'true');
+            } else {
+                button.textContent = '🔧';
+                localStorage.setItem('nafisDebugVisible', 'false');
+            }
+        }
+
+        function clearDebugLog() {
+            if (window.syncReceiver) {
+                window.syncReceiver.debugLog = [];
+                document.getElementById('debugInfo').innerHTML = 'تم مسح السجل...';
+            }
+        }
+
+        // استعادة حالة لوحة التصحيح عند التحميل
+        function restoreDebugPanelState() {
+            const isVisible = localStorage.getItem('nafisDebugVisible') === 'true';
+            const panel = document.getElementById('debugPanel');
+            const button = document.getElementById('debugToggle');
+            
+            if (isVisible) {
+                panel.classList.add('show');
+                button.textContent = '❌';
+            } else {
+                button.textContent = '🔧';
+            }
+        }
+
         // منع الغش والنسخ
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', function(e) {
@@ -1358,6 +1427,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             syncReceiver.log('🚀 تم تحميل منصة نافس للطلاب');
             updateConnectionStatus(navigator.onLine);
+            
+            // استعادة حالة لوحة التصحيح
+            restoreDebugPanelState();
             
             // محاولة تحميل الأسئلة بعد ثانيتين
             setTimeout(() => {
