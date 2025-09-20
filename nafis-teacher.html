@@ -610,94 +610,292 @@
             document.getElementById('questionsCount').textContent = currentQuestions.length;
         }
 
-        // File import
+        // File import with better error handling
         document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
+            
+            console.log('تم اختيار ملف:', file.name, 'حجم:', file.size, 'bytes');
             
             if (!file.name.endsWith('.json')) {
                 showAlert('يرجى اختيار ملف JSON فقط', 'error');
                 return;
             }
 
+            // Check file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showAlert('حجم الملف كبير جداً (أكبر من 10MB)', 'error');
+                return;
+            }
+
             const reader = new FileReader();
+            
             reader.onload = function(e) {
                 try {
+                    console.log('تم قراءة الملف بنجاح، حجم النص:', e.target.result.length);
+                    
                     const data = JSON.parse(e.target.result);
+                    console.log('تم تحليل JSON بنجاح');
+                    
                     importQuestions(data);
+                    
                 } catch (error) {
-                    showAlert('خطأ في قراءة الملف', 'error');
+                    console.error('خطأ في تحليل JSON:', error);
+                    showAlert('خطأ في تحليل ملف JSON: ' + error.message, 'error');
                 }
             };
-            reader.readAsText(file);
+            
+            reader.onerror = function() {
+                console.error('خطأ في قراءة الملف');
+                showAlert('خطأ في قراءة الملف', 'error');
+            };
+            
+            reader.readAsText(file, 'utf-8');
         });
 
-        // Import questions
+        // Enhanced sync with retry mechanism
+        async function syncWithStudents() {
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+                try {
+                    const timestamp = Date.now();
+                    const dailyQuestions = currentQuestions.filter(q => q.type === 'daily').map(q => ({
+                        subject: q.subject,
+                        question: q.question,
+                        options: q.options,
+                        correct: q.correct,
+                        explanation: q.explanation,
+                        type: q.type
+                    }));
+                    
+                    const weeklyQuestions = currentQuestions.filter(q => q.type === 'weekly').map(q => ({
+                        subject: q.subject,
+                        question: q.question,
+                        options: q.options,
+                        correct: q.correct,
+                        explanation: q.explanation,
+                        type: q.type
+                    }));
+                    
+                    // Multiple sync methods for reliability
+                    localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(dailyQuestions));
+                    localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                    localStorage.setItem('nafisLastUpdate', timestamp.toString());
+                    
+                    // Broadcast to other tabs/windows
+                    try {
+                        const channel = new BroadcastChannel('nafis-sync');
+                        channel.postMessage({
+                            type: 'QUESTIONS_UPDATE',
+                            data: { daily: dailyQuestions, weekly: weeklyQuestions, timestamp }
+                        });
+                        channel.close();
+                    } catch (e) {
+                        console.log('BroadcastChannel غير مدعوم');
+                    }
+                    
+                    window.postMessage({
+                        type: 'NAFIS_FORCE_REFRESH',
+                        timestamp: timestamp,
+                        source: 'teacher-dashboard'
+                    }, '*');
+                    
+                    // Custom event for cross-frame communication
+                    window.dispatchEvent(new CustomEvent('nafisDataUpdate', {
+                        detail: { daily: dailyQuestions, weekly: weeklyQuestions, timestamp }
+                    }));
+                    
+                    console.log('تم التزامن بنجاح:', {
+                        daily: dailyQuestions.length,
+                        weekly: weeklyQuestions.length,
+                        timestamp: new Date(timestamp).toLocaleString('ar-SA')
+                    });
+                    
+                    return; // Success, exit retry loop
+                    
+                } catch (error) {
+                    retryCount++;
+                    console.error(`فشل التزامن - المحاولة ${retryCount}:`, error);
+                    
+                    if (retryCount < maxRetries) {
+                        console.log(`إعادة المحاولة خلال ${retryCount * 1000}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
+                    } else {
+                        console.error('فشل التزامن نهائياً بعد', maxRetries, 'محاولات');
+                        updateSyncStatus('error', 'خطأ في التزامن');
+                    }
+                }
+            }
+        }
+
+        // Test import function with sample data
+        function testImport() {
+            const sampleData = {
+                "nafes_exam": [
+                    {
+                        "subject": "رياضيات",
+                        "question": "ما قيمة 2 + 2؟",
+                        "options": ["3", "4", "5", "6"],
+                        "correct": 1,
+                        "explanation": "2 + 2 = 4"
+                    }
+                ]
+            };
+            
+            console.log('اختبار الاستيراد مع بيانات تجريبية...');
+            importQuestions(sampleData);
+        }
+
+        // Add test button (remove in production)
+        window.testImport = testImport;
+
+        // Import questions - Enhanced version
         async function importQuestions(data) {
             try {
                 updateSyncStatus('syncing', 'جاري الاستيراد...');
-                showProgress(0, 'بدء الاستيراد...');
+                showProgress(0, 'تحليل الملف...');
+                
+                console.log('بيانات الملف:', data);
+                console.log('نوع البيانات:', typeof data);
+                console.log('مفاتيح البيانات:', Object.keys(data));
                 
                 let questions = [];
                 
-                // Handle nafes_exam format specifically
+                // Handle nafes_exam format (your specific file format)
                 if (data.nafes_exam && Array.isArray(data.nafes_exam)) {
+                    console.log('وُجد تنسيق nafes_exam مع', data.nafes_exam.length, 'سؤال');
                     questions = data.nafes_exam.map(q => ({...q, type: 'weekly'}));
-                } else if (data.daily && Array.isArray(data.daily)) {
+                }
+                // Handle other formats as backup
+                else if (data.daily && Array.isArray(data.daily)) {
+                    console.log('وُجد تنسيق daily مع', data.daily.length, 'سؤال');
                     questions.push(...data.daily.map(q => ({...q, type: 'daily'})));
-                } else if (data.weekly && Array.isArray(data.weekly)) {
-                    questions.push(...data.weekly.map(q => ({...q, type: 'weekly'})));
-                } else if (Array.isArray(data)) {
+                    
+                    if (data.weekly && Array.isArray(data.weekly)) {
+                        console.log('وُجد تنسيق weekly مع', data.weekly.length, 'سؤال');
+                        questions.push(...data.weekly.map(q => ({...q, type: 'weekly'})));
+                    }
+                }
+                // Handle direct array
+                else if (Array.isArray(data)) {
+                    console.log('وُجد مصفوفة مباشرة مع', data.length, 'سؤال');
                     questions = data.map(q => ({...q, type: q.type || 'weekly'}));
                 }
 
+                console.log('إجمالي الأسئلة المستخرجة:', questions.length);
+
                 if (questions.length === 0) {
-                    showAlert('لا توجد أسئلة في الملف', 'error');
+                    console.error('لم يتم العثور على أسئلة في الملف');
+                    showAlert('لا توجد أسئلة صالحة في الملف. تحقق من تنسيق الملف.', 'error');
                     hideProgress();
                     updateSyncStatus('connected', 'متصل');
                     return;
                 }
 
+                showProgress(20, 'بدء معالجة الأسئلة...');
+
                 let imported = 0;
+                let skipped = 0;
                 const total = questions.length;
 
                 for (let i = 0; i < questions.length; i++) {
                     const question = questions[i];
                     
-                    if (!question.question || !question.options || !Array.isArray(question.options) || question.options.length < 4) {
+                    console.log(`معالجة السؤال ${i + 1}:`, question);
+                    
+                    // Validate question data
+                    if (!question.question || typeof question.question !== 'string' || !question.question.trim()) {
+                        console.warn(`السؤال ${i + 1}: نص السؤال مفقود أو فارغ`);
+                        skipped++;
+                        continue;
+                    }
+                    
+                    if (!question.options || !Array.isArray(question.options) || question.options.length < 4) {
+                        console.warn(`السؤال ${i + 1}: خيارات غير صحيحة`);
+                        skipped++;
+                        continue;
+                    }
+                    
+                    if (question.correct === undefined || question.correct === null || 
+                        isNaN(parseInt(question.correct)) || parseInt(question.correct) < 0 || parseInt(question.correct) > 3) {
+                        console.warn(`السؤال ${i + 1}: الإجابة الصحيحة غير صحيحة`);
+                        skipped++;
                         continue;
                     }
 
                     try {
-                        await window.addDoc(window.collection(window.db, 'questions'), {
+                        const questionData = {
                             subject: question.subject || 'عام',
                             question: question.question.trim(),
-                            options: question.options.map(opt => opt.trim()),
-                            correct: parseInt(question.correct) || 0,
-                            explanation: question.explanation || 'لا يوجد تفسير',
+                            options: question.options.map(opt => (opt || '').toString().trim()),
+                            correct: parseInt(question.correct),
+                            explanation: question.explanation || 'لا يوجد تفسير متاح',
                             type: question.type || 'weekly',
                             createdAt: new Date(),
                             active: true,
-                            imported: true
-                        });
+                            imported: true,
+                            importDate: new Date().toISOString()
+                        };
+                        
+                        console.log(`إضافة السؤال ${i + 1} إلى Firebase:`, questionData);
+                        
+                        await window.addDoc(window.collection(window.db, 'questions'), questionData);
                         
                         imported++;
-                        showProgress((i + 1) / total * 100, `تم استيراد ${imported} من ${total}`);
+                        console.log(`تم استيراد السؤال ${i + 1} بنجاح`);
+                        
+                        const progress = 20 + ((i + 1) / total * 70);
+                        showProgress(progress, `تم استيراد ${imported} من ${total} (تجاهل ${skipped})`);
+                        
+                        // Small delay to prevent overwhelming Firebase
+                        if (i % 3 === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        }
                         
                     } catch (error) {
-                        console.error('Error importing question:', error);
+                        console.error(`خطأ في استيراد السؤال ${i + 1}:`, error);
+                        skipped++;
                     }
                 }
 
+                showProgress(95, 'إنهاء العملية...');
+
+                if (imported > 0) {
+                    showProgress(100, 'مكتمل!');
+                    let message = `تم استيراد ${imported} سؤال بنجاح!`;
+                    if (skipped > 0) {
+                        message += ` (تم تجاهل ${skipped} سؤال غير صالح)`;
+                    }
+                    showAlert(message, 'success');
+                    
+                    // Force immediate sync
+                    setTimeout(() => {
+                        syncWithStudents();
+                        console.log('تم إجراء تزامن فوري مع منصة الطلاب');
+                    }, 1000);
+                    
+                } else {
+                    showAlert('لم يتم استيراد أي سؤال صالح. تحقق من محتوى الملف.', 'error');
+                }
+
                 hideProgress();
-                showAlert(`تم استيراد ${imported} سؤال بنجاح`, 'success');
                 updateSyncStatus('connected', 'متصل');
                 
+                console.log(`نتيجة الاستيراد: ${imported} نجح، ${skipped} فشل`);
+                
             } catch (error) {
-                console.error('Import error:', error);
+                console.error('خطأ عام في الاستيراد:', error);
                 hideProgress();
-                showAlert('خطأ في الاستيراد', 'error');
+                showAlert('خطأ في عملية الاستيراد: ' + error.message, 'error');
                 updateSyncStatus('error', 'خطأ في الاتصال');
+                
+                // Additional debugging info
+                console.log('معلومات إضافية للتشخيص:');
+                console.log('- تأكد من اتصال الإنترنت');
+                console.log('- تأكد من صحة تنسيق ملف JSON');
+                console.log('- افتح Developer Console للمزيد من التفاصيل');
             }
         }
 
