@@ -507,42 +507,56 @@
         <div class="navbar">
             <div class="nav-btn active" onclick="showSection('login')">تسجيل الدخول</div>
             <div class="nav-btn" onclick="showSection('results')">النتائج العامة</div>
-            <div class="nav-btn" onclick="window.open('/teacher-dashboard.html', '_blank')">لوحة المعلم</div>
         </div>
 
         <!-- Student Login Section -->
         <div class="login-section active" id="loginSection">
             <h2 style="text-align: center; color: #667eea; margin-bottom: 30px;">مرحباً بك في نظام اختبار نافس</h2>
             
-            <div class="form-group">
-                <label for="studentName">الاسم الثلاثي:</label>
-                <input type="text" id="studentName" placeholder="أدخل اسمك الثلاثي" />
+            <!-- Previous Student Login -->
+            <div id="previousStudentCard" class="student-card hidden">
+                <h3>مرحباً بعودتك!</h3>
+                <p><strong>رقم الطالب:</strong> <span id="prevStudentId"></span></p>
+                <p><strong>الاسم:</strong> <span id="prevDisplayName"></span></p>
+                <p><strong>الصف والشعبة:</strong> <span id="prevDisplayGradeSection"></span></p>
+                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 20px;">
+                    <button class="btn btn-success" onclick="continueWithPreviousStudent()">الدخول بحسابك السابق</button>
+                    <button class="btn" onclick="showNewStudentForm()">تسجيل حساب جديد</button>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="studentGrade">الصف:</label>
-                <select id="studentGrade">
-                    <option value="">اختر الصف</option>
-                    <option value="first">الأول متوسط</option>
-                    <option value="second">الثاني متوسط</option>
-                    <option value="third">الثالث متوسط</option>
-                </select>
-            </div>
+            <!-- New Student Registration -->
+            <div id="newStudentForm">
+                <div class="form-group">
+                    <label for="studentName">الاسم الثلاثي:</label>
+                    <input type="text" id="studentName" placeholder="أدخل اسمك الثلاثي" />
+                </div>
 
-            <div class="form-group">
-                <label for="studentSection">الشعبة:</label>
-                <select id="studentSection">
-                    <option value="">اختر الشعبة</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6">6</option>
-                </select>
-            </div>
+                <div class="form-group">
+                    <label for="studentGrade">الصف:</label>
+                    <select id="studentGrade">
+                        <option value="">اختر الصف</option>
+                        <option value="first">الأول متوسط</option>
+                        <option value="second">الثاني متوسط</option>
+                        <option value="third">الثالث متوسط</option>
+                    </select>
+                </div>
 
-            <button class="btn" onclick="registerStudent()">إنشاء حساب والدخول</button>
+                <div class="form-group">
+                    <label for="studentSection">الشعبة:</label>
+                    <select id="studentSection">
+                        <option value="">اختر الشعبة</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="registerStudent()">إنشاء حساب والدخول</button>
+            </div>
 
             <div id="studentCard" class="student-card hidden">
                 <h3>أهلاً بك!</h3>
@@ -872,6 +886,25 @@
             }
         };
 
+        window.showNewStudentForm = function() {
+            document.getElementById('previousStudentCard').classList.add('hidden');
+            document.getElementById('newStudentForm').style.display = 'block';
+        };
+
+        window.continueWithPreviousStudent = function() {
+            const savedStudent = localStorage.getItem('nafisStudent');
+            if (savedStudent) {
+                currentStudent = JSON.parse(savedStudent);
+                document.getElementById('studentId').textContent = currentStudent.id;
+                document.getElementById('displayName').textContent = currentStudent.name;
+                document.getElementById('displayGradeSection').textContent = 
+                    getGradeName(currentStudent.grade) + ' - شعبة ' + currentStudent.section;
+                document.getElementById('studentCard').classList.remove('hidden');
+                document.getElementById('previousStudentCard').classList.add('hidden');
+                document.getElementById('newStudentForm').style.display = 'none';
+            }
+        };
+
         window.registerStudent = async function() {
             const name = document.getElementById('studentName').value.trim();
             const grade = document.getElementById('studentGrade').value;
@@ -1052,6 +1085,9 @@
             // Save result to Firebase
             saveExamResult(correctAnswers, currentQuestions.length, percentage);
             
+            // Calculate and display student rankings
+            calculateStudentRanking(percentage);
+            
             // Update UI
             document.getElementById('scoreText').textContent = percentage + '%';
             document.getElementById('scoreDetails').textContent = 
@@ -1071,7 +1107,66 @@
             loadLeaderboards();
         }
 
-        async function saveExamResult(correct, total, percentage) {
+        async function calculateStudentRanking(studentScore) {
+            try {
+                if (!currentStudent) return;
+
+                // Get all results for the same class
+                const classQuery = query(
+                    collection(db, 'testResults'),
+                    where('grade', '==', currentStudent.grade),
+                    where('section', '==', currentStudent.section),
+                    orderBy('percentage', 'desc')
+                );
+                
+                const classResults = await getDocs(classQuery);
+                const classScores = [];
+                const seenStudents = new Set();
+                
+                classResults.forEach(doc => {
+                    const data = doc.data();
+                    if (!seenStudents.has(data.studentId)) {
+                        classScores.push(data.percentage);
+                        seenStudents.add(data.studentId);
+                    }
+                });
+
+                // Calculate class rank
+                const higherClassScores = classScores.filter(score => score > studentScore);
+                const classRank = higherClassScores.length + 1;
+
+                // Get all results for the school
+                const schoolQuery = query(
+                    collection(db, 'testResults'),
+                    orderBy('percentage', 'desc')
+                );
+                
+                const schoolResults = await getDocs(schoolQuery);
+                const schoolScores = [];
+                const seenSchoolStudents = new Set();
+                
+                schoolResults.forEach(doc => {
+                    const data = doc.data();
+                    if (!seenSchoolStudents.has(data.studentId)) {
+                        schoolScores.push(data.percentage);
+                        seenSchoolStudents.add(data.studentId);
+                    }
+                });
+
+                // Calculate school rank
+                const higherSchoolScores = schoolScores.filter(score => score > studentScore);
+                const schoolRank = higherSchoolScores.length + 1;
+
+                // Update UI
+                document.getElementById('classRank').textContent = classRank;
+                document.getElementById('schoolRank').textContent = schoolRank;
+
+            } catch (error) {
+                console.error('خطأ في حساب الترتيب:', error);
+                document.getElementById('classRank').textContent = 'غير متاح';
+                document.getElementById('schoolRank').textContent = 'غير متاح';
+            }
+        }
             try {
                 const result = {
                     studentId: currentStudent.id,
@@ -1171,16 +1266,16 @@
             const savedStudent = localStorage.getItem('nafisStudent');
             if (savedStudent) {
                 currentStudent = JSON.parse(savedStudent);
-                document.getElementById('studentId').textContent = currentStudent.id;
-                document.getElementById('displayName').textContent = currentStudent.name;
-                document.getElementById('displayGradeSection').textContent = 
-                    getGradeName(currentStudent.grade) + ' - شعبة ' + currentStudent.section;
-                document.getElementById('studentCard').classList.remove('hidden');
                 
-                // Fill form with saved data
-                document.getElementById('studentName').value = currentStudent.name;
-                document.getElementById('studentGrade').value = currentStudent.grade;
-                document.getElementById('studentSection').value = currentStudent.section;
+                // Show previous student card
+                document.getElementById('prevStudentId').textContent = currentStudent.id;
+                document.getElementById('prevDisplayName').textContent = currentStudent.name;
+                document.getElementById('prevDisplayGradeSection').textContent = 
+                    getGradeName(currentStudent.grade) + ' - شعبة ' + currentStudent.section;
+                document.getElementById('previousStudentCard').classList.remove('hidden');
+                document.getElementById('newStudentForm').style.display = 'none';
+            } else {
+                document.getElementById('newStudentForm').style.display = 'block';
             }
         });
 
