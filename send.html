@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1067,25 +1068,288 @@
             }
         }
 
-        // عرض الإجراءات المناسبة
+        // عرض الإجراءات المناسبة - إجراء واحد فقط حسب رقم المخالفة
         function showRelevantActions(violationCount) {
-            // إخفاء جميع الإجراءات
+            // إخفاء جميع الإجراءات أولاً
             document.querySelectorAll('.action-item').forEach(item => {
                 item.classList.remove('active');
+                item.style.display = 'none';
             });
             
-            // عرض الإجراءات حسب عدد المخالفات
-            for (let i = 1; i <= Math.min(violationCount, 3); i++) {
-                const action = document.getElementById(`action${i}`);
-                if (action) {
-                    setTimeout(() => {
-                        action.classList.add('active');
-                    }, (i - 1) * 500);
-                }
+            // عرض الإجراء المناسب فقط حسب رقم المخالفة
+            const currentAction = document.getElementById(`action${violationCount}`);
+            if (currentAction && violationCount <= 3) {
+                setTimeout(() => {
+                    currentAction.style.display = 'block';
+                    currentAction.classList.add('active');
+                }, 300);
+                
+                // تحديث تاريخ الإجراء الحالي
+                updateActionDate(violationCount);
             }
         }
 
-        // عرض التنبيهات
+        // تحديث تاريخ الإجراء المناسب
+        function updateActionDate(actionNumber) {
+            const currentDate = new Date().toISOString().split('T')[0];
+            const dateField = document.querySelector(`input[name="teacher_date${actionNumber}"]`);
+            if (dateField) {
+                dateField.value = currentDate;
+            }
+        }
+
+        // عرض عداد المخالفات مع معلومات أكثر وضوحاً
+        function showViolationCount(count) {
+            const violationCount = document.getElementById('violationCount');
+            const countNumber = document.getElementById('countNumber');
+            const countDescription = violationCount.querySelector('.count-description');
+            
+            violationCount.style.display = 'block';
+            countNumber.textContent = count;
+            
+            // تحديث الوصف حسب رقم المخالفة
+            let description = '';
+            let bgColor = '';
+            let borderColor = '';
+            let textColor = '#856404';
+            
+            switch(count) {
+                case 1:
+                    description = 'هذه أول مخالفة للطالب - الإجراء الأول (التوجيه والإرشاد)';
+                    bgColor = 'linear-gradient(135deg, #d4edda, #c3e6cb)';
+                    borderColor = 'var(--success-color)';
+                    textColor = '#155724';
+                    break;
+                case 2:
+                    description = 'المخالفة الثانية للطالب - الإجراء الثاني (الإنذار والمتابعة)';
+                    bgColor = 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
+                    borderColor = 'var(--warning-color)';
+                    textColor = '#856404';
+                    break;
+                case 3:
+                    description = 'المخالفة الثالثة للطالب - الإجراء الثالث (التحويل للإدارة)';
+                    bgColor = 'linear-gradient(135deg, #f8d7da, #f1aeb5)';
+                    borderColor = 'var(--danger-color)';
+                    textColor = '#721c24';
+                    break;
+                default:
+                    if (count > 3) {
+                        description = 'مخالفة متكررة - يتم التحويل المباشر للإدارة';
+                        bgColor = 'linear-gradient(135deg, #f8d7da, #f1aeb5)';
+                        borderColor = 'var(--danger-color)';
+                        textColor = '#721c24';
+                    }
+                    break;
+            }
+            
+            countDescription.textContent = description;
+            violationCount.style.background = bgColor;
+            violationCount.style.borderColor = borderColor;
+            countNumber.style.color = textColor;
+            countDescription.style.color = textColor;
+        }
+
+        // فحص تلقائي محسن لسجل الطالب
+        function autoCheckViolations() {
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            if (!studentName || !grade || !section || autoCheckInProgress) {
+                return;
+            }
+
+            autoCheckInProgress = true;
+            const autoCheck = document.getElementById('autoCheck');
+            autoCheck.style.display = 'flex';
+
+            setTimeout(() => {
+                const studentKey = `${studentName}_${grade}_${section}`;
+                
+                if (!studentDatabase[studentKey]) {
+                    studentDatabase[studentKey] = { 
+                        count: 0, 
+                        history: [],
+                        actions: {}
+                    };
+                }
+                
+                currentViolationCount = studentDatabase[studentKey].count + 1;
+                
+                // تحديث سجل الطالب
+                studentDatabase[studentKey].count = currentViolationCount;
+                studentDatabase[studentKey].history.push({
+                    date: new Date().toISOString(),
+                    details: `مخالفة رقم ${currentViolationCount}`,
+                    actionType: getActionType(currentViolationCount)
+                });
+                
+                showViolationCount(currentViolationCount);
+                showRelevantActions(currentViolationCount);
+                saveToStorage();
+
+                autoCheck.style.display = 'none';
+                autoCheckInProgress = false;
+
+                // رسائل توجيهية محسنة للمعلم
+                showGuidanceMessage(currentViolationCount);
+                
+            }, 2000);
+        }
+
+        // الحصول على نوع الإجراء
+        function getActionType(count) {
+            switch(count) {
+                case 1: return 'التوجيه والإرشاد';
+                case 2: return 'الإنذار والمتابعة';
+                case 3: return 'التحويل للإدارة';
+                default: return 'تحويل فوري للإدارة';
+            }
+        }
+
+        // عرض رسالة توجيهية للمعلم
+        function showGuidanceMessage(count) {
+            let message = '';
+            let type = 'info';
+            
+            switch(count) {
+                case 1:
+                    message = `
+                        <strong>الإجراء الأول - التوجيه والإرشاد</strong><br>
+                        • هذه أول مخالفة للطالب<br>
+                        • قم بتوجيه الطالب بلطف وحكمة<br>
+                        • ركز على التعزيز الإيجابي<br>
+                        • املأ النموذج أدناه وقم بحفظه كـ PDF
+                    `;
+                    type = 'success';
+                    break;
+                case 2:
+                    message = `
+                        <strong>الإجراء الثاني - الإنذار والمتابعة</strong><br>
+                        • الطالب لديه مخالفة سابقة<br>
+                        • قم بتوجيه إنذار كتابي للطالب<br>
+                        • أشعر ولي الأمر بالمخالفة<br>
+                        • ضع خطة متابعة واضحة
+                    `;
+                    type = 'warning';
+                    break;
+                case 3:
+                    message = `
+                        <strong>الإجراء الثالث - التحويل للإدارة</strong><br>
+                        • الطالب لديه مخالفتان سابقتان<br>
+                        • يجب تحويل الطالب لوكيل شؤون الطلاب<br>
+                        • سيتم إشراك المرشد الطلابي<br>
+                        • املأ النموذج واطبعه للوكيل
+                    `;
+                    type = 'warning';
+                    break;
+                default:
+                    message = `
+                        <strong>مخالفة متكررة</strong><br>
+                        • الطالب لديه أكثر من 3 مخالفات<br>
+                        • تحويل فوري للإدارة<br>
+                        • تدخل عاجل مطلوب
+                    `;
+                    type = 'error';
+                    break;
+            }
+            
+            showAlert(message, type);
+        }
+
+        // تحسين إنشاء PDF مع معلومات المخالفة
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            
+            // التحقق من تعبئة البيانات الأساسية
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            if (!studentName || !grade || !section) {
+                showAlert('يرجى تعبئة بيانات الطالب الأساسية قبل حفظ الـ PDF', 'warning');
+                return;
+            }
+
+            if (currentViolationCount === 0) {
+                showAlert('يرجى إجراء فحص لسجل الطالب أولاً', 'warning');
+                return;
+            }
+
+            showAlert('جاري إنشاء ملف PDF... يرجى الانتظار', 'info');
+
+            // إخفاء الأزرار والمؤشرات مؤقتاً
+            document.querySelectorAll('.btn').forEach(btn => btn.style.display = 'none');
+            document.getElementById('autoCheck').style.display = 'none';
+
+            // تحويل الصفحة إلى canvas
+            html2canvas(document.getElementById('formContainer'), {
+                allowTaint: true,
+                useCORS: true,
+                scale: 2,
+                scrollX: 0,
+                scrollY: 0,
+                width: document.getElementById('formContainer').scrollWidth,
+                height: document.getElementById('formContainer').scrollHeight,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                
+                // إنشاء PDF بحجم A4
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgWidth = 210; // عرض A4 بالملليمتر
+                const pageHeight = 295; // ارتفاع A4 بالملليمتر
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                // إضافة الصفحة الأولى
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+                heightLeft -= pageHeight;
+
+                // إضافة صفحات إضافية إذا لزم الأمر
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+                    heightLeft -= pageHeight;
+                }
+
+                // اسم الملف مع رقم المخالفة ونوع الإجراء
+                const actionType = getActionType(currentViolationCount);
+                const currentDate = new Date().toLocaleDateString('ar-SA').replace(/\//g, '-');
+                const fileName = `مخالفة_${currentViolationCount}_${actionType.replace(/\s+/g, '_')}_${studentName}_${grade}_${section}_${currentDate}.pdf`;
+                
+                pdf.save(fileName);
+
+                // تحديث سجل الطالب بمعلومات الحفظ
+                const studentKey = `${studentName}_${grade}_${section}`;
+                if (studentDatabase[studentKey]) {
+                    if (!studentDatabase[studentKey].actions) {
+                        studentDatabase[studentKey].actions = {};
+                    }
+                    studentDatabase[studentKey].actions[`action${currentViolationCount}`] = {
+                        savedAt: new Date().toISOString(),
+                        pdfGenerated: true,
+                        actionType: actionType
+                    };
+                    saveToStorage();
+                }
+
+                // إظهار الأزرار مرة أخرى
+                document.querySelectorAll('.btn').forEach(btn => btn.style.display = 'inline-flex');
+
+                showAlert(`تم حفظ ملف PDF بنجاح!<br><strong>اسم الملف:</strong> ${fileName}`, 'success');
+            }).catch(error => {
+                console.error('خطأ في إنشاء PDF:', error);
+                showAlert('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
+                
+                // إظهار الأزرار مرة أخرى
+                document.querySelectorAll('.btn').forEach(btn => btn.style.display = 'inline-flex');
+            });
+        }
+
+        // عرض التنبيهات المحسنة
         function showAlert(message, type = 'info') {
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert alert-${type}`;
@@ -1095,28 +1359,179 @@
             alertDiv.style.transform = 'translateX(-50%)';
             alertDiv.style.zIndex = '9999';
             alertDiv.style.minWidth = '400px';
-            alertDiv.style.maxWidth = '600px';
+            alertDiv.style.maxWidth = '700px';
             alertDiv.style.fontFamily = 'Amiri, serif';
             alertDiv.style.fontSize = '16px';
             alertDiv.style.fontWeight = '600';
+            alertDiv.style.lineHeight = '1.8';
+            alertDiv.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.2)';
+            alertDiv.style.borderRadius = '12px';
+            alertDiv.style.animation = 'slideDown 0.5s ease';
             
             const icon = type === 'success' ? 'check-circle' : 
                         type === 'warning' ? 'exclamation-triangle' : 
                         type === 'error' ? 'times-circle' : 'info-circle';
             
             alertDiv.innerHTML = `
-                <i class="fas fa-${icon}"></i>
-                <span>${message}</span>
-                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; float: left; font-size: 20px; cursor: pointer; margin-right: 15px;">×</button>
+                <i class="fas fa-${icon}" style="font-size: 20px; margin-left: 10px;"></i>
+                <div style="flex: 1;">${message}</div>
+                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; font-size: 20px; cursor: pointer; margin-right: 15px; opacity: 0.7; transition: opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">×</button>
             `;
+            
+            // إضافة انيميشن CSS
+            if (!document.getElementById('alertAnimations')) {
+                const style = document.createElement('style');
+                style.id = 'alertAnimations';
+                style.textContent = `
+                    @keyframes slideDown {
+                        from {
+                            opacity: 0;
+                            transform: translateX(-50%) translateY(-20px);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translateX(-50%) translateY(0);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
             
             document.body.appendChild(alertDiv);
             
+            // إزالة تلقائية مع انيميشن
             setTimeout(() => {
                 if (alertDiv.parentElement) {
-                    alertDiv.remove();
+                    alertDiv.style.animation = 'slideDown 0.5s ease reverse';
+                    setTimeout(() => {
+                        if (alertDiv.parentElement) {
+                            alertDiv.remove();
+                        }
+                    }, 500);
                 }
-            }, 8000);
+            }, type === 'error' ? 10000 : 8000);
+        }
+
+        // إعادة تعيين النموذج مع تحسينات
+        function resetForm() {
+            if (confirm('هل أنت متأكد من إعادة تعيين النموذج؟\n\nسيتم فقدان جميع البيانات المدخلة ولكن سيتم الاحتفاظ بسجل الطلاب.')) {
+                // إعادة تعيين الحقول
+                document.querySelectorAll('input, select, textarea').forEach(element => {
+                    if (element.type === 'checkbox') {
+                        element.checked = false;
+                    } else {
+                        element.value = '';
+                    }
+                });
+                
+                // إخفاء عداد المخالفات
+                document.getElementById('violationCount').style.display = 'none';
+                
+                // إخفاء جميع الإجراءات
+                document.querySelectorAll('.action-item').forEach(item => {
+                    item.classList.remove('active');
+                    item.style.display = 'none';
+                });
+
+                // إعادة تعيين مجموعات الأسباب
+                document.querySelectorAll('.checkbox-group').forEach(group => {
+                    group.classList.remove('selected');
+                    group.style.background = '';
+                    group.style.borderColor = '';
+                    group.style.color = '';
+                });
+
+                // إعادة تعيين المتغيرات
+                currentViolationCount = 0;
+                autoCheckInProgress = false;
+                
+                // إعادة تعيين التاريخ
+                setCurrentDate();
+                
+                showAlert('تم إعادة تعيين النموذج بنجاح. يمكنك إدخال بيانات طالب جديد.', 'success');
+            }
+        }
+
+        // تحسين دالة تعيين التاريخ الحالي
+        function setCurrentDate() {
+            const currentDate = new Date().toISOString().split('T')[0];
+            document.querySelectorAll('input[type="date"]').forEach(dateInput => {
+                if (!dateInput.value || dateInput.name.includes('teacher_date')) {
+                    dateInput.value = currentDate;
+                }
+            });
+        }
+
+        // دالة عرض تاريخ المخالفة في العداد
+        function updateViolationDate() {
+            const violationCount = document.getElementById('violationCount');
+            const countDescription = violationCount.querySelector('.count-description');
+            const currentDate = new Date().toLocaleDateString('ar-SA');
+            const currentTime = new Date().toLocaleTimeString('ar-SA', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            });
+            
+            const originalText = countDescription.textContent;
+            countDescription.innerHTML = `
+                ${originalText}<br>
+                <small style="opacity: 0.8; font-size: 14px;">
+                    تاريخ المخالفة: ${currentDate} - الوقت: ${currentTime}
+                </small>
+            `;
+        }
+
+        // تحسين الفحص التلقائي مع إضافة التاريخ
+        function autoCheckViolations() {
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            if (!studentName || !grade || !section || autoCheckInProgress) {
+                return;
+            }
+
+            autoCheckInProgress = true;
+            const autoCheck = document.getElementById('autoCheck');
+            autoCheck.style.display = 'flex';
+
+            setTimeout(() => {
+                const studentKey = `${studentName}_${grade}_${section}`;
+                
+                if (!studentDatabase[studentKey]) {
+                    studentDatabase[studentKey] = { 
+                        count: 0, 
+                        history: [],
+                        actions: {},
+                        firstRecord: new Date().toISOString()
+                    };
+                }
+                
+                currentViolationCount = studentDatabase[studentKey].count + 1;
+                
+                // تحديث سجل الطالب مع معلومات مفصلة
+                studentDatabase[studentKey].count = currentViolationCount;
+                studentDatabase[studentKey].history.push({
+                    date: new Date().toISOString(),
+                    details: `مخالفة رقم ${currentViolationCount}`,
+                    actionType: getActionType(currentViolationCount),
+                    status: 'pending'
+                });
+                studentDatabase[studentKey].lastUpdate = new Date().toISOString();
+                
+                showViolationCount(currentViolationCount);
+                showRelevantActions(currentViolationCount);
+                updateViolationDate();
+                saveToStorage();
+
+                autoCheck.style.display = 'none';
+                autoCheckInProgress = false;
+
+                // رسائل توجيهية محسنة للمعلم
+                showGuidanceMessage(currentViolationCount);
+                
+            }, 2000);
         }
 
         // إنشاء PDF
