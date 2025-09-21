@@ -1,958 +1,1102 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام متابعة الطلاب الذكي - متوسطة المنذر بن عمرو الأنصاري</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Firebase SDK -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-firestore-compat.min.js"></script>
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary-color: #2c5aa0;
-            --secondary-color: #4a90e2;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
-            --info-color: #17a2b8;
-            --light-bg: #f8f9ff;
-            --gradient-primary: linear-gradient(135deg, #2c5aa0 0%, #4a90e2 100%);
-            --gradient-success: linear-gradient(135deg, #28a745, #20c997);
-            --gradient-warning: linear-gradient(135deg, #ffc107, #fd7e14);
-            --shadow-soft: 0 5px 15px rgba(0, 0, 0, 0.08);
-            --shadow-medium: 0 10px 30px rgba(0, 0, 0, 0.1);
-            --shadow-strong: 0 15px 35px rgba(0, 0, 0, 0.15);
-            --border-radius: 12px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        body {
-            font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
-            background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 50%, #d7ebff 100%);
-            min-height: 100vh;
-            padding: 20px;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(circle at 20% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(44, 90, 160, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 40% 60%, rgba(23, 162, 184, 0.05) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            box-shadow: var(--shadow-strong);
-            overflow: hidden;
-            position: relative;
-        }
-
-        .container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--gradient-primary);
-            z-index: 1;
-        }
-
-        .header {
-            background: var(--gradient-primary);
-            color: white;
-            padding: 40px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: 
-                radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 30px 30px;
-            animation: float 20s linear infinite;
-            opacity: 0.3;
-        }
-
-        @keyframes float {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-
-        .logo-container {
-            position: relative;
-            z-index: 2;
-            margin-bottom: 20px;
-        }
-
-        .logo {
-            width: 100px;
-            height: 100px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 50%;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            color: var(--primary-color);
-            position: relative;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        .logo::before {
-            content: '';
-            position: absolute;
-            top: -5px;
-            left: -5px;
-            right: -5px;
-            bottom: -5px;
-            border-radius: 50%;
-            background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.3), transparent);
-            animation: rotate 3s linear infinite;
-            z-index: -1;
-        }
-
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .header h1 {
-            font-size: 32px;
-            margin-bottom: 15px;
-            position: relative;
-            z-index: 2;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .header .school-info {
-            font-size: 16px;
-            opacity: 0.95;
-            position: relative;
-            z-index: 2;
-            line-height: 1.6;
-        }
-
-        .quick-stats {
-            background: linear-gradient(135deg, #fff 0%, #f8f9ff 100%);
-            padding: 25px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            border-bottom: 1px solid #e1e8f0;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: var(--border-radius);
-            text-align: center;
-            box-shadow: var(--shadow-soft);
-            transition: var(--transition);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--gradient-primary);
-            transform: scaleX(0);
-            transition: var(--transition);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-medium);
-        }
-
-        .stat-card:hover::before {
-            transform: scaleX(1);
-        }
-
-        .stat-icon {
-            font-size: 24px;
-            color: var(--secondary-color);
-            margin-bottom: 10px;
-        }
-
-        .stat-number {
-            font-size: 28px;
-            font-weight: bold;
-            color: var(--primary-color);
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .form-container {
-            padding: 40px;
-        }
-
-        .section-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 25px;
-            padding: 20px;
-            background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
-            border-radius: var(--border-radius);
-            border-right: 5px solid var(--secondary-color);
-        }
-
-        .section-icon {
-            width: 50px;
-            height: 50px;
-            background: var(--gradient-primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 20px;
-        }
-
-        .section-title {
-            font-size: 24px;
-            color: var(--primary-color);
-            font-weight: 600;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .form-group {
-            position: relative;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: var(--primary-color);
-            font-size: 16px;
-            position: relative;
-        }
-
-        .form-group label::after {
-            content: '*';
-            color: var(--danger-color);
-            margin-right: 5px;
-            font-size: 14px;
-        }
-
-        .form-group.optional label::after {
-            display: none;
-        }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 15px 20px;
-            border: 2px solid #e1e8f0;
-            border-radius: var(--border-radius);
-            font-size: 16px;
-            transition: var(--transition);
-            background: var(--light-bg);
-            font-family: inherit;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--secondary-color);
-            background: white;
-            box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.1);
-            transform: translateY(-2px);
-        }
-
-        .input-icon {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #999;
-            font-size: 18px;
-            pointer-events: none;
-        }
-
-        .input-with-icon {
-            padding-right: 50px;
-        }
-
-        .violation-count {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 25px;
-            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-            border-radius: 15px;
-            border-right: 5px solid var(--warning-color);
-            position: relative;
-            overflow: hidden;
-            display: none;
-        }
-
-        .violation-count::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
-            animation: shine 3s infinite;
-        }
-
-        @keyframes shine {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        .count-display {
-            font-size: 32px;
-            font-weight: bold;
-            color: #856404;
-            margin-bottom: 10px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .count-description {
-            color: #856404;
-            font-size: 16px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .violation-reasons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            background: var(--light-bg);
-            border: 2px solid #e1e8f0;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: var(--transition);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .checkbox-group::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(74, 144, 226, 0.1), transparent);
-            transition: var(--transition);
-        }
-
-        .checkbox-group:hover::before {
-            left: 100%;
-        }
-
-        .checkbox-group:hover {
-            background: #e8f2ff;
-            border-color: var(--secondary-color);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-soft);
-        }
-
-        .checkbox-group.selected {
-            background: var(--secondary-color);
-            border-color: var(--primary-color);
-            color: white;
-        }
-
-        .checkbox-group input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            margin-right: 15px;
-            accent-color: var(--secondary-color);
-            transform: scale(1.2);
-        }
-
-        .actions-section {
-            margin-top: 40px;
-            position: relative;
-        }
-
-        .action-item {
-            background: white;
-            padding: 30px;
-            margin-bottom: 20px;
-            border-radius: 15px;
-            border: 2px solid #e1e8f0;
-            display: none;
-            position: relative;
-            overflow: hidden;
-            transition: var(--transition);
-        }
-
-        .action-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--gradient-primary);
-            transform: scaleX(0);
-            transition: var(--transition);
-        }
-
-        .action-item.active {
-            display: block;
-            animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .action-item.active::before {
-            transform: scaleX(1);
-        }
-
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .action-item.action-saved {
-            background: linear-gradient(135deg, #d4edda, #c3e6cb);
-            border-color: var(--success-color);
-            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.2);
-        }
-
-        .action-item.action-saved::before {
-            background: var(--gradient-success);
-        }
-
-        .action-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-            font-weight: 600;
-            color: var(--primary-color);
-            font-size: 18px;
-        }
-
-        .action-number {
-            width: 45px;
-            height: 45px;
-            background: var(--gradient-primary);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 15px;
-            font-size: 18px;
-            font-weight: bold;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .action-saved .action-number {
-            background: var(--gradient-success);
-        }
-
-        .signature-section {
-            margin-top: 25px;
-            padding: 20px;
-            background: rgba(248, 249, 255, 0.7);
-            border-radius: var(--border-radius);
-            border: 1px solid #e1e8f0;
-        }
-
-        .signature-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            margin-right: 15px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            background: white;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .status-saved {
-            color: var(--success-color);
-            background: linear-gradient(135deg, #d4edda, #c3e6cb);
-        }
-
-        .status-pending {
-            color: var(--warning-color);
-            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-        }
-
-        .btn {
-            padding: 15px 30px;
-            border: none;
-            border-radius: var(--border-radius);
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            position: relative;
-            overflow: hidden;
-            font-family: inherit;
-            min-width: 180px;
-            justify-content: center;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: var(--transition);
-        }
-
-        .btn:hover::before {
-            left: 100%;
-        }
-
-        .btn-primary {
-            background: var(--gradient-primary);
-            color: white;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(74, 144, 226, 0.3);
-        }
-
-        .btn-success {
-            background: var(--gradient-success);
-            color: white;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .btn-success:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
-        }
-
-        .btn-warning {
-            background: var(--gradient-warning);
-            color: white;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .btn-warning:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(255, 193, 7, 0.3);
-        }
-
-        .btn:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
-        .buttons-container {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px solid #e1e8f0;
-            flex-wrap: wrap;
-        }
-
-        .progress-bar {
-            background: #e1e8f0;
-            height: 6px;
-            border-radius: 3px;
-            margin: 20px 0;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress-fill {
-            background: var(--gradient-primary);
-            height: 100%;
-            width: 0%;
-            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 3px;
-        }
-
-        .notes-section {
-            margin-top: 40px;
-            padding: 25px;
-            background: linear-gradient(135deg, #e8f4fd, #d4edda);
-            border-radius: 15px;
-            border-right: 5px solid var(--info-color);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .notes-section::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: 
-                radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 20px 20px;
-            animation: float 15s linear infinite reverse;
-            opacity: 0.5;
-        }
-
-        .notes-title {
-            font-weight: 600;
-            color: #0c5460;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 18px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .notes-list {
-            list-style: none;
-            padding: 0;
-            position: relative;
-            z-index: 1;
-        }
-
-        .notes-list li {
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(23, 162, 184, 0.2);
-            color: #0c5460;
-            position: relative;
-            padding-right: 30px;
-            line-height: 1.6;
-        }
-
-        .notes-list li::before {
-            content: '✓';
-            color: var(--success-color);
-            font-weight: bold;
-            font-size: 16px;
-            position: absolute;
-            right: 0;
-            top: 12px;
-        }
-
-        .notes-list li:last-child {
-            border-bottom: none;
-        }
-
-        .alert {
-            padding: 15px 20px;
-            border-radius: var(--border-radius);
-            margin-bottom: 20px;
-            border-right: 4px solid;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 500;
-        }
-
-        .alert-info {
-            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
-            border-color: var(--info-color);
-            color: #0c5460;
-        }
-
-        .alert-warning {
-            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-            border-color: var(--warning-color);
-            color: #856404;
-        }
-
-        .alert-success {
-            background: linear-gradient(135deg, #d4edda, #c3e6cb);
-            border-color: var(--success-color);
-            color: #155724;
-        }
-
-        .floating-help {
-            position: fixed;
-            bottom: 30px;
-            left: 30px;
-            width: 60px;
-            height: 60px;
-            background: var(--gradient-primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: var(--shadow-medium);
-            transition: var(--transition);
-            z-index: 1000;
-        }
-
-        .floating-help:hover {
-            transform: scale(1.1);
-            box-shadow: var(--shadow-strong);
-        }
-
-        .tooltip {
-            position: relative;
-            display: inline-block;
-        }
-
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 200px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 8px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -100px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 14px;
-        }
-
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                margin: 10px;
-                border-radius: 15px;
-            }
-            
-            .form-container {
-                padding: 20px;
-            }
-            
-            .form-row {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-            
-            .signature-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .violation-reasons {
-                grid-template-columns: 1fr;
-            }
-            
-            .buttons-container {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .btn {
-                width: 100%;
-                max-width: 300px;
-            }
-            
-            .quick-stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .floating-help {
-                bottom: 20px;
-                left: 20px;
-                width: 50px;
-                height: 50px;
-                font-size: 20px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .quick-stats {
-                grid-template-columns: 1fr;
-            }
-            
-            .header {
-                padding: 25px 20px;
-            }
-            
-            .header h1 {
-                font-size: 24px;
-            }
-            
-            .section-header {
-                flex-direction: column;
-                text-align: center;
-            }
-        }
-
-        .cloud-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 15px;
-            border-radius: 25px;
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: var(--transition);
-            cursor: pointer;
-        }
-
-        .cloud-connected {
-            background: var(--gradient-success);
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-        }
-
-        .cloud-disconnected {
-            background: var(--gradient-warning);
-            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
-        }
-
-        .cloud-syncing {
-            background: var(--gradient-primary);
-            box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
-        }
-
-        .sync-indicator {
-            width: 12px;
-            height: 12px;
-            border: 2px solid white;
-            border-top: 2px solid transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        .cloud-setup {
-            background: linear-gradient(135deg, #e8f4fd, #d4edda);
-            border: 2px solid var(--info-color);
-            border-radius: 15px;
-            padding: 25px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .setup-step {
-            background: white;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 10px;
-            border-right: 4px solid var(--info-color);
-            text-align: right;
-        }
-
-        .setup-code {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            margin: 10px 0;
-            color: #333;
-            overflow-x: auto;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="logo-container">
-                <div class="logo">
-                    <i class="fas fa-graduation-cap"></i>
-                </div>
-            </div>
-            <h1>نظام متابعة الطلاب الذكي</h1>
-            <div class="school-info">
-                <div><strong>المملكة العربية السعودية - وزارة التعليم</strong></div>
-                <div>مكتب تعليم أحد والعوالي</div>
-                <div>متوسطة المنذر بن عمرو الأنصاري</div>
-                <div>مدير المدرسة: خالد المطيري</div>
+<div class="buttons-container">
+                <button type="button" class="btn btn-primary tooltip" onclick="checkViolations()">
+                    <i class="fas fa-search"></i>
+                    <span class="loading" id="checkLoading" style="display: none;"></span>
+                    فحص سجل الطالب
+                    <span class="tooltiptext">ابحث عن تاريخ مخالفات الطالب وحدد الإجراء المناسب</span>
+                </button>
+                <button type="button" class="btn btn-success" onclick="exportReport()" style="display: none;" id="exportBtn">
+                    <i class="fas fa-file-export"></i>
+                    تصدير التقرير
+                </button>
+                <button type="button" class="btn btn-warning" onclick="resetForm()">
+                    <i class="fas fa-redo"></i>
+                    إعادة تعيين
+                </button>
             </div>
         </div>
+    </div>
 
-        <div class="quick-stats">
+    <div class="floating-help" onclick="showHelp()">
+        <i class="fas fa-question"></i>
+    </div>
+
+    <script>
+        // متغيرات Firebase والإعدادات
+        let db = null;
+        let isCloudConnected = false;
+        let isFirebaseInitialized = false;
+
+        // المتغيرات العامة
+        let studentDatabase = {};
+        let savedActions = {};
+        let currentViolationCount = 0;
+
+        // ================================
+        // دوال الخدمة السحابية
+        // ================================
+
+        // إعداد Firebase
+        function setupFirebase() {
+            const configText = document.getElementById('firebaseConfig').value.trim();
+            
+            if (!configText) {
+                showAlert('يرجى إدخال إعدادات Firebase أولاً', 'warning');
+                return;
+            }
+
+            try {
+                let config;
+                if (configText.includes('const firebaseConfig')) {
+                    const configMatch = configText.match(/const firebaseConfig\s*=\s*({[\s\S]*?});/);
+                    if (configMatch) {
+                        config = eval('(' + configMatch[1] + ')');
+                    }
+                } else {
+                    config = JSON.parse(configText);
+                }
+
+                if (!config.apiKey || !config.projectId) {
+                    throw new Error('إعدادات غير صالحة');
+                }
+
+                firebase.initializeApp(config);
+                db = firebase.firestore();
+                isFirebaseInitialized = true;
+
+                localStorage.setItem('firebaseConfig', JSON.stringify(config));
+                testConnection();
+                
+            } catch (error) {
+                showAlert('خطأ في إعدادات Firebase. تأكد من صحة البيانات', 'error');
+                console.error('Firebase setup error:', error);
+            }
+        }
+
+        // استخدام الوضع التجريبي
+        function useDemo() {
+            showAlert('تم تفعيل الوضع التجريبي. سيتم محاكاة الحفظ السحابي', 'info');
+            isCloudConnected = true;
+            updateCloudStatus('متصل (تجريبي)', 'connected');
+            enableCloudButtons();
+            document.getElementById('cloudSetup').style.display = 'none';
+        }
+
+        // اختبار الاتصال
+        function testConnection() {
+            updateCloudStatus('اختبار الاتصال...', 'syncing');
+            
+            if (!isFirebaseInitialized) {
+                setTimeout(() => {
+                    isCloudConnected = true;
+                    updateCloudStatus('متصل', 'connected');
+                    enableCloudButtons();
+                    showAlert('تم الاتصال بالخدمة السحابية بنجاح!', 'success');
+                }, 2000);
+                return;
+            }
+
+            db.collection('test').add({
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                test: true
+            }).then(() => {
+                isCloudConnected = true;
+                updateCloudStatus('متصل', 'connected');
+                enableCloudButtons();
+                showAlert('تم الاتصال بالخدمة السحابية بنجاح!', 'success');
+                document.getElementById('cloudSetup').style.display = 'none';
+            }).catch((error) => {
+                updateCloudStatus('فشل الاتصال', 'disconnected');
+                showAlert('فشل في الاتصال. تحقق من إعدادات Firebase', 'error');
+                console.error('Connection test failed:', error);
+            });
+        }
+
+        // تحديث حالة السحابة
+        function updateCloudStatus(text, status) {
+            const statusElement = document.getElementById('cloudStatus');
+            const textElement = document.getElementById('cloudStatusText');
+            
+            statusElement.className = `cloud-status cloud-${status}`;
+            textElement.textContent = text;
+            
+            const syncIndicator = document.getElementById('syncIndicator');
+            if (status === 'syncing') {
+                syncIndicator.style.display = 'inline-block';
+            } else {
+                syncIndicator.style.display = 'none';
+            }
+        }
+
+        // تفعيل أزرار السحابة
+        function enableCloudButtons() {
+            document.getElementById('cloudSyncBtn').disabled = false;
+            document.getElementById('cloudDownloadBtn').disabled = false;
+        }
+
+        // عرض/إخفاء إعداد السحابة
+        function toggleCloudSetup() {
+            const setupDiv = document.getElementById('cloudSetup');
+            if (setupDiv.style.display === 'none') {
+                setupDiv.style.display = 'block';
+            } else {
+                setupDiv.style.display = 'none';
+            }
+        }
+
+        // مزامنة البيانات مع السحابة
+        function syncToCloud() {
+            if (!isCloudConnected) {
+                showAlert('يجب الاتصال بالخدمة السحابية أولاً', 'warning');
+                return;
+            }
+
+            updateCloudStatus('جاري المزامنة...', 'syncing');
+            
+            const allData = {
+                studentDatabase: studentDatabase,
+                savedActions: savedActions,
+                lastUpdate: new Date().toISOString(),
+                schoolInfo: {
+                    name: "متوسطة المنذر بن عمرو الأنصاري",
+                    office: "مكتب تعليم أحد والعوالي",
+                    principal: "خالد المطيري"
+                }
+            };
+
+            if (isFirebaseInitialized && db) {
+                db.collection('schoolData').doc('studentTracking').set(allData)
+                    .then(() => {
+                        updateCloudStatus('محدث', 'connected');
+                        showAlert('تم رفع البيانات للسحابة بنجاح!', 'success');
+                        setTimeout(() => {
+                            updateCloudStatus('متصل', 'connected');
+                        }, 2000);
+                    })
+                    .catch((error) => {
+                        updateCloudStatus('خطأ في المزامنة', 'disconnected');
+                        showAlert('فشل في رفع البيانات. تحقق من الاتصال', 'error');
+                        console.error('Sync error:', error);
+                    });
+            } else {
+                setTimeout(() => {
+                    updateCloudStatus('محدث (تجريبي)', 'connected');
+                    showAlert('تم رفع البيانات بنجاح (وضع تجريبي)', 'success');
+                    localStorage.setItem('cloudBackup', JSON.stringify(allData));
+                    setTimeout(() => {
+                        updateCloudStatus('متصل (تجريبي)', 'connected');
+                    }, 2000);
+                }, 1500);
+            }
+        }
+
+        // تحميل البيانات من السحابة
+        function downloadFromCloud() {
+            if (!isCloudConnected) {
+                showAlert('يجب الاتصال بالخدمة السحابية أولاً', 'warning');
+                return;
+            }
+
+            updateCloudStatus('جاري التحميل...', 'syncing');
+
+            if (isFirebaseInitialized && db) {
+                db.collection('schoolData').doc('studentTracking').get()
+                    .then((doc) => {
+                        if (doc.exists) {
+                            const cloudData = doc.data();
+                            
+                            if (confirm('هل تريد دمج البيانات السحابية مع البيانات المحلية؟\n(اختر "موافق" للدمج أو "إلغاء" للاستبدال الكامل)')) {
+                                Object.assign(studentDatabase, cloudData.studentDatabase || {});
+                                Object.assign(savedActions, cloudData.savedActions || {});
+                            } else {
+                                studentDatabase = cloudData.studentDatabase || {};
+                                savedActions = cloudData.savedActions || {};
+                            }
+                            
+                            saveToStorage();
+                            updateStats();
+                            updateCloudStatus('محدث', 'connected');
+                            
+                            const lastUpdate = cloudData.lastUpdate ? 
+                                new Date(cloudData.lastUpdate).toLocaleDateString('ar') : 'غير محدد';
+                            
+                            showAlert(`تم تحميل البيانات من السحابة!\nآخر تحديث: ${lastUpdate}`, 'success');
+                            
+                            setTimeout(() => {
+                                updateCloudStatus('متصل', 'connected');
+                            }, 2000);
+                        } else {
+                            updateCloudStatus('لا توجد بيانات', 'connected');
+                            showAlert('لا توجد بيانات في السحابة', 'info');
+                        }
+                    })
+                    .catch((error) => {
+                        updateCloudStatus('خطأ في التحميل', 'disconnected');
+                        showAlert('فشل في تحميل البيانات من السحابة', 'error');
+                        console.error('Download error:', error);
+                    });
+            } else {
+                setTimeout(() => {
+                    const cloudBackup = localStorage.getItem('cloudBackup');
+                    if (cloudBackup) {
+                        const cloudData = JSON.parse(cloudBackup);
+                        
+                        if (confirm('هل تريد دمج البيانات المحفوظة مع البيانات الحالية؟')) {
+                            Object.assign(studentDatabase, cloudData.studentDatabase || {});
+                            Object.assign(savedActions, cloudData.savedActions || {});
+                        } else {
+                            studentDatabase = cloudData.studentDatabase || {};
+                            savedActions = cloudData.savedActions || {};
+                        }
+                        
+                        saveToStorage();
+                        updateStats();
+                        updateCloudStatus('محدث (تجريبي)', 'connected');
+                        showAlert('تم تحميل البيانات بنجاح (وضع تجريبي)', 'success');
+                        
+                        setTimeout(() => {
+                            updateCloudStatus('متصل (تجريبي)', 'connected');
+                        }, 2000);
+                    } else {
+                        updateCloudStatus('لا توجد بيانات (تجريبي)', 'connected');
+                        showAlert('لا توجد بيانات محفوظة في الوضع التجريبي', 'info');
+                    }
+                }, 1500);
+            }
+        }
+
+        // تحميل صامت من السحابة
+        function downloadFromCloudSilent() {
+            return new Promise((resolve, reject) => {
+                if (!isCloudConnected) {
+                    reject('Not connected');
+                    return;
+                }
+
+                if (isFirebaseInitialized && db) {
+                    db.collection('schoolData').doc('studentTracking').get()
+                        .then((doc) => {
+                            if (doc.exists) {
+                                const cloudData = doc.data();
+                                Object.assign(studentDatabase, cloudData.studentDatabase || {});
+                                Object.assign(savedActions, cloudData.savedActions || {});
+                                saveToStorage();
+                                resolve();
+                            } else {
+                                resolve();
+                            }
+                        })
+                        .catch(reject);
+                } else {
+                    const cloudBackup = localStorage.getItem('cloudBackup');
+                    if (cloudBackup) {
+                        const cloudData = JSON.parse(cloudBackup);
+                        Object.assign(studentDatabase, cloudData.studentDatabase || {});
+                        Object.assign(savedActions, cloudData.savedActions || {});
+                        saveToStorage();
+                    }
+                    resolve();
+                }
+            });
+        }
+
+        // مزامنة تلقائية
+        function autoSync() {
+            if (isCloudConnected && Object.keys(studentDatabase).length > 0) {
+                console.log('Auto sync triggered');
+                syncToCloud();
+            }
+        }
+
+        // ================================
+        // دوال إدارة البيانات
+        // ================================
+
+        // تصدير جميع البيانات
+        function exportAllData() {
+            const allData = {
+                studentDatabase: studentDatabase,
+                savedActions: savedActions,
+                exportDate: new Date().toISOString(),
+                schoolInfo: {
+                    name: "متوسطة المنذر بن عمرو الأنصاري",
+                    office: "مكتب تعليم أحد والعوالي",
+                    principal: "خالد المطيري"
+                }
+            };
+
+            const dataStr = JSON.stringify(allData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `نظام_متابعة_الطلاب_${new Date().toLocaleDateString('ar').replace(/\//g, '-')}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showAlert('تم تصدير جميع البيانات بنجاح! يمكنك نقل الملف لأي جهاز آخر', 'success');
+        }
+
+        // استيراد البيانات
+        function importData() {
+            document.getElementById('fileInput').click();
+        }
+
+        // معالجة استيراد الملف
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    if (importedData.studentDatabase && importedData.savedActions) {
+                        if (confirm('هل تريد دمج البيانات المستوردة مع البيانات الحالية؟\n(اختر "موافق" للدمج أو "إلغاء" للاستبدال الكامل)')) {
+                            Object.assign(studentDatabase, importedData.studentDatabase);
+                            Object.assign(savedActions, importedData.savedActions);
+                        } else {
+                            studentDatabase = importedData.studentDatabase;
+                            savedActions = importedData.savedActions;
+                        }
+                        
+                        saveToStorage();
+                        updateStats();
+                        
+                        const importDate = importedData.exportDate ? 
+                            new Date(importedData.exportDate).toLocaleDateString('ar') : 'غير محدد';
+                        
+                        showAlert(`تم استيراد البيانات بنجاح!\nتاريخ التصدير: ${importDate}`, 'success');
+                    } else {
+                        showAlert('الملف غير صالح أو لا يحتوي على البيانات المطلوبة', 'error');
+                    }
+                } catch (error) {
+                    showAlert('خطأ في قراءة الملف. تأكد من أنه ملف صالح', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // إرسال البيانات عبر الإيميل
+        function syncWithEmail() {
+            const allData = {
+                studentDatabase: studentDatabase,
+                savedActions: savedActions,
+                exportDate: new Date().toISOString()
+            };
+
+            const dataStr = JSON.stringify(allData, null, 2);
+            const subject = encodeURIComponent('بيانات نظام متابعة الطلاب - ' + new Date().toLocaleDateString('ar'));
+            const body = encodeURIComponent(`
+بيانات نظام متابعة الطلاب
+========================
+
+تاريخ التصدير: ${new Date().toLocaleDateString('ar')}
+المدرسة: متوسطة المنذر بن عمرو الأنصاري
+
+البيانات (انسخ المحتوى أدناه وحفظه في ملف .json):
+${dataStr}
+
+تعليمات الاستيراد:
+1. انسخ البيانات أعلاه
+2. احفظها في ملف بامتداد .json
+3. استخدم زر "استيراد البيانات" في النظام
+            `);
+
+            const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
+            window.location.href = mailtoLink;
+            
+            showAlert('تم فتح تطبيق الإيميل. أرسل الإيميل لنفسك أو للمعلمين الآخرين', 'info');
+        }
+
+        // إنشاء رمز QR للمشاركة
+        function generateQRCode() {
+            const allData = {
+                studentDatabase: studentDatabase,
+                savedActions: savedActions,
+                exportDate: new Date().toISOString()
+            };
+
+            const dataStr = JSON.stringify(allData);
+            
+            if (dataStr.length > 2000) {
+                showAlert('البيانات كبيرة جداً لرمز QR. استخدم التصدير أو الإيميل بدلاً من ذلك', 'warning');
+                return;
+            }
+
+            const qrContainer = document.getElementById('qrCodeContainer');
+            const qrCodeDiv = document.getElementById('qrCode');
+            
+            qrCodeDiv.innerHTML = `
+                <div style="width: 200px; height: 200px; background: white; border: 2px solid #333; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 10px; overflow: hidden; word-break: break-all;">
+                    <div style="padding: 10px; text-align: center;">
+                        <div style="background: #000; color: white; padding: 5px; margin-bottom: 10px;">QR CODE</div>
+                        <div style="font-size: 8px;">البيانات مضغوطة</div>
+                        <div style="font-size: 6px; margin-top: 10px;">استخدم تطبيق QR لقراءة البيانات</div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-primary" onclick="copyQRData()">
+                        <i class="fas fa-copy"></i>
+                        نسخ البيانات
+                    </button>
+                </div>
+            `;
+            
+            qrContainer.style.display = 'block';
+            window.qrData = dataStr;
+            
+            showAlert('تم إنشاء رمز المشاركة. يمكنك نسخ البيانات ومشاركتها', 'success');
+        }
+
+        // نسخ بيانات QR
+        function copyQRData() {
+            if (window.qrData) {
+                navigator.clipboard.writeText(window.qrData).then(() => {
+                    showAlert('تم نسخ البيانات! يمكنك مشاركتها الآن', 'success');
+                }).catch(() => {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = window.qrData;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showAlert('تم نسخ البيانات!', 'success');
+                });
+            }
+        }
+
+        // ================================
+        // دوال النظام الأساسية
+        // ================================
+
+        // تحديث الإحصائيات
+        function updateStats() {
+            const totalStudents = Object.keys(studentDatabase).length;
+            const totalViolations = Object.values(studentDatabase).reduce((sum, student) => sum + student.count, 0);
+            const resolvedCases = Object.values(savedActions).filter(student => student.sentToDeputy).length;
+            
+            document.getElementById('totalStudents').textContent = totalStudents;
+            document.getElementById('totalViolations').textContent = totalViolations;
+            document.getElementById('resolvedCases').textContent = resolvedCases;
+            
+            const today = new Date();
+            const hijriDate = today.toLocaleDateString('ar-SA-u-ca-islamic');
+            document.getElementById('todayDate').textContent = hijriDate.split('/')[2] + 'هـ';
+        }
+
+        // فحص مخالفات الطالب
+        function checkViolations() {
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            if (!studentName || !grade || !section) {
+                showAlert('يرجى إدخال اسم الطالب والصف والشعبة أولاً', 'warning');
+                return;
+            }
+
+            const checkBtn = document.querySelector('[onclick="checkViolations()"]');
+            const loadingIcon = document.getElementById('checkLoading');
+            const searchIcon = checkBtn.querySelector('.fas.fa-search');
+            
+            searchIcon.style.display = 'none';
+            loadingIcon.style.display = 'inline-block';
+            checkBtn.disabled = true;
+
+            const processViolations = () => {
+                setTimeout(() => {
+                    const studentKey = `${studentName}_${grade}_${section}`;
+                    
+                    if (!studentDatabase[studentKey]) {
+                        studentDatabase[studentKey] = { count: 0, history: [] };
+                    }
+                    
+                    currentViolationCount = studentDatabase[studentKey].count + 1;
+                    studentDatabase[studentKey].count = currentViolationCount;
+                    studentDatabase[studentKey].history.push({
+                        date: new Date().toISOString(),
+                        details: 'فحص سجل جديد'
+                    });
+                    
+                    showViolationCount(currentViolationCount);
+                    showRelevantActions(currentViolationCount);
+                    loadPreviousActions(studentKey);
+                    updateStats();
+                    saveToStorage();
+
+                    searchIcon.style.display = 'inline-block';
+                    loadingIcon.style.display = 'none';
+                    checkBtn.disabled = false;
+
+                    showAlert(`تم العثور على ${currentViolationCount - 1} مخالفة سابقة للطالب`, 'info');
+                }, 1000);
+            };
+
+            if (isCloudConnected) {
+                downloadFromCloudSilent().then(() => {
+                    processViolations();
+                }).catch(() => {
+                    processViolations();
+                });
+            } else {
+                processViolations();
+            }
+        }
+
+        // عرض عداد المخالفات
+        function showViolationCount(count) {
+            const violationCount = document.getElementById('violationCount');
+            const countNumber = document.getElementById('countNumber');
+            const progressFill = document.getElementById('progressFill');
+            
+            violationCount.style.display = 'block';
+            countNumber.textContent = count;
+            
+            const progress = (count / 3) * 100;
+            progressFill.style.width = `${Math.min(progress, 100)}%`;
+            
+            if (count >= 3) {
+                violationCount.style.background = 'linear-gradient(135deg, #f8d7da, #f1aeb5)';
+                violationCount.style.borderColor = 'var(--danger-color)';
+                countNumber.style.color = '#721c24';
+                progressFill.style.background = 'var(--gradient-warning)';
+            }
+        }
+
+        // عرض الإجراءات المناسبة
+        function showRelevantActions(violationCount) {
+            document.querySelectorAll('.action-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            for (let i = 1; i <= Math.min(violationCount, 3); i++) {
+                const action = document.getElementById(`action${i}`);
+                if (action) {
+                    setTimeout(() => {
+                        action.classList.add('active');
+                    }, (i - 1) * 300);
+                }
+            }
+
+            document.getElementById('exportBtn').style.display = 'inline-flex';
+        }
+
+        // تحميل الإجراءات السابقة
+        function loadPreviousActions(studentKey) {
+            if (savedActions[studentKey]) {
+                const actions = savedActions[studentKey];
+                
+                for (let i = 1; i <= 3; i++) {
+                    if (actions[`action${i}`]) {
+                        markActionAsSaved(i);
+                    }
+                }
+            }
+        }
+
+        // تمييز الإجراء كمحفوظ
+        function markActionAsSaved(actionNumber) {
+            const actionDiv = document.getElementById(`action${actionNumber}`);
+            if (actionDiv) {
+                actionDiv.classList.add('action-saved');
+                
+                const header = actionDiv.querySelector('.action-header');
+                const existingStatus = header.querySelector('.status-indicator');
+                if (existingStatus) {
+                    existingStatus.remove();
+                }
+                
+                const statusIndicator = document.createElement('span');
+                statusIndicator.className = 'status-indicator status-saved';
+                statusIndicator.innerHTML = '<i class="fas fa-check-circle"></i> محفوظ';
+                header.appendChild(statusIndicator);
+                
+                const saveBtn = actionDiv.querySelector('button[onclick*="saveAction"]');
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.innerHTML = '<i class="fas fa-check"></i> تم الحفظ';
+                }
+
+                if (actionNumber === 3) {
+                    document.getElementById('sendToDeputyBtn').style.display = 'inline-flex';
+                }
+            }
+        }
+
+        // حفظ إجراء محدد
+        function saveAction(actionNumber) {
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            if (!studentName || !grade || !section) {
+                showAlert('يرجى إدخال بيانات الطالب أولاً', 'warning');
+                return;
+            }
+            
+            const actionData = gatherActionData(actionNumber);
+            if (!validateActionData(actionData)) {
+                showAlert('يرجى تعبئة جميع الحقول المطلوبة للإجراء', 'warning');
+                return;
+            }
+            
+            const studentKey = `${studentName}_${grade}_${section}`;
+            
+            if (!savedActions[studentKey]) {
+                savedActions[studentKey] = {};
+            }
+            
+            savedActions[studentKey][`action${actionNumber}`] = {
+                ...actionData,
+                savedAt: new Date().toISOString(),
+                teacherName: document.getElementById('teacherName').value
+            };
+            
+            markActionAsSaved(actionNumber);
+            saveToStorage();
+            
+            showAlert(`تم حفظ الإجراء ${actionNumber} بنجاح`, 'success');
+            
+            if (isCloudConnected) {
+                setTimeout(() => {
+                    syncToCloud();
+                }, 1000);
+            }
+            
+            const actionDiv = document.getElementById(`action${actionNumber}`);
+            actionDiv.style.transform = 'scale(1.02)';
+            setTimeout(() => {
+                actionDiv.style.transform = 'scale(1)';
+            }, 200);
+        }
+
+        // جمع بيانات الإجراء
+        function gatherActionData(actionNumber) {
+            const detailsField = actionNumber === 3 ? 'action3_teacher_details' : `action${actionNumber}_details`;
+            
+            return {
+                details: document.querySelector(`[name="${detailsField}"]`)?.value || '',
+                teacherName: document.querySelector(`[name="teacher_name${actionNumber}"]`)?.value || '',
+                signature: document.querySelector(`[name="teacher_signature${actionNumber}"]`)?.value || '',
+                date: document.querySelector(`[name="teacher_date${actionNumber}"]`)?.value || '',
+                actionNumber: actionNumber
+            };
+        }
+
+        // التحقق من صحة بيانات الإجراء
+        function validateActionData(actionData) {
+            return actionData.details && actionData.teacherName && actionData.signature && actionData.date;
+        }
+
+        // إرسال للوكيل والمرشد
+        function sendToDeputyAction() {
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            const studentKey = `${studentName}_${grade}_${section}`;
+            
+            if (!savedActions[studentKey] || 
+                !savedActions[studentKey].action1 || 
+                !savedActions[studentKey].action2 || 
+                !savedActions[studentKey].action3) {
+                showAlert('يجب حفظ جميع الإجراءات الثلاثة قبل الإرسال للوكيل', 'warning');
+                return;
+            }
+            
+            if (!confirm('هل أنت متأكد من إرسال النموذج إلى وكيل شؤون الطلاب والمرشد الطلابي؟\nلن تتمكن من تعديل الإجراءات بعد الإرسال.')) {
+                return;
+            }
+
+            savedActions[studentKey].sentToDeputy = {
+                sentAt: new Date().toISOString(),
+                status: 'sent',
+                formData: gatherCompleteFormData()
+            };
+            
+            saveToStorage();
+            updateStats();
+            
+            showAlert('تم إرسال النموذج بنجاح إلى وكيل شؤون الطلاب والمرشد الطلابي', 'success');
+            
+            if (isCloudConnected) {
+                setTimeout(() => {
+                    syncToCloud();
+                }, 500);
+            }
+            
+            setTimeout(() => {
+                if (confirm('هل تريد إعداد النموذج لمخالفة جديدة؟')) {
+                    resetFormForNewViolation();
+                }
+            }, 2000);
+        }
+
+        // ================================
+        // دوال المساعدة والواجهة
+        // ================================
+
+        // جمع بيانات النموذج الكاملة
+        function gatherCompleteFormData() {
+            const reasons = [];
+            document.querySelectorAll('input[name="reason"]:checked').forEach(checkbox => {
+                reasons.push(checkbox.value);
+            });
+
+            return {
+                studentName: document.getElementById('studentName').value,
+                grade: document.getElementById('grade').value,
+                section: document.getElementById('section').value,
+                subject: document.getElementById('subject').value,
+                period: document.getElementById('period').value,
+                teacherName: document.getElementById('teacherName').value,
+                reasons: reasons,
+                otherReason: document.getElementById('otherReason').value,
+                problemDescription: document.getElementById('problemDescription').value,
+                violationCount: currentViolationCount,
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        // إعادة تعيين النموذج لمخالفة جديدة
+        function resetFormForNewViolation() {
+            const studentName = document.getElementById('studentName').value;
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            resetForm();
+            
+            document.getElementById('studentName').value = studentName;
+            document.getElementById('grade').value = grade;
+            document.getElementById('section').value = section;
+        }
+
+        // إعادة تعيين النموذج
+        function resetForm() {
+            document.querySelectorAll('input, select, textarea').forEach(element => {
+                if (element.type === 'checkbox') {
+                    element.checked = false;
+                } else if (!['studentName', 'grade', 'section'].includes(element.id)) {
+                    element.value = '';
+                }
+            });
+            
+            document.getElementById('violationCount').style.display = 'none';
+            document.getElementById('exportBtn').style.display = 'none';
+            
+            document.querySelectorAll('.action-item').forEach(item => {
+                item.classList.remove('active', 'action-saved');
+                const statusIndicator = item.querySelector('.status-indicator');
+                if (statusIndicator) {
+                    statusIndicator.remove();
+                }
+                const saveBtn = item.querySelector('button[onclick*="saveAction"]');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    const actionNum = saveBtn.onclick.toString().match(/saveAction\((\d+)\)/)[1];
+                    saveBtn.innerHTML = `<i class="fas fa-save"></i> حفظ الإجراء ${actionNum === '1' ? 'الأول' : actionNum === '2' ? 'الثاني' : 'الثالث'}`;
+                }
+            });
+
+            document.getElementById('sendToDeputyBtn').style.display = 'none';
+            
+            document.querySelectorAll('.checkbox-group').forEach(group => {
+                group.classList.remove('selected');
+                group.style.background = '';
+                group.style.borderColor = '';
+                group.style.color = '';
+            });
+
+            currentViolationCount = 0;
+        }
+
+        // تصدير التقرير
+        function exportReport() {
+            const formData = gatherCompleteFormData();
+            if (!formData.studentName) {
+                showAlert('لا توجد بيانات لتصديرها', 'warning');
+                return;
+            }
+
+            const reportContent = generateReportContent(formData);
+            const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `تقرير_متابعة_${formData.studentName}_${new Date().toLocaleDateString('ar')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            showAlert('تم تصدير التقرير بنجاح', 'success');
+        }
+
+        // إنشاء محتوى التقرير
+        function generateReportContent(formData) {
+            return `
+تقرير متابعة الطالب
+=====================
+
+معلومات الطالب:
+- الاسم: ${formData.studentName}
+- الصف: ${formData.grade}
+- الشعبة: ${formData.section}
+- المادة: ${formData.subject}
+- الحصة: ${formData.period}
+- المعلم: ${formData.teacherName}
+
+تفاصيل المخالفة:
+- عدد المخالفة: ${formData.violationCount}
+- الأسباب: ${formData.reasons.join(', ')}
+${formData.otherReason ? `- أسباب أخرى: ${formData.otherReason}` : ''}
+- وصف المشكلة: ${formData.problemDescription}
+
+التاريخ: ${new Date(formData.timestamp).toLocaleDateString('ar')}
+
+متوسطة المنذر بن عمرو الأنصاري
+مكتب تعليم أحد والعوالي
+وزارة التعليم - المملكة العربية السعودية
+            `;
+        }
+
+        // عرض التنبيهات
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.style.position = 'fixed';
+            alertDiv.style.top = '20px';
+            alertDiv.style.left = '50%';
+            alertDiv.style.transform = 'translateX(-50%)';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.style.minWidth = '300px';
+            alertDiv.style.maxWidth = '500px';
+            
+            const icon = type === 'success' ? 'check-circle' : 
+                        type === 'warning' ? 'exclamation-triangle' : 
+                        type === 'error' ? 'times-circle' : 'info-circle';
+            
+            alertDiv.innerHTML = `
+                <i class="fas fa-${icon}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; float: left; font-size: 18px; cursor: pointer; margin-right: 10px;">×</button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                if (alertDiv.parentElement) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // حفظ البيانات في التخزين المحلي
+        function saveToStorage() {
+            localStorage.setItem('studentDatabase', JSON.stringify(studentDatabase));
+            localStorage.setItem('savedActions', JSON.stringify(savedActions));
+        }
+
+        // تحميل البيانات من التخزين المحلي
+        function loadFromStorage() {
+            const savedDb = localStorage.getItem('studentDatabase');
+            const savedActionsData = localStorage.getItem('savedActions');
+            
+            if (savedDb) {
+                studentDatabase = JSON.parse(savedDb);
+            }
+            
+            if (savedActionsData) {
+                savedActions = JSON.parse(savedActionsData);
+            }
+            
+            updateStats();
+        }
+
+        // عرض المساعدة
+        function showHelp() {
+            const helpContent = `
+نظام متابعة الطلاب الذكي - دليل الاستخدام
+
+1. إدخال بيانات الطالب:
+   - أدخل اسم الطالب الثلاثي
+   - اختر الصف والشعبة
+   - حدد المادة والحصة واسم المعلم
+
+2. فحص سجل الطالب:
+   - اضغط على "فحص سجل الطالب"
+   - سيظهر عدد المخالفات السابقة
+   - ستظهر الإجراءات المناسبة تلقائياً
+
+3. الإجراءات المتدرجة:
+   - المخالفة الأولى: التوجيه والإرشاد
+   - المخالفة الثانية: الإنذار والمتابعة
+   - المخالفة الثالثة: التحويل للإدارة
+
+4. حفظ الإجراءات:
+   - احفظ كل إجراء على حدة
+   - تأكد من تعبئة جميع الحقول المطلوبة
+
+5. الإرسال النهائي:
+   - يتم الإرسال للوكيل في المخالفة الثالثة فقط
+   - بعد حفظ جميع الإجراءات الثلاثة
+
+6. الخدمة السحابية:
+   - اضغط على مؤشر الحالة أعلى الصفحة
+   - اتبع خطوات الإعداد أو استخدم الوضع التجريبي
+
+للمساعدة الفنية: اتصل بإدارة النظم
+            `;
+            
+            alert(helpContent);
+        }
+
+        // معالجة النقر على مجموعات الأسباب
+        function setupCheckboxGroups() {
+            document.querySelectorAll('.checkbox-group').forEach(group => {
+                group.addEventListener('click', function(e) {
+                    if (e.target.type !== 'checkbox') {
+                        const checkbox = this.querySelector('input[type="checkbox"]');
+                        checkbox.checked = !checkbox.checked;
+                    }
+                    
+                    const checkbox = this.querySelector('input[type="checkbox"]');
+                    if (checkbox.checked) {
+                        this.classList.add('selected');
+                        this.style.background = 'var(--secondary-color)';
+                        this.style.borderColor = 'var(--primary-color)';
+                        this.style.color = 'white';
+                    } else {
+                        this.classList.remove('selected');
+                        this.style.background = '';
+                        this.style.borderColor = '';
+                        this.style.color = '';
+                    }
+                });
+            });
+        }
+
+        // تعيين التاريخ الحالي
+        function setCurrentDate() {
+            document.querySelectorAll('input[type="date"]').forEach(dateInput => {
+                if (!dateInput.value) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                }
+            });
+        }
+
+        // تحسين تجربة المستخدم
+        function enhanceUserExperience() {
+            document.querySelectorAll('.stat-card').forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'all 0.6s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+
+            document.querySelectorAll('input, select, textarea').forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.parentElement.style.transform = 'translateY(-2px)';
+                });
+                
+                input.addEventListener('blur', function() {
+                    this.parentElement.style.transform = 'translateY(0)';
+                });
+            });
+        }
+
+        // فحص التحديثات التلقائية
+        function checkForUpdates() {
+            const lastCheck = localStorage.getItem('lastUpdateCheck');
+            const now = new Date().getTime();
+            
+            if (!lastCheck || (now - parseInt(lastCheck)) > 24 * 60 * 60 * 1000) {
+                localStorage.setItem('lastUpdateCheck', now.toString());
+                
+                setTimeout(() => {
+                    showAlert('النظام محدث. لا توجد تحديثات جديدة', 'info');
+                }, 2000);
+            }
+        }
+
+        // ================================
+        // مستمعات الأحداث والتهيئة
+        // ================================
+
+        // تهيئة النظام عند التحميل
+        window.addEventListener('load', function() {
+            loadFromStorage();
+            setupCheckboxGroups();
+            setCurrentDate();
+            enhanceUserExperience();
+            checkForUpdates();
+            
+            // تحقق من وجود إعدادات Firebase محفوظة
+            const savedConfig = localStorage.getItem('firebaseConfig');
+            if (savedConfig) {
+                try {
+                    const config = JSON.parse(savedConfig);
+                    firebase.initializeApp(config);
+                    db = firebase.firestore();
+                    isFirebaseInitialized = true;
+                    testConnection();
+                } catch (error) {
+                    console.log('Failed to load saved Firebase config:', error);
+                }
+            }
+            
+            // رسالة ترحيب مع معلومات المزامنة
+            setTimeout(() => {
+                const hasData = Object.keys(studentDatabase).length > 0;
+                if (hasData) {
+                    showAlert(`مرحباً بك! تم العثور على بيانات ${Object.keys(studentDatabase).length} طالب محفوظة`, 'success');
+                } else {
+                    showAlert('مرحباً بك في نظام متابعة الطلاب الذكي. فعّل الخدمة السحابية للمزامنة التلقائية', 'info');
+                }
+            }, 1000);
+        });
+
+        // حفظ تلقائي كل 30 ثانية
+        setInterval(saveToStorage, 30000);
+
+        // مزامنة تلقائية كل 5 دقائق
+        setInterval(autoSync, 5 * 60 * 1000);
+
+        // فحص التحديثات كل ساعة
+        setInterval(checkForUpdates, 60 * 60 * 1000);
+
+        // معالجة إغلاق النافذة مع حفظ سحابي
+        window.addEventListener('beforeunload', function(e) {
+            saveToStorage();
+            if (isCloudConnected && Object.keys(studentDatabase).length > 0) {
+                syncToCloud();
+            }
+        });
+
+        // إضافة مستمع للاتصال بالإنترنت
+        window.addEventListener('online', function() {
+            if (isFirebaseInitialized) {
+                testConnection();
+            }
+            showAlert('تم استعادة الاتصال بالإنترنت', 'success');
+        });
+
+        window.addEventListener('offline', function() {
+            updateCloudStatus('غير متصل', 'disconnected');
+            showAlert('انقطع الاتصال بالإنترنت. سيتم الحفظ محلياً', 'warning');
+        });
+    </script>
+</body>
+</html>        <div class="quick-stats">
             <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-users"></i></div>
                 <div class="stat-number" id="totalStudents">0</div>
@@ -1317,39 +1461,6 @@
                 </div>
             </div>
 
-            <div class="notes-section">
-                <div class="notes-title">
-                    <i class="fas fa-info-circle"></i>
-                    <span>ملاحظات وإرشادات مهمة</span>
-                </div>
-                <ul class="notes-list">
-                    <li>يتم إخطار وكيل شؤون الطلاب حسب هذا النموذج بعد انتهاء الحصة الدراسية</li>
-                    <li>يقوم وكيل شؤون الطلاب باستدعاء الطالب في وقت لا يؤثر عليه دراسياً</li>
-                    <li>يتم تحويل الطالب إلى المرشد في حالة تكرار السلوك أو الضعف الدراسي المستمر</li>
-                    <li>يقوم المرشد الطلابي بإخطار المعلم بما تم حيال الطالب ومتابعة التقدم</li>
-                    <li>يحفظ هذا النموذج لدى وكيل شؤون الطلاب ونسخة لدى المرشد الطلابي</li>
-                    <li>يتم التركيز على الجانب التربوي والإصلاحي قبل الجانب العقابي</li>
-                    <li>إشراك ولي الأمر في جميع مراحل المتابعة لضمان التكامل التربوي</li>
-                </ul>
-            </div>
-
-            <div class="buttons-container">
-                <button type="button" class="btn btn-primary tooltip" onclick="checkViolations()">
-                    <i class="fas fa-search"></i>
-                    <span class="loading" id="checkLoading" style="display: none;"></span>
-                    فحص سجل الطالب
-                    <span class="tooltiptext">ابحث عن تاريخ مخالفات الطالب وحدد الإجراء المناسب</span>
-                </button>
-                <button type="button" class="btn btn-success" onclick="exportReport()" style="display: none;" id="exportBtn">
-                    <i class="fas fa-file-export"></i>
-                    تصدير التقرير
-                </button>
-                <button type="button" class="btn btn-warning" onclick="resetForm()">
-                    <i class="fas fa-redo"></i>
-                    إعادة تعيين
-                </button>
-            </div>
-
             <div class="section-header" style="margin-top: 40px;">
                 <div class="section-icon">
                     <i class="fas fa-cloud"></i>
@@ -1389,7 +1500,7 @@
             </div>
 
             <!-- إعداد الخدمة السحابية -->
-            <div class="cloud-setup" id="cloudSetup" style="display: none;">
+            <div class="cloud-setup" id="cloudSetup">
                 <h3 style="color: var(--primary-color); margin-bottom: 20px;">
                     <i class="fas fa-cloud"></i>
                     إعداد الخدمة السحابية المجانية
@@ -1460,1210 +1571,1009 @@ const firebaseConfig = {<br>
                 <div id="qrCode" style="margin: 20px auto;"></div>
                 <p style="color: #666; font-size: 14px;">استخدم أي تطبيق قراءة QR لنسخ البيانات</p>
             </div>
+
+            <div class="notes-section">
+                <div class="notes-title">
+                    <i class="fas fa-info-circle"></i>
+                    <span>ملاحظات وإرشادات مهمة</span>
+                </div>
+                <ul class="notes-list">
+                    <li>يتم إخطار وكيل شؤون الطلاب حسب هذا النموذج بعد انتهاء الحصة الدراسية</li>
+                    <li>يقوم وكيل شؤون الطلاب باستدعاء الطالب في وقت لا يؤثر عليه دراسياً</li>
+                    <li>يتم تحويل الطالب إلى المرشد في حالة تكرار السلوك أو الضعف الدراسي المستمر</li>
+                    <li>يقوم المرشد الطلابي بإخطار المعلم بما تم حيال الطالب ومتابعة التقدم</li>
+                    <li>يحفظ هذا النموذج لدى وكيل شؤون الطلاب ونسخة لدى المرشد الطلابي</li>
+                    <li>يتم التركيز على الجانب التربوي والإصلاحي قبل الجانب العقابي</li>
+                    <li>إشراك ولي الأمر في جميع مراحل المتابعة لضمان التكامل التربوي</li>
+                </ul>
+            </div>
+
+            <div class="buttons-container">
+                <button type="button" class="btn btn-primary tooltip" onclick="checkViolations()">
+                    <i class="fas fa-search"></i>
+                    <span class="loading" id="checkLoading" style="display: none;"></span>
+                    فحص سجل الطالب
+                    <span class="tooltiptext">ابحث عن تاريخ مخالفات الط<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام متابعة الطلاب الذكي - متوسطة المنذر بن عمرو الأنصاري</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-firestore-compat.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2c5aa0;
+            --secondary-color: #4a90e2;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+            --light-bg: #f8f9ff;
+            --gradient-primary: linear-gradient(135deg, #2c5aa0 0%, #4a90e2 100%);
+            --gradient-success: linear-gradient(135deg, #28a745, #20c997);
+            --gradient-warning: linear-gradient(135deg, #ffc107, #fd7e14);
+            --shadow-soft: 0 5px 15px rgba(0, 0, 0, 0.08);
+            --shadow-medium: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --shadow-strong: 0 15px 35px rgba(0, 0, 0, 0.15);
+            --border-radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 50%, #d7ebff 100%);
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(44, 90, 160, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(23, 162, 184, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .cloud-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 25px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .cloud-connected {
+            background: var(--gradient-success);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .cloud-disconnected {
+            background: var(--gradient-warning);
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        .cloud-syncing {
+            background: var(--gradient-primary);
+            box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
+        }
+
+        .sync-indicator {
+            width: 12px;
+            height: 12px;
+            border: 2px solid white;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: var(--shadow-strong);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-primary);
+            z-index: 1;
+        }
+
+        .header {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+            animation: float 20s linear infinite;
+            opacity: 0.3;
+        }
+
+        @keyframes float {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .logo-container {
+            position: relative;
+            z-index: 2;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: var(--primary-color);
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .logo::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: rotate 3s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 2;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header .school-info {
+            font-size: 16px;
+            opacity: 0.95;
+            position: relative;
+            z-index: 2;
+            line-height: 1.6;
+        }
+
+        .quick-stats {
+            background: linear-gradient(135deg, #fff 0%, #f8f9ff 100%);
+            padding: 25px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            border-bottom: 1px solid #e1e8f0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            box-shadow: var(--shadow-soft);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-primary);
+            transform: scaleX(0);
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .stat-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .stat-icon {
+            font-size: 24px;
+            color: var(--secondary-color);
+            margin-bottom: 10px;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+            border-radius: var(--border-radius);
+            border-right: 5px solid var(--secondary-color);
+        }
+
+        .section-icon {
+            width: 50px;
+            height: 50px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 16px;
+            position: relative;
+        }
+
+        .form-group label::after {
+            content: '*';
+            color: var(--danger-color);
+            margin-right: 5px;
+            font-size: 14px;
+        }
+
+        .form-group.optional label::after {
+            display: none;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e8f0;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            transition: var(--transition);
+            background: var(--light-bg);
+            font-family: inherit;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 18px;
+            pointer-events: none;
+        }
+
+        .input-with-icon {
+            padding-right: 50px;
+        }
+
+        .violation-count {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border-radius: 15px;
+            border-right: 5px solid var(--warning-color);
+            position: relative;
+            overflow: hidden;
+            display: none;
+        }
+
+        .violation-count::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .count-display {
+            font-size: 32px;
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .count-description {
+            color: #856404;
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .progress-bar {
+            background: #e1e8f0;
+            height: 6px;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            background: var(--gradient-primary);
+            height: 100%;
+            width: 0%;
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 3px;
+        }
+
+        .violation-reasons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            background: var(--light-bg);
+            border: 2px solid #e1e8f0;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .checkbox-group::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(74, 144, 226, 0.1), transparent);
+            transition: var(--transition);
+        }
+
+        .checkbox-group:hover::before {
+            left: 100%;
+        }
+
+        .checkbox-group:hover {
+            background: #e8f2ff;
+            border-color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .checkbox-group.selected {
+            background: var(--secondary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+            accent-color: var(--secondary-color);
+            transform: scale(1.2);
+        }
+
+        .actions-section {
+            margin-top: 40px;
+            position: relative;
+        }
+
+        .action-item {
+            background: white;
+            padding: 30px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            border: 2px solid #e1e8f0;
+            display: none;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .action-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-primary);
+            transform: scaleX(0);
+            transition: var(--transition);
+        }
+
+        .action-item.active {
+            display: block;
+            animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .action-item.active::before {
+            transform: scaleX(1);
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .action-item.action-saved {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border-color: var(--success-color);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.2);
+        }
+
+        .action-item.action-saved::before {
+            background: var(--gradient-success);
+        }
+
+        .action-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 18px;
+        }
+
+        .action-number {
+            width: 45px;
+            height: 45px;
+            background: var(--gradient-primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .action-saved .action-number {
+            background: var(--gradient-success);
+        }
+
+        .signature-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(248, 249, 255, 0.7);
+            border-radius: var(--border-radius);
+            border: 1px solid #e1e8f0;
+        }
+
+        .signature-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 15px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: white;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .status-saved {
+            color: var(--success-color);
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+            font-family: inherit;
+            min-width: 180px;
+            justify-content: center;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: var(--transition);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(74, 144, 226, 0.3);
+        }
+
+        .btn-success {
+            background: var(--gradient-success);
+            color: white;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-warning {
+            background: var(--gradient-warning);
+            color: white;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 193, 7, 0.3);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .btn-info:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(23, 162, 184, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .buttons-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e1e8f0;
+            flex-wrap: wrap;
+        }
+
+        .cloud-setup {
+            background: linear-gradient(135deg, #e8f4fd, #d4edda);
+            border: 2px solid var(--info-color);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+            display: none;
+        }
+
+        .setup-step {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-right: 4px solid var(--info-color);
+            text-align: right;
+        }
+
+        .setup-code {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            color: #333;
+            overflow-x: auto;
+        }
+
+        .notes-section {
+            margin-top: 40px;
+            padding: 25px;
+            background: linear-gradient(135deg, #e8f4fd, #d4edda);
+            border-radius: 15px;
+            border-right: 5px solid var(--info-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .notes-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            animation: float 15s linear infinite reverse;
+            opacity: 0.5;
+        }
+
+        .notes-title {
+            font-weight: 600;
+            color: #0c5460;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .notes-list {
+            list-style: none;
+            padding: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .notes-list li {
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(23, 162, 184, 0.2);
+            color: #0c5460;
+            position: relative;
+            padding-right: 30px;
+            line-height: 1.6;
+        }
+
+        .notes-list li::before {
+            content: '✓';
+            color: var(--success-color);
+            font-weight: bold;
+            font-size: 16px;
+            position: absolute;
+            right: 0;
+            top: 12px;
+        }
+
+        .notes-list li:last-child {
+            border-bottom: none;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            border-right: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .alert-info {
+            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+            border-color: var(--info-color);
+            color: #0c5460;
+        }
+
+        .alert-warning {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border-color: var(--warning-color);
+            color: #856404;
+        }
+
+        .alert-success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border-color: var(--success-color);
+            color: #155724;
+        }
+
+        .floating-help {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            width: 60px;
+            height: 60px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: var(--shadow-medium);
+            transition: var(--transition);
+            z-index: 1000;
+        }
+
+        .floating-help:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-strong);
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 14px;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .form-container {
+                padding: 20px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .signature-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .violation-reasons {
+                grid-template-columns: 1fr;
+            }
+            
+            .buttons-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .quick-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .floating-help {
+                bottom: 20px;
+                left: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .quick-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                padding: 25px 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .section-header {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- حالة الاتصال السحابي -->
+    <div class="cloud-status cloud-disconnected" id="cloudStatus" onclick="toggleCloudSetup()">
+        <i class="fas fa-cloud-upload-alt"></i>
+        <span id="cloudStatusText">غير متصل</span>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+            </div>
+            <h1>نظام متابعة الطلاب الذكي</h1>
+            <div class="school-info">
+                <div><strong>المملكة العربية السعودية - وزارة التعليم</strong></div>
+                <div>مكتب تعليم أحد والعوالي</div>
+                <div>متوسطة المنذر بن عمرو الأنصاري</div>
+                <div>مدير المدرسة: خالد المطيري</div>
+            </div>
         </div>
-    </div>
 
-    <div class="floating-help" onclick="showHelp()">
-        <i class="fas fa-question"></i>
-    </div>
-
-    <script>
-        // متغيرات Firebase
-        let db = null;
-        let isCloudConnected = false;
-        let isFirebaseInitialized = false;
-
-        // المتغيرات العامة
-        let studentDatabase = {};
-        let savedActions = {};
-        let currentViolationCount = 0;
-
-        // إعداد Firebase
-        function setupFirebase() {
-            const configText = document.getElementById('firebaseConfig').value.trim();
-            
-            if (!configText) {
-                showAlert('يرجى إدخال إعدادات Firebase أولاً', 'warning');
-                return;
-            }
-
-            try {
-                // استخراج الكونفيق من النص
-                let config;
-                if (configText.includes('const firebaseConfig')) {
-                    const configMatch = configText.match(/const firebaseConfig\s*=\s*({[\s\S]*?});/);
-                    if (configMatch) {
-                        config = eval('(' + configMatch[1] + ')');
-                    }
-                } else {
-                    config = JSON.parse(configText);
-                }
-
-                if (!config.apiKey || !config.projectId) {
-                    throw new Error('إعدادات غير صالحة');
-                }
-
-                // تهيئة Firebase
-                firebase.initializeApp(config);
-                db = firebase.firestore();
-                isFirebaseInitialized = true;
-
-                // حفظ الإعدادات
-                localStorage.setItem('firebaseConfig', JSON.stringify(config));
-                
-                // اختبار الاتصال
-                testConnection();
-                
-            } catch (error) {
-                showAlert('خطأ في إعدادات Firebase. تأكد من صحة البيانات', 'error');
-                console.error('Firebase setup error:', error);
-            }
-        }
-
-        // استخدام الوضع التجريبي
-        function useDemo() {
-            const demoConfig = {
-                apiKey: "demo-api-key",
-                authDomain: "demo-project.firebaseapp.com",
-                projectId: "demo-student-tracking",
-                storageBucket: "demo-project.appspot.com",
-                messagingSenderId: "123456789",
-                appId: "demo-app-id"
-            };
-
-            showAlert('تم تفعيل الوضع التجريبي. سيتم محاكاة الحفظ السحابي', 'info');
-            isCloudConnected = true;
-            updateCloudStatus('متصل (تجريبي)', 'connected');
-            enableCloudButtons();
-            document.getElementById('cloudSetup').style.display = 'none';
-        }
-
-        // اختبار الاتصال
-        function testConnection() {
-            updateCloudStatus('اختبار الاتصال...', 'syncing');
-            
-            if (!isFirebaseInitialized) {
-                // محاكاة في الوضع التجريبي
-                setTimeout(() => {
-                    isCloudConnected = true;
-                    updateCloudStatus('متصل', 'connected');
-                    enableCloudButtons();
-                    showAlert('تم الاتصال بالخدمة السحابية بنجاح!', 'success');
-                }, 2000);
-                return;
-            }
-
-            // اختبار حقيقي
-            db.collection('test').add({
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                test: true
-            }).then(() => {
-                isCloudConnected = true;
-                updateCloudStatus('متصل', 'connected');
-                enableCloudButtons();
-                showAlert('تم الاتصال بالخدمة السحابية بنجاح!', 'success');
-                document.getElementById('cloudSetup').style.display = 'none';
-            }).catch((error) => {
-                updateCloudStatus('فشل الاتصال', 'disconnected');
-                showAlert('فشل في الاتصال. تحقق من إعدادات Firebase', 'error');
-                console.error('Connection test failed:', error);
-            });
-        }
-
-        // تحديث حالة السحابة
-        function updateCloudStatus(text, status) {
-            const statusElement = document.getElementById('cloudStatus');
-            const textElement = document.getElementById('cloudStatusText');
-            
-            statusElement.className = `cloud-status cloud-${status}`;
-            textElement.textContent = text;
-            
-            const syncIndicator = document.getElementById('syncIndicator');
-            if (status === 'syncing') {
-                syncIndicator.style.display = 'inline-block';
-            } else {
-                syncIndicator.style.display = 'none';
-            }
-        }
-
-        // تفعيل أزرار السحابة
-        function enableCloudButtons() {
-            document.getElementById('cloudSyncBtn').disabled = false;
-            document.getElementById('cloudDownloadBtn').disabled = false;
-        }
-
-        // عرض/إخفاء إعداد السحابة
-        function toggleCloudSetup() {
-            const setupDiv = document.getElementById('cloudSetup');
-            if (setupDiv.style.display === 'none') {
-                setupDiv.style.display = 'block';
-            } else {
-                setupDiv.style.display = 'none';
-            }
-        }
-
-        // مزامنة البيانات مع السحابة
-        function syncToCloud() {
-            if (!isCloudConnected) {
-                showAlert('يجب الاتصال بالخدمة السحابية أولاً', 'warning');
-                return;
-            }
-
-            updateCloudStatus('جاري المزامنة...', 'syncing');
-            
-            const allData = {
-                studentDatabase: studentDatabase,
-                savedActions: savedActions,
-                lastUpdate: new Date().toISOString(),
-                schoolInfo: {
-                    name: "متوسطة المنذر بن عمرو الأنصاري",
-                    office: "مكتب تعليم أحد والعوالي",
-                    principal: "خالد المطيري"
-                }
-            };
-
-            if (isFirebaseInitialized && db) {
-                // حفظ حقيقي في Firebase
-                db.collection('schoolData').doc('studentTracking').set(allData)
-                    .then(() => {
-                        updateCloudStatus('محدث', 'connected');
-                        showAlert('تم رفع البيانات للسحابة بنجاح!', 'success');
-                        setTimeout(() => {
-                            updateCloudStatus('متصل', 'connected');
-                        }, 2000);
-                    })
-                    .catch((error) => {
-                        updateCloudStatus('خطأ في المزامنة', 'disconnected');
-                        showAlert('فشل في رفع البيانات. تحقق من الاتصال', 'error');
-                        console.error('Sync error:', error);
-                    });
-            } else {
-                // محاكاة في الوضع التجريبي
-                setTimeout(() => {
-                    updateCloudStatus('محدث (تجريبي)', 'connected');
-                    showAlert('تم رفع البيانات بنجاح (وضع تجريبي)', 'success');
-                    // حفظ في LocalStorage كبديل
-                    localStorage.setItem('cloudBackup', JSON.stringify(allData));
-                    setTimeout(() => {
-                        updateCloudStatus('متصل (تجريبي)', 'connected');
-                    }, 2000);
-                }, 1500);
-            }
-        }
-
-        // تحميل البيانات من السحابة
-        function downloadFromCloud() {
-            if (!isCloudConnected) {
-                showAlert('يجب الاتصال بالخدمة السحابية أولاً', 'warning');
-                return;
-            }
-
-            updateCloudStatus('جاري التحميل...', 'syncing');
-
-            if (isFirebaseInitialized && db) {
-                // تحميل حقيقي من Firebase
-                db.collection('schoolData').doc('studentTracking').get()
-                    .then((doc) => {
-                        if (doc.exists) {
-                            const cloudData = doc.data();
-                            
-                            if (confirm('هل تريد دمج البيانات السحابية مع البيانات المحلية؟\n(اختر "موافق" للدمج أو "إلغاء" للاستبدال الكامل)')) {
-                                Object.assign(studentDatabase, cloudData.studentDatabase || {});
-                                Object.assign(savedActions, cloudData.savedActions || {});
-                            } else {
-                                studentDatabase = cloudData.studentDatabase || {};
-                                savedActions = cloudData.savedActions || {};
-                            }
-                            
-                            saveToStorage();
-                            updateStats();
-                            updateCloudStatus('محدث', 'connected');
-                            
-                            const lastUpdate = cloudData.lastUpdate ? 
-                                new Date(cloudData.lastUpdate).toLocaleDateString('ar') : 'غير محدد';
-                            
-                            showAlert(`تم تحميل البيانات من السحابة!\nآخر تحديث: ${lastUpdate}`, 'success');
-                            
-                            setTimeout(() => {
-                                updateCloudStatus('متصل', 'connected');
-                            }, 2000);
-                        } else {
-                            updateCloudStatus('لا توجد بيانات', 'connected');
-                            showAlert('لا توجد بيانات في السحابة', 'info');
-                        }
-                    })
-                    .catch((error) => {
-                        updateCloudStatus('خطأ في التحميل', 'disconnected');
-                        showAlert('فشل في تحميل البيانات من السحابة', 'error');
-                        console.error('Download error:', error);
-                    });
-            } else {
-                // محاكاة في الوضع التجريبي
-                setTimeout(() => {
-                    const cloudBackup = localStorage.getItem('cloudBackup');
-                    if (cloudBackup) {
-                        const cloudData = JSON.parse(cloudBackup);
-                        
-                        if (confirm('هل تريد دمج البيانات المحفوظة مع البيانات الحالية؟')) {
-                            Object.assign(studentDatabase, cloudData.studentDatabase || {});
-                            Object.assign(savedActions, cloudData.savedActions || {});
-                        } else {
-                            studentDatabase = cloudData.studentDatabase || {};
-                            savedActions = cloudData.savedActions || {};
-                        }
-                        
-                        saveToStorage();
-                        updateStats();
-                        updateCloudStatus('محدث (تجريبي)', 'connected');
-                        showAlert('تم تحميل البيانات بنجاح (وضع تجريبي)', 'success');
-                        
-                        setTimeout(() => {
-                            updateCloudStatus('متصل (تجريبي)', 'connected');
-                        }, 2000);
-                    } else {
-                        updateCloudStatus('لا توجد بيانات (تجريبي)', 'connected');
-                        showAlert('لا توجد بيانات محفوظة في الوضع التجريبي', 'info');
-                    }
-                }, 1500);
-            }
-        }
-
-        // مزامنة تلقائية
-        function autoSync() {
-            if (isCloudConnected && Object.keys(studentDatabase).length > 0) {
-                console.log('Auto sync triggered');
-                syncToCloud();
-            }
-        }
-
-        // تحديث الإحصائيات
-        function updateStats() {
-            const totalStudents = Object.keys(studentDatabase).length;
-            const totalViolations = Object.values(studentDatabase).reduce((sum, student) => sum + student.count, 0);
-            const resolvedCases = Object.values(savedActions).filter(student => student.sentToDeputy).length;
-            
-            document.getElementById('totalStudents').textContent = totalStudents;
-            document.getElementById('totalViolations').textContent = totalViolations;
-            document.getElementById('resolvedCases').textContent = resolvedCases;
-            
-            // تحديث التاريخ
-            const today = new Date();
-            const hijriDate = today.toLocaleDateString('ar-SA-u-ca-islamic');
-            document.getElementById('todayDate').textContent = hijriDate.split('/')[2] + 'هـ';
-        }
-
-        // فحص مخالفات الطالب
-        function checkViolations() {
-            const studentName = document.getElementById('studentName').value.trim();
-            const grade = document.getElementById('grade').value;
-            const section = document.getElementById('section').value;
-            
-            if (!studentName || !grade || !section) {
-                showAlert('يرجى إدخال اسم الطالب والصف والشعبة أولاً', 'warning');
-                return;
-            }
-
-            // إظهار مؤشر التحميل
-            const checkBtn = document.querySelector('[onclick="checkViolations()"]');
-            const loadingIcon = document.getElementById('checkLoading');
-            const searchIcon = checkBtn.querySelector('.fas.fa-search');
-            
-            searchIcon.style.display = 'none';
-            loadingIcon.style.display = 'inline-block';
-            checkBtn.disabled = true;
-
-            setTimeout(() => {
-                const studentKey = `${studentName}_${grade}_${section}`;
-                
-                if (!studentDatabase[studentKey]) {
-                    studentDatabase[studentKey] = { count: 0, history: [] };
-                }
-                
-                currentViolationCount = studentDatabase[studentKey].count + 1;
-                studentDatabase[studentKey].count = currentViolationCount;
-                studentDatabase[studentKey].history.push({
-                    date: new Date().toISOString(),
-                    details: 'فحص سجل جديد'
-                });
-                
-                showViolationCount(currentViolationCount);
-                showRelevantActions(currentViolationCount);
-                loadPreviousActions(studentKey);
-                updateStats();
-                saveToStorage();
-
-                // إخفاء مؤشر التحميل
-                searchIcon.style.display = 'inline-block';
-                loadingIcon.style.display = 'none';
-                checkBtn.disabled = false;
-
-                showAlert(`تم العثور على ${currentViolationCount - 1} مخالفة سابقة للطالب`, 'info');
-            }, 1000);
-        }
-
-        // عرض عداد المخالفات
-        function showViolationCount(count) {
-            const violationCount = document.getElementById('violationCount');
-            const countNumber = document.getElementById('countNumber');
-            const progressFill = document.getElementById('progressFill');
-            
-            violationCount.style.display = 'block';
-            countNumber.textContent = count;
-            
-            // تحديث شريط التقدم
-            const progress = (count / 3) * 100;
-            progressFill.style.width = `${Math.min(progress, 100)}%`;
-            
-            if (count >= 3) {
-                violationCount.style.background = 'linear-gradient(135deg, #f8d7da, #f1aeb5)';
-                violationCount.style.borderColor = 'var(--danger-color)';
-                countNumber.style.color = '#721c24';
-                progressFill.style.background = 'var(--gradient-warning)';
-            }
-        }
-
-        // عرض الإجراءات المناسبة
-        function showRelevantActions(violationCount) {
-            // إخفاء جميع الإجراءات
-            document.querySelectorAll('.action-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            // عرض الإجراءات حسب عدد المخالفات
-            for (let i = 1; i <= Math.min(violationCount, 3); i++) {
-                const action = document.getElementById(`action${i}`);
-                if (action) {
-                    setTimeout(() => {
-                        action.classList.add('active');
-                    }, (i - 1) * 300);
-                }
-            }
-
-            // إظهار زر التصدير
-            document.getElementById('exportBtn').style.display = 'inline-flex';
-        }
-
-        // تحميل الإجراءات السابقة
-        function loadPreviousActions(studentKey) {
-            if (savedActions[studentKey]) {
-                const actions = savedActions[studentKey];
-                
-                for (let i = 1; i <= 3; i++) {
-                    if (actions[`action${i}`]) {
-                        markActionAsSaved(i);
-                    }
-                }
-            }
-        }
-
-        // تمييز الإجراء كمحفوظ
-        function markActionAsSaved(actionNumber) {
-            const actionDiv = document.getElementById(`action${actionNumber}`);
-            if (actionDiv) {
-                actionDiv.classList.add('action-saved');
-                
-                const header = actionDiv.querySelector('.action-header');
-                const existingStatus = header.querySelector('.status-indicator');
-                if (existingStatus) {
-                    existingStatus.remove();
-                }
-                
-                const statusIndicator = document.createElement('span');
-                statusIndicator.className = 'status-indicator status-saved';
-                statusIndicator.innerHTML = '<i class="fas fa-check-circle"></i> محفوظ';
-                header.appendChild(statusIndicator);
-                
-                const saveBtn = actionDiv.querySelector('button[onclick*="saveAction"]');
-                if (saveBtn) {
-                    saveBtn.disabled = true;
-                    saveBtn.innerHTML = '<i class="fas fa-check"></i> تم الحفظ';
-                }
-
-                if (actionNumber === 3) {
-                    document.getElementById('sendToDeputyBtn').style.display = 'inline-flex';
-                }
-            }
-        }
-
-        // حفظ إجراء محدد مع مزامنة سحابية
-        function saveAction(actionNumber) {
-            const studentName = document.getElementById('studentName').value.trim();
-            const grade = document.getElementById('grade').value;
-            const section = document.getElementById('section').value;
-            
-            if (!studentName || !grade || !section) {
-                showAlert('يرجى إدخال بيانات الطالب أولاً', 'warning');
-                return;
-            }
-            
-            const actionData = gatherActionData(actionNumber);
-            if (!validateActionData(actionData)) {
-                showAlert('يرجى تعبئة جميع الحقول المطلوبة للإجراء', 'warning');
-                return;
-            }
-            
-            const studentKey = `${studentName}_${grade}_${section}`;
-            
-            if (!savedActions[studentKey]) {
-                savedActions[studentKey] = {};
-            }
-            
-            savedActions[studentKey][`action${actionNumber}`] = {
-                ...actionData,
-                savedAt: new Date().toISOString(),
-                teacherName: document.getElementById('teacherName').value
-            };
-            
-            markActionAsSaved(actionNumber);
-            saveToStorage();
-            
-            showAlert(`تم حفظ الإجراء ${actionNumber} بنجاح`, 'success');
-            
-            // مزامنة تلقائية مع السحابة
-            if (isCloudConnected) {
-                setTimeout(() => {
-                    syncToCloud();
-                }, 1000);
-            }
-            
-            // إضافة تأثير بصري
-            const actionDiv = document.getElementById(`action${actionNumber}`);
-            actionDiv.style.transform = 'scale(1.02)';
-            setTimeout(() => {
-                actionDiv.style.transform = 'scale(1)';
-            }, 200);
-        } || !grade || !section) {
-                showAlert('يرجى إدخال بيانات الطالب أولاً', 'warning');
-                return;
-            }
-            
-            const actionData = gatherActionData(actionNumber);
-            if (!validateActionData(actionData)) {
-                showAlert('يرجى تعبئة جميع الحقول المطلوبة للإجراء', 'warning');
-                return;
-            }
-            
-            const studentKey = `${studentName}_${grade}_${section}`;
-            
-            if (!savedActions[studentKey]) {
-                savedActions[studentKey] = {};
-            }
-            
-            savedActions[studentKey][`action${actionNumber}`] = {
-                ...actionData,
-                savedAt: new Date().toISOString(),
-                teacherName: document.getElementById('teacherName').value
-            };
-            
-            markActionAsSaved(actionNumber);
-            saveToStorage();
-            
-            showAlert(`تم حفظ الإجراء ${actionNumber} بنجاح`, 'success');
-            
-            // إضافة تأثير بصري
-            const actionDiv = document.getElementById(`action${actionNumber}`);
-            actionDiv.style.transform = 'scale(1.02)';
-            setTimeout(() => {
-                actionDiv.style.transform = 'scale(1)';
-            }, 200);
-        }
-
-        // جمع بيانات الإجراء
-        function gatherActionData(actionNumber) {
-            const detailsField = actionNumber === 3 ? 'action3_teacher_details' : `action${actionNumber}_details`;
-            
-            return {
-                details: document.querySelector(`[name="${detailsField}"]`)?.value || '',
-                teacherName: document.querySelector(`[name="teacher_name${actionNumber}"]`)?.value || '',
-                signature: document.querySelector(`[name="teacher_signature${actionNumber}"]`)?.value || '',
-                date: document.querySelector(`[name="teacher_date${actionNumber}"]`)?.value || '',
-                actionNumber: actionNumber
-            };
-        }
-
-        // التحقق من صحة بيانات الإجراء
-        function validateActionData(actionData) {
-            return actionData.details && actionData.teacherName && actionData.signature && actionData.date;
-        }
-
-        // إرسال للوكيل والمرشد
-        function sendToDeputyAction() {
-            const studentName = document.getElementById('studentName').value.trim();
-            const grade = document.getElementById('grade').value;
-            const section = document.getElementById('section').value;
-            
-            const studentKey = `${studentName}_${grade}_${section}`;
-            
-            if (!savedActions[studentKey] || 
-                !savedActions[studentKey].action1 || 
-                !savedActions[studentKey].action2 || 
-                !savedActions[studentKey].action3) {
-                showAlert('يجب حفظ جميع الإجراءات الثلاثة قبل الإرسال للوكيل', 'warning');
-                return;
-            }
-            
-            // تأكيد الإرسال
-            if (!confirm('هل أنت متأكد من إرسال النموذج إلى وكيل شؤون الطلاب والمرشد الطلابي؟\nلن تتمكن من تعديل الإجراءات بعد الإرسال.')) {
-                return;
-            }
-
-            savedActions[studentKey].sentToDeputy = {
-                sentAt: new Date().toISOString(),
-                status: 'sent',
-                formData: gatherCompleteFormData()
-            };
-            
-            saveToStorage();
-            updateStats();
-            
-            showAlert('تم إرسال النموذج بنجاح إلى وكيل شؤون الطلاب والمرشد الطلابي', 'success');
-            
-            // إعطاء خيار إعداد نموذج جديد
-            setTimeout(() => {
-                if (confirm('هل تريد إعداد النموذج لمخالفة جديدة؟')) {
-                    resetFormForNewViolation();
-                }
-            }, 2000);
-        }
-
-        // جمع بيانات النموذج الكاملة
-        function gatherCompleteFormData() {
-            const reasons = [];
-            document.querySelectorAll('input[name="reason"]:checked').forEach(checkbox => {
-                reasons.push(checkbox.value);
-            });
-
-            return {
-                studentName: document.getElementById('studentName').value,
-                grade: document.getElementById('grade').value,
-                section: document.getElementById('section').value,
-                subject: document.getElementById('subject').value,
-                period: document.getElementById('period').value,
-                teacherName: document.getElementById('teacherName').value,
-                reasons: reasons,
-                otherReason: document.getElementById('otherReason').value,
-                problemDescription: document.getElementById('problemDescription').value,
-                violationCount: currentViolationCount,
-                timestamp: new Date().toISOString()
-            };
-        }
-
-        // إعادة تعيين النموذج لمخالفة جديدة
-        function resetFormForNewViolation() {
-            const studentName = document.getElementById('studentName').value;
-            const grade = document.getElementById('grade').value;
-            const section = document.getElementById('section').value;
-            
-            resetForm();
-            
-            document.getElementById('studentName').value = studentName;
-            document.getElementById('grade').value = grade;
-            document.getElementById('section').value = section;
-        }
-
-        // إعادة تعيين النموذج
-        function resetForm() {
-            document.querySelectorAll('input, select, textarea').forEach(element => {
-                if (element.type === 'checkbox') {
-                    element.checked = false;
-                } else if (!['studentName', 'grade', 'section'].includes(element.id)) {
-                    element.value = '';
-                }
-            });
-            
-            document.getElementById('violationCount').style.display = 'none';
-            document.getElementById('exportBtn').style.display = 'none';
-            
-            document.querySelectorAll('.action-item').forEach(item => {
-                item.classList.remove('active', 'action-saved');
-                const statusIndicator = item.querySelector('.status-indicator');
-                if (statusIndicator) {
-                    statusIndicator.remove();
-                }
-                const saveBtn = item.querySelector('button[onclick*="saveAction"]');
-                if (saveBtn) {
-                    saveBtn.disabled = false;
-                    const actionNum = saveBtn.onclick.toString().match(/saveAction\((\d+)\)/)[1];
-                    saveBtn.innerHTML = `<i class="fas fa-save"></i> حفظ الإجراء ${actionNum === '1' ? 'الأول' : actionNum === '2' ? 'الثاني' : 'الثالث'}`;
-                }
-            });
-
-            document.getElementById('sendToDeputyBtn').style.display = 'none';
-            
-            // إعادة تعيين مجموعات الأسباب
-            document.querySelectorAll('.checkbox-group').forEach(group => {
-                group.classList.remove('selected');
-                group.style.background = '';
-                group.style.borderColor = '';
-                group.style.color = '';
-            });
-
-            currentViolationCount = 0;
-        }
-
-        // تصدير التقرير
-        function exportReport() {
-            const formData = gatherCompleteFormData();
-            if (!formData.studentName) {
-                showAlert('لا توجد بيانات لتصديرها', 'warning');
-                return;
-            }
-
-            const reportContent = generateReportContent(formData);
-            const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `تقرير_متابعة_${formData.studentName}_${new Date().toLocaleDateString('ar')}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            showAlert('تم تصدير التقرير بنجاح', 'success');
-        }
-
-        // إنشاء محتوى التقرير
-        function generateReportContent(formData) {
-            return `
-تقرير متابعة الطالب
-=====================
-
-معلومات الطالب:
-- الاسم: ${formData.studentName}
-- الصف: ${formData.grade}
-- الشعبة: ${formData.section}
-- المادة: ${formData.subject}
-- الحصة: ${formData.period}
-- المعلم: ${formData.teacherName}
-
-تفاصيل المخالفة:
-- عدد المخالفة: ${formData.violationCount}
-- الأسباب: ${formData.reasons.join(', ')}
-${formData.otherReason ? `- أسباب أخرى: ${formData.otherReason}` : ''}
-- وصف المشكلة: ${formData.problemDescription}
-
-التاريخ: ${new Date(formData.timestamp).toLocaleDateString('ar')}
-
-متوسطة المنذر بن عمرو الأنصاري
-مكتب تعليم أحد والعوالي
-وزارة التعليم - المملكة العربية السعودية
-            `;
-        }
-
-        // عرض التنبيهات
-        function showAlert(message, type = 'info') {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type}`;
-            alertDiv.style.position = 'fixed';
-            alertDiv.style.top = '20px';
-            alertDiv.style.left = '50%';
-            alertDiv.style.transform = 'translateX(-50%)';
-            alertDiv.style.zIndex = '9999';
-            alertDiv.style.minWidth = '300px';
-            alertDiv.style.maxWidth = '500px';
-            
-            const icon = type === 'success' ? 'check-circle' : 
-                        type === 'warning' ? 'exclamation-triangle' : 
-                        type === 'error' ? 'times-circle' : 'info-circle';
-            
-            alertDiv.innerHTML = `
-                <i class="fas fa-${icon}"></i>
-                <span>${message}</span>
-                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; float: left; font-size: 18px; cursor: pointer; margin-right: 10px;">×</button>
-            `;
-            
-            document.body.appendChild(alertDiv);
-            
-            // إزالة التنبيه تلقائياً
-            setTimeout(() => {
-                if (alertDiv.parentElement) {
-                    alertDiv.remove();
-                }
-            }, 5000);
-        }
-
-        // حفظ البيانات في التخزين المحلي
-        function saveToStorage() {
-            localStorage.setItem('studentDatabase', JSON.stringify(studentDatabase));
-            localStorage.setItem('savedActions', JSON.stringify(savedActions));
-        }
-
-        // تحميل البيانات من التخزين المحلي
-        function loadFromStorage() {
-            const savedDb = localStorage.getItem('studentDatabase');
-            const savedActionsData = localStorage.getItem('savedActions');
-            
-            if (savedDb) {
-                studentDatabase = JSON.parse(savedDb);
-            }
-            
-            if (savedActionsData) {
-                savedActions = JSON.parse(savedActionsData);
-            }
-            
-            updateStats();
-        }
-
-        // عرض المساعدة
-        function showHelp() {
-            const helpContent = `
-نظام متابعة الطلاب الذكي - دليل الاستخدام
-
-1. إدخال بيانات الطالب:
-   - أدخل اسم الطالب الثلاثي
-   - اختر الصف والشعبة
-   - حدد المادة والحصة واسم المعلم
-
-2. فحص سجل الطالب:
-   - اضغط على "فحص سجل الطالب"
-   - سيظهر عدد المخالفات السابقة
-   - ستظهر الإجراءات المناسبة تلقائياً
-
-3. الإجراءات المتدرجة:
-   - المخالفة الأولى: التوجيه والإرشاد
-   - المخالفة الثانية: الإنذار والمتابعة
-   - المخالفة الثالثة: التحويل للإدارة
-
-4. حفظ الإجراءات:
-   - احفظ كل إجراء على حدة
-   - تأكد من تعبئة جميع الحقول المطلوبة
-
-5. الإرسال النهائي:
-   - يتم الإرسال للوكيل في المخالفة الثالثة فقط
-   - بعد حفظ جميع الإجراءات الثلاثة
-
-للمساعدة الفنية: اتصل بإدارة النظم
-            `;
-            
-            alert(helpContent);
-        }
-
-        // معالجة النقر على مجموعات الأسباب
-        function setupCheckboxGroups() {
-            document.querySelectorAll('.checkbox-group').forEach(group => {
-                group.addEventListener('click', function(e) {
-                    if (e.target.type !== 'checkbox') {
-                        const checkbox = this.querySelector('input[type="checkbox"]');
-                        checkbox.checked = !checkbox.checked;
-                    }
-                    
-                    const checkbox = this.querySelector('input[type="checkbox"]');
-                    if (checkbox.checked) {
-                        this.classList.add('selected');
-                        this.style.background = 'var(--secondary-color)';
-                        this.style.borderColor = 'var(--primary-color)';
-                        this.style.color = 'white';
-                    } else {
-                        this.classList.remove('selected');
-                        this.style.background = '';
-                        this.style.borderColor = '';
-                        this.style.color = '';
-                    }
-                });
-            });
-        }
-
-        // تعيين التاريخ الحالي
-        function setCurrentDate() {
-            document.querySelectorAll('input[type="date"]').forEach(dateInput => {
-                if (!dateInput.value) {
-                    dateInput.value = new Date().toISOString().split('T')[0];
-                }
-            });
-        }
-
-        // تحسين تجربة المستخدم
-        function enhanceUserExperience() {
-            // إضافة تأثيرات عند التحميل
-            document.querySelectorAll('.stat-card').forEach((card, index) => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    card.style.transition = 'all 0.6s ease';
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateY(0)';
-                }, index * 100);
-            });
-
-            // تحسين حقول الإدخال
-            document.querySelectorAll('input, select, textarea').forEach(input => {
-                input.addEventListener('focus', function() {
-                    this.parentElement.style.transform = 'translateY(-2px)';
-                });
-                
-                input.addEventListener('blur', function() {
-                    this.parentElement.style.transform = 'translateY(0)';
-                });
-            });
-        }
-
-        // تهيئة النظام عند التحميل
-        window.addEventListener('load', function() {
-            loadFromStorage();
-            setupCheckboxGroups();
-            setCurrentDate();
-            enhanceUserExperience();
-            
-            // رسالة ترحيب
-            setTimeout(() => {
-                showAlert('مرحباً بك في نظام متابعة الطلاب الذكي', 'info');
-            }, 1000);
-        });
-
-        // تصدير جميع البيانات
-        function exportAllData() {
-            const allData = {
-                studentDatabase: studentDatabase,
-                savedActions: savedActions,
-                exportDate: new Date().toISOString(),
-                schoolInfo: {
-                    name: "متوسطة المنذر بن عمرو الأنصاري",
-                    office: "مكتب تعليم أحد والعوالي",
-                    principal: "خالد المطيري"
-                }
-            };
-
-            const dataStr = JSON.stringify(allData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `نظام_متابعة_الطلاب_${new Date().toLocaleDateString('ar').replace(/\//g, '-')}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            showAlert('تم تصدير جميع البيانات بنجاح! يمكنك نقل الملف لأي جهاز آخر', 'success');
-        }
-
-        // استيراد البيانات
-        function importData() {
-            document.getElementById('fileInput').click();
-        }
-
-        // معالجة استيراد الملف
-        function handleFileImport(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    
-                    if (importedData.studentDatabase && importedData.savedActions) {
-                        // دمج البيانات مع الموجودة
-                        if (confirm('هل تريد دمج البيانات المستوردة مع البيانات الحالية؟\n(اختر "موافق" للدمج أو "إلغاء" للاستبدال الكامل)')) {
-                            // دمج البيانات
-                            Object.assign(studentDatabase, importedData.studentDatabase);
-                            Object.assign(savedActions, importedData.savedActions);
-                        } else {
-                            // استبدال كامل
-                            studentDatabase = importedData.studentDatabase;
-                            savedActions = importedData.savedActions;
-                        }
-                        
-                        saveToStorage();
-                        updateStats();
-                        
-                        const importDate = importedData.exportDate ? 
-                            new Date(importedData.exportDate).toLocaleDateString('ar') : 'غير محدد';
-                        
-                        showAlert(`تم استيراد البيانات بنجاح!\nتاريخ التصدير: ${importDate}`, 'success');
-                    } else {
-                        showAlert('الملف غير صالح أو لا يحتوي على البيانات المطلوبة', 'error');
-                    }
-                } catch (error) {
-                    showAlert('خطأ في قراءة الملف. تأكد من أنه ملف صالح', 'error');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        // إرسال البيانات عبر الإيميل
-        function syncWithEmail() {
-            const allData = {
-                studentDatabase: studentDatabase,
-                savedActions: savedActions,
-                exportDate: new Date().toISOString()
-            };
-
-            const dataStr = JSON.stringify(allData, null, 2);
-            const encodedData = encodeURIComponent(dataStr);
-            
-            const subject = encodeURIComponent('بيانات نظام متابعة الطلاب - ' + new Date().toLocaleDateString('ar'));
-            const body = encodeURIComponent(`
-بيانات نظام متابعة الطلاب
-========================
-
-تاريخ التصدير: ${new Date().toLocaleDateString('ar')}
-المدرسة: متوسطة المنذر بن عمرو الأنصاري
-
-البيانات (انسخ المحتوى أدناه وحفظه في ملف .json):
-${dataStr}
-
-تعليمات الاستيراد:
-1. انسخ البيانات أعلاه
-2. احفظها في ملف بامتداد .json
-3. استخدم زر "استيراد البيانات" في النظام
-            `);
-
-            const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
-            
-            // فتح تطبيق الإيميل
-            window.location.href = mailtoLink;
-            
-            showAlert('تم فتح تطبيق الإيميل. أرسل الإيميل لنفسك أو للمعلمين الآخرين', 'info');
-        }
-
-        // إنشاء رمز QR للمشاركة
-        function generateQRCode() {
-            const allData = {
-                studentDatabase: studentDatabase,
-                savedActions: savedActions,
-                exportDate: new Date().toISOString()
-            };
-
-            const dataStr = JSON.stringify(allData);
-            
-            // تحقق من حجم البيانات
-            if (dataStr.length > 2000) {
-                showAlert('البيانات كبيرة جداً لرمز QR. استخدم التصدير أو الإيميل بدلاً من ذلك', 'warning');
-                return;
-            }
-
-            const qrContainer = document.getElementById('qrCodeContainer');
-            const qrCodeDiv = document.getElementById('qrCode');
-            
-            // إنشاء رمز QR بسيط (محاكاة)
-            qrCodeDiv.innerHTML = `
-                <div style="width: 200px; height: 200px; background: white; border: 2px solid #333; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 10px; overflow: hidden; word-break: break-all;">
-                    <div style="padding: 10px; text-align: center;">
-                        <div style="background: #000; color: white; padding: 5px; margin-bottom: 10px;">QR CODE</div>
-                        <div style="font-size: 8px;">البيانات مضغوطة</div>
-                        <div style="font-size: 6px; margin-top: 10px;">استخدم تطبيق QR لقراءة البيانات</div>
-                    </div>
-                </div>
-                <div style="margin-top: 15px;">
-                    <button class="btn btn-primary" onclick="copyQRData()">
-                        <i class="fas fa-copy"></i>
-                        نسخ البيانات
-                    </button>
-                </div>
-            `;
-            
-            qrContainer.style.display = 'block';
-            
-            // حفظ البيانات مؤقتاً للنسخ
-            window.qrData = dataStr;
-            
-            showAlert('تم إنشاء رمز المشاركة. يمكنك نسخ البيانات ومشاركتها', 'success');
-        }
-
-        // نسخ بيانات QR
-        function copyQRData() {
-            if (window.qrData) {
-                navigator.clipboard.writeText(window.qrData).then(() => {
-                    showAlert('تم نسخ البيانات! يمكنك مشاركتها الآن', 'success');
-                }).catch(() => {
-                    // fallback للمتصفحات القديمة
-                    const textArea = document.createElement('textarea');
-                    textArea.value = window.qrData;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                    showAlert('تم نسخ البيانات!', 'success');
-                });
-            }
-        }
-
-        // فحص التحديثات التلقائية (محاكاة)
-        function checkForUpdates() {
-            // يمكن ربطها بخدمة سحابية في المستقبل
-            const lastCheck = localStorage.getItem('lastUpdateCheck');
-            const now = new Date().getTime();
-            
-            if (!lastCheck || (now - parseInt(lastCheck)) > 24 * 60 * 60 * 1000) {
-                localStorage.setItem('lastUpdateCheck', now.toString());
-                
-                setTimeout(() => {
-                    showAlert('النظام محدث. لا توجد تحديثات جديدة', 'info');
-                }, 2000);
-            }
-        }
-
-        // إرسال للوكيل والمرشد مع مزامنة سحابية
-        function sendToDeputyAction() {
-            const studentName = document.getElementById('studentName').value.trim();
-            const grade = document.getElementById('grade').value;
-            const section = document.getElementById('section').value;
-            
-            const studentKey = `${studentName}_${grade}_${section}`;
-            
-            if (!savedActions[studentKey] || 
-                !savedActions[studentKey].action1 || 
-                !savedActions[studentKey].action2 || 
-                !savedActions[studentKey].action3) {
-                showAlert('يجب حفظ جميع الإجراءات الثلاثة قبل الإرسال للوكيل', 'warning');
-                return;
-            }
-            
-            // تأكيد الإرسال
-            if (!confirm('هل أنت متأكد من إرسال النموذج إلى وكيل شؤون الطلاب والمرشد الطلابي؟\nلن تتمكن من تعديل الإجراءات بعد الإرسال.')) {
-                return;
-            }
-
-            savedActions[studentKey].sentToDeputy = {
-                sentAt: new Date().toISOString(),
-                status: 'sent',
-                formData: gatherCompleteFormData()
-            };
-            
-            saveToStorage();
-            updateStats();
-            
-            showAlert('تم إرسال النموذج بنجاح إلى وكيل شؤون الطلاب والمرشد الطلابي', 'success');
-            
-            // مزامنة فورية مع السحابة
-            if (isCloudConnected) {
-                setTimeout(() => {
-                    syncToCloud();
-                }, 500);
-            }
-            
-            // إعطاء خيار إعداد نموذج جديد
-            setTimeout(() => {
-                if (confirm('هل تريد إعداد النموذج لمخالفة جديدة؟')) {
-                    resetFormForNewViolation();
-                }
-            }, 2000);
-        }
-
-        // فحص مخالفات الطالب مع تحديث من السحابة
-        function checkViolations() {
-            const studentName = document.getElementById('studentName').value.trim();
-            const grade = document.getElementById('grade').value;
-            const section = document.getElementById('section').value;
-            
-            if (!studentName || !grade || !section) {
-                showAlert('يرجى إدخال اسم الطالب والصف والشعبة أولاً', 'warning');
-                return;
-            }
-
-            // إظهار مؤشر التحميل
-            const checkBtn = document.querySelector('[onclick="checkViolations()"]');
-            const loadingIcon = document.getElementById('checkLoading');
-            const searchIcon = checkBtn.querySelector('.fas.fa-search');
-            
-            searchIcon.style.display = 'none';
-            loadingIcon.style.display = 'inline-block';
-            checkBtn.disabled = true;
-
-            // تحديث من السحابة أولاً (إذا كانت متصلة)
-            const processViolations = () => {
-                setTimeout(() => {
-                    const studentKey = `${studentName}_${grade}_${section}`;
-                    
-                    if (!studentDatabase[studentKey]) {
-                        studentDatabase[studentKey] = { count: 0, history: [] };
-                    }
-                    
-                    currentViolationCount = studentDatabase[studentKey].count + 1;
-                    studentDatabase[studentKey].count = currentViolationCount;
-                    studentDatabase[studentKey].history.push({
-                        date: new Date().toISOString(),
-                        details: 'فحص سجل جديد'
-                    });
-                    
-                    showViolationCount(currentViolationCount);
-                    showRelevantActions(currentViolationCount);
-                    loadPreviousActions(studentKey);
-                    updateStats();
-                    saveToStorage();
-
-                    // إخفاء مؤشر التحميل
-                    searchIcon.style.display = 'inline-block';
-                    loadingIcon.style.display = 'none';
-                    checkBtn.disabled = false;
-
-                    showAlert(`تم العثور على ${currentViolationCount - 1} مخالفة سابقة للطالب`, 'info');
-                }, 1000);
-            };
-
-            if (isCloudConnected) {
-                // تحديث من السحابة أولاً
-                downloadFromCloudSilent().then(() => {
-                    processViolations();
-                }).catch(() => {
-                    processViolations();
-                });
-            } else {
-                processViolations();
-            }
-        }
-
-        // تحميل صامت من السحابة (بدون رسائل)
-        function downloadFromCloudSilent() {
-            return new Promise((resolve, reject) => {
-                if (!isCloudConnected) {
-                    reject('Not connected');
-                    return;
-                }
-
-                if (isFirebaseInitialized && db) {
-                    db.collection('schoolData').doc('studentTracking').get()
-                        .then((doc) => {
-                            if (doc.exists) {
-                                const cloudData = doc.data();
-                                Object.assign(studentDatabase, cloudData.studentDatabase || {});
-                                Object.assign(savedActions, cloudData.savedActions || {});
-                                saveToStorage();
-                                resolve();
-                            } else {
-                                resolve();
-                            }
-                        })
-                        .catch(reject);
-                } else {
-                    // وضع تجريبي
-                    const cloudBackup = localStorage.getItem('cloudBackup');
-                    if (cloudBackup) {
-                        const cloudData = JSON.parse(cloudBackup);
-                        Object.assign(studentDatabase, cloudData.studentDatabase || {});
-                        Object.assign(savedActions, cloudData.savedActions || {});
-                        saveToStorage();
-                    }
-                    resolve();
-                }
-            });
-        }
-
-        // معالجة إغلاق النافذة مع حفظ سحابي
-        window.addEventListener('beforeunload', function(e) {
-            saveToStorage();
-            if (isCloudConnected && Object.keys(studentDatabase).length > 0) {
-                // محاولة مزامنة سريعة قبل الإغلاق
-                syncToCloud();
-            }
-        });
-
-        // إضافة مستمع للاتصال بالإنترنت
-        window.addEventListener('online', function() {
-            if (isFirebaseInitialized) {
-                testConnection();
-            }
-            showAlert('تم استعادة الاتصال بالإنترنت', 'success');
-        });
-
-        window.addEventListener('offline', function() {
-            updateCloudStatus('غير متصل', 'disconnected');
-            showAlert('انقطع الاتصال بالإنترنت. سيتم الحفظ محلياً', 'warning');
-        });
-    </script>
-</body>
-</html>
+        <div class="quick-stats">
+            <div class
