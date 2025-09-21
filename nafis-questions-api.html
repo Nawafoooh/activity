@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>توزيع أسئلة نافس</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Amiri', serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+            color: white;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(20px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .questions-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-family: 'Amiri', serif;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+
+        .questions-data {
+            background: #1F2937;
+            color: #F9FAFB;
+            border-radius: 10px;
+            padding: 1rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+
+        .status {
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        .status.success {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid #10B981;
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #EF4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 API توزيع أسئلة نافس</h1>
+            <p>نظام مشاركة الأسئلة بين المعلم والطلاب</p>
+        </div>
+
+        <div class="questions-section">
+            <h3>📊 حالة الأسئلة</h3>
+            <div id="questionsStatus" class="status">
+                جاري التحقق من الأسئلة...
+            </div>
+            
+            <div style="text-align: center;">
+                <button class="btn" onclick="loadFromLocalStorage()">📁 قراءة من التخزين المحلي</button>
+                <button class="btn" onclick="generateQuestionsFile()">📤 إنشاء ملف الأسئلة</button>
+                <button class="btn" onclick="loadQuestionsFromFile()">📥 تحميل من ملف</button>
+            </div>
+        </div>
+
+        <div class="questions-section">
+            <h3>📋 بيانات الأسئلة</h3>
+            <div id="questionsData" class="questions-data">
+                سيتم عرض الأسئلة هنا...
+            </div>
+            
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn" onclick="copyToClipboard()">📋 نسخ البيانات</button>
+                <button class="btn" onclick="shareQuestionsURL()">🔗 إنشاء رابط مشاركة</button>
+            </div>
+        </div>
+
+        <div class="questions-section">
+            <h3>📝 تعليمات للطلاب</h3>
+            <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 10px;">
+                <p><strong>للحصول على الأسئلة:</strong></p>
+                <ol>
+                    <li>انسخ الرابط أدناه</li>
+                    <li>افتح منصة الطالب</li>
+                    <li>الصق الرابط في المتصفح</li>
+                    <li>ستحُمل الأسئلة تلقائياً</li>
+                </ol>
+                
+                <div id="shareableURL" style="background: #1F2937; padding: 1rem; border-radius: 5px; margin-top: 1rem; font-family: monospace; word-break: break-all;">
+                    سيتم إنشاء الرابط هنا...
+                </div>
+            </div>
+        </div>
+
+        <input type="file" id="fileInput" accept=".json" style="display: none;">
+    </div>
+
+    <script>
+        let questionsData = {
+            daily: [],
+            weekly: [],
+            timestamp: null
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            checkQuestionsStatus();
+        });
+
+        function checkQuestionsStatus() {
+            const daily = JSON.parse(localStorage.getItem('adminDailyQuestions') || '[]');
+            const weekly = JSON.parse(localStorage.getItem('adminWeeklyQuestions') || '[]');
+            
+            const statusDiv = document.getElementById('questionsStatus');
+            
+            if (daily.length > 0 || weekly.length > 0) {
+                statusDiv.innerHTML = `
+                    <div class="status success">
+                        ✅ تم العثور على الأسئلة<br>
+                        أسئلة يومية: ${daily.length}<br>
+                        أسئلة أسبوعية: ${weekly.length}
+                    </div>
+                `;
+                questionsData = { daily, weekly, timestamp: new Date().toISOString() };
+                displayQuestionsData();
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="status error">
+                        ❌ لا توجد أسئلة محفوظة<br>
+                        تأكد من إضافة الأسئلة في لوحة المعلم أولاً
+                    </div>
+                `;
+            }
+        }
+
+        function loadFromLocalStorage() {
+            checkQuestionsStatus();
+        }
+
+        function displayQuestionsData() {
+            const dataDiv = document.getElementById('questionsData');
+            const summary = {
+                metadata: {
+                    totalQuestions: questionsData.daily.length + questionsData.weekly.length,
+                    dailyCount: questionsData.daily.length,
+                    weeklyCount: questionsData.weekly.length,
+                    lastUpdate: questionsData.timestamp,
+                    source: 'nafis-teacher-system'
+                },
+                preview: {
+                    firstDailyQuestion: questionsData.daily[0]?.question?.substring(0, 50) + '...' || 'لا توجد',
+                    firstWeeklyQuestion: questionsData.weekly[0]?.question?.substring(0, 50) + '...' || 'لا توجد'
+                }
+            };
+            
+            dataDiv.textContent = JSON.stringify(summary, null, 2);
+        }
+
+        function generateQuestionsFile() {
+            if (questionsData.daily.length === 0 && questionsData.weekly.length === 0) {
+                alert('لا توجد أسئلة لتصديرها');
+                return;
+            }
+
+            const exportData = {
+                nafis_questions: questionsData,
+                export_info: {
+                    created_at: new Date().toISOString(),
+                    created_by: 'nafis-teacher-system',
+                    version: '1.0',
+                    description: 'أسئلة نافس للطلاب'
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nafis-questions-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            alert('تم تحميل ملف الأسئلة. شارك هذا الملف مع الطلاب');
+        }
+
+        function loadQuestionsFromFile() {
+            document.getElementById('fileInput').click();
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (data.nafis_questions) {
+                        questionsData = data.nafis_questions;
+                        displayQuestionsData();
+                        
+                        // حفظ في localStorage
+                        localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(questionsData.daily));
+                        localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(questionsData.weekly));
+                        
+                        alert('تم تحميل الأسئلة بنجاح!');
+                        checkQuestionsStatus();
+                    } else {
+                        alert('ملف غير صحيح. تأكد من صيغة الملف.');
+                    }
+                } catch (error) {
+                    alert('خطأ في قراءة الملف: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function copyToClipboard() {
+            const fullData = JSON.stringify(questionsData, null, 2);
+            navigator.clipboard.writeText(fullData).then(() => {
+                alert('تم نسخ البيانات. يمكن للطلاب لصقها في منصتهم');
+            }).catch(() => {
+                // إذا فشل النسخ التلقائي
+                const textArea = document.createElement('textarea');
+                textArea.value = fullData;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('تم نسخ البيانات');
+            });
+        }
+
+        function shareQuestionsURL() {
+            // إنشاء URL مع البيانات كمعاملات
+            const baseURL = window.location.origin + window.location.pathname.replace('nafis-questions-api.html', 'nafisq.html');
+            const encodedData = btoa(JSON.stringify(questionsData));
+            const shareableURL = `${baseURL}?questions=${encodedData}`;
+            
+            document.getElementById('shareableURL').textContent = shareableURL;
+            
+            // نسخ الرابط
+            navigator.clipboard.writeText(shareableURL).then(() => {
+                alert('تم نسخ الرابط. شاركه مع الطلاب');
+            }).catch(() => {
+                alert('تم إنشاء الرابط. انسخه يدوياً وشاركه مع الطلاب');
+            });
+        }
+
+        console.log('API توزيع الأسئلة جاهز');
+    </script>
+</body>
+</html>
