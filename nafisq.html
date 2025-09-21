@@ -3,8 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>اختبار نافس - منصة الطالب</title>
+    <title>تسجيل الدخول - نظام نافس</title>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase v9 SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+
+        // إعدادات Firebase الفعلية
+        const firebaseConfig = {
+            apiKey: "AIzaSyD28cfba2NmXlsfBci9jgbne21U9rZLJ2M",
+            authDomain: "nafis-new.firebaseapp.com",
+            projectId: "nafis-new",
+            storageBucket: "nafis-new.firebasestorage.app",
+            messagingSenderId: "366381122504",
+            appId: "1:366381122504:web:b76107c74d7d7ec82df6fd",
+            measurementId: "G-ZD3Z9LEGGM"
+        };
+
+        // تهيئة Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // جعل الكائنات متاحة عالمياً
+        window.auth = auth;
+        window.db = db;
+        window.firebaseAuth = { 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            onAuthStateChanged, 
+            signOut 
+        };
+        window.firestore = { 
+            doc, 
+            setDoc, 
+            getDoc, 
+            collection, 
+            addDoc, 
+            query, 
+            where, 
+            getDocs 
+        };
+
+        console.log('Firebase initialized successfully');
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -83,16 +129,9 @@
         .status-indicators {
             position: absolute;
             top: 1rem;
+            left: 1rem;
             display: flex;
             gap: 1rem;
-        }
-
-        .status-indicators.left {
-            left: 1rem;
-        }
-
-        .status-indicators.right {
-            right: 1rem;
         }
 
         .status-indicator {
@@ -118,8 +157,12 @@
             background: #10B981;
         }
 
-        .status-dot.syncing {
-            background: #3B82F6;
+        .status-dot.connecting {
+            background: #F59E0B;
+        }
+
+        .status-dot.error {
+            background: #EF4444;
         }
 
         @keyframes pulse {
@@ -141,7 +184,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
             padding: 2rem 1rem;
         }
@@ -288,247 +331,49 @@
             box-shadow: 0 8px 25px rgba(96, 198, 87, 0.4);
         }
 
-        .test-selection {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 2rem;
+        .btn.danger {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
         }
 
-        .test-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 20px;
-            padding: 2rem;
-            text-align: center;
+        .btn.danger:hover {
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+        }
+
+        .tab-navigation {
+            display: flex;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 0.5rem;
+            margin-bottom: 2rem;
+            gap: 0.5rem;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            background: transparent;
+            color: #6B7280;
+            font-family: 'Amiri', serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            border: 2px solid transparent;
         }
 
-        .test-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.1), transparent);
-            animation: rotate 4s linear infinite;
-        }
-
-        @keyframes rotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .test-card .content {
-            position: relative;
-            z-index: 2;
-        }
-
-        .test-card:hover {
-            transform: scale(1.05) rotateY(5deg);
-            border-color: rgba(255,255,255,0.3);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
-        }
-
-        .test-card.weekly {
-            background: linear-gradient(135deg, #FF9A56 0%, #FF6B6B 100%);
-        }
-
-        .test-card h3 {
-            font-size: 1.8rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-        }
-
-        .test-card p {
-            font-size: 1.1rem;
-            margin-bottom: 0.5rem;
-            opacity: 0.9;
-        }
-
-        .question-container {
-            display: none;
-        }
-
-        .progress-section {
-            margin-bottom: 2rem;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #E5E7EB;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 1rem;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #60C657 0%, #4ECDC4 100%);
-            border-radius: 4px;
-            transition: width 0.5s ease;
-            width: 0%;
-        }
-
-        .question-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 600;
+        .tab-btn.active {
+            background: white;
             color: #4A154B;
-        }
-
-        .question-content {
-            background: #F8FAFC;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            border-right: 4px solid #6B46C1;
-        }
-
-        .question-text {
-            font-size: 1.3rem;
-            line-height: 1.8;
-            margin-bottom: 1.5rem;
-            color: #1F2937;
-        }
-
-        .question-image {
-            max-width: 100%;
-            height: auto;
-            border-radius: 12px;
-            margin: 1rem 0;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        .options-grid {
-            display: grid;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .option {
-            background: white;
-            border: 2px solid #E5E7EB;
-            border-radius: 12px;
-            padding: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 1.1rem;
-            position: relative;
-        }
-
-        .option:hover {
-            border-color: #6B46C1;
-            background: #F3F4F6;
-            transform: translateX(5px);
-        }
-
-        .option.selected {
-            background: linear-gradient(135deg, #6B46C1 0%, #4A154B 100%);
-            color: white;
-            border-color: #6B46C1;
-        }
-
-        .option.correct {
-            background: linear-gradient(135deg, #60C657 0%, #4ECDC4 100%);
-            color: white;
-            border-color: #60C657;
-        }
-
-        .option.wrong {
-            background: linear-gradient(135deg, #FF6B6B 0%, #FF9A56 100%);
-            color: white;
-            border-color: #FF6B6B;
-        }
-
-        .nav-buttons {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 2rem 0;
-            gap: 1rem;
-        }
-
-        .nav-btn {
-            background: #6B7280;
-            color: white;
-            border: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 10px;
-            cursor: pointer;
-            font-family: 'Amiri', serif;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .nav-btn:hover:not(:disabled) {
-            background: #4B5563;
-            transform: translateY(-2px);
-        }
-
-        .nav-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .score-display {
-            background: linear-gradient(135deg, #60C657 0%, #4ECDC4 100%);
-            color: white;
-            border-radius: 20px;
-            padding: 2rem;
-            text-align: center;
-            margin: 2rem 0;
+        .tab-content {
             display: none;
         }
 
-        .score-display h2 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .score-display p {
-            font-size: 1.3rem;
-            margin: 0.5rem 0;
-        }
-
-        .notification {
-            position: fixed;
-            top: 2rem;
-            right: 2rem;
-            background: linear-gradient(135deg, #60C657 0%, #4ECDC4 100%);
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-            z-index: 1000;
-            animation: slideIn 0.3s ease;
-            max-width: 300px;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .footer {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(20px);
-            color: white;
-            text-align: center;
-            padding: 2rem;
-            border-radius: 20px;
-            margin-top: 3rem;
-        }
-
-        .footer p {
-            margin: 0.5rem 0;
-            font-size: 1.1rem;
+        .tab-content.active {
+            display: block;
         }
 
         .code-display {
@@ -548,6 +393,56 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
+        .notification {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: linear-gradient(135deg, #60C657 0%, #4ECDC4 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            max-width: 300px;
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .admin-section {
+            background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+            border: 2px solid #F59E0B;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .admin-section h3 {
+            color: #92400E;
+            margin-bottom: 1rem;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -557,20 +452,14 @@
                 grid-template-columns: 1fr;
             }
             
-            .test-selection {
-                grid-template-columns: 1fr;
-            }
-            
-            .nav-buttons {
+            .tab-navigation {
                 flex-direction: column;
-                gap: 1rem;
             }
             
             .status-indicators {
                 position: relative;
                 top: auto;
                 left: auto;
-                right: auto;
                 justify-content: center;
                 margin-bottom: 1rem;
             }
@@ -583,17 +472,10 @@
 </head>
 <body>
     <div class="header">
-        <div class="status-indicators left">
+        <div class="status-indicators">
             <div class="status-indicator">
-                <div class="status-dot online"></div>
-                <span>متصل</span>
-            </div>
-        </div>
-        
-        <div class="status-indicators right">
-            <div class="status-indicator">
-                <div class="status-dot syncing"></div>
-                <span>محدث</span>
+                <div class="status-dot connecting" id="firebaseStatus"></div>
+                <span id="connectionText">جاري الاتصال...</span>
             </div>
         </div>
         
@@ -601,61 +483,121 @@
             <div class="logo-container">
                 <div class="nafis-logo">نافس</div>
                 <div class="school-info">
-                    <h1>اختبار نافس</h1>
+                    <h1>نظام نافس التعليمي</h1>
                     <p>متوسطة المنذر بن عمرو الأنصاري</p>
-                    <p>مكتب قطاع أحد والعوالي</p>
-                    <p>مدير المدرسة: الأستاذ خالد المطيري</p>
+                    <p>مكتب تعليم العوالي</p>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="container">
-        <!-- نموذج تسجيل الطالب -->
-        <div class="card" id="studentForm">
-            <h2 class="section-title">تسجيل بيانات الطالب</h2>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>الاسم الأول</label>
-                    <input type="text" id="firstName" placeholder="أدخل الاسم الأول">
+        <!-- علامات التبويب -->
+        <div class="card">
+            <div class="tab-navigation">
+                <button class="tab-btn active" onclick="switchTab('student')">تسجيل طالب</button>
+                <button class="tab-btn" onclick="switchTab('login')">تسجيل دخول</button>
+                <button class="tab-btn" onclick="switchTab('admin')">دخول المعلم</button>
+            </div>
+
+            <!-- تسجيل الطالب -->
+            <div class="tab-content active" id="studentTab">
+                <h2 class="section-title">تسجيل طالب جديد</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>الاسم الأول</label>
+                        <input type="text" id="firstName" placeholder="أدخل الاسم الأول">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم الأب</label>
+                        <input type="text" id="fatherName" placeholder="أدخل اسم الأب">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم الجد</label>
+                        <input type="text" id="grandFatherName" placeholder="أدخل اسم الجد">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم العائلة</label>
+                        <input type="text" id="familyName" placeholder="أدخل اسم العائلة">
+                    </div>
+                    <div class="form-group">
+                        <label>الصف</label>
+                        <select id="grade">
+                            <option value="">اختر الصف</option>
+                            <option value="أول متوسط">أول متوسط</option>
+                            <option value="ثاني متوسط">ثاني متوسط</option>
+                            <option value="ثالث متوسط">ثالث متوسط</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>الشعبة</label>
+                        <select id="section">
+                            <option value="">اختر الشعبة</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>اسم الأب</label>
-                    <input type="text" id="fatherName" placeholder="أدخل اسم الأب">
-                </div>
-                <div class="form-group">
-                    <label>اسم الجد</label>
-                    <input type="text" id="grandFatherName" placeholder="أدخل اسم الجد">
-                </div>
-                <div class="form-group">
-                    <label>اسم العائلة</label>
-                    <input type="text" id="familyName" placeholder="أدخل اسم العائلة">
-                </div>
-                <div class="form-group">
-                    <label>الصف</label>
-                    <select id="grade">
-                        <option value="">اختر الصف</option>
-                        <option value="أول متوسط">أول متوسط</option>
-                        <option value="ثاني متوسط">ثاني متوسط</option>
-                        <option value="ثالث متوسط">ثالث متوسط</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>الشعبة</label>
-                    <select id="section">
-                        <option value="">اختر الشعبة</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
-                        <option value="6">6</option>
-                    </select>
+                <div style="text-align: center;">
+                    <button class="btn" onclick="registerStudent()" id="registerBtn">
+                        <span id="registerText">إنشاء حساب جديد</span>
+                        <div class="loading" id="registerLoading" style="display: none;"></div>
+                    </button>
                 </div>
             </div>
-            <div style="text-align: center; gap: 1rem; display: flex; flex-wrap: wrap; justify-content: center;">
-                <button class="btn" onclick="registerStudent()">استخراج رقمي الخاص</button>
-                <button class="btn secondary" onclick="showLoginForm()">لدي حساب مسبقاً</button>
+
+            <!-- تسجيل الدخول -->
+            <div class="tab-content" id="loginTab">
+                <h2 class="section-title">تسجيل دخول الطالب</h2>
+                <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <div class="form-group">
+                        <label>الاسم الكامل</label>
+                        <input type="text" id="loginFullName" placeholder="أدخل اسمك الكامل">
+                    </div>
+                    <div class="form-group">
+                        <label>رقمك الخاص</label>
+                        <input type="text" id="studentCode" placeholder="أدخل رقمك الخاص (6 أرقام)" maxlength="6">
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <button class="btn" onclick="loginStudent()" id="loginBtn">
+                        <span id="loginText">دخول الاختبار</span>
+                        <div class="loading" id="loginLoading" style="display: none;"></div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- دخول المعلم -->
+            <div class="tab-content" id="adminTab">
+                <h2 class="section-title">دخول المعلم</h2>
+                <div class="admin-section">
+                    <h3>منطقة خاصة بالمعلمين</h3>
+                    <p>للوصول إلى لوحة التحكم وإدارة الأسئلة</p>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <div class="form-group">
+                        <label>البريد الإلكتروني</label>
+                        <input type="email" id="adminEmail" placeholder="أدخل البريد الإلكتروني">
+                    </div>
+                    <div class="form-group">
+                        <label>كلمة المرور</label>
+                        <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور">
+                    </div>
+                </div>
+                <div style="text-align: center; gap: 1rem; display: flex; flex-wrap: wrap; justify-content: center;">
+                    <button class="btn" onclick="loginAdmin()" id="adminLoginBtn">
+                        <span id="adminLoginText">تسجيل دخول</span>
+                        <div class="loading" id="adminLoginLoading" style="display: none;"></div>
+                    </button>
+                    <button class="btn secondary" onclick="registerAdmin()" id="adminRegisterBtn">
+                        <span id="adminRegisterText">إنشاء حساب معلم</span>
+                        <div class="loading" id="adminRegisterLoading" style="display: none;"></div>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -667,150 +609,511 @@
                 <div class="generated-code" id="generatedCode"></div>
                 <p>احتفظ بهذا الرقم لتسجيل الدخول</p>
             </div>
-            <div style="text-align: center;">
-                <button class="btn" onclick="proceedToLogin()">المتابعة للاختبار</button>
-            </div>
-        </div>
-
-        <!-- تسجيل الدخول -->
-        <div class="card" id="loginForm" style="display: none;">
-            <h2 class="section-title">تسجيل الدخول للاختبار</h2>
-            <div class="form-grid" style="grid-template-columns: 1fr;">
-                <div class="form-group">
-                    <label>الاسم الرباعي الكامل</label>
-                    <input type="text" id="loginFullName" placeholder="أدخل اسمك الكامل">
-                </div>
-                <div class="form-group">
-                    <label>رقمك الخاص</label>
-                    <input type="text" id="studentCode" placeholder="أدخل رقمك الخاص (6 أرقام)" maxlength="6">
-                </div>
-            </div>
             <div style="text-align: center; gap: 1rem; display: flex; flex-wrap: wrap; justify-content: center;">
-                <button class="btn" onclick="loginStudent()">دخول الاختبار</button>
-                <button class="btn secondary" onclick="backToRegistration()">العودة للتسجيل</button>
+                <button class="btn" onclick="proceedToExam()">الانتقال للاختبار</button>
+                <button class="btn secondary" onclick="downloadStudentInfo()">تحميل معلومات الطالب</button>
             </div>
         </div>
-
-        <!-- اختيار نوع الاختبار -->
-        <div class="card" id="testSelection" style="display: none;">
-            <h2 class="section-title">اختر نوع الاختبار</h2>
-            
-            <div style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); color: #92400E; padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; text-align: center;">
-                <h4 style="margin-bottom: 0.5rem;">تنبيه مهم</h4>
-                <p><strong>يُسمح بإجراء كل اختبار مرة واحدة فقط!</strong></p>
-            </div>
-            
-            <div class="test-selection">
-                <div class="test-card" onclick="confirmAndStartTest('daily')">
-                    <div class="content">
-                        <h3>سؤال اليوم</h3>
-                        <p id="dailyQuestionCount">جاري التحميل...</p>
-                        <p><strong>الرياضيات - القراءة - العلوم</strong></p>
-                    </div>
-                </div>
-                <div class="test-card weekly" onclick="confirmAndStartTest('weekly')">
-                    <div class="content">
-                        <h3>أسئلة الأسبوع</h3>
-                        <p id="weeklyQuestionCount">جاري التحميل...</p>
-                        <p><strong>اختبار تنافسي أسبوعي</strong></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- منطقة الأسئلة -->
-        <div class="card question-container" id="questionArea">
-            <div class="progress-section">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressBar"></div>
-                </div>
-                <div class="question-info">
-                    <span id="questionNumber">السؤال 1 من 7</span>
-                    <span id="timeRemaining">الوقت المتبقي: --</span>
-                </div>
-            </div>
-            
-            <div class="question-content">
-                <div class="question-text" id="questionText">
-                    <p>مرحباً بك في اختبار نافس!</p>
-                </div>
-            </div>
-
-            <div class="options-grid" id="optionsContainer">
-                <!-- سيتم إدراج الخيارات هنا -->
-            </div>
-
-            <div class="nav-buttons">
-                <button class="nav-btn" id="prevBtn" onclick="previousQuestion()" disabled>السؤال السابق</button>
-                <button class="btn" id="submitBtn" onclick="submitAnswer()" style="display: none;">تأكيد الإجابة</button>
-                <button class="nav-btn" id="nextBtn" onclick="nextQuestion()">السؤال التالي</button>
-            </div>
-
-            <div class="score-display" id="scoreDisplay">
-                <h2>النتيجة النهائية</h2>
-                <p>درجتك: <span id="finalScore">0</span> من <span id="totalQuestions">7</span></p>
-                <p>النسبة المئوية: <span id="percentage">0%</span></p>
-            </div>
-
-            <div style="text-align: center;">
-                <button class="btn" id="finishBtn" onclick="handleFinishTest()" style="display: none;">إنهاء الاختبار</button>
-                <button class="btn secondary" id="homeBtn" onclick="goHome()" style="display: none;">العودة للرئيسية</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="footer">
-        <p><strong>إشراف وتنفيذ: الأستاذ نواف الصبحي</strong></p>
-        <p>متوسطة المنذر بن عمرو الأنصاري - مكتب تعليم العوالي</p>
-        <p>نظام اختبار نافس الذكي</p>
     </div>
 
     <script>
-        // المتغيرات الأساسية
-        let currentStudent = {};
-        let currentTest = {};
-        let currentQuestionIndex = 0;
-        let userAnswers = [];
-        let score = 0;
-        let testType = '';
-        let questionStartTime = 0;
-        let questionTimes = [];
-        let studentDatabase = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
-        let dailyQuestions = [];
-        let weeklyQuestions = [];
+        // المتغيرات العامة
+        let currentStudent = null;
+        let firebaseInitialized = false;
 
-        // تحميل الأسئلة من localStorage
-        function loadQuestions() {
-            const dailyData = localStorage.getItem('nafisMainDailyQuestions') || localStorage.getItem('adminDailyQuestions');
-            const weeklyData = localStorage.getItem('nafisMainWeeklyQuestions') || localStorage.getItem('adminWeeklyQuestions');
-            
-            if (dailyData) {
-                try {
-                    dailyQuestions = JSON.parse(dailyData);
-                } catch (e) {
-                    console.error('خطأ في تحليل الأسئلة اليومية');
-                    dailyQuestions = [];
+        // تهيئة النظام
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFirebase();
+            checkExistingAuth();
+        });
+
+        // تهيئة Firebase
+        async function initializeFirebase() {
+            try {
+                // انتظار حتى يتم تحميل Firebase
+                let attempts = 0;
+                const maxAttempts = 50;
+                
+                while (!window.auth && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
                 }
-            }
-            
-            if (weeklyData) {
-                try {
-                    weeklyQuestions = JSON.parse(weeklyData);
-                } catch (e) {
-                    console.error('خطأ في تحليل الأسئلة الأسبوعية');
-                    weeklyQuestions = [];
+
+                if (window.auth) {
+                    firebaseInitialized = true;
+                    updateConnectionStatus('online', 'متصل بقاعدة البيانات');
+                    
+                    // مراقبة حالة المصادقة
+                    window.firebaseAuth.onAuthStateChanged((user) => {
+                        if (user) {
+                            console.log('المستخدم مسجل الدخول:', user.email);
+                        }
+                    });
+                } else {
+                    throw new Error('فشل في تحميل Firebase');
                 }
+            } catch (error) {
+                console.error('خطأ في تهيئة Firebase:', error);
+                updateConnectionStatus('error', 'خطأ في الاتصال');
+                showNotification('خطأ في الاتصال بقاعدة البيانات. سيتم استخدام التخزين المحلي.', 'error');
             }
-            
-            updateQuestionCounts();
         }
 
-        function updateQuestionCounts() {
-            const dailyElement = document.getElementById('dailyQuestionCount');
-            const weeklyElement = document.getElementById('weeklyQuestionCount');
+        // تحديث حالة الاتصال
+        function updateConnectionStatus(status, text) {
+            const statusDot = document.getElementById('firebaseStatus');
+            const connectionText = document.getElementById('connectionText');
             
-            if (dailyElement) {
-                dailyElement.textContent = dailyQuestions.length > 0 ? 
-                    `${dailyQuestions.length} أسئلة متنوعة في المواد الثلاث` : 
-                    'لا توجد أسئلة يومية متاحة حالياً';
+            statusDot.className = `status-dot ${status}`;
+            connectionText.textContent = text;
+        }
+
+        // التحقق من المصادقة الموجودة
+        function checkExistingAuth() {
+            const savedStudent = localStorage.getItem('nafisCurrentStudent');
+            if (savedStudent) {
+                currentStudent = JSON.parse(savedStudent);
+            }
+        }
+
+        // تبديل علامات التبويب
+        function switchTab(tabName) {
+            // إخفاء جميع المحتويات
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // إزالة النشاط من جميع الأزرار
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // تفعيل التبويب المحدد
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // تسجيل طالب جديد
+        async function registerStudent() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const fatherName = document.getElementById('fatherName').value.trim();
+            const grandFatherName = document.getElementById('grandFatherName').value.trim();
+            const familyName = document.getElementById('familyName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+
+            // التحقق من البيانات
+            if (!firstName || !fatherName || !grandFatherName || !familyName || !grade || !section) {
+                showNotification('يرجى تعبئة جميع الحقول المطلوبة', 'error');
+                return;
+            }
+
+            setButtonLoading('registerBtn', 'registerText', 'registerLoading', true);
+
+            try {
+                // إنشاء رقم خاص فريد
+                const studentCode = generateStudentCode();
+                const fullName = `${firstName} ${fatherName} ${grandFatherName} ${familyName}`;
+
+                const studentData = {
+                    firstName,
+                    fatherName,
+                    grandFatherName,
+                    familyName,
+                    fullName,
+                    grade,
+                    section,
+                    studentCode,
+                    createdAt: new Date().toISOString(),
+                    testHistory: {},
+                    isActive: true
+                };
+
+                // حفظ في Firebase إذا كان متاحاً
+                if (firebaseInitialized) {
+                    await saveStudentToFirebase(studentData);
+                }
+
+                // حفظ محلياً
+                saveStudentLocally(studentData);
+
+                // عرض الرقم الخاص
+                currentStudent = studentData;
+                localStorage.setItem('nafisCurrentStudent', JSON.stringify(studentData));
+                
+                document.getElementById('generatedCode').textContent = studentCode;
+                document.getElementById('studentCodeDisplay').style.display = 'block';
+                
+                // إخفاء نموذج التسجيل
+                document.querySelector('.tab-navigation').style.display = 'none';
+                document.getElementById('studentTab').style.display = 'none';
+
+                showNotification('تم إنشاء حسابك بنجاح!', 'success');
+
+            } catch (error) {
+                console.error('خطأ في تسجيل الطالب:', error);
+                showNotification('حدث خطأ في إنشاء الحساب. يرجى المحاولة مرة أخرى.', 'error');
+            } finally {
+                setButtonLoading('registerBtn', 'registerText', 'registerLoading', false);
+            }
+        }
+
+        // حفظ الطالب في Firebase
+        async function saveStudentToFirebase(studentData) {
+            try {
+                const studentsRef = window.firestore.collection(window.db, 'students');
+                await window.firestore.addDoc(studentsRef, studentData);
+                
+                // حفظ في collection منفصل للبحث السريع
+                const codesRef = window.firestore.doc(window.db, 'studentCodes', studentData.studentCode);
+                await window.firestore.setDoc(codesRef, {
+                    fullName: studentData.fullName,
+                    studentCode: studentData.studentCode,
+                    createdAt: studentData.createdAt
+                });
+
+                console.log('تم حفظ الطالب في Firebase');
+            } catch (error) {
+                console.error('خطأ في حفظ الطالب في Firebase:', error);
+                throw error;
+            }
+        }
+
+        // حفظ الطالب محلياً
+        function saveStudentLocally(studentData) {
+            const studentDB = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
+            studentDB[studentData.studentCode] = studentData;
+            localStorage.setItem('nafisStudentDB', JSON.stringify(studentDB));
+        }
+
+        // تسجيل دخول الطالب
+        async function loginStudent() {
+            const fullName = document.getElementById('loginFullName').value.trim();
+            const studentCode = document.getElementById('studentCode').value.trim();
+
+            if (!fullName || !studentCode) {
+                showNotification('يرجى إدخال الاسم الكامل والرقم الخاص', 'error');
+                return;
+            }
+
+            if (studentCode.length !== 6) {
+                showNotification('الرقم الخاص يجب أن يكون 6 أرقام', 'error');
+                return;
+            }
+
+            setButtonLoading('loginBtn', 'loginText', 'loginLoading', true);
+
+            try {
+                let student = null;
+
+                // البحث في Firebase أولاً
+                if (firebaseInitialized) {
+                    student = await findStudentInFirebase(studentCode, fullName);
+                }
+
+                // البحث محلياً إذا لم يوجد في Firebase
+                if (!student) {
+                    student = findStudentLocally(studentCode, fullName);
+                }
+
+                if (student) {
+                    currentStudent = student;
+                    localStorage.setItem('nafisCurrentStudent', JSON.stringify(student));
+                    showNotification('مرحباً ' + student.firstName + '! تم تسجيل الدخول بنجاح', 'success');
+                    
+                    // توجيه للاختبار
+                    setTimeout(() => {
+                        proceedToExam();
+                    }, 1500);
+                } else {
+                    showNotification('لم يتم العثور على بيانات مطابقة. تأكد من الاسم والرقم الخاص', 'error');
+                }
+
+            } catch (error) {
+                console.error('خطأ في تسجيل الدخول:', error);
+                showNotification('حدث خطأ في تسجيل الدخول. يرجى المحاولة مرة أخرى.', 'error');
+            } finally {
+                setButtonLoading('loginBtn', 'loginText', 'loginLoading', false);
+            }
+        }
+
+        // البحث عن الطالب في Firebase
+        async function findStudentInFirebase(studentCode, fullName) {
+            try {
+                const codeRef = window.firestore.doc(window.db, 'studentCodes', studentCode);
+                const codeDoc = await window.firestore.getDoc(codeRef);
+
+                if (codeDoc.exists()) {
+                    const data = codeDoc.data();
+                    if (data.fullName.toLowerCase() === fullName.toLowerCase()) {
+                        // البحث عن البيانات الكاملة
+                        const studentsRef = window.firestore.collection(window.db, 'students');
+                        const q = window.firestore.query(studentsRef, window.firestore.where('studentCode', '==', studentCode));
+                        const querySnapshot = await window.firestore.getDocs(q);
+                        
+                        if (!querySnapshot.empty) {
+                            return querySnapshot.docs[0].data();
+                        }
+                    }
+                }
+                return null;
+            } catch (error) {
+                console.error('خطأ في البحث في Firebase:', error);
+                return null;
+            }
+        }
+
+        // البحث عن الطالب محلياً
+        function findStudentLocally(studentCode, fullName) {
+            const studentDB = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
+            const student = studentDB[studentCode];
+            
+            if (student && student.fullName.toLowerCase() === fullName.toLowerCase()) {
+                return student;
+            }
+            return null;
+        }
+
+        // تسجيل دخول المعلم
+        async function loginAdmin() {
+            const email = document.getElementById('adminEmail').value.trim();
+            const password = document.getElementById('adminPassword').value.trim();
+
+            if (!email || !password) {
+                showNotification('يرجى إدخال البريد الإلكتروني وكلمة المرور', 'error');
+                return;
+            }
+
+            setButtonLoading('adminLoginBtn', 'adminLoginText', 'adminLoginLoading', true);
+
+            try {
+                if (firebaseInitialized) {
+                    const userCredential = await window.firebaseAuth.signInWithEmailAndPassword(window.auth, email, password);
+                    showNotification('مرحباً! تم تسجيل الدخول بنجاح', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = 'nafis-teacher.html'; // توجيه للوحة المعلم
+                    }, 1500);
+                } else {
+                    // التحقق المحلي للمعلمين
+                    const teachers = JSON.parse(localStorage.getItem('nafisTeachers') || '{}');
+                    if (teachers[email] && teachers[email].password === password) {
+                        showNotification('مرحباً! تم تسجيل الدخول بنجاح', 'success');
+                        setTimeout(() => {
+                            window.location.href = 'nafis-teacher.html';
+                        }, 1500);
+                    } else {
+                        showNotification('بيانات المعلم غير صحيحة', 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('خطأ في تسجيل دخول المعلم:', error);
+                showNotification('فشل في تسجيل الدخول. تأكد من صحة البيانات.', 'error');
+            } finally {
+                setButtonLoading('adminLoginBtn', 'adminLoginText', 'adminLoginLoading', false);
+            }
+        }
+
+        // تسجيل معلم جديد
+        async function registerAdmin() {
+            const email = document.getElementById('adminEmail').value.trim();
+            const password = document.getElementById('adminPassword').value.trim();
+
+            if (!email || !password) {
+                showNotification('يرجى إدخال البريد الإلكتروني وكلمة المرور', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showNotification('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+                return;
+            }
+
+            setButtonLoading('adminRegisterBtn', 'adminRegisterText', 'adminRegisterLoading', true);
+
+            try {
+                if (firebaseInitialized) {
+                    const userCredential = await window.firebaseAuth.createUserWithEmailAndPassword(window.auth, email, password);
+                    
+                    // حفظ بيانات المعلم
+                    const teacherData = {
+                        email,
+                        createdAt: new Date().toISOString(),
+                        role: 'teacher',
+                        isActive: true
+                    };
+
+                    const teacherRef = window.firestore.doc(window.db, 'teachers', userCredential.user.uid);
+                    await window.firestore.setDoc(teacherRef, teacherData);
+
+                    showNotification('تم إنشاء حساب المعلم بنجاح!', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = 'nafis-teacher.html';
+                    }, 1500);
+                } else {
+                    // حفظ محلي للمعلمين
+                    const teachers = JSON.parse(localStorage.getItem('nafisTeachers') || '{}');
+                    if (teachers[email]) {
+                        showNotification('هذا البريد الإلكتروني مستخدم بالفعل', 'error');
+                        return;
+                    }
+
+                    teachers[email] = {
+                        email,
+                        password,
+                        createdAt: new Date().toISOString(),
+                        role: 'teacher'
+                    };
+
+                    localStorage.setItem('nafisTeachers', JSON.stringify(teachers));
+                    showNotification('تم إنشاء حساب المعلم بنجاح!', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = 'nafis-teacher.html';
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error('خطأ في إنشاء حساب المعلم:', error);
+                let errorMessage = 'حدث خطأ في إنشاء الحساب';
+                
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'هذا البريد الإلكتروني مستخدم بالفعل';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'البريد الإلكتروني غير صحيح';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'كلمة المرور ضعيفة جداً';
+                }
+                
+                showNotification(errorMessage, 'error');
+            } finally {
+                setButtonLoading('adminRegisterBtn', 'adminRegisterText', 'adminRegisterLoading', false);
+            }
+        }
+
+        // إنشاء رقم خاص فريد
+        function generateStudentCode() {
+            let code;
+            const existingCodes = getExistingCodes();
+            
+            do {
+                code = Math.floor(100000 + Math.random() * 900000).toString();
+            } while (existingCodes.includes(code));
+            
+            return code;
+        }
+
+        // الحصول على الأرقام الموجودة
+        function getExistingCodes() {
+            const studentDB = JSON.parse(localStorage.getItem('nafisStudentDB') || '{}');
+            return Object.keys(studentDB);
+        }
+
+        // إعداد حالة التحميل للأزرار
+        function setButtonLoading(btnId, textId, loadingId, isLoading) {
+            const button = document.getElementById(btnId);
+            const text = document.getElementById(textId);
+            const loading = document.getElementById(loadingId);
+            
+            if (isLoading) {
+                button.disabled = true;
+                text.style.display = 'none';
+                loading.style.display = 'inline-block';
+            } else {
+                button.disabled = false;
+                text.style.display = 'inline-block';
+                loading.style.display = 'none';
+            }
+        }
+
+        // الانتقال للاختبار
+        function proceedToExam() {
+            if (currentStudent) {
+                // توجيه لصفحة الاختبار
+                window.location.href = 'nafis-student.html';
+            } else {
+                showNotification('لم يتم العثور على بيانات الطالب', 'error');
+            }
+        }
+
+        // تحميل معلومات الطالب
+        function downloadStudentInfo() {
+            if (!currentStudent) {
+                showNotification('لا توجد بيانات طالب للتحميل', 'error');
+                return;
+            }
+
+            const studentInfo = {
+                الاسم_الكامل: currentStudent.fullName,
+                الرقم_الخاص: currentStudent.studentCode,
+                الصف: currentStudent.grade,
+                الشعبة: currentStudent.section,
+                تاريخ_الإنشاء: new Date(currentStudent.createdAt).toLocaleDateString('ar-SA')
+            };
+
+            const dataStr = JSON.stringify(studentInfo, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `student-info-${currentStudent.studentCode}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showNotification('تم تحميل معلومات الطالب', 'success');
+        }
+
+        // عرض الإشعارات
+        function showNotification(message, type = 'success') {
+            // إزالة الإشعارات السابقة
+            const existing = document.querySelectorAll('.notification');
+            existing.forEach(n => n.remove());
+
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            
+            if (type === 'error') {
+                notification.classList.add('error');
+            }
+            
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.2rem;">${type === 'error' ? '⚠️' : '✅'}</span>
+                    <div>${message}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 4000);
+        }
+
+        // إضافة CSS للانيميشن
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        console.log('نظام المصادقة جاهز للاستخدام');
+        console.log('الميزات المتاحة:');
+        console.log('- تسجيل طلاب جدد');
+        console.log('- تسجيل دخول الطلاب');
+        console.log('- تسجيل وإدارة المعلمين');
+        console.log('- التخزين المحلي والسحابي');
+        console.log('- التكامل مع Firebase');
+    </script>
+</body>
+</html>
 
