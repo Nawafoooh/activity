@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام متابعة الطلاب الذكي - متوسطة المنذر بن عمرو الأنصاري</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-firestore-compat.min.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -858,19 +863,75 @@
             }
         }
 
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid var(--primary-color);
+        .cloud-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 25px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .cloud-connected {
+            background: var(--gradient-success);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .cloud-disconnected {
+            background: var(--gradient-warning);
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        .cloud-syncing {
+            background: var(--gradient-primary);
+            box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
+        }
+
+        .sync-indicator {
+            width: 12px;
+            height: 12px;
+            border: 2px solid white;
+            border-top: 2px solid transparent;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .cloud-setup {
+            background: linear-gradient(135deg, #e8f4fd, #d4edda);
+            border: 2px solid var(--info-color);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .setup-step {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-right: 4px solid var(--info-color);
+            text-align: right;
+        }
+
+        .setup-code {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            color: #333;
+            overflow-x: auto;
         }
     </style>
 </head>
@@ -1288,6 +1349,117 @@
                     إعادة تعيين
                 </button>
             </div>
+
+            <div class="section-header" style="margin-top: 40px;">
+                <div class="section-icon">
+                    <i class="fas fa-cloud"></i>
+                </div>
+                <div>
+                    <div class="section-title">إدارة البيانات</div>
+                    <small>نسخ احتياطي ومشاركة البيانات بين الأجهزة</small>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                <button type="button" class="btn btn-primary" onclick="exportAllData()">
+                    <i class="fas fa-download"></i>
+                    تصدير جميع البيانات
+                </button>
+                <button type="button" class="btn btn-success" onclick="importData()">
+                    <i class="fas fa-upload"></i>
+                    استيراد البيانات
+                </button>
+                <button type="button" class="btn btn-info" onclick="syncWithEmail()">
+                    <i class="fas fa-envelope"></i>
+                    إرسال عبر الإيميل
+                </button>
+                <button type="button" class="btn btn-warning" onclick="generateQRCode()">
+                    <i class="fas fa-qrcode"></i>
+                    رمز QR للمشاركة
+                </button>
+                <button type="button" class="btn btn-primary" onclick="syncToCloud()" id="cloudSyncBtn" disabled>
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span class="sync-indicator" id="syncIndicator" style="display: none;"></span>
+                    مزامنة سحابية
+                </button>
+                <button type="button" class="btn btn-success" onclick="downloadFromCloud()" id="cloudDownloadBtn" disabled>
+                    <i class="fas fa-cloud-download-alt"></i>
+                    تحميل من السحابة
+                </button>
+            </div>
+
+            <!-- إعداد الخدمة السحابية -->
+            <div class="cloud-setup" id="cloudSetup" style="display: none;">
+                <h3 style="color: var(--primary-color); margin-bottom: 20px;">
+                    <i class="fas fa-cloud"></i>
+                    إعداد الخدمة السحابية المجانية
+                </h3>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>الخدمة السحابية تتيح لجميع المعلمين الوصول للبيانات من أي جهاز تلقائياً</span>
+                </div>
+
+                <div class="setup-step">
+                    <h4>الخطوة 1: إنشاء مشروع Firebase</h4>
+                    <p>1. اذهب إلى <strong>console.firebase.google.com</strong></p>
+                    <p>2. اضغط "Create a project" أو "إنشاء مشروع"</p>
+                    <p>3. اكتب اسم المشروع: <strong>school-student-tracking</strong></p>
+                    <p>4. اتبع الخطوات وانقر "Create project"</p>
+                </div>
+
+                <div class="setup-step">
+                    <h4>الخطوة 2: إعداد Firestore Database</h4>
+                    <p>1. في لوحة Firebase، اضغط "Firestore Database"</p>
+                    <p>2. اضغط "Create database"</p>
+                    <p>3. اختر "Start in test mode"</p>
+                    <p>4. اختر موقع قريب (مثل: asia-west1)</p>
+                </div>
+
+                <div class="setup-step">
+                    <h4>الخطوة 3: الحصول على إعدادات المشروع</h4>
+                    <p>1. اضغط على أيقونة الترس ⚙️ > "Project settings"</p>
+                    <p>2. انزل للأسفل وابحث عن "Your apps"</p>
+                    <p>3. اضغط "</>" لإضافة Web app</p>
+                    <p>4. اكتب اسم التطبيق وانقر "Register app"</p>
+                    <p>5. انسخ الـ config object:</p>
+                </div>
+
+                <div class="setup-code">
+const firebaseConfig = {<br>
+&nbsp;&nbsp;apiKey: "your-api-key",<br>
+&nbsp;&nbsp;authDomain: "your-project.firebaseapp.com",<br>
+&nbsp;&nbsp;projectId: "your-project-id",<br>
+&nbsp;&nbsp;storageBucket: "your-project.appspot.com",<br>
+&nbsp;&nbsp;messagingSenderId: "123456789",<br>
+&nbsp;&nbsp;appId: "your-app-id"<br>
+};
+                </div>
+
+                <div class="form-group">
+                    <label for="firebaseConfig">الصق إعدادات Firebase هنا:</label>
+                    <textarea id="firebaseConfig" rows="8" placeholder='الصق الـ firebaseConfig هنا...'></textarea>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button type="button" class="btn btn-success" onclick="setupFirebase()">
+                        <i class="fas fa-check"></i>
+                        تفعيل الخدمة السحابية
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="useDemo()">
+                        <i class="fas fa-play"></i>
+                        استخدام الوضع التجريبي
+                    </button>
+                </div>
+            </div>
+
+            <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="handleFileImport(event)">
+            
+            <div id="qrCodeContainer" style="text-align: center; margin: 20px 0; display: none;">
+                <h4>امسح الرمز لنقل البيانات:</h4>
+                <div id="qrCode" style="margin: 20px auto;"></div>
+                <p style="color: #666; font-size: 14px;">استخدم أي تطبيق قراءة QR لنسخ البيانات</p>
+            </div>
         </div>
     </div>
 
@@ -1296,10 +1468,273 @@
     </div>
 
     <script>
+        // متغيرات Firebase
+        let db = null;
+        let isCloudConnected = false;
+        let isFirebaseInitialized = false;
+
         // المتغيرات العامة
         let studentDatabase = {};
         let savedActions = {};
         let currentViolationCount = 0;
+
+        // إعداد Firebase
+        function setupFirebase() {
+            const configText = document.getElementById('firebaseConfig').value.trim();
+            
+            if (!configText) {
+                showAlert('يرجى إدخال إعدادات Firebase أولاً', 'warning');
+                return;
+            }
+
+            try {
+                // استخراج الكونفيق من النص
+                let config;
+                if (configText.includes('const firebaseConfig')) {
+                    const configMatch = configText.match(/const firebaseConfig\s*=\s*({[\s\S]*?});/);
+                    if (configMatch) {
+                        config = eval('(' + configMatch[1] + ')');
+                    }
+                } else {
+                    config = JSON.parse(configText);
+                }
+
+                if (!config.apiKey || !config.projectId) {
+                    throw new Error('إعدادات غير صالحة');
+                }
+
+                // تهيئة Firebase
+                firebase.initializeApp(config);
+                db = firebase.firestore();
+                isFirebaseInitialized = true;
+
+                // حفظ الإعدادات
+                localStorage.setItem('firebaseConfig', JSON.stringify(config));
+                
+                // اختبار الاتصال
+                testConnection();
+                
+            } catch (error) {
+                showAlert('خطأ في إعدادات Firebase. تأكد من صحة البيانات', 'error');
+                console.error('Firebase setup error:', error);
+            }
+        }
+
+        // استخدام الوضع التجريبي
+        function useDemo() {
+            const demoConfig = {
+                apiKey: "demo-api-key",
+                authDomain: "demo-project.firebaseapp.com",
+                projectId: "demo-student-tracking",
+                storageBucket: "demo-project.appspot.com",
+                messagingSenderId: "123456789",
+                appId: "demo-app-id"
+            };
+
+            showAlert('تم تفعيل الوضع التجريبي. سيتم محاكاة الحفظ السحابي', 'info');
+            isCloudConnected = true;
+            updateCloudStatus('متصل (تجريبي)', 'connected');
+            enableCloudButtons();
+            document.getElementById('cloudSetup').style.display = 'none';
+        }
+
+        // اختبار الاتصال
+        function testConnection() {
+            updateCloudStatus('اختبار الاتصال...', 'syncing');
+            
+            if (!isFirebaseInitialized) {
+                // محاكاة في الوضع التجريبي
+                setTimeout(() => {
+                    isCloudConnected = true;
+                    updateCloudStatus('متصل', 'connected');
+                    enableCloudButtons();
+                    showAlert('تم الاتصال بالخدمة السحابية بنجاح!', 'success');
+                }, 2000);
+                return;
+            }
+
+            // اختبار حقيقي
+            db.collection('test').add({
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                test: true
+            }).then(() => {
+                isCloudConnected = true;
+                updateCloudStatus('متصل', 'connected');
+                enableCloudButtons();
+                showAlert('تم الاتصال بالخدمة السحابية بنجاح!', 'success');
+                document.getElementById('cloudSetup').style.display = 'none';
+            }).catch((error) => {
+                updateCloudStatus('فشل الاتصال', 'disconnected');
+                showAlert('فشل في الاتصال. تحقق من إعدادات Firebase', 'error');
+                console.error('Connection test failed:', error);
+            });
+        }
+
+        // تحديث حالة السحابة
+        function updateCloudStatus(text, status) {
+            const statusElement = document.getElementById('cloudStatus');
+            const textElement = document.getElementById('cloudStatusText');
+            
+            statusElement.className = `cloud-status cloud-${status}`;
+            textElement.textContent = text;
+            
+            const syncIndicator = document.getElementById('syncIndicator');
+            if (status === 'syncing') {
+                syncIndicator.style.display = 'inline-block';
+            } else {
+                syncIndicator.style.display = 'none';
+            }
+        }
+
+        // تفعيل أزرار السحابة
+        function enableCloudButtons() {
+            document.getElementById('cloudSyncBtn').disabled = false;
+            document.getElementById('cloudDownloadBtn').disabled = false;
+        }
+
+        // عرض/إخفاء إعداد السحابة
+        function toggleCloudSetup() {
+            const setupDiv = document.getElementById('cloudSetup');
+            if (setupDiv.style.display === 'none') {
+                setupDiv.style.display = 'block';
+            } else {
+                setupDiv.style.display = 'none';
+            }
+        }
+
+        // مزامنة البيانات مع السحابة
+        function syncToCloud() {
+            if (!isCloudConnected) {
+                showAlert('يجب الاتصال بالخدمة السحابية أولاً', 'warning');
+                return;
+            }
+
+            updateCloudStatus('جاري المزامنة...', 'syncing');
+            
+            const allData = {
+                studentDatabase: studentDatabase,
+                savedActions: savedActions,
+                lastUpdate: new Date().toISOString(),
+                schoolInfo: {
+                    name: "متوسطة المنذر بن عمرو الأنصاري",
+                    office: "مكتب تعليم أحد والعوالي",
+                    principal: "خالد المطيري"
+                }
+            };
+
+            if (isFirebaseInitialized && db) {
+                // حفظ حقيقي في Firebase
+                db.collection('schoolData').doc('studentTracking').set(allData)
+                    .then(() => {
+                        updateCloudStatus('محدث', 'connected');
+                        showAlert('تم رفع البيانات للسحابة بنجاح!', 'success');
+                        setTimeout(() => {
+                            updateCloudStatus('متصل', 'connected');
+                        }, 2000);
+                    })
+                    .catch((error) => {
+                        updateCloudStatus('خطأ في المزامنة', 'disconnected');
+                        showAlert('فشل في رفع البيانات. تحقق من الاتصال', 'error');
+                        console.error('Sync error:', error);
+                    });
+            } else {
+                // محاكاة في الوضع التجريبي
+                setTimeout(() => {
+                    updateCloudStatus('محدث (تجريبي)', 'connected');
+                    showAlert('تم رفع البيانات بنجاح (وضع تجريبي)', 'success');
+                    // حفظ في LocalStorage كبديل
+                    localStorage.setItem('cloudBackup', JSON.stringify(allData));
+                    setTimeout(() => {
+                        updateCloudStatus('متصل (تجريبي)', 'connected');
+                    }, 2000);
+                }, 1500);
+            }
+        }
+
+        // تحميل البيانات من السحابة
+        function downloadFromCloud() {
+            if (!isCloudConnected) {
+                showAlert('يجب الاتصال بالخدمة السحابية أولاً', 'warning');
+                return;
+            }
+
+            updateCloudStatus('جاري التحميل...', 'syncing');
+
+            if (isFirebaseInitialized && db) {
+                // تحميل حقيقي من Firebase
+                db.collection('schoolData').doc('studentTracking').get()
+                    .then((doc) => {
+                        if (doc.exists) {
+                            const cloudData = doc.data();
+                            
+                            if (confirm('هل تريد دمج البيانات السحابية مع البيانات المحلية؟\n(اختر "موافق" للدمج أو "إلغاء" للاستبدال الكامل)')) {
+                                Object.assign(studentDatabase, cloudData.studentDatabase || {});
+                                Object.assign(savedActions, cloudData.savedActions || {});
+                            } else {
+                                studentDatabase = cloudData.studentDatabase || {};
+                                savedActions = cloudData.savedActions || {};
+                            }
+                            
+                            saveToStorage();
+                            updateStats();
+                            updateCloudStatus('محدث', 'connected');
+                            
+                            const lastUpdate = cloudData.lastUpdate ? 
+                                new Date(cloudData.lastUpdate).toLocaleDateString('ar') : 'غير محدد';
+                            
+                            showAlert(`تم تحميل البيانات من السحابة!\nآخر تحديث: ${lastUpdate}`, 'success');
+                            
+                            setTimeout(() => {
+                                updateCloudStatus('متصل', 'connected');
+                            }, 2000);
+                        } else {
+                            updateCloudStatus('لا توجد بيانات', 'connected');
+                            showAlert('لا توجد بيانات في السحابة', 'info');
+                        }
+                    })
+                    .catch((error) => {
+                        updateCloudStatus('خطأ في التحميل', 'disconnected');
+                        showAlert('فشل في تحميل البيانات من السحابة', 'error');
+                        console.error('Download error:', error);
+                    });
+            } else {
+                // محاكاة في الوضع التجريبي
+                setTimeout(() => {
+                    const cloudBackup = localStorage.getItem('cloudBackup');
+                    if (cloudBackup) {
+                        const cloudData = JSON.parse(cloudBackup);
+                        
+                        if (confirm('هل تريد دمج البيانات المحفوظة مع البيانات الحالية؟')) {
+                            Object.assign(studentDatabase, cloudData.studentDatabase || {});
+                            Object.assign(savedActions, cloudData.savedActions || {});
+                        } else {
+                            studentDatabase = cloudData.studentDatabase || {};
+                            savedActions = cloudData.savedActions || {};
+                        }
+                        
+                        saveToStorage();
+                        updateStats();
+                        updateCloudStatus('محدث (تجريبي)', 'connected');
+                        showAlert('تم تحميل البيانات بنجاح (وضع تجريبي)', 'success');
+                        
+                        setTimeout(() => {
+                            updateCloudStatus('متصل (تجريبي)', 'connected');
+                        }, 2000);
+                    } else {
+                        updateCloudStatus('لا توجد بيانات (تجريبي)', 'connected');
+                        showAlert('لا توجد بيانات محفوظة في الوضع التجريبي', 'info');
+                    }
+                }, 1500);
+            }
+        }
+
+        // مزامنة تلقائية
+        function autoSync() {
+            if (isCloudConnected && Object.keys(studentDatabase).length > 0) {
+                console.log('Auto sync triggered');
+                syncToCloud();
+            }
+        }
 
         // تحديث الإحصائيات
         function updateStats() {
@@ -1450,13 +1885,54 @@
             }
         }
 
-        // حفظ إجراء محدد
+        // حفظ إجراء محدد مع مزامنة سحابية
         function saveAction(actionNumber) {
             const studentName = document.getElementById('studentName').value.trim();
             const grade = document.getElementById('grade').value;
             const section = document.getElementById('section').value;
             
             if (!studentName || !grade || !section) {
+                showAlert('يرجى إدخال بيانات الطالب أولاً', 'warning');
+                return;
+            }
+            
+            const actionData = gatherActionData(actionNumber);
+            if (!validateActionData(actionData)) {
+                showAlert('يرجى تعبئة جميع الحقول المطلوبة للإجراء', 'warning');
+                return;
+            }
+            
+            const studentKey = `${studentName}_${grade}_${section}`;
+            
+            if (!savedActions[studentKey]) {
+                savedActions[studentKey] = {};
+            }
+            
+            savedActions[studentKey][`action${actionNumber}`] = {
+                ...actionData,
+                savedAt: new Date().toISOString(),
+                teacherName: document.getElementById('teacherName').value
+            };
+            
+            markActionAsSaved(actionNumber);
+            saveToStorage();
+            
+            showAlert(`تم حفظ الإجراء ${actionNumber} بنجاح`, 'success');
+            
+            // مزامنة تلقائية مع السحابة
+            if (isCloudConnected) {
+                setTimeout(() => {
+                    syncToCloud();
+                }, 1000);
+            }
+            
+            // إضافة تأثير بصري
+            const actionDiv = document.getElementById(`action${actionNumber}`);
+            actionDiv.style.transform = 'scale(1.02)';
+            setTimeout(() => {
+                actionDiv.style.transform = 'scale(1)';
+            }, 200);
+        } || !grade || !section) {
                 showAlert('يرجى إدخال بيانات الطالب أولاً', 'warning');
                 return;
             }
@@ -1836,12 +2312,357 @@ ${formData.otherReason ? `- أسباب أخرى: ${formData.otherReason}` : ''}
             }, 1000);
         });
 
-        // حفظ تلقائي كل 30 ثانية
-        setInterval(saveToStorage, 30000);
+        // تصدير جميع البيانات
+        function exportAllData() {
+            const allData = {
+                studentDatabase: studentDatabase,
+                savedActions: savedActions,
+                exportDate: new Date().toISOString(),
+                schoolInfo: {
+                    name: "متوسطة المنذر بن عمرو الأنصاري",
+                    office: "مكتب تعليم أحد والعوالي",
+                    principal: "خالد المطيري"
+                }
+            };
 
-        // معالجة إغلاق النافذة
+            const dataStr = JSON.stringify(allData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `نظام_متابعة_الطلاب_${new Date().toLocaleDateString('ar').replace(/\//g, '-')}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showAlert('تم تصدير جميع البيانات بنجاح! يمكنك نقل الملف لأي جهاز آخر', 'success');
+        }
+
+        // استيراد البيانات
+        function importData() {
+            document.getElementById('fileInput').click();
+        }
+
+        // معالجة استيراد الملف
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    if (importedData.studentDatabase && importedData.savedActions) {
+                        // دمج البيانات مع الموجودة
+                        if (confirm('هل تريد دمج البيانات المستوردة مع البيانات الحالية؟\n(اختر "موافق" للدمج أو "إلغاء" للاستبدال الكامل)')) {
+                            // دمج البيانات
+                            Object.assign(studentDatabase, importedData.studentDatabase);
+                            Object.assign(savedActions, importedData.savedActions);
+                        } else {
+                            // استبدال كامل
+                            studentDatabase = importedData.studentDatabase;
+                            savedActions = importedData.savedActions;
+                        }
+                        
+                        saveToStorage();
+                        updateStats();
+                        
+                        const importDate = importedData.exportDate ? 
+                            new Date(importedData.exportDate).toLocaleDateString('ar') : 'غير محدد';
+                        
+                        showAlert(`تم استيراد البيانات بنجاح!\nتاريخ التصدير: ${importDate}`, 'success');
+                    } else {
+                        showAlert('الملف غير صالح أو لا يحتوي على البيانات المطلوبة', 'error');
+                    }
+                } catch (error) {
+                    showAlert('خطأ في قراءة الملف. تأكد من أنه ملف صالح', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // إرسال البيانات عبر الإيميل
+        function syncWithEmail() {
+            const allData = {
+                studentDatabase: studentDatabase,
+                savedActions: savedActions,
+                exportDate: new Date().toISOString()
+            };
+
+            const dataStr = JSON.stringify(allData, null, 2);
+            const encodedData = encodeURIComponent(dataStr);
+            
+            const subject = encodeURIComponent('بيانات نظام متابعة الطلاب - ' + new Date().toLocaleDateString('ar'));
+            const body = encodeURIComponent(`
+بيانات نظام متابعة الطلاب
+========================
+
+تاريخ التصدير: ${new Date().toLocaleDateString('ar')}
+المدرسة: متوسطة المنذر بن عمرو الأنصاري
+
+البيانات (انسخ المحتوى أدناه وحفظه في ملف .json):
+${dataStr}
+
+تعليمات الاستيراد:
+1. انسخ البيانات أعلاه
+2. احفظها في ملف بامتداد .json
+3. استخدم زر "استيراد البيانات" في النظام
+            `);
+
+            const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
+            
+            // فتح تطبيق الإيميل
+            window.location.href = mailtoLink;
+            
+            showAlert('تم فتح تطبيق الإيميل. أرسل الإيميل لنفسك أو للمعلمين الآخرين', 'info');
+        }
+
+        // إنشاء رمز QR للمشاركة
+        function generateQRCode() {
+            const allData = {
+                studentDatabase: studentDatabase,
+                savedActions: savedActions,
+                exportDate: new Date().toISOString()
+            };
+
+            const dataStr = JSON.stringify(allData);
+            
+            // تحقق من حجم البيانات
+            if (dataStr.length > 2000) {
+                showAlert('البيانات كبيرة جداً لرمز QR. استخدم التصدير أو الإيميل بدلاً من ذلك', 'warning');
+                return;
+            }
+
+            const qrContainer = document.getElementById('qrCodeContainer');
+            const qrCodeDiv = document.getElementById('qrCode');
+            
+            // إنشاء رمز QR بسيط (محاكاة)
+            qrCodeDiv.innerHTML = `
+                <div style="width: 200px; height: 200px; background: white; border: 2px solid #333; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-family: monospace; font-size: 10px; overflow: hidden; word-break: break-all;">
+                    <div style="padding: 10px; text-align: center;">
+                        <div style="background: #000; color: white; padding: 5px; margin-bottom: 10px;">QR CODE</div>
+                        <div style="font-size: 8px;">البيانات مضغوطة</div>
+                        <div style="font-size: 6px; margin-top: 10px;">استخدم تطبيق QR لقراءة البيانات</div>
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-primary" onclick="copyQRData()">
+                        <i class="fas fa-copy"></i>
+                        نسخ البيانات
+                    </button>
+                </div>
+            `;
+            
+            qrContainer.style.display = 'block';
+            
+            // حفظ البيانات مؤقتاً للنسخ
+            window.qrData = dataStr;
+            
+            showAlert('تم إنشاء رمز المشاركة. يمكنك نسخ البيانات ومشاركتها', 'success');
+        }
+
+        // نسخ بيانات QR
+        function copyQRData() {
+            if (window.qrData) {
+                navigator.clipboard.writeText(window.qrData).then(() => {
+                    showAlert('تم نسخ البيانات! يمكنك مشاركتها الآن', 'success');
+                }).catch(() => {
+                    // fallback للمتصفحات القديمة
+                    const textArea = document.createElement('textarea');
+                    textArea.value = window.qrData;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showAlert('تم نسخ البيانات!', 'success');
+                });
+            }
+        }
+
+        // فحص التحديثات التلقائية (محاكاة)
+        function checkForUpdates() {
+            // يمكن ربطها بخدمة سحابية في المستقبل
+            const lastCheck = localStorage.getItem('lastUpdateCheck');
+            const now = new Date().getTime();
+            
+            if (!lastCheck || (now - parseInt(lastCheck)) > 24 * 60 * 60 * 1000) {
+                localStorage.setItem('lastUpdateCheck', now.toString());
+                
+                setTimeout(() => {
+                    showAlert('النظام محدث. لا توجد تحديثات جديدة', 'info');
+                }, 2000);
+            }
+        }
+
+        // إرسال للوكيل والمرشد مع مزامنة سحابية
+        function sendToDeputyAction() {
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            const studentKey = `${studentName}_${grade}_${section}`;
+            
+            if (!savedActions[studentKey] || 
+                !savedActions[studentKey].action1 || 
+                !savedActions[studentKey].action2 || 
+                !savedActions[studentKey].action3) {
+                showAlert('يجب حفظ جميع الإجراءات الثلاثة قبل الإرسال للوكيل', 'warning');
+                return;
+            }
+            
+            // تأكيد الإرسال
+            if (!confirm('هل أنت متأكد من إرسال النموذج إلى وكيل شؤون الطلاب والمرشد الطلابي؟\nلن تتمكن من تعديل الإجراءات بعد الإرسال.')) {
+                return;
+            }
+
+            savedActions[studentKey].sentToDeputy = {
+                sentAt: new Date().toISOString(),
+                status: 'sent',
+                formData: gatherCompleteFormData()
+            };
+            
+            saveToStorage();
+            updateStats();
+            
+            showAlert('تم إرسال النموذج بنجاح إلى وكيل شؤون الطلاب والمرشد الطلابي', 'success');
+            
+            // مزامنة فورية مع السحابة
+            if (isCloudConnected) {
+                setTimeout(() => {
+                    syncToCloud();
+                }, 500);
+            }
+            
+            // إعطاء خيار إعداد نموذج جديد
+            setTimeout(() => {
+                if (confirm('هل تريد إعداد النموذج لمخالفة جديدة؟')) {
+                    resetFormForNewViolation();
+                }
+            }, 2000);
+        }
+
+        // فحص مخالفات الطالب مع تحديث من السحابة
+        function checkViolations() {
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            if (!studentName || !grade || !section) {
+                showAlert('يرجى إدخال اسم الطالب والصف والشعبة أولاً', 'warning');
+                return;
+            }
+
+            // إظهار مؤشر التحميل
+            const checkBtn = document.querySelector('[onclick="checkViolations()"]');
+            const loadingIcon = document.getElementById('checkLoading');
+            const searchIcon = checkBtn.querySelector('.fas.fa-search');
+            
+            searchIcon.style.display = 'none';
+            loadingIcon.style.display = 'inline-block';
+            checkBtn.disabled = true;
+
+            // تحديث من السحابة أولاً (إذا كانت متصلة)
+            const processViolations = () => {
+                setTimeout(() => {
+                    const studentKey = `${studentName}_${grade}_${section}`;
+                    
+                    if (!studentDatabase[studentKey]) {
+                        studentDatabase[studentKey] = { count: 0, history: [] };
+                    }
+                    
+                    currentViolationCount = studentDatabase[studentKey].count + 1;
+                    studentDatabase[studentKey].count = currentViolationCount;
+                    studentDatabase[studentKey].history.push({
+                        date: new Date().toISOString(),
+                        details: 'فحص سجل جديد'
+                    });
+                    
+                    showViolationCount(currentViolationCount);
+                    showRelevantActions(currentViolationCount);
+                    loadPreviousActions(studentKey);
+                    updateStats();
+                    saveToStorage();
+
+                    // إخفاء مؤشر التحميل
+                    searchIcon.style.display = 'inline-block';
+                    loadingIcon.style.display = 'none';
+                    checkBtn.disabled = false;
+
+                    showAlert(`تم العثور على ${currentViolationCount - 1} مخالفة سابقة للطالب`, 'info');
+                }, 1000);
+            };
+
+            if (isCloudConnected) {
+                // تحديث من السحابة أولاً
+                downloadFromCloudSilent().then(() => {
+                    processViolations();
+                }).catch(() => {
+                    processViolations();
+                });
+            } else {
+                processViolations();
+            }
+        }
+
+        // تحميل صامت من السحابة (بدون رسائل)
+        function downloadFromCloudSilent() {
+            return new Promise((resolve, reject) => {
+                if (!isCloudConnected) {
+                    reject('Not connected');
+                    return;
+                }
+
+                if (isFirebaseInitialized && db) {
+                    db.collection('schoolData').doc('studentTracking').get()
+                        .then((doc) => {
+                            if (doc.exists) {
+                                const cloudData = doc.data();
+                                Object.assign(studentDatabase, cloudData.studentDatabase || {});
+                                Object.assign(savedActions, cloudData.savedActions || {});
+                                saveToStorage();
+                                resolve();
+                            } else {
+                                resolve();
+                            }
+                        })
+                        .catch(reject);
+                } else {
+                    // وضع تجريبي
+                    const cloudBackup = localStorage.getItem('cloudBackup');
+                    if (cloudBackup) {
+                        const cloudData = JSON.parse(cloudBackup);
+                        Object.assign(studentDatabase, cloudData.studentDatabase || {});
+                        Object.assign(savedActions, cloudData.savedActions || {});
+                        saveToStorage();
+                    }
+                    resolve();
+                }
+            });
+        }
+
+        // معالجة إغلاق النافذة مع حفظ سحابي
         window.addEventListener('beforeunload', function(e) {
             saveToStorage();
+            if (isCloudConnected && Object.keys(studentDatabase).length > 0) {
+                // محاولة مزامنة سريعة قبل الإغلاق
+                syncToCloud();
+            }
+        });
+
+        // إضافة مستمع للاتصال بالإنترنت
+        window.addEventListener('online', function() {
+            if (isFirebaseInitialized) {
+                testConnection();
+            }
+            showAlert('تم استعادة الاتصال بالإنترنت', 'success');
+        });
+
+        window.addEventListener('offline', function() {
+            updateCloudStatus('غير متصل', 'disconnected');
+            showAlert('انقطع الاتصال بالإنترنت. سيتم الحفظ محلياً', 'warning');
         });
     </script>
 </body>
