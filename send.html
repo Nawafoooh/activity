@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام متابعة الطلاب - متوسطة المنذر بن عمرو الأنصاري</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c5aa0 0%, #4a90e2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="30" r="1.5" fill="rgba(255,255,255,0.08)"/><circle cx="40" cy="70" r="1" fill="rgba(255,255,255,0.06)"/></svg>');
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: #2c5aa0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header .school-info {
+            font-size: 16px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c5aa0;
+            font-size: 16px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .violation-reasons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9ff;
+            border: 2px solid #e1e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .checkbox-group:hover {
+            background: #e8f2ff;
+            border-color: #4a90e2;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-left: 10px;
+            transform: scale(1.2);
+            accent-color: #4a90e2;
+        }
+
+        .actions-section {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9ff;
+            border-radius: 12px;
+            border-right: 5px solid #4a90e2;
+        }
+
+        .action-item {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border: 2px solid #e1e8f0;
+            display: none;
+            position: relative;
+        }
+
+        .action-item.active {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .action-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: #2c5aa0;
+        }
+
+        .action-number {
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #4a90e2, #2c5aa0);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 10px;
+            font-size: 14px;
+        }
+
+        .signature-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f4f8;
+            border-radius: 8px;
+        }
+
+        .signature-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4a90e2, #2c5aa0);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        .buttons-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            padding-top: 25px;
+            border-top: 2px solid #e1e8f0;
+        }
+
+        .violation-count {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border-radius: 10px;
+            border-right: 5px solid #ffc107;
+        }
+
+        .count-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 5px;
+        }
+
+        .notes-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: #e8f4fd;
+            border-radius: 10px;
+            border-right: 4px solid #17a2b8;
+        }
+
+        .notes-title {
+            font-weight: 600;
+            color: #0c5460;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notes-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .notes-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(23, 162, 184, 0.2);
+            color: #0c5460;
+            position: relative;
+            padding-right: 25px;
+        }
+
+        .notes-list li::before {
+            content: '•';
+            color: #17a2b8;
+            font-size: 20px;
+            position: absolute;
+            right: 0;
+            top: 5px;
+        }
+
+        .notes-list li:last-child {
+            border-bottom: none;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .signature-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .violation-reasons {
+                grid-template-columns: 1fr;
+            }
+            
+            .buttons-container {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+            </div>
+            <h1>نموذج متابعة الطالب</h1>
+            <div class="school-info">
+                <div>المملكة العربية السعودية - وزارة التعليم</div>
+                <div>مكتب تعليم أحد والعوالي</div>
+                <div>متوسطة المنذر بن عمرو الأنصاري</div>
+                <div>مدير المدرسة: خالد المطيري</div>
+            </div>
+        </div>
+
+        <div class="form-container">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="studentName">اسم الطالب</label>
+                    <input type="text" id="studentName" name="studentName" placeholder="أدخل اسم الطالب" required>
+                </div>
+                <div class="form-group">
+                    <label for="grade">الصف</label>
+                    <select id="grade" name="grade" required>
+                        <option value="">اختر الصف</option>
+                        <option value="الأول المتوسط">الأول المتوسط</option>
+                        <option value="الثاني المتوسط">الثاني المتوسط</option>
+                        <option value="الثالث المتوسط">الثالث المتوسط</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="section">الشعبة</label>
+                    <select id="section" name="section" required>
+                        <option value="">اختر الشعبة</option>
+                        <option value="أ">أ</option>
+                        <option value="ب">ب</option>
+                        <option value="ج">ج</option>
+                        <option value="د">د</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="subject">المادة</label>
+                    <input type="text" id="subject" name="subject" placeholder="اسم المادة" required>
+                </div>
+                <div class="form-group">
+                    <label for="period">الحصة الدراسية</label>
+                    <select id="period" name="period" required>
+                        <option value="">اختر الحصة</option>
+                        <option value="الأولى">الأولى</option>
+                        <option value="الثانية">الثانية</option>
+                        <option value="الثالثة">الثالثة</option>
+                        <option value="الرابعة">الرابعة</option>
+                        <option value="الخامسة">الخامسة</option>
+                        <option value="السادسة">السادسة</option>
+                        <option value="السابعة">السابعة</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="teacherName">اسم المعلم</label>
+                    <input type="text" id="teacherName" name="teacherName" placeholder="اسم المعلم" required>
+                </div>
+            </div>
+
+            <div class="violation-count" id="violationCount" style="display: none;">
+                <div class="count-display">المخالفة رقم: <span id="countNumber">1</span></div>
+                <div>عدد المخالفات السابقة لهذا الطالب</div>
+            </div>
+
+            <div class="form-group">
+                <label>سبب التحويل:</label>
+                <div class="violation-reasons">
+                    <div class="checkbox-group">
+                        <span>عدم أداء الواجب</span>
+                        <input type="checkbox" name="reason" value="عدم أداء الواجب">
+                    </div>
+                    <div class="checkbox-group">
+                        <span>مشاغبة</span>
+                        <input type="checkbox" name="reason" value="مشاغبة">
+                    </div>
+                    <div class="checkbox-group">
+                        <span>تأخر عن الحصة</span>
+                        <input type="checkbox" name="reason" value="تأخر عن الحصة">
+                    </div>
+                    <div class="checkbox-group">
+                        <span>ضعف دراسي</span>
+                        <input type="checkbox" name="reason" value="ضعف دراسي">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="otherReason">أخرى (تذكر):</label>
+                    <input type="text" id="otherReason" name="otherReason" placeholder="اذكر السبب الآخر">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="problemDescription">إيضاح المشكلة:</label>
+                <textarea id="problemDescription" name="problemDescription" rows="4" placeholder="اكتب تفاصيل المشكلة هنا..."></textarea>
+            </div>
+
+            <div class="actions-section">
+                <h3 style="color: #2c5aa0; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-clipboard-check"></i>
+                    الإجراءات المطلوبة
+                </h3>
+
+                <!-- الإجراء الأول -->
+                <div class="action-item" id="action1">
+                    <div class="action-header">
+                        <div class="action-number">1</div>
+                        <span>الإجراء الأول - إنذار شفهي</span>
+                    </div>
+                    <p style="color: #666; margin-bottom: 15px;">توجيه إنذار شفهي للطالب وتوضيح السلوك المطلوب</p>
+                    
+                    <div class="signature-section">
+                        <h4 style="margin-bottom: 15px; color: #2c5aa0;">ما تم حيال الطالب (خاص بوكيل شؤون الطلاب):</h4>
+                        <textarea name="action1_details" rows="3" placeholder="اكتب الإجراء المتخذ..."></textarea>
+                        <div class="signature-row">
+                            <input type="text" name="deputy_name1" placeholder="وكيل المدرسة">
+                            <input type="text" name="deputy_signature1" placeholder="التوقيع">
+                            <input type="date" name="deputy_date1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الإجراء الثاني -->
+                <div class="action-item" id="action2">
+                    <div class="action-header">
+                        <div class="action-number">2</div>
+                        <span>الإجراء الثاني - إنذار كتابي</span>
+                    </div>
+                    <p style="color: #666; margin-bottom: 15px;">إنذار كتابي للطالب مع إشعار ولي الأمر</p>
+                    
+                    <div class="signature-section">
+                        <h4 style="margin-bottom: 15px; color: #2c5aa0;">ما تم حيال الطالب (خاص بوكيل شؤون الطلاب):</h4>
+                        <textarea name="action2_details" rows="3" placeholder="اكتب الإجراء المتخذ..."></textarea>
+                        <div class="signature-row">
+                            <input type="text" name="deputy_name2" placeholder="وكيل المدرسة">
+                            <input type="text" name="deputy_signature2" placeholder="التوقيع">
+                            <input type="date" name="deputy_date2">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الإجراء الثالث -->
+                <div class="action-item" id="action3">
+                    <div class="action-header">
+                        <div class="action-number">3</div>
+                        <span>الإجراء الثالث - تحويل للمرشد الطلابي</span>
+                    </div>
+                    <p style="color: #666; margin-bottom: 15px;">تحويل الطالب للمرشد الطلابي لاتخاذ الإجراءات اللازمة</p>
+                    
+                    <div class="signature-section">
+                        <h4 style="margin-bottom: 15px; color: #2c5aa0;">ما تم حيال الطالب (خاص بوكيل شؤون الطلاب):</h4>
+                        <textarea name="action3_details" rows="3" placeholder="اكتب الإجراء المتخذ..."></textarea>
+                        <div class="signature-row">
+                            <input type="text" name="deputy_name3" placeholder="وكيل المدرسة">
+                            <input type="text" name="deputy_signature3" placeholder="التوقيع">
+                            <input type="date" name="deputy_date3">
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px;">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <input type="checkbox" name="transfer_to_counselor" style="margin-left: 10px;">
+                                <span style="font-weight: 600;">تمت إحالته إلى المرشد الطلابي</span>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 20px 0 15px; color: #2c5aa0;">ما تم حيال الطالب (خاص بالمرشد الطلابي):</h4>
+                        <textarea name="counselor_action" rows="3" placeholder="اكتب ما تم من قبل المرشد الطلابي..."></textarea>
+                        <div class="signature-row">
+                            <input type="text" name="counselor_name" placeholder="المرشد الطلابي">
+                            <input type="text" name="counselor_signature" placeholder="التوقيع">
+                            <input type="date" name="counselor_date">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="notes-section">
+                <div class="notes-title">
+                    <i class="fas fa-info-circle"></i>
+                    <span>ملاحظات مهمة</span>
+                </div>
+                <ul class="notes-list">
+                    <li>يتم إخطار وكيل شؤون الطلاب حسب هذا النموذج بعد انتهاء الحصة الدراسية</li>
+                    <li>يقوم وكيل شؤون الطلاب باستدعاء الطالب في وقت لا يؤثر عليه دراسياً</li>
+                    <li>يتم تحويل الطالب إلى المرشد في حالة تكرار السلوك أو الضعف الدراسي</li>
+                    <li>يقوم المرشد الطلابي بإخطار المعلم بما تم حيال الطالب</li>
+                    <li>يحفظ هذا النموذج لدى وكيل شؤون الطلاب ونسخة لدى المرشد الطلابي</li>
+                </ul>
+            </div>
+
+            <div class="buttons-container">
+                <button type="button" class="btn btn-primary" onclick="checkViolations()">
+                    <i class="fas fa-search"></i>
+                    فحص سجل الطالب
+                </button>
+                <button type="button" class="btn btn-success" onclick="saveForm()">
+                    <i class="fas fa-save"></i>
+                    حفظ النموذج
+                </button>
+                <button type="button" class="btn btn-warning" onclick="sendToDeputy()">
+                    <i class="fas fa-paper-plane"></i>
+                    إرسال للوكيل
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // محاكاة قاعدة بيانات للطلاب
+        let studentDatabase = {};
+        
+        function checkViolations() {
+            const studentName = document.getElementById('studentName').value;
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            if (!studentName || !grade || !section) {
+                alert('يرجى إدخال اسم الطالب والصف والشعبة أولاً');
+                return;
+            }
+            
+            const studentKey = `${studentName}_${grade}_${section}`;
+            
+            if (!studentDatabase[studentKey]) {
+                studentDatabase[studentKey] = { count: 0 };
+            }
+            
+            const currentCount = studentDatabase[studentKey].count + 1;
+            studentDatabase[studentKey].count = currentCount;
+            
+            showViolationCount(currentCount);
+            showRelevantActions(currentCount);
+        }
+        
+        function showViolationCount(count) {
+            const violationCount = document.getElementById('violationCount');
+            const countNumber = document.getElementById('countNumber');
+            
+            violationCount.style.display = 'block';
+            countNumber.textContent = count;
+            
+            if (count >= 3) {
+                violationCount.style.background = 'linear-gradient(135deg, #f8d7da, #f1aeb5)';
+                violationCount.style.borderColor = '#dc3545';
+                countNumber.style.color = '#721c24';
+            }
+        }
+        
+        function showRelevantActions(violationCount) {
+            // إخفاء جميع الإجراءات
+            document.querySelectorAll('.action-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // عرض الإجراءات حسب عدد المخالفات
+            for (let i = 1; i <= violationCount; i++) {
+                const action = document.getElementById(`action${i}`);
+                if (action) {
+                    setTimeout(() => {
+                        action.classList.add('active');
+                    }, (i - 1) * 200); // تأخير لإظهار الإجراءات تدريجياً
+                }
+            }
+        }
+        
+        function saveForm() {
+            const formData = gatherFormData();
+            
+            if (!validateForm(formData)) {
+                alert('يرجى تعبئة جميع الحقول المطلوبة');
+                return;
+            }
+            
+            // حفظ البيانات (محاكاة)
+            localStorage.setItem('studentForm_' + Date.now(), JSON.stringify(formData));
+            
+            alert('تم حفظ النموذج بنجاح');
+        }
+        
+        function sendToDeputy() {
+            const formData = gatherFormData();
+            
+            if (!validateForm(formData)) {
+                alert('يرجى تعبئة جميع الحقول المطلوبة قبل الإرسال');
+                return;
+            }
+            
+            // محاكاة إرسال للوكيل
+            alert('تم إرسال النموذج إلى وكيل شؤون الطلاب بنجاح');
+            
+            // إعادة تعيين النموذج
+            resetForm();
+        }
+        
+        function gatherFormData() {
+            const formData = {
+                studentName: document.getElementById('studentName').value,
+                grade: document.getElementById('grade').value,
+                section: document.getElementById('section').value,
+                subject: document.getElementById('subject').value,
+                period: document.getElementById('period').value,
+                teacherName: document.getElementById('teacherName').value,
+                reasons: [],
+                otherReason: document.getElementById('otherReason').value,
+                problemDescription: document.getElementById('problemDescription').value,
+                violationCount: document.getElementById('countNumber').textContent,
+                timestamp: new Date().toISOString()
+            };
+            
+            // جمع الأسباب المحددة
+            document.querySelectorAll('input[name="reason"]:checked').forEach(checkbox => {
+                formData.reasons.push(checkbox.value);
+            });
+            
+            return formData;
+        }
+        
+        function validateForm(formData) {
+            return formData.studentName && formData.grade && formData.section && 
+                   formData.subject && formData.period && formData.teacherName &&
+                   (formData.reasons.length > 0 || formData.otherReason) &&
+                   formData.problemDescription;
+        }
+        
+        function resetForm() {
+            document.querySelectorAll('input, select, textarea').forEach(element => {
+                if (element.type === 'checkbox') {
+                    element.checked = false;
+                } else {
+                    element.value = '';
+                }
+            });
+            
+            document.getElementById('violationCount').style.display = 'none';
+            document.querySelectorAll('.action-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        }
+        
+        // إضافة تأثيرات تفاعلية
+        document.querySelectorAll('.checkbox-group').forEach(group => {
+            group.addEventListener('click', function() {
+                const checkbox = this.querySelector('input[type="checkbox"]');
+                checkbox.checked = !checkbox.checked;
+                
+                if (checkbox.checked) {
+                    this.style.background = '#e8f2ff';
+                    this.style.borderColor = '#4a90e2';
+                } else {
+                    this.style.background = '#f8f9ff';
+                    this.style.borderColor = '#e1e8f0';
+                }
+            });
+        });
+        
+        // تعيين التاريخ الحالي تلقائياً
+        document.querySelectorAll('input[type="date"]').forEach(dateInput => {
+            if (!dateInput.value) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+        });
+    </script>
+</body>
+</html>
