@@ -428,7 +428,7 @@
         }
 
         .btn.secondary {
-            background: linear-gradient(135d +eg, #95A5A6 0%, #7F8C8D 100%);
+            background: linear-gradient(135deg, #95A5A6 0%, #7F8C8D 100%);
         }
 
         .btn.secondary:hover {
@@ -449,6 +449,14 @@
 
         .btn.warning:hover {
             box-shadow: 0 8px 25px rgba(243, 156, 18, 0.4);
+        }
+
+        .btn.danger {
+            background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+        }
+
+        .btn.danger:hover {
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
         }
 
         .action-buttons {
@@ -866,6 +874,7 @@
                 <button type="button" class="btn secondary" onclick="previewQuestion()">معاينة</button>
                 <button type="button" class="btn success" onclick="exportQuestions()">تصدير الأسئلة</button>
                 <button type="button" class="btn warning" onclick="importQuestions()">استيراد أسئلة</button>
+                <button type="button" class="btn danger" onclick="clearAllQuestions()">حذف جميع الأسئلة</button>
             </div>
         </div>
 
@@ -1301,6 +1310,108 @@
             }
         }
 
+        // حذف جميع الأسئلة
+        async function clearAllQuestions() {
+            // تأكيد متعدد المستويات للأمان
+            const firstConfirm = confirm('⚠️ تحذير: هل تريد حذف جميع الأسئلة نهائياً؟\n\nهذا الإجراء لا يمكن التراجع عنه وسيؤثر على منصة الطلاب فوراً.');
+            
+            if (!firstConfirm) {
+                return;
+            }
+
+            // تأكيد إضافي مع كتابة النص
+            const confirmText = prompt('⚠️ للتأكيد النهائي، اكتب "حذف جميع الاسئلة" بالضبط لتأكيد الحذف:');
+            
+            if (confirmText !== 'حذف جميع الاسئلة') {
+                showNotification('تم إلغاء عملية الحذف - لم يتم التأكيد بالنص الصحيح', 'error');
+                return;
+            }
+
+            try {
+                // عرض شريط التقدم
+                const progressContainer = document.getElementById('progressContainer');
+                const progressBar = document.getElementById('progressBar');
+                
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '20%';
+                progressBar.textContent = 'بدء عملية الحذف...';
+
+                // إنشاء نسخة احتياطية قبل الحذف
+                const backupData = {
+                    daily: dailyQuestions,
+                    weekly: weeklyQuestions,
+                    timestamp: new Date().toLocaleString('ar-SA'),
+                    totalQuestions: dailyQuestions.length + weeklyQuestions.length
+                };
+
+                // حفظ النسخة الاحتياطية في localStorage مؤقتاً
+                localStorage.setItem('nafis_backup_before_clear', JSON.stringify(backupData));
+
+                progressBar.style.width = '40%';
+                progressBar.textContent = 'حذف الأسئلة اليومية...';
+
+                // حذف الأسئلة اليومية
+                dailyQuestions = [];
+                localStorage.setItem('adminDailyQuestions', JSON.stringify(dailyQuestions));
+                await syncSystem.syncWithStudentPlatform('daily', dailyQuestions);
+
+                progressBar.style.width = '70%';
+                progressBar.textContent = 'حذف الأسئلة الأسبوعية...';
+
+                // حذف الأسئلة الأسبوعية
+                weeklyQuestions = [];
+                localStorage.setItem('adminWeeklyQuestions', JSON.stringify(weeklyQuestions));
+                await syncSystem.syncWithStudentPlatform('weekly', weeklyQuestions);
+
+                progressBar.style.width = '90%';
+                progressBar.textContent = 'تحديث الواجهة...';
+
+                // تحديث الواجهة
+                updateStats();
+                displayQuestions();
+
+                progressBar.style.width = '100%';
+                progressBar.textContent = 'مكتمل!';
+
+                // إخفاء شريط التقدم بعد ثانيتين
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 2000);
+
+                showNotification(`✅ تم حذف جميع الأسئلة بنجاح (${backupData.totalQuestions} سؤال)\n💾 تم حفظ نسخة احتياطية مؤقتة`, 'success');
+
+                // إظهار رسالة النسخة الاحتياطية
+                setTimeout(() => {
+                    if (confirm('💾 هل تريد تحميل نسخة احتياطية من الأسئلة المحذوفة كملف؟')) {
+                        downloadBackup(backupData);
+                    }
+                }, 3000);
+
+            } catch (error) {
+                console.error('خطأ في حذف جميع الأسئلة:', error);
+                showNotification('حدث خطأ في عملية الحذف. تم الاحتفاظ بالأسئلة لضمان الأمان.', 'error');
+                
+                // إخفاء شريط التقدم في حالة الخطأ
+                progressContainer.style.display = 'none';
+            }
+        }
+
+        // تحميل النسخة الاحتياطية
+        function downloadBackup(backupData) {
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nafis-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showNotification('تم تحميل النسخة الاحتياطية بنجاح', 'success');
+        }
+
         // تصدير الأسئلة
         function exportQuestions() {
             const data = {
@@ -1526,6 +1637,7 @@
         window.addQuestion = addQuestion;
         window.previewQuestion = previewQuestion;
         window.deleteQuestion = deleteQuestion;
+        window.clearAllQuestions = clearAllQuestions;
         window.exportQuestions = exportQuestions;
         window.importQuestions = importQuestions;
 
@@ -1536,8 +1648,9 @@
         console.log('- استيراد وتصدير الأسئلة');
         console.log('- معاينة الأسئلة');
         console.log('- رفع الصور');
+        console.log('- حذف جميع الأسئلة مع النسخ الاحتياطية');
         console.log('- واجهة احترافية بخط Amiri');
     </script>
 </body>
-</html>s
+</html>
 
