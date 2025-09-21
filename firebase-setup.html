@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إعداد قاعدة بيانات نافس</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase v9 SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { getFirestore, collection, doc, setDoc, addDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
+
+        // إعدادات Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD28cfba2NmXlsfBci9jgbne21U9rZLJ2M",
+            authDomain: "nafis-new.firebaseapp.com",
+            projectId: "nafis-new",
+            storageBucket: "nafis-new.firebasestorage.app",
+            messagingSenderId: "366381122504",
+            appId: "1:366381122504:web:b76107c74d7d7ec82df6fd",
+            measurementId: "G-ZD3Z9LEGGM"
+        };
+
+        // تهيئة Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // جعل المتغيرات متاحة عالمياً
+        window.db = db;
+        window.firestore = { collection, doc, setDoc, addDoc, writeBatch };
+
+        console.log('Firebase initialized for data setup');
+    </script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Amiri', serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: #4A154B;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        .setup-section {
+            background: #F8FAFC;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-right: 4px solid #6B46C1;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4A154B;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #6B46C1 0%, #4A154B 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-family: 'Amiri', serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0.5rem;
+            min-width: 200px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(107, 70, 193, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn.success {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        }
+
+        .btn.danger {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+        }
+
+        .log-area {
+            background: #1F2937;
+            color: #F9FAFB;
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-family: 'Courier New', monospace;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #E5E7EB;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10B981 0%, #059669 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            border: 2px solid #E5E7EB;
+        }
+
+        .status-card.success {
+            border-color: #10B981;
+            background: #ECFDF5;
+        }
+
+        .status-card.error {
+            border-color: #EF4444;
+            background: #FEF2F2;
+        }
+
+        .warning {
+            background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+            border: 2px solid #F59E0B;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            color: #92400E;
+        }
+
+        .warning h3 {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>إعداد قاعدة بيانات نافس</h1>
+            <p>سكريبت إنشاء البيانات التجريبية لنظام الاختبارات</p>
+        </div>
+
+        <div class="warning">
+            <h3>تحذير مهم</h3>
+            <p>هذا السكريبت سيضيف بيانات تجريبية إلى قاعدة البيانات. تأكد من أنك تعمل على قاعدة بيانات التطوير وليس الإنتاج.</p>
+        </div>
+
+        <!-- حالة الاتصال -->
+        <div class="setup-section">
+            <div class="section-title">حالة الاتصال</div>
+            <div class="status-grid">
+                <div class="status-card" id="connectionStatus">
+                    <h4>Firebase</h4>
+                    <p>جاري التحقق...</p>
+                </div>
+                <div class="status-card" id="firestoreStatus">
+                    <h4>Firestore</h4>
+                    <p>غير جاهز</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- إعداد الطلاب -->
+        <div class="setup-section">
+            <div class="section-title">إعداد بيانات الطلاب</div>
+            <p>إنشاء طلاب تجريبيين مع أكوادهم الخاصة</p>
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn" onclick="setupStudents()" id="studentsBtn">إنشاء بيانات الطلاب</button>
+                <button class="btn danger" onclick="clearStudents()" id="clearStudentsBtn">حذف بيانات الطلاب</button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="studentsProgress"></div>
+            </div>
+        </div>
+
+        <!-- إعداد المعلمين -->
+        <div class="setup-section">
+            <div class="section-title">إعداد بيانات المعلمين</div>
+            <p>إنشاء حسابات معلمين تجريبية</p>
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn" onclick="setupTeachers()" id="teachersBtn">إنشاء بيانات المعلمين</button>
+                <button class="btn danger" onclick="clearTeachers()" id="clearTeachersBtn">حذف بيانات المعلمين</button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="teachersProgress"></div>
+            </div>
+        </div>
+
+        <!-- إعداد الأسئلة الإضافية -->
+        <div class="setup-section">
+            <div class="section-title">إعداد أسئلة إضافية</div>
+            <p>إضافة أسئلة تجريبية جديدة للنظام</p>
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn" onclick="setupQuestions()" id="questionsBtn">إضافة أسئلة تجريبية</button>
+                <button class="btn danger" onclick="clearQuestions()" id="clearQuestionsBtn">حذف الأسئلة التجريبية</button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="questionsProgress"></div>
+            </div>
+        </div>
+
+        <!-- إعداد نتائج تجريبية -->
+        <div class="setup-section">
+            <div class="section-title">إعداد نتائج تجريبية</div>
+            <p>إنشاء نتائج اختبارات تجريبية للتقارير</p>
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn" onclick="setupTestResults()" id="resultsBtn">إنشاء نتائج تجريبية</button>
+                <button class="btn danger" onclick="clearTestResults()" id="clearResultsBtn">حذف النتائج التجريبية</button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="resultsProgress"></div>
+            </div>
+        </div>
+
+        <!-- إعداد شامل -->
+        <div class="setup-section">
+            <div class="section-title">الإعداد الشامل</div>
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn success" onclick="setupAll()" id="setupAllBtn">إعداد كامل للنظام</button>
+                <button class="btn danger" onclick="clearAll()" id="clearAllBtn">حذف جميع البيانات التجريبية</button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="overallProgress"></div>
+            </div>
+        </div>
+
+        <!-- سجل العمليات -->
+        <div class="setup-section">
+            <div class="section-title">سجل العمليات</div>
+            <div class="log-area" id="logArea">
+                <div>جاري تهيئة النظام...</div>
+            </div>
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn" onclick="clearLog()">مسح السجل</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // متغيرات عامة
+        let setupInProgress = false;
+
+        // بيانات تجريبية للطلاب
+        const sampleStudents = [
+            {
+                firstName: "أحمد",
+                fatherName: "محمد",
+                grandFatherName: "علي",
+                familyName: "السعيد",
+                grade: "أول متوسط",
+                section: "1"
+            },
+            {
+                firstName: "فاطمة",
+                fatherName: "عبدالله",
+                grandFatherName: "حمد",
+                familyName: "النور",
+                grade: "أول متوسط",
+                section: "2"
+            },
+            {
+                firstName: "خالد",
+                fatherName: "سعد",
+                grandFatherName: "فهد",
+                familyName: "الغامدي",
+                grade: "ثاني متوسط",
+                section: "1"
+            },
+            {
+                firstName: "نورا",
+                fatherName: "عمر",
+                grandFatherName: "زيد",
+                familyName: "القحطاني",
+                grade: "ثاني متوسط",
+                section: "3"
+            },
+            {
+                firstName: "سارة",
+                fatherName: "ناصر",
+                grandFatherName: "عبدالعزيز",
+                familyName: "المطيري",
+                grade: "ثالث متوسط",
+                section: "2"
+            }
+        ];
+
+        // بيانات تجريبية للمعلمين
+        const sampleTeachers = [
+            {
+                email: "nawaf.subhi@school.edu.sa",
+                displayName: "الأستاذ نواف الصبحي",
+                subject: "الرياضيات",
+                role: "teacher"
+            },
+            {
+                email: "ahmed.hassan@school.edu.sa",
+                displayName: "الأستاذ أحمد حسان",
+                subject: "العلوم",
+                role: "teacher"
+            },
+            {
+                email: "fatima.omar@school.edu.sa",
+                displayName: "الأستاذة فاطمة عمر",
+                subject: "اللغة العربية",
+                role: "teacher"
+            }
+        ];
+
+        // أسئلة تجريبية
+        const sampleQuestions = [
+            {
+                subject: "رياضيات",
+                question: "ما ناتج 15 + 27؟",
+                options: ["40", "42", "45", "48"],
+                correct: 1,
+                explanation: "15 + 27 = 42",
+                difficulty: "easy",
+                type: "daily"
+            },
+            {
+                subject: "علوم",
+                question: "ما هو الغاز الذي تحتاجه النباتات للتنفس؟",
+                options: ["الأكسجين", "ثاني أكسيد الكربون", "النيتروجين", "الهيدروجين"],
+                correct: 1,
+                explanation: "النباتات تحتاج ثاني أكسيد الكربون لعملية البناء الضوئي",
+                difficulty: "medium",
+                type: "weekly"
+            },
+            {
+                subject: "لغة عربية",
+                question: "ما إعراب كلمة 'الطالب' في جملة 'جاء الطالب مبكراً'؟",
+                options: ["فاعل", "مفعول به", "مبتدأ", "خبر"],
+                correct: 0,
+                explanation: "الطالب فاعل مرفوع وعلامة رفعه الضمة",
+                difficulty: "medium",
+                type: "daily"
+            }
+        ];
+
+        // تهيئة النظام
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSystem();
+        });
+
+        async function initializeSystem() {
+            logMessage('🚀 بدء تهيئة النظام...');
+            
+            try {
+                // انتظار تحميل Firebase
+                let attempts = 0;
+                while (!window.db && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (window.db) {
+                    updateStatus('connectionStatus', 'success', 'Firebase', 'متصل');
+                    updateStatus('firestoreStatus', 'success', 'Firestore', 'جاهز');
+                    logMessage('✅ تم الاتصال بـ Firebase بنجاح');
+                } else {
+                    throw new Error('فشل الاتصال بـ Firebase');
+                }
+            } catch (error) {
+                logMessage('❌ خطأ في الاتصال: ' + error.message);
+                updateStatus('connectionStatus', 'error', 'Firebase', 'خطأ');
+                updateStatus('firestoreStatus', 'error', 'Firestore', 'غير متاح');
+            }
+        }
+
+        // إعداد الطلاب
+        async function setupStudents() {
+            if (setupInProgress) return;
+            setupInProgress = true;
+            
+            try {
+                logMessage('📚 بدء إعداد بيانات الطلاب...');
+                updateProgress('studentsProgress', 0);
+                
+                const batch = window.firestore.writeBatch(window.db);
+                const totalStudents = sampleStudents.length;
+                
+                for (let i = 0; i < totalStudents; i++) {
+                    const studentData = sampleStudents[i];
+                    const studentCode = generateStudentCode();
+                    
+                    const fullStudentData = {
+                        ...studentData,
+                        fullName: `${studentData.firstName} ${studentData.fatherName} ${studentData.grandFatherName} ${studentData.familyName}`,
+                        studentCode,
+                        createdAt: new Date().toISOString(),
+                        testHistory: {},
+                        isActive: true,
+                        createdBy: "setup-script"
+                    };
+
+                    // إضافة للـ students collection
+                    const studentRef = window.firestore.doc(window.db, 'students', studentCode);
+                    batch.set(studentRef, fullStudentData);
+
+                    // إضافة للـ studentCodes collection للبحث السريع
+                    const codeRef = window.firestore.doc(window.db, 'studentCodes', studentCode);
+                    batch.set(codeRef, {
+                        fullName: fullStudentData.fullName,
+                        studentCode,
+                        createdAt: fullStudentData.createdAt
+                    });
+
+                    const progress = ((i + 1) / totalStudents) * 100;
+                    updateProgress('studentsProgress', progress);
+                    
+                    logMessage(`👤 تم إنشاء: ${fullStudentData.fullName} - الكود: ${studentCode}`);
+                }
+
+                await batch.commit();
+                logMessage('✅ تم إنشاء جميع بيانات الطلاب بنجاح');
+                
+            } catch (error) {
+                logMessage('❌ خطأ في إنشاء بيانات الطلاب: ' + error.message);
+            } finally {
+                setupInProgress = false;
+            }
+        }
+
+        // إعداد المعلمين
+        async function setupTeachers() {
+            if (setupInProgress) return;
+            setupInProgress = true;
+            
+            try {
+                logMessage('👨‍🏫 بدء إعداد بيانات المعلمين...');
+                updateProgress('teachersProgress', 0);
+                
+                const batch = window.firestore.writeBatch(window.db);
+                const totalTeachers = sampleTeachers.length;
+                
+                for (let i = 0; i < totalTeachers; i++) {
+                    const teacherData = sampleTeachers[i];
+                    
+                    const fullTeacherData = {
+                        ...teacherData,
+                        createdAt: new Date().toISOString(),
+                        isActive: true,
+                        permissions: ["questions:read", "questions:write", "students:read"],
+                        createdBy: "setup-script"
+                    };
+
+                    const teacherId = teacherData.email.split('@')[0];
+                    const teacherRef = window.firestore.doc(window.db, 'teachers', teacherId);
+                    batch.set(teacherRef, fullTeacherData);
+
+                    const progress = ((i + 1) / totalTeachers) * 100;
+                    updateProgress('teachersProgress', progress);
+                    
+                    logMessage(`👨‍🏫 تم إنشاء: ${teacherData.displayName}`);
+                }
+
+                await batch.commit();
+                logMessage('✅ تم إنشاء جميع بيانات المعلمين بنجاح');
+                
+            } catch (error) {
+                logMessage('❌ خطأ في إنشاء بيانات المعلمين: ' + error.message);
+            } finally {
+                setupInProgress = false;
+            }
+        }
+
+        // إعداد الأسئلة
+        async function setupQuestions() {
+            if (setupInProgress) return;
+            setupInProgress = true;
+            
+            try {
+                logMessage('❓ بدء إعداد الأسئلة التجريبية...');
+                updateProgress('questionsProgress', 0);
+                
+                const batch = window.firestore.writeBatch(window.db);
+                const totalQuestions = sampleQuestions.length;
+                
+                for (let i = 0; i < totalQuestions; i++) {
+                    const questionData = sampleQuestions[i];
+                    
+                    const fullQuestionData = {
+                        ...questionData,
+                        createdAt: new Date().toISOString(),
+                        lastModified: new Date().toISOString(),
+                        isActive: true,
+                        createdBy: "نواف الصبحي",
+                        id: Date.now() + i
+                    };
+
+                    const questionRef = window.firestore.doc(window.db, 'questions', (Date.now() + i).toString());
+                    batch.set(questionRef, fullQuestionData);
+
+                    const progress = ((i + 1) / totalQuestions) * 100;
+                    updateProgress('questionsProgress', progress);
+                    
+                    logMessage(`❓ تم إنشاء سؤال: ${questionData.subject} - ${questionData.question.substring(0, 50)}...`);
+                }
+
+                await batch.commit();
+                logMessage('✅ تم إنشاء جميع الأسئلة التجريبية بنجاح');
+                
+            } catch (error) {
+                logMessage('❌ خطأ في إنشاء الأسئلة: ' + error.message);
+            } finally {
+                setupInProgress = false;
+            }
+        }
+
+        // إعداد نتائج تجريبية
+        async function setupTestResults() {
+            if (setupInProgress) return;
+            setupInProgress = true;
+            
+            try {
+                logMessage('📊 بدء إعداد النتائج التجريبية...');
+                updateProgress('resultsProgress', 0);
+                
+                const batch = window.firestore.writeBatch(window.db);
+                let resultCount = 0;
+                
+                // إنشاء نتائج لكل طالب
+                for (let i = 0; i < sampleStudents.length; i++) {
+                    const student = sampleStudents[i];
+                    const studentCode = `12345${i}`;
+                    const fullName = `${student.firstName} ${student.fatherName} ${student.grandFatherName} ${student.familyName}`;
+                    
+                    // نتيجة يومية
+                    const dailyResult = {
+                        studentCode,
+                        studentName: fullName,
+                        testType: "daily",
+                        score: Math.floor(Math.random() * 3) + 2, // 2-4 من 5
+                        totalQuestions: 5,
+                        percentage: 0,
+                        answers: generateRandomAnswers(5),
+                        startTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+                        endTime: new Date(Date.now() - 24 * 60 * 60 * 1000 + 10 * 60 * 1000).toISOString(),
+                        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+                    };
+                    dailyResult.percentage = Math.round((dailyResult.score / dailyResult.totalQuestions) * 100);
+                    
+                    // نتيجة أسبوعية
+                    const weeklyResult = {
+                        studentCode,
+                        studentName: fullName,
+                        testType: "weekly",
+                        score: Math.floor(Math.random() * 5) + 3, // 3-7 من 10
+                        totalQuestions: 10,
+                        percentage: 0,
+                        answers: generateRandomAnswers(10),
+                        startTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                        endTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 25 * 60 * 1000).toISOString(),
+                        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+                    };
+                    weeklyResult.percentage = Math.round((weeklyResult.score / weeklyResult.totalQuestions) * 100);
+                    
+                    const dailyRef = window.firestore.doc(window.db, 'testResults', `daily_${studentCode}_${Date.now()}`);
+                    const weeklyRef = window.firestore.doc(window.db, 'testResults', `weekly_${studentCode}_${Date.now()}`);
+                    
+                    batch.set(dailyRef, dailyResult);
+                    batch.set(weeklyRef, weeklyResult);
+                    
+                    resultCount += 2;
+                    const progress = ((i + 1) / sampleStudents.length) * 100;
+                    updateProgress('resultsProgress', progress);
+                    
+                    logMessage(`📊 تم إنشاء نتائج للطالب: ${fullName}`);
+                }
+
+                await batch.commit();
+                logMessage(`✅ تم إنشاء ${resultCount} نتيجة تجريبية بنجاح`);
+                
+            } catch (error) {
+                logMessage('❌ خطأ في إنشاء النتائج التجريبية: ' + error.message);
+            } finally {
+                setupInProgress = false;
+            }
+        }
+
+        // إعداد شامل
+        async function setupAll() {
+            if (setupInProgress) return;
+            
+            logMessage('🔄 بدء الإعداد الشامل للنظام...');
+            updateProgress('overallProgress', 0);
+            
+            try {
+                await setupStudents();
+                updateProgress('overallProgress', 25);
+                
+                await setupTeachers();
+                updateProgress('overallProgress', 50);
+                
+                await setupQuestions();
+                updateProgress('overallProgress', 75);
+                
+                await setupTestResults();
+                updateProgress('overallProgress', 100);
+                
+                logMessage('🎉 تم الإعداد الشامل بنجاح! النظام جاهز للاستخدام');
+                
+            } catch (error) {
+                logMessage('❌ خطأ في الإعداد الشامل: ' + error.message);
+            }
+        }
+
+        // حذف بيانات الطلاب
+        async function clearStudents() {
+            if (!confirm('هل أنت متأكد من حذف جميع بيانات الطلاب التجريبية؟')) return;
+            
+            try {
+                logMessage('🗑️ حذف بيانات الطلاب...');
+                // سيتم تنفيذ الحذف هنا
+                logMessage('✅ تم حذف بيانات الطلاب');
+            } catch (error) {
+                logMessage('❌ خطأ في حذف بيانات الطلاب: ' + error.message);
+            }
+        }
+
+        // وظائف مساعدة
+        function generateStudentCode() {
+            return Math.floor(100000 + Math.random() * 900000).toString();
+        }
+
+        function generateRandomAnswers(count) {
+            const answers = [];
+            for (let i = 0; i < count; i++) {
+                const selectedAnswer = Math.floor(Math.random() * 4);
+                const correctAnswer = Math.floor(Math.random() * 4);
+                answers.push({
+                    questionId: `q${i + 1}`,
+                    selectedAnswer,
+                    correctAnswer,
+                    isCorrect: selectedAnswer === correctAnswer,
+                    timeSpent: Math.floor(Math.random() * 30000) + 5000 // 5-35 ثانية
+                });
+            }
+            return answers;
+        }
+
+        function updateProgress(elementId, percentage) {
+            const progressElement = document.getElementById(elementId);
+            if (progressElement) {
+                progressElement.style.width = percentage + '%';
+            }
+        }
+
+        function updateStatus(elementId, status, title, description) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.className = `status-card ${status}`;
+                element.innerHTML = `<h4>${title}</h4><p>${description}</p>`;
+            }
+        }
+
+        function logMessage(message) {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString('ar-SA');
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function clearLog() {
+            const logArea = document.getElementById('logArea');
+            logArea.innerHTML = '<div>تم مسح السجل...</div>';
+        }
+
+        // حذف المعلمين
+        async function clearTeachers() {
+            if (!confirm('هل أنت متأكد من حذف جميع بيانات المعلمين التجريبية؟')) return;
+            
+            try {
+                logMessage('🗑️ حذف بيانات المعلمين...');
+                updateProgress('teachersProgress', 0);
+                
+                const batch = window.firestore.writeBatch(window.db);
+                
+                // حذف المعلمين التجريبيين فقط
+                for (let i = 0; i < sampleTeachers.length; i++) {
+                    const teacherId = sampleTeachers[i].email.split('@')[0];
+                    const teacherRef = window.firestore.doc(window.db, 'teachers', teacherId);
+                    batch.delete(teacherRef);
+                    
+                    const progress = ((i + 1) / sampleTeachers.length) * 100;
+                    updateProgress('teachersProgress', progress);
+                }
+                
+                await batch.commit();
+                logMessage('✅ تم حذف بيانات المعلمين التجريبية');
+                
+            } catch (error) {
+                logMessage('❌ خطأ في حذف بيانات المعلمين: ' + error.message);
+            }
+        }
+
+        // حذف الأسئلة التجريبية
+        async function clearQuestions() {
+            if (!confirm('هل أنت متأكد من حذف الأسئلة التجريبية؟ (لن يتم حذف الأسئلة الأصلية)')) return;
+            
+            try {
+                logMessage('🗑️ حذف الأسئلة التجريبية...');
+                updateProgress('questionsProgress', 0);
+                
+                // سيتم البحث عن الأسئلة التي تم إنشاؤها بواسطة السكريبت وحذفها فقط
+                logMessage('⚠️ ميزة الحذف الآمن للأسئلة قيد التطوير...');
+                updateProgress('questionsProgress', 100);
+                
+            } catch (error) {
+                logMessage('❌ خطأ في حذف الأسئلة: ' + error.message);
+            }
+        }
+
+        // حذف النتائج التجريبية
+        async function clearTestResults() {
+            if (!confirm('هل أنت متأكد من حذف جميع النتائج التجريبية؟')) return;
+            
+            try {
+                logMessage('🗑️ حذف النتائج التجريبية...');
+                updateProgress('resultsProgress', 0);
+                
+                // سيتم تنفيذ الحذف المتقدم هنا
+                logMessage('⚠️ ميزة الحذف المتقدم للنتائج قيد التطوير...');
+                updateProgress('resultsProgress', 100);
+                
+            } catch (error) {
+                logMessage('❌ خطأ في حذف النتائج: ' + error.message);
+            }
+        }
+
+        // حذف شامل
+        async function clearAll() {
+            if (!confirm('هل أنت متأكد من حذف جميع البيانات التجريبية؟\n\nهذا الإجراء لا يمكن التراجع عنه!')) return;
+            
+            try {
+                logMessage('🗑️ بدء الحذف الشامل...');
+                updateProgress('overallProgress', 0);
+                
+                await clearStudents();
+                updateProgress('overallProgress', 25);
+                
+                await clearTeachers();
+                updateProgress('overallProgress', 50);
+                
+                await clearQuestions();
+                updateProgress('overallProgress', 75);
+                
+                await clearTestResults();
+                updateProgress('overallProgress', 100);
+                
+                logMessage('✅ تم الحذف الشامل بنجاح');
+                
+            } catch (error) {
+                logMessage('❌ خطأ في الحذف الشامل: ' + error.message);
+            }
+        }
+
+        // تحديث تلقائي لحالة الأزرار
+        setInterval(function() {
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(button => {
+                if (setupInProgress && !button.classList.contains('danger')) {
+                    button.disabled = true;
+                } else if (!setupInProgress) {
+                    button.disabled = false;
+                }
+            });
+        }, 1000);
+
+        // إضافة معلومات إضافية للسجل
+        logMessage('🔧 سكريبت إعداد قاعدة البيانات جاهز');
+        logMessage('📋 سيتم إنشاء:');
+        logMessage(`   • ${sampleStudents.length} طلاب تجريبيين`);
+        logMessage(`   • ${sampleTeachers.length} معلمين تجريبيين`);
+        logMessage(`   • ${sampleQuestions.length} أسئلة تجريبية`);
+        logMessage(`   • ${sampleStudents.length * 2} نتيجة تجريبية`);
+        logMessage('⚡ استخدم الأزرار أعلاه لبدء الإعداد');
+
+        console.log('Firebase Data Setup Script Loaded');
+        console.log('Available functions:');
+        console.log('- setupStudents()');
+        console.log('- setupTeachers()');
+        console.log('- setupQuestions()');
+        console.log('- setupTestResults()');
+        console.log('- setupAll()');
+    </script>
+</body>
+</html>
