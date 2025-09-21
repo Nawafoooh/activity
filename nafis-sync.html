@@ -3,7 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إصلاح نظام التزامن - ناقس</title>
+    <title>نظام المزامنة السحابية - ناფس</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            setDoc, 
+            getDoc,
+            getDocs,
+            addDoc, 
+            writeBatch,
+            onSnapshot,
+            query,
+            where,
+            orderBy,
+            serverTimestamp
+        } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+
+        // إعدادات Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyD28cfba2NmXlsfBci9jgbne21U9rZLJ2M",
+            authDomain: "nafis-new.firebaseapp.com",
+            projectId: "nafis-new",
+            storageBucket: "nafis-new.firebasestorage.app",
+            messagingSenderId: "366381122504",
+            appId: "1:366381122504:web:b76107c74d7d7ec82df6fd",
+            measurementId: "G-ZD3Z9LEGGM"
+        };
+
+        // تهيئة Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // جعل المتغيرات متاحة عالمياً
+        window.firebaseApp = app;
+        window.db = db;
+        window.firestore = { 
+            collection, 
+            doc, 
+            setDoc, 
+            getDoc,
+            getDocs,
+            addDoc, 
+            writeBatch,
+            onSnapshot,
+            query,
+            where,
+            orderBy,
+            serverTimestamp
+        };
+
+        console.log('Firebase initialized successfully');
+        
+        // إشارة للتطبيق أن Firebase جاهز
+        window.dispatchEvent(new CustomEvent('firebaseReady'));
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -12,614 +72,922 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Amiri', serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
-            padding: 20px;
+            padding: 2rem;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
         }
 
         .header {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            color: white;
-            padding: 2rem;
-            border-radius: 15px;
-            margin-bottom: 2rem;
             text-align: center;
+            margin-bottom: 3rem;
+            color: #4A154B;
         }
 
-        .fix-card {
-            background: white;
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-section {
+            background: #F8FAFC;
             border-radius: 15px;
             padding: 2rem;
             margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border-right: 4px solid #6B46C1;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 2px solid #E5E7EB;
+            transition: all 0.3s ease;
+        }
+
+        .status-card.online {
+            border-color: #10B981;
+            background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+        }
+
+        .status-card.offline {
+            border-color: #EF4444;
+            background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+        }
+
+        .status-card.syncing {
+            border-color: #3B82F6;
+            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
         }
 
         .btn {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            background: linear-gradient(135deg, #6B46C1 0%, #4A154B 100%);
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-family: 'Amiri', serif;
             cursor: pointer;
-            font-size: 16px;
-            margin: 10px 5px;
             transition: all 0.3s ease;
+            margin: 0.5rem;
+            min-width: 200px;
         }
 
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+            box-shadow: 0 8px 25px rgba(107, 70, 193, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn.success {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
         }
 
         .btn.danger {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
         }
 
-        .status-indicator {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #f39c12;
-            color: white;
-            padding: 15px 25px;
-            border-radius: 25px;
-            font-weight: bold;
-            z-index: 1000;
-            transition: all 0.3s ease;
+        .log-area {
+            background: #1F2937;
+            color: #F9FAFB;
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-family: 'Courier New', monospace;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
         }
 
-        .status-indicator.fixed {
-            background: #27ae60;
+        .action-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
         }
 
-        .log-output {
-            background: #f8f9fa;
-            border: 2px solid #dee2e6;
+        .action-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-right: 4px solid #3B82F6;
+        }
+
+        .action-card h3 {
+            margin-bottom: 1rem;
+            color: #4A154B;
+        }
+
+        .url-display {
+            background: #F3F4F6;
+            border: 2px solid #D1D5DB;
             border-radius: 8px;
             padding: 1rem;
-            max-height: 400px;
-            overflow-y: auto;
             font-family: 'Courier New', monospace;
-            font-size: 14px;
+            word-break: break-all;
+            margin: 1rem 0;
+            font-size: 0.9rem;
         }
 
-        .log-entry {
-            padding: 4px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .log-entry.error {
-            color: #dc3545;
-        }
-
-        .log-entry.success {
-            color: #28a745;
-        }
-
-        .log-entry.warning {
-            color: #ffc107;
-        }
-
-        .problem-box {
-            background: #fff3cd;
-            border: 2px solid #ffeaa7;
-            border-radius: 8px;
-            padding: 1.5rem;
+        .qr-container {
+            text-align: center;
+            padding: 1rem;
+            background: white;
+            border-radius: 12px;
             margin: 1rem 0;
         }
 
-        .solution-box {
-            background: #d1ecf1;
-            border: 2px solid #bee5eb;
-            border-radius: 8px;
+        .alert {
+            background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+            border: 2px solid #F59E0B;
+            border-radius: 12px;
             padding: 1.5rem;
-            margin: 1rem 0;
+            margin-bottom: 2rem;
+            color: #92400E;
+        }
+
+        .alert h3 {
+            margin-bottom: 0.5rem;
         }
     </style>
 </head>
 <body>
-    <div class="status-indicator" id="statusIndicator">
-        جاري الإصلاح...
-    </div>
-
     <div class="container">
         <div class="header">
-            <h1>🔧 إصلاح حلقة التزامن اللا نهائية</h1>
-            <p>حل المشكلة المكتشفة في نظام التزامن</p>
+            <h1>نظام المزامنة السحابية - ناફস</h1>
+            <p>حل احترافي لمشاركة الأسئلة بين المعلم والطلاب</p>
         </div>
 
-        <div class="fix-card">
-            <h2>📋 المشكلة المكتشفة</h2>
-            
-            <div class="problem-box">
-                <h3>🔴 المشكلة:</h3>
-                <p>النظام يحاول فرض التزامن بشكل مستمر مما يسبب:</p>
-                <ul>
-                    <li>حلقة لا نهائية من طلبات التزامن</li>
-                    <li>استهلاك غير ضروري للموارد</li>
-                    <li>عدم استقرار في النظام</li>
-                    <li>تكرار الرسائل في السجل</li>
-                </ul>
+        <div class="alert">
+            <h3>كيفية استخدام النظام</h3>
+            <p><strong>للمعلم:</strong> ارفع الأسئلة هنا وشارك الرابط مع الطلاب</p>
+            <p><strong>للطلاب:</strong> استخدم الرابط المشارك للوصول للأسئلة الجديدة</p>
+        </div>
+
+        <!-- حالة الاتصال -->
+        <div class="status-section">
+            <h2>حالة النظام</h2>
+            <div class="status-grid">
+                <div class="status-card" id="firebaseStatus">
+                    <h4>Firebase</h4>
+                    <p>جاري التحقق...</p>
+                </div>
+                <div class="status-card" id="syncStatus">
+                    <h4>المزامنة</h4>
+                    <p>غير نشط</p>
+                </div>
+                <div class="status-card" id="questionStatus">
+                    <h4>الأسئلة</h4>
+                    <p id="questionCount">0 سؤال</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- أقسام العمل -->
+        <div class="action-section">
+            <!-- للمعلم -->
+            <div class="action-card">
+                <h3>للمعلم - رفع الأسئلة</h3>
+                <p>ارفع الأسئلة من صفحة المعلم إلى السحابة</p>
+                
+                <div style="margin: 1rem 0;">
+                    <label>نوع الأسئلة:</label>
+                    <select id="questionType" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; border-radius: 8px; border: 2px solid #E5E7EB;">
+                        <option value="daily">أسئلة يومية</option>
+                        <option value="weekly">أسئلة أسبوعية</option>
+                        <option value="both">كلا النوعين</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="uploadQuestions()">رفع الأسئلة للسحابة</button>
+                <button class="btn success" onclick="generateShareableLink()">إنشاء رابط المشاركة</button>
+                
+                <div id="shareableLink" style="display: none;">
+                    <h4 style="margin-top: 1rem;">رابط المشاركة:</h4>
+                    <div class="url-display" id="linkDisplay"></div>
+                    <button class="btn" onclick="copyLink()">نسخ الرابط</button>
+                    <button class="btn" onclick="generateQR()">إنشاء رمز QR</button>
+                </div>
+
+                <div id="qrCode" class="qr-container" style="display: none;"></div>
             </div>
 
-            <div class="solution-box">
-                <h3>✅ الحل:</h3>
-                <p>تطبيق آلية ذكية لمنع التكرار مع:</p>
-                <ul>
-                    <li>فترات انتظار متدرجة</li>
-                    <li>تحديد عدد المحاولات القصوى</li>
-                    <li>فحص أكثر دقة لحالة التزامن</li>
-                    <li>آلية إيقاف تلقائية عند النجاح</li>
-                </ul>
+            <!-- للطلاب -->
+            <div class="action-card">
+                <h3>للطلاب - استقبال الأسئلة</h3>
+                <p>حمل الأسئلة الجديدة من المعلم</p>
+                
+                <button class="btn" onclick="downloadQuestions()">تحميل الأسئلة الجديدة</button>
+                <button class="btn success" onclick="enableAutoSync()">تفعيل التحديث التلقائي</button>
+                
+                <div style="margin-top: 1rem;">
+                    <p><strong>أو استخدم رابط المعلم:</strong></p>
+                    <input type="url" id="teacherLink" placeholder="الصق رابط المعلم هنا..." 
+                           style="width: 100%; padding: 0.5rem; margin: 0.5rem 0; border-radius: 8px; border: 2px solid #E5E7EB;">
+                    <button class="btn" onclick="loadFromLink()">تحميل من الرابط</button>
+                </div>
             </div>
+        </div>
 
-            <div style="text-align: center; margin: 2rem 0;">
-                <button class="btn" onclick="applyFix()">تطبيق الإصلاح</button>
-                <button class="btn danger" onclick="stopAllSync()">إيقاف التزامن</button>
-                <button class="btn" onclick="resetAndRestart()">إعادة تشغيل النظام</button>
+        <!-- إدارة البيانات -->
+        <div class="status-section">
+            <h2>إدارة البيانات</h2>
+            <div style="text-align: center;">
+                <button class="btn" onclick="viewCloudQuestions()">عرض الأسئلة السحابية</button>
+                <button class="btn" onclick="syncLocalToCloud()">مزامنة البيانات المحلية</button>
+                <button class="btn danger" onclick="clearCloudData()">مسح البيانات السحابية</button>
             </div>
+        </div>
 
-            <div id="logOutput" class="log-output">
-                <div class="log-entry">جاري تحليل المشكلة...</div>
+        <!-- سجل العمليات -->
+        <div class="status-section">
+            <h2>سجل العمليات</h2>
+            <div class="log-area" id="logArea">
+                <div>جاري تهيئة النظام...</div>
+            </div>
+            <div style="text-align: center; margin-top: 1rem;">
+                <button class="btn" onclick="clearLog()">مسح السجل</button>
             </div>
         </div>
     </div>
 
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
     <script>
-        // نظام التزامن المُصحح مع منع الحلقات اللا نهائية
-        class FixedSyncSystem {
+        // متغيرات عامة
+        let isFirebaseReady = false;
+        let autoSyncEnabled = false;
+        let currentShareableData = null;
+
+        // نظام المزامنة السحابية المتقدم
+        class NafisCloudSync {
             constructor() {
-                this.STORAGE_KEYS = {
-                    DAILY_QUESTIONS: 'nafis_unified_daily_questions',
-                    WEEKLY_QUESTIONS: 'nafis_unified_weekly_questions',
-                    LAST_UPDATE: 'nafis_unified_last_update',
-                    SYNC_STATUS: 'nafis_unified_sync_status',
-                    HEARTBEAT: 'nafis_unified_heartbeat',
-                    LAST_SYNC_ATTEMPT: 'nafis_last_sync_attempt',
-                    SYNC_ATTEMPTS_COUNT: 'nafis_sync_attempts_count'
-                };
-                
-                this.channels = [];
-                this.heartbeatInterval = null;
-                this.retryInterval = null;
-                this.isInitialized = false;
-                this.isSyncing = false;
-                
-                // إعدادات منع الحلقة اللا نهائية
-                this.MAX_RETRY_ATTEMPTS = 3;
-                this.RETRY_DELAY = 10000; // 10 ثوان
-                this.HEARTBEAT_INTERVAL = 30000; // 30 ثانية
-                this.SYNC_TIMEOUT = 5000; // 5 ثوان
-                
+                this.isOnline = navigator.onLine;
+                this.setupEventListeners();
                 this.init();
             }
-            
-            init() {
-                this.log('بدء تهيئة النظام المُصحح...', 'info');
+
+            async init() {
+                this.logMessage('🚀 بدء تهيئة نظام المزامنة السحابية...');
                 
-                // إيقاف أي عمليات تزامن سابقة
-                this.stopAllIntervals();
-                
-                // مسح العدادات القديمة
-                this.resetSyncCounters();
-                
-                // إعداد النظام الجديد
-                this.setupChannels();
-                this.setupImprovedHeartbeat();
-                this.setupSmartRetryMechanism();
-                
-                this.isInitialized = true;
-                this.updateStatus('تم الإصلاح', 'fixed');
-                this.log('✅ تم إصلاح النظام بنجاح', 'success');
-            }
-            
-            stopAllIntervals() {
-                // إيقاف جميع الفترات الزمنية الموجودة
-                if (this.heartbeatInterval) {
-                    clearInterval(this.heartbeatInterval);
-                    this.heartbeatInterval = null;
-                }
-                
-                if (this.retryInterval) {
-                    clearInterval(this.retryInterval);
-                    this.retryInterval = null;
-                }
-                
-                // إيقاف أي intervals أخرى قد تكون موجودة
-                for (let i = 1; i < 10000; i++) {
-                    clearInterval(i);
-                }
-                
-                this.log('تم إيقاف جميع العمليات السابقة', 'info');
-            }
-            
-            resetSyncCounters() {
-                localStorage.removeItem(this.STORAGE_KEYS.LAST_SYNC_ATTEMPT);
-                localStorage.removeItem(this.STORAGE_KEYS.SYNC_ATTEMPTS_COUNT);
-                localStorage.setItem(this.STORAGE_KEYS.SYNC_STATUS, 'idle');
-                this.isSyncing = false;
-                
-                this.log('تم إعادة تعيين العدادات', 'info');
-            }
-            
-            setupChannels() {
-                try {
-                    // إعداد BroadcastChannel مع معالجة محسنة
-                    if (typeof BroadcastChannel !== 'undefined') {
-                        const channel = new BroadcastChannel('nafis-unified-sync');
-                        channel.onmessage = (e) => this.handleMessage(e.data);
-                        this.channels.push(channel);
-                    }
-                    
-                    // مستمع النوافذ مع فلترة
-                    window.addEventListener('message', (e) => {
-                        if (e.data && e.data.source === 'nafis-sync' && !this.isSyncing) {
-                            this.handleMessage(e.data);
-                        }
-                    });
-                    
-                    this.log('تم إعداد قنوات الاتصال', 'success');
-                    
-                } catch (error) {
-                    this.log(`خطأ في إعداد القنوات: ${error.message}`, 'error');
-                }
-            }
-            
-            setupImprovedHeartbeat() {
-                // نبضة أقل تكراراً وأكثر ذكاءً
-                this.heartbeatInterval = setInterval(() => {
-                    if (!this.isSyncing) {
-                        const heartbeat = {
-                            timestamp: Date.now(),
-                            source: 'fixed-sync-system',
-                            status: 'stable',
-                            questionsCount: {
-                                daily: this.getQuestionCount('daily'),
-                                weekly: this.getQuestionCount('weekly')
-                            }
-                        };
-                        
-                        localStorage.setItem(this.STORAGE_KEYS.HEARTBEAT, JSON.stringify(heartbeat));
-                        this.log('نبضة نظام ثابت', 'info');
-                    }
-                }, this.HEARTBEAT_INTERVAL);
-            }
-            
-            setupSmartRetryMechanism() {
-                // آلية إعادة محاولة ذكية مع منع التكرار
-                this.retryInterval = setInterval(() => {
-                    this.checkAndRepairIfNeeded();
-                }, this.RETRY_DELAY);
-            }
-            
-            checkAndRepairIfNeeded() {
-                if (this.isSyncing) {
-                    this.log('تم تجاهل الفحص - التزامن جاري', 'warning');
-                    return;
-                }
-                
-                const lastAttempt = localStorage.getItem(this.STORAGE_KEYS.LAST_SYNC_ATTEMPT);
-                const attemptsCount = parseInt(localStorage.getItem(this.STORAGE_KEYS.SYNC_ATTEMPTS_COUNT) || '0');
-                
-                // فحص الحاجة للتزامن
-                const needsSync = this.checkIfSyncNeeded();
-                
-                if (needsSync && attemptsCount < this.MAX_RETRY_ATTEMPTS) {
-                    const now = Date.now();
-                    const lastAttemptTime = lastAttempt ? parseInt(lastAttempt) : 0;
-                    
-                    // التأكد من مرور وقت كافي منذ آخر محاولة
-                    if (now - lastAttemptTime > this.RETRY_DELAY) {
-                        this.performControlledSync();
-                    }
-                } else if (attemptsCount >= this.MAX_RETRY_ATTEMPTS) {
-                    this.log('تم الوصول للحد الأقصى من المحاولات - التوقف', 'warning');
-                    this.resetSyncCounters();
-                }
-            }
-            
-            checkIfSyncNeeded() {
-                try {
-                    // فحص أكثر دقة للحاجة للتزامن
-                    const dailyQuestions = this.loadQuestions('daily');
-                    const weeklyQuestions = this.loadQuestions('weekly');
-                    
-                    // فحص وجود البيانات في النظام القديم
-                    const oldDaily = localStorage.getItem('adminDailyQuestions');
-                    const oldWeekly = localStorage.getItem('adminWeeklyQuestions');
-                    
-                    if (oldDaily || oldWeekly) {
-                        const oldDailyCount = oldDaily ? JSON.parse(oldDaily).length : 0;
-                        const oldWeeklyCount = oldWeekly ? JSON.parse(oldWeekly).length : 0;
-                        
-                        if (oldDailyCount !== dailyQuestions.length || oldWeeklyCount !== weeklyQuestions.length) {
-                            this.log('تم اكتشاف عدم تطابق في البيانات', 'info');
-                            return true;
-                        }
-                    }
-                    
-                    return false;
-                    
-                } catch (error) {
-                    this.log(`خطأ في فحص الحاجة للتزامن: ${error.message}`, 'error');
-                    return false;
-                }
-            }
-            
-            performControlledSync() {
-                if (this.isSyncing) {
-                    this.log('تزامن جاري بالفعل - تجاهل الطلب', 'warning');
-                    return;
-                }
-                
-                this.isSyncing = true;
-                this.updateStatus('جاري التزامن المُتحكم به...', 'syncing');
-                
-                const now = Date.now();
-                const attemptsCount = parseInt(localStorage.getItem(this.STORAGE_KEYS.SYNC_ATTEMPTS_COUNT) || '0') + 1;
-                
-                localStorage.setItem(this.STORAGE_KEYS.LAST_SYNC_ATTEMPT, now.toString());
-                localStorage.setItem(this.STORAGE_KEYS.SYNC_ATTEMPTS_COUNT, attemptsCount.toString());
-                
-                this.log(`محاولة تزامن رقم ${attemptsCount}`, 'info');
-                
-                // تنفيذ التزامن مع timeout
-                const syncTimeout = setTimeout(() => {
-                    this.log('انتهت مهلة التزامن', 'warning');
-                    this.completeSyncProcess(false);
-                }, this.SYNC_TIMEOUT);
-                
-                try {
-                    // تنفيذ التزامن الفعلي
-                    const success = this.executeSyncOperation();
-                    
-                    clearTimeout(syncTimeout);
-                    this.completeSyncProcess(success);
-                    
-                } catch (error) {
-                    clearTimeout(syncTimeout);
-                    this.log(`خطأ في التزامن: ${error.message}`, 'error');
-                    this.completeSyncProcess(false);
-                }
-            }
-            
-            executeSyncOperation() {
-                try {
-                    // تحميل البيانات من النظام القديم
-                    const oldDaily = localStorage.getItem('adminDailyQuestions');
-                    const oldWeekly = localStorage.getItem('adminWeeklyQuestions');
-                    
-                    let synced = false;
-                    
-                    if (oldDaily) {
-                        const questions = JSON.parse(oldDaily);
-                        this.saveQuestions('daily', questions, false);
-                        synced = true;
-                        this.log(`تم مزامنة ${questions.length} سؤال يومي`, 'success');
-                    }
-                    
-                    if (oldWeekly) {
-                        const questions = JSON.parse(oldWeekly);
-                        this.saveQuestions('weekly', questions, false);
-                        synced = true;
-                        this.log(`تم مزامنة ${questions.length} سؤال أسبوعي`, 'success');
-                    }
-                    
-                    return synced;
-                    
-                } catch (error) {
-                    this.log(`خطأ في تنفيذ التزامن: ${error.message}`, 'error');
-                    return false;
-                }
-            }
-            
-            completeSyncProcess(success) {
-                this.isSyncing = false;
-                
-                if (success) {
-                    this.log('✅ تم التزامن بنجاح', 'success');
-                    this.resetSyncCounters();
-                    this.updateStatus('مُزامن', 'fixed');
+                // انتظار تحميل Firebase
+                if (window.db) {
+                    this.onFirebaseReady();
                 } else {
-                    this.log('❌ فشل التزامن', 'error');
-                    this.updateStatus('خطأ في التزامن', 'error');
+                    window.addEventListener('firebaseReady', () => this.onFirebaseReady());
                 }
             }
-            
-            saveQuestions(type, questions, shouldBroadcast = false) {
+
+            onFirebaseReady() {
+                isFirebaseReady = true;
+                this.updateStatus('firebaseStatus', 'online', 'Firebase', 'متصل ونشط');
+                this.updateStatus('syncStatus', 'online', 'المزامنة', 'جاهز للعمل');
+                this.logMessage('✅ تم الاتصال بـ Firebase بنجاح');
+                this.checkCloudQuestions();
+            }
+
+            setupEventListeners() {
+                // مراقبة حالة الاتصال
+                window.addEventListener('online', () => {
+                    this.isOnline = true;
+                    this.logMessage('🌐 تم استعادة الاتصال بالإنترنت');
+                    this.updateStatus('syncStatus', 'online', 'المزامنة', 'متصل');
+                });
+
+                window.addEventListener('offline', () => {
+                    this.isOnline = false;
+                    this.logMessage('⚠️ انقطع الاتصال بالإنترنت - العمل في الوضع المحلي');
+                    this.updateStatus('syncStatus', 'offline', 'المزامنة', 'غير متصل');
+                });
+            }
+
+            // رفع الأسئلة للسحابة
+            async uploadQuestions() {
+                if (!isFirebaseReady || !this.isOnline) {
+                    this.logMessage('❌ لا يمكن الرفع: تحقق من الاتصال والإعدادات');
+                    return false;
+                }
+
                 try {
-                    const key = type === 'daily' ? 
-                        this.STORAGE_KEYS.DAILY_QUESTIONS : 
-                        this.STORAGE_KEYS.WEEKLY_QUESTIONS;
+                    this.updateStatus('syncStatus', 'syncing', 'المزامنة', 'جاري الرفع...');
                     
-                    const data = {
-                        questions: questions,
-                        timestamp: Date.now(),
-                        version: '2.0-fixed'
+                    const questionType = document.getElementById('questionType').value;
+                    let dailyQuestions = [];
+                    let weeklyQuestions = [];
+
+                    // جلب الأسئلة من localStorage
+                    if (questionType === 'daily' || questionType === 'both') {
+                        const dailyData = localStorage.getItem('adminDailyQuestions');
+                        if (dailyData) {
+                            dailyQuestions = JSON.parse(dailyData);
+                        }
+                    }
+
+                    if (questionType === 'weekly' || questionType === 'both') {
+                        const weeklyData = localStorage.getItem('adminWeeklyQuestions');
+                        if (weeklyData) {
+                            weeklyQuestions = JSON.parse(weeklyData);
+                        }
+                    }
+
+                    if (dailyQuestions.length === 0 && weeklyQuestions.length === 0) {
+                        this.logMessage('⚠️ لا توجد أسئلة للرفع');
+                        return false;
+                    }
+
+                    // إنشاء مجموعة مسائل فريدة
+                    const sessionId = Date.now().toString();
+                    const questionSet = {
+                        id: sessionId,
+                        daily: dailyQuestions,
+                        weekly: weeklyQuestions,
+                        createdAt: window.firestore.serverTimestamp(),
+                        createdBy: 'المعلم',
+                        isActive: true,
+                        totalQuestions: dailyQuestions.length + weeklyQuestions.length,
+                        metadata: {
+                            uploadSource: 'teacher-panel',
+                            version: '2.0',
+                            lastModified: new Date().toISOString()
+                        }
                     };
+
+                    // رفع للسحابة
+                    const docRef = window.firestore.doc(window.db, 'questionSets', sessionId);
+                    await window.firestore.setDoc(docRef, questionSet);
+
+                    // حفظ المرجع للمشاركة
+                    currentShareableData = {
+                        sessionId,
+                        totalQuestions: questionSet.totalQuestions,
+                        createdAt: new Date().toISOString()
+                    };
+
+                    this.updateStatus('syncStatus', 'online', 'المزامنة', 'تم الرفع بنجاح');
+                    this.logMessage(`✅ تم رفع ${questionSet.totalQuestions} سؤال بنجاح - معرف الجلسة: ${sessionId}`);
                     
-                    localStorage.setItem(key, JSON.stringify(data));
-                    localStorage.setItem(this.STORAGE_KEYS.LAST_UPDATE, Date.now().toString());
+                    return sessionId;
+
+                } catch (error) {
+                    this.logMessage('❌ خطأ في رفع الأسئلة: ' + error.message);
+                    this.updateStatus('syncStatus', 'offline', 'المزامنة', 'خطأ في الرفع');
+                    return false;
+                }
+            }
+
+            // تحميل الأسئلة من السحابة
+            async downloadQuestions(sessionId = null) {
+                if (!isFirebaseReady || !this.isOnline) {
+                    this.logMessage('❌ لا يمكن التحميل: تحقق من الاتصال');
+                    return false;
+                }
+
+                try {
+                    this.updateStatus('syncStatus', 'syncing', 'المزامنة', 'جاري التحميل...');
+
+                    let questionSet;
                     
-                    // تحديث النظام القديم أيضاً
-                    const mainKey = type === 'daily' ? 'nafisMainDailyQuestions' : 'nafisMainWeeklyQuestions';
-                    localStorage.setItem(mainKey, JSON.stringify(questions));
+                    if (sessionId) {
+                        // تحميل مجموعة محددة
+                        const docRef = window.firestore.doc(window.db, 'questionSets', sessionId);
+                        const docSnap = await window.firestore.getDoc(docRef);
+                        
+                        if (!docSnap.exists()) {
+                            this.logMessage('❌ لم يتم العثور على الأسئلة المطلوبة');
+                            return false;
+                        }
+                        
+                        questionSet = docSnap.data();
+                    } else {
+                        // تحميل أحدث مجموعة
+                        const q = window.firestore.query(
+                            window.firestore.collection(window.db, 'questionSets'),
+                            window.firestore.where('isActive', '==', true),
+                            window.firestore.orderBy('createdAt', 'desc')
+                        );
+                        
+                        const querySnapshot = await window.firestore.getDocs(q);
+                        
+                        if (querySnapshot.empty) {
+                            this.logMessage('❌ لا توجد أسئلة متاحة في السحابة');
+                            return false;
+                        }
+                        
+                        questionSet = querySnapshot.docs[0].data();
+                        sessionId = querySnapshot.docs[0].id;
+                    }
+
+                    // حفظ الأسئلة في التخزين المحلي
+                    if (questionSet.daily && questionSet.daily.length > 0) {
+                        localStorage.setItem('nafisMainDailyQuestions', JSON.stringify(questionSet.daily));
+                        localStorage.setItem('adminDailyQuestions', JSON.stringify(questionSet.daily));
+                    }
+
+                    if (questionSet.weekly && questionSet.weekly.length > 0) {
+                        localStorage.setItem('nafisMainWeeklyQuestions', JSON.stringify(questionSet.weekly));
+                        localStorage.setItem('adminWeeklyQuestions', JSON.stringify(questionSet.weekly));
+                    }
+
+                    // إشعار البرامج الأخرى بالتحديث
+                    this.notifyDataUpdate(questionSet);
+
+                    const totalDownloaded = (questionSet.daily?.length || 0) + (questionSet.weekly?.length || 0);
+                    this.updateStatus('syncStatus', 'online', 'المزامنة', 'تم التحميل بنجاح');
+                    this.logMessage(`✅ تم تحميل ${totalDownloaded} سؤال من السحابة - معرف: ${sessionId}`);
                     
                     return true;
-                    
+
                 } catch (error) {
-                    this.log(`خطأ في حفظ الأسئلة: ${error.message}`, 'error');
+                    this.logMessage('❌ خطأ في تحميل الأسئلة: ' + error.message);
+                    this.updateStatus('syncStatus', 'offline', 'المزامنة', 'خطأ في التحميل');
                     return false;
                 }
             }
-            
-            loadQuestions(type) {
+
+            // إشعار البرامج الأخرى بتحديث البيانات
+            notifyDataUpdate(questionSet) {
+                // إرسال عبر BroadcastChannel
                 try {
-                    const key = type === 'daily' ? 
-                        this.STORAGE_KEYS.DAILY_QUESTIONS : 
-                        this.STORAGE_KEYS.WEEKLY_QUESTIONS;
+                    const channel = new BroadcastChannel('nafis-updates');
+                    channel.postMessage({
+                        type: 'QUESTIONS_UPDATED',
+                        data: questionSet,
+                        timestamp: Date.now(),
+                        source: 'cloud-sync'
+                    });
+                    this.logMessage('📡 تم إرسال إشعار التحديث عبر BroadcastChannel');
+                } catch (e) {
+                    this.logMessage('⚠️ لا يمكن استخدام BroadcastChannel');
+                }
+
+                // إرسال عبر Window
+                window.postMessage({
+                    type: 'NAFIS_CLOUD_UPDATE',
+                    data: questionSet,
+                    timestamp: Date.now()
+                }, '*');
+
+                // إرسال حدث مخصص
+                window.dispatchEvent(new CustomEvent('nafisDataUpdate', {
+                    detail: questionSet
+                }));
+            }
+
+            // إنشاء رابط قابل للمشاركة
+            generateShareableLink() {
+                if (!currentShareableData) {
+                    this.logMessage('❌ يجب رفع الأسئلة أولاً');
+                    return null;
+                }
+
+                const baseUrl = window.location.origin + window.location.pathname;
+                const shareableUrl = `${baseUrl}?session=${currentShareableData.sessionId}&type=student`;
+                
+                document.getElementById('linkDisplay').textContent = shareableUrl;
+                document.getElementById('shareableLink').style.display = 'block';
+                
+                this.logMessage(`🔗 تم إنشاء رابط المشاركة: ${shareableUrl}`);
+                return shareableUrl;
+            }
+
+            // إنشاء رمز QR
+            generateQR() {
+                const linkElement = document.getElementById('linkDisplay');
+                if (!linkElement.textContent) {
+                    this.logMessage('❌ لا يوجد رابط لإنشاء رمز QR');
+                    return;
+                }
+
+                const qrContainer = document.getElementById('qrCode');
+                qrContainer.innerHTML = '';
+                
+                const qr = new QRious({
+                    element: document.createElement('canvas'),
+                    value: linkElement.textContent,
+                    size: 256,
+                    background: 'white',
+                    foreground: '#4A154B'
+                });
+                
+                qrContainer.appendChild(qr.canvas);
+                qrContainer.style.display = 'block';
+                
+                this.logMessage('📱 تم إنشاء رمز QR بنجاح');
+            }
+
+            // التحقق من الأسئلة في السحابة
+            async checkCloudQuestions() {
+                try {
+                    const q = window.firestore.query(
+                        window.firestore.collection(window.db, 'questionSets'),
+                        window.firestore.where('isActive', '==', true)
+                    );
                     
-                    const stored = localStorage.getItem(key);
-                    if (stored) {
-                        const data = JSON.parse(stored);
-                        return data.questions || [];
-                    }
+                    const querySnapshot = await window.firestore.getDocs(q);
+                    const totalQuestions = querySnapshot.docs.reduce((sum, doc) => {
+                        const data = doc.data();
+                        return sum + (data.totalQuestions || 0);
+                    }, 0);
                     
-                    return [];
+                    this.updateStatus('questionStatus', 'online', 'الأسئلة', `${totalQuestions} سؤال في السحابة`);
                     
                 } catch (error) {
-                    this.log(`خطأ في تحميل الأسئلة: ${error.message}`, 'error');
-                    return [];
+                    this.logMessage('⚠️ لا يمكن التحقق من الأسئلة السحابية: ' + error.message);
                 }
             }
-            
-            getQuestionCount(type) {
-                return this.loadQuestions(type).length;
-            }
-            
-            handleMessage(message) {
-                if (!message || message.source !== 'nafis-sync' || this.isSyncing) return;
-                
-                this.log(`رسالة واردة: ${message.type}`, 'info');
-                
-                // معالجة الرسائل دون تشغيل تزامن إضافي
-                if (message.type === 'HEARTBEAT') {
-                    this.log('نبضة مستقبلة', 'info');
+
+            // تحديث حالة العناصر
+            updateStatus(elementId, status, title, description) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.className = `status-card ${status}`;
+                    element.innerHTML = `<h4>${title}</h4><p>${description}</p>`;
                 }
             }
-            
-            updateStatus(text, type = 'info') {
-                const indicator = document.getElementById('statusIndicator');
-                if (indicator) {
-                    indicator.textContent = text;
-                    indicator.className = `status-indicator ${type}`;
-                }
-            }
-            
-            log(message, type = 'info') {
+
+            // تسجيل الرسائل
+            logMessage(message) {
+                const logArea = document.getElementById('logArea');
                 const timestamp = new Date().toLocaleTimeString('ar-SA');
-                console.log(`[${timestamp}] ${message}`);
+                const logEntry = document.createElement('div');
+                logEntry.textContent = `[${timestamp}] ${message}`;
+                logArea.appendChild(logEntry);
+                logArea.scrollTop = logArea.scrollHeight;
                 
-                const output = document.getElementById('logOutput');
-                if (output) {
-                    const entry = document.createElement('div');
-                    entry.className = `log-entry ${type}`;
-                    entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
-                    output.insertBefore(entry, output.firstChild);
-                    
-                    // الاحتفاظ بآخر 20 إدخال فقط
-                    while (output.children.length > 20) {
-                        output.removeChild(output.lastChild);
-                    }
+                // حد أقصى للرسائل في السجل
+                while (logArea.children.length > 100) {
+                    logArea.removeChild(logArea.firstChild);
                 }
             }
-            
-            destroy() {
-                this.stopAllIntervals();
-                this.channels.forEach(channel => {
-                    try {
-                        channel.close();
-                    } catch (e) {}
+        }
+
+        // إنشاء مثيل من نظام المزامنة
+        const cloudSync = new NafisCloudSync();
+
+        // الوظائف العامة
+        async function uploadQuestions() {
+            const sessionId = await cloudSync.uploadQuestions();
+            if (sessionId) {
+                currentShareableData = {
+                    sessionId,
+                    createdAt: new Date().toISOString()
+                };
+            }
+        }
+
+        async function downloadQuestions() {
+            await cloudSync.downloadQuestions();
+        }
+
+        function generateShareableLink() {
+            cloudSync.generateShareableLink();
+        }
+
+        function generateQR() {
+            cloudSync.generateQR();
+        }
+
+        function copyLink() {
+            const linkElement = document.getElementById('linkDisplay');
+            if (linkElement.textContent) {
+                navigator.clipboard.writeText(linkElement.textContent).then(() => {
+                    cloudSync.logMessage('📋 تم نسخ الرابط بنجاح');
+                }).catch(() => {
+                    cloudSync.logMessage('❌ فشل في نسخ الرابط');
                 });
-                this.log('تم تنظيف النظام', 'info');
             }
         }
 
-        // إنشاء النظام المُصحح
-        let fixedSync = null;
+        async function loadFromLink() {
+            const linkInput = document.getElementById('teacherLink');
+            const url = linkInput.value.trim();
+            
+            if (!url) {
+                cloudSync.logMessage('❌ يرجى إدخال رابط صحيح');
+                return;
+            }
 
-        function applyFix() {
-            log('بدء تطبيق الإصلاح...', 'info');
-            
-            // إيقاف النظام القديم
-            if (window.unifiedSync) {
-                window.unifiedSync.destroy();
-                delete window.unifiedSync;
-            }
-            
-            // تنظيف شامل
-            for (let i = 1; i < 10000; i++) {
-                clearInterval(i);
-                clearTimeout(i);
-            }
-            
-            // إنشاء النظام الجديد
-            fixedSync = new FixedSyncSystem();
-            window.unifiedSync = fixedSync;
-            
-            log('✅ تم تطبيق الإصلاح بنجاح', 'success');
-        }
-
-        function stopAllSync() {
-            log('إيقاف جميع عمليات التزامن...', 'warning');
-            
-            // إيقاف شامل
-            for (let i = 1; i < 10000; i++) {
-                clearInterval(i);
-                clearTimeout(i);
-            }
-            
-            if (fixedSync) {
-                fixedSync.destroy();
-            }
-            
-            if (window.unifiedSync) {
-                window.unifiedSync.destroy();
-            }
-            
-            // مسح البيانات المؤقتة
-            localStorage.removeItem('nafis_last_sync_attempt');
-            localStorage.removeItem('nafis_sync_attempts_count');
-            localStorage.setItem('nafis_unified_sync_status', 'stopped');
-            
-            document.getElementById('statusIndicator').textContent = 'تم الإيقاف';
-            document.getElementById('statusIndicator').className = 'status-indicator';
-            
-            log('✅ تم إيقاف جميع العمليات', 'success');
-        }
-
-        function resetAndRestart() {
-            log('إعادة تشغيل النظام...', 'info');
-            
-            stopAllSync();
-            
-            setTimeout(() => {
-                applyFix();
-                log('✅ تم إعادة تشغيل النظام', 'success');
-            }, 2000);
-        }
-
-        function log(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString('ar-SA');
-            console.log(`[${timestamp}] ${message}`);
-            
-            const output = document.getElementById('logOutput');
-            if (output) {
-                const entry = document.createElement('div');
-                entry.className = `log-entry ${type}`;
-                entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
-                output.insertBefore(entry, output.firstChild);
+            try {
+                const urlObj = new URL(url);
+                const sessionId = urlObj.searchParams.get('session');
                 
-                while (output.children.length > 20) {
-                    output.removeChild(output.lastChild);
+                if (!sessionId) {
+                    cloudSync.logMessage('❌ الرابط لا يحتوي على معرف جلسة صحيح');
+                    return;
+                }
+
+                const success = await cloudSync.downloadQuestions(sessionId);
+                if (success) {
+                    linkInput.value = '';
+                }
+                
+            } catch (error) {
+                cloudSync.logMessage('❌ رابط غير صحيح: ' + error.message);
+            }
+        }
+
+        function enableAutoSync() {
+            autoSyncEnabled = !autoSyncEnabled;
+            const button = event.target;
+            
+            if (autoSyncEnabled) {
+                button.textContent = 'إيقاف التحديث التلقائي';
+                button.className = 'btn danger';
+                cloudSync.logMessage('🔄 تم تفعيل التحديث التلقائي');
+                
+                // فحص دوري كل دقيقة
+                window.autoSyncInterval = setInterval(() => {
+                    if (isFirebaseReady && cloudSync.isOnline) {
+                        cloudSync.downloadQuestions();
+                    }
+                }, 60000);
+                
+            } else {
+                button.textContent = 'تفعيل التحديث التلقائي';
+                button.className = 'btn success';
+                cloudSync.logMessage('⏹️ تم إيقاف التحديث التلقائي');
+                
+                if (window.autoSyncInterval) {
+                    clearInterval(window.autoSyncInterval);
                 }
             }
         }
 
-        // تطبيق الإصلاح تلقائياً عند تحميل الصفحة
+        async function viewCloudQuestions() {
+            if (!isFirebaseReady) {
+                cloudSync.logMessage('❌ Firebase غير متاح');
+                return;
+            }
+
+            try {
+                cloudSync.logMessage('🔍 جاري البحث عن الأسئلة في السحابة...');
+                
+                const q = window.firestore.query(
+                    window.firestore.collection(window.db, 'questionSets'),
+                    window.firestore.where('isActive', '==', true),
+                    window.firestore.orderBy('createdAt', 'desc')
+                );
+                
+                const querySnapshot = await window.firestore.getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    cloudSync.logMessage('📝 لا توجد أسئلة في السحابة');
+                    return;
+                }
+
+                cloudSync.logMessage('📊 الأسئلة المتاحة في السحابة:');
+                querySnapshot.docs.forEach((doc, index) => {
+                    const data = doc.data();
+                    const createdAt = data.createdAt?.toDate?.() || new Date(data.metadata?.lastModified);
+                    cloudSync.logMessage(`${index + 1}. معرف: ${doc.id} | الأسئلة: ${data.totalQuestions} | التاريخ: ${createdAt.toLocaleString('ar-SA')}`);
+                });
+
+            } catch (error) {
+                cloudSync.logMessage('❌ خطأ في عرض الأسئلة: ' + error.message);
+            }
+        }
+
+        async function syncLocalToCloud() {
+            if (!isFirebaseReady) {
+                cloudSync.logMessage('❌ Firebase غير متاح');
+                return;
+            }
+
+            try {
+                cloudSync.logMessage('🔄 جاري مزامنة البيانات المحلية مع السحابة...');
+                
+                // جلب جميع البيانات المحلية
+                const localData = {
+                    adminDaily: JSON.parse(localStorage.getItem('adminDailyQuestions') || '[]'),
+                    adminWeekly: JSON.parse(localStorage.getItem('adminWeeklyQuestions') || '[]'),
+                    nafisDaily: JSON.parse(localStorage.getItem('nafisMainDailyQuestions') || '[]'),
+                    nafisWeekly: JSON.parse(localStorage.getItem('nafisMainWeeklyQuestions') || '[]'),
+                    students: JSON.parse(localStorage.getItem('nafisStudentDB') || '{}')
+                };
+
+                // دمج البيانات
+                const combinedDaily = [...new Set([
+                    ...localData.adminDaily,
+                    ...localData.nafisDaily
+                ])];
+
+                const combinedWeekly = [...new Set([
+                    ...localData.adminWeekly,
+                    ...localData.nafisWeekly
+                ])];
+
+                if (combinedDaily.length === 0 && combinedWeekly.length === 0) {
+                    cloudSync.logMessage('⚠️ لا توجد بيانات محلية للمزامنة');
+                    return;
+                }
+
+                // إنشاء مجموعة موحدة
+                const syncSet = {
+                    id: `sync_${Date.now()}`,
+                    daily: combinedDaily,
+                    weekly: combinedWeekly,
+                    students: Object.values(localData.students),
+                    createdAt: window.firestore.serverTimestamp(),
+                    syncType: 'local-to-cloud',
+                    isActive: true,
+                    totalQuestions: combinedDaily.length + combinedWeekly.length,
+                    metadata: {
+                        source: 'local-sync',
+                        version: '2.0',
+                        lastModified: new Date().toISOString()
+                    }
+                };
+
+                // رفع للسحابة
+                const docRef = window.firestore.doc(window.db, 'questionSets', syncSet.id);
+                await window.firestore.setDoc(docRef, syncSet);
+
+                cloudSync.logMessage(`✅ تم مزامنة ${syncSet.totalQuestions} سؤال و ${syncSet.students.length} طالب مع السحابة`);
+
+            } catch (error) {
+                cloudSync.logMessage('❌ خطأ في المزامنة: ' + error.message);
+            }
+        }
+
+        async function clearCloudData() {
+            if (!confirm('هل أنت متأكد من حذف جميع البيانات السحابية؟\n\nهذا الإجراء لا يمكن التراجع عنه!')) {
+                return;
+            }
+
+            if (!isFirebaseReady) {
+                cloudSync.logMessage('❌ Firebase غير متاح');
+                return;
+            }
+
+            try {
+                cloudSync.logMessage('🗑️ جاري حذف البيانات السحابية...');
+                
+                const q = window.firestore.query(
+                    window.firestore.collection(window.db, 'questionSets')
+                );
+                
+                const querySnapshot = await window.firestore.getDocs(q);
+                const batch = window.firestore.writeBatch(window.db);
+                
+                querySnapshot.docs.forEach((doc) => {
+                    batch.delete(doc.ref);
+                });
+
+                await batch.commit();
+                
+                cloudSync.logMessage(`✅ تم حذف ${querySnapshot.docs.length} مجموعة من السحابة`);
+                cloudSync.checkCloudQuestions();
+
+            } catch (error) {
+                cloudSync.logMessage('❌ خطأ في حذف البيانات: ' + error.message);
+            }
+        }
+
+        function clearLog() {
+            const logArea = document.getElementById('logArea');
+            logArea.innerHTML = '<div>تم مسح السجل...</div>';
+        }
+
+        // معالجة الروابط الواردة من المعلم
+        function handleIncomingLink() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionId = urlParams.get('session');
+            const type = urlParams.get('type');
+
+            if (sessionId && type === 'student') {
+                cloudSync.logMessage(`🔗 تم استلام رابط من المعلم - معرف الجلسة: ${sessionId}`);
+                
+                // تحميل تلقائي للأسئلة
+                setTimeout(async () => {
+                    const success = await cloudSync.downloadQuestions(sessionId);
+                    if (success) {
+                        cloudSync.logMessage('🎉 تم تحميل الأسئلة بنجاح! يمكنك الآن الذهاب لصفحة الطالب');
+                        
+                        // إشعار المستخدم
+                        alert('تم تحميل الأسئلة الجديدة بنجاح!\nيمكنك الآن الذهاب لصفحة الطالب لبدء الاختبار.');
+                    }
+                }, 2000);
+            }
+        }
+
+        // مراقبة التحديثات في الوقت الفعلي (اختياري)
+        function enableRealTimeSync() {
+            if (!isFirebaseReady) return;
+
+            try {
+                const q = window.firestore.query(
+                    window.firestore.collection(window.db, 'questionSets'),
+                    window.firestore.where('isActive', '==', true),
+                    window.firestore.orderBy('createdAt', 'desc')
+                );
+
+                window.firestore.onSnapshot(q, (querySnapshot) => {
+                    querySnapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added') {
+                            const data = change.doc.data();
+                            cloudSync.logMessage(`🔔 تم إضافة أسئلة جديدة: ${data.totalQuestions} سؤال`);
+                            
+                            // تحديث تلقائي إذا كان مفعل
+                            if (autoSyncEnabled) {
+                                cloudSync.downloadQuestions(change.doc.id);
+                            }
+                        }
+                    });
+                });
+
+                cloudSync.logMessage('📡 تم تفعيل المراقبة في الوقت الفعلي');
+
+            } catch (error) {
+                cloudSync.logMessage('⚠️ لا يمكن تفعيل المراقبة في الوقت الفعلي: ' + error.message);
+            }
+        }
+
+        // إنشاء رابط دائم لصفحة الطالب مع الأسئلة
+        function createPermanentStudentLink() {
+            if (!currentShareableData) {
+                cloudSync.logMessage('❌ يجب رفع الأسئلة أولاً');
+                return;
+            }
+
+            // ترميز البيانات في الرابط
+            const questionsData = {
+                daily: JSON.parse(localStorage.getItem('adminDailyQuestions') || '[]'),
+                weekly: JSON.parse(localStorage.getItem('adminWeeklyQuestions') || '[]')
+            };
+
+            const encodedData = btoa(JSON.stringify(questionsData));
+            const studentPageUrl = window.location.origin + '/nafisq.html?questions=' + encodedData;
+            
+            cloudSync.logMessage(`🔗 رابط صفحة الطالب مع الأسئلة: ${studentPageUrl}`);
+            
+            // عرض الرابط
+            const linkDisplay = document.getElementById('linkDisplay');
+            linkDisplay.textContent = studentPageUrl;
+            document.getElementById('shareableLink').style.display = 'block';
+            
+            return studentPageUrl;
+        }
+
+        // تهيئة النظام عند تحميل الصفحة
         document.addEventListener('DOMContentLoaded', function() {
-            log('تم تحميل صفحة الإصلاح', 'info');
-            log('اضغط "تطبيق الإصلاح" لحل المشكلة', 'warning');
+            cloudSync.logMessage('🌟 نظام المزامنة السحابية لناफס جاهز');
+            cloudSync.logMessage('📋 الميزات المتاحة:');
+            cloudSync.logMessage('   • رفع الأسئلة للسحابة');
+            cloudSync.logMessage('   • إنشاء روابط قابلة للمشاركة');
+            cloudSync.logMessage('   • تحديث تلقائي للطلاب');
+            cloudSync.logMessage('   • مزامنة في الوقت الفعلي');
+            cloudSync.logMessage('   • عمل بدون إنترنت');
+            
+            // معالجة الروابط الواردة
+            handleIncomingLink();
+            
+            // تفعيل المراقبة في الوقت الفعلي بعد 5 ثوان
+            setTimeout(() => {
+                enableRealTimeSync();
+            }, 5000);
         });
 
-        console.log('نظام إصلاح التزامن جاهز');
+        // تصدير الوظائف للاستخدام العالمي
+        window.NafisCloudSync = cloudSync;
+        window.uploadQuestions = uploadQuestions;
+        window.downloadQuestions = downloadQuestions;
+        window.generateShareableLink = generateShareableLink;
+        window.createPermanentStudentLink = createPermanentStudentLink;
+
+        console.log('🚀 Nafis Cloud Sync System Loaded Successfully');
+        console.log('📖 Available Functions:');
+        console.log('- uploadQuestions()');
+        console.log('- downloadQuestions()');
+        console.log('- generateShareableLink()');
+        console.log('- enableAutoSync()');
+        console.log('- viewCloudQuestions()');
     </script>
 </body>
 </html>
