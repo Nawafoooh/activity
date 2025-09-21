@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -807,6 +806,11 @@
                         <div class="form-group">
                             <label for="action1_details">وصف الإجراء المتخذ:</label>
                             <textarea name="action1_details" id="action1_details" rows="3" placeholder="اكتب التوجيهات والإرشادات التي قدمتها للطالب..."></textarea>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button type="button" class="btn btn-success" onclick="saveActionData(1)">
+                                <i class="fas fa-save"></i>
+                                حفظ البيانات المدخلة - الإجراء الأول
+                            </button>
                         </div>
                         <div class="signature-row">
                             <div class="form-group">
@@ -821,6 +825,16 @@
                                 <label>التاريخ:</label>
                                 <input type="date" name="teacher_date1">
                             </div>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button type="button" class="btn btn-success" onclick="saveActionData(2)">
+                                <i class="fas fa-save"></i>
+                                حفظ البيانات المدخلة - الإجراء الثاني
+                            </button>
+                        <div style="text-align: center; margin-top: 20px;">
+                            <button type="button" class="btn btn-success" onclick="saveActionData(3)">
+                                <i class="fas fa-save"></i>
+                                حفظ البيانات المدخلة - الإجراء الثالث
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -977,11 +991,15 @@
             <div class="buttons-container">
                 <button type="button" class="btn btn-primary" onclick="generatePDF()">
                     <i class="fas fa-file-pdf"></i>
-                    حفظ كملف PDF
+                    حفظ كملف PDF منظم
                 </button>
                 <button type="button" class="btn btn-warning" onclick="resetForm()">
                     <i class="fas fa-redo"></i>
-                    إعادة تعيين
+                    إعادة تعيين النموذج
+                </button>
+                <button type="button" class="btn btn-info" onclick="showSavedData()">
+                    <i class="fas fa-list"></i>
+                    عرض البيانات المحفوظة
                 </button>
             </div>
         </div>
@@ -1257,11 +1275,175 @@
             showAlert(message, type);
         }
 
-        // تحسين إنشاء PDF مع معلومات المخالفة
+        // دالة عرض البيانات المحفوظة
+        function showSavedData() {
+            let savedDataText = 'البيانات المحفوظة:\n\n';
+            
+            if (savedActionData.studentInfo) {
+                savedDataText += `بيانات الطالب:\n`;
+                savedDataText += `- الاسم: ${savedActionData.studentInfo.name}\n`;
+                savedDataText += `- الصف: ${savedActionData.studentInfo.grade}\n`;
+                savedDataText += `- الشعبة: ${savedActionData.studentInfo.section}\n`;
+                savedDataText += `- المادة: ${savedActionData.studentInfo.subject}\n`;
+                savedDataText += `- المعلم: ${savedActionData.studentInfo.teacherName}\n\n`;
+            }
+            
+            for (let i = 1; i <= 3; i++) {
+                if (savedActionData[`action${i}`]) {
+                    const actionNames = {
+                        1: 'الأول (التوجيه والإرشاد)',
+                        2: 'الثاني (الإنذار والمتابعة)',
+                        3: 'الثالث (التحويل للإدارة)'
+                    };
+                    savedDataText += `الإجراء ${actionNames[i]}:\n`;
+                    savedDataText += `- تم الحفظ: ✅\n`;
+                    savedDataText += `- التاريخ: ${savedActionData[`action${i}`].date}\n\n`;
+                }
+            }
+            
+            if (!savedActionData.action1 && !savedActionData.action2 && !savedActionData.action3) {
+                savedDataText = 'لا توجد بيانات محفوظة بعد.\nيرجى ملء وحفظ الإجراءات أولاً.';
+            }
+            
+            alert(savedDataText);
+        }
+
+        // تحسين دالة حفظ البيانات مع رسائل واضحة
+        function saveActionData(actionNumber) {
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            const subject = document.getElementById('subject').value.trim();
+            const period = document.getElementById('period').value;
+            const teacherName = document.getElementById('teacherName').value.trim();
+            
+            if (!studentName || !grade || !section || !subject || !period || !teacherName) {
+                showAlert('يرجى تعبئة جميع بيانات الطالب والحصة أولاً قبل حفظ الإجراء', 'warning');
+                return false;
+            }
+
+            // جمع بيانات الطالب
+            if (!savedActionData.studentInfo) {
+                savedActionData.studentInfo = {
+                    name: studentName,
+                    grade: grade,
+                    section: section,
+                    subject: subject,
+                    period: period,
+                    teacherName: teacherName,
+                    reasons: getSelectedReasons(),
+                    otherReason: document.getElementById('otherReason').value.trim(),
+                    problemDescription: document.getElementById('problemDescription').value.trim()
+                };
+            }
+
+            // جمع بيانات الإجراء
+            let actionData = {};
+            
+            if (actionNumber === 3) {
+                // للإجراء الثالث
+                actionData = {
+                    details: document.querySelector(`[name="action3_teacher_details"]`)?.value || '',
+                    teacherName: document.querySelector(`[name="teacher_name3"]`)?.value || '',
+                    signature: document.querySelector(`[name="teacher_signature3"]`)?.value || '',
+                    date: document.querySelector(`[name="teacher_date3"]`)?.value || '',
+                    savedAt: new Date().toISOString()
+                };
+                
+                // بيانات الوكيل
+                actionData.deputy = {
+                    details: document.querySelector(`[name="action3_details"]`)?.value || '',
+                    name: document.querySelector(`[name="deputy_name3"]`)?.value || '',
+                    signature: document.querySelector(`[name="deputy_signature3"]`)?.value || '',
+                    date: document.querySelector(`[name="deputy_date3"]`)?.value || '',
+                    transferToCounselor: document.querySelector(`[name="transfer_to_counselor"]`)?.checked || false
+                };
+                
+                // بيانات المرشد
+                actionData.counselor = {
+                    details: document.querySelector(`[name="counselor_action"]`)?.value || '',
+                    name: document.querySelector(`[name="counselor_name"]`)?.value || '',
+                    signature: document.querySelector(`[name="counselor_signature"]`)?.value || '',
+                    date: document.querySelector(`[name="counselor_date"]`)?.value || ''
+                };
+            } else {
+                // للإجراء الأول والثاني
+                actionData = {
+                    details: document.querySelector(`[name="action${actionNumber}_details"]`)?.value || '',
+                    teacherName: document.querySelector(`[name="teacher_name${actionNumber}"]`)?.value || '',
+                    signature: document.querySelector(`[name="teacher_signature${actionNumber}"]`)?.value || '',
+                    date: document.querySelector(`[name="teacher_date${actionNumber}"]`)?.value || '',
+                    savedAt: new Date().toISOString()
+                };
+            }
+
+            // التحقق من البيانات المطلوبة
+            if (!actionData.details || !actionData.teacherName || !actionData.signature || !actionData.date) {
+                showAlert(`يرجى تعبئة جميع حقول الإجراء ${actionNumber}:<br>
+                    • وصف الإجراء المتخذ<br>
+                    • اسم المعلم<br>
+                    • التوقيع<br>
+                    • التاريخ`, 'warning');
+                return false;
+            }
+
+            // حفظ البيانات
+            savedActionData[`action${actionNumber}`] = actionData;
+            
+            // حفظ في التخزين المحلي
+            const studentKey = `${studentName}_${grade}_${section}`;
+            if (!studentDatabase[studentKey]) {
+                studentDatabase[studentKey] = { count: currentViolationCount, history: [], actions: {} };
+            }
+            studentDatabase[studentKey].actions[`action${actionNumber}`] = actionData;
+            saveToStorage();
+
+            // تحديث واجهة الزر
+            const saveButton = document.querySelector(`button[onclick="saveActionData(${actionNumber})"]`);
+            if (saveButton) {
+                saveButton.innerHTML = '<i class="fas fa-check-circle"></i> تم حفظ البيانات بنجاح';
+                saveButton.className = 'btn btn-success';
+                saveButton.style.background = 'var(--gradient-success)';
+                saveButton.disabled = true;
+                
+                // إعادة تفعيل الزر بعد 3 ثوان
+                setTimeout(() => {
+                    saveButton.innerHTML = `<i class="fas fa-save"></i> حفظ البيانات المدخلة - الإجراء ${actionNumber === 1 ? 'الأول' : actionNumber === 2 ? 'الثاني' : 'الثالث'}`;
+                    saveButton.disabled = false;
+                }, 3000);
+            }
+
+            const actionNames = {
+                1: 'الأول (التوجيه والإرشاد)',
+                2: 'الثاني (الإنذار والمتابعة)', 
+                3: 'الثالث (التحويل للإدارة)'
+            };
+
+            showAlert(`✅ تم حفظ جميع البيانات المدخلة للإجراء ${actionNames[actionNumber]} بنجاح!<br>
+                <small>يمكنك الآن إنشاء ملف PDF أو الانتقال لإجراء آخر</small>`, 'success');
+            
+            return true;
+        }
+
+        // دالة تحقق من حفظ البيانات قبل إنشاء PDF
+        function checkSavedDataBeforePDF() {
+            const hasAction1 = savedActionData.action1 !== null;
+            const hasAction2 = savedActionData.action2 !== null;
+            const hasAction3 = savedActionData.action3 !== null;
+            
+            if (!hasAction1 && !hasAction2 && !hasAction3) {
+                showAlert('لم يتم حفظ أي بيانات بعد!<br>يرجى ملء وحفظ الإجراء المناسب أولاً', 'warning');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // تحديث دالة إنشاء PDF للتحقق من البيانات المحفوظة
         function generatePDF() {
             const { jsPDF } = window.jspdf;
             
-            // التحقق من تعبئة البيانات الأساسية
+            // التحقق من البيانات الأساسية
             const studentName = document.getElementById('studentName').value.trim();
             const grade = document.getElementById('grade').value;
             const section = document.getElementById('section').value;
@@ -1276,77 +1458,471 @@
                 return;
             }
 
-            showAlert('جاري إنشاء ملف PDF... يرجى الانتظار', 'info');
+            // التحقق من وجود بيانات محفوظة
+            if (!checkSavedDataBeforePDF()) {
+                return;
+            }
 
-            // إخفاء الأزرار والمؤشرات مؤقتاً
-            document.querySelectorAll('.btn').forEach(btn => btn.style.display = 'none');
-            document.getElementById('autoCheck').style.display = 'none';
+            // جمع البيانات الحالية إذا لم تكن محفوظة
+            if (!savedActionData.studentInfo) {
+                savedActionData.studentInfo = {
+                    name: studentName,
+                    grade: grade,
+                    section: section,
+                    subject: document.getElementById('subject').value.trim(),
+                    period: document.getElementById('period').value,
+                    teacherName: document.getElementById('teacherName').value.trim(),
+                    reasons: getSelectedReasons(),
+                    otherReason: document.getElementById('otherReason').value.trim(),
+                    problemDescription: document.getElementById('problemDescription').value.trim()
+                };
+            }
 
-            // تحويل الصفحة إلى canvas
-            html2canvas(document.getElementById('formContainer'), {
-                allowTaint: true,
-                useCORS: true,
-                scale: 2,
-                scrollX: 0,
-                scrollY: 0,
-                width: document.getElementById('formContainer').scrollWidth,
-                height: document.getElementById('formContainer').scrollHeight,
-                backgroundColor: '#ffffff'
-            }).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                
-                // إنشاء PDF بحجم A4
+            showAlert('جاري إنشاء ملف PDF منظم... يرجى الانتظار', 'info');
+
+            try {
+                // إنشاء PDF جديد
                 const pdf = new jsPDF('p', 'mm', 'a4');
-                const imgWidth = 210; // عرض A4 بالملليمتر
-                const pageHeight = 295; // ارتفاع A4 بالملليمتر
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                let heightLeft = imgHeight;
-                let position = 0;
+                
+                // إعدادات الصفحة
+                const pageWidth = 210;
+                const pageHeight = 297;
+                const margin = 20;
+                const contentWidth = pageWidth - (margin * 2);
+                let yPosition = margin;
 
-                // إضافة الصفحة الأولى
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-                heightLeft -= pageHeight;
+                // دالة لإضافة نص مع تحقق من نهاية الصفحة
+                const addText = (text, x, y, options = {}) => {
+                    pdf.setFont('helvetica', options.style || 'normal');
+                    pdf.setFontSize(options.size || 12);
+                    if (options.align === 'center') {
+                        pdf.text(text, x, y, { align: 'center' });
+                    } else if (options.align === 'right') {
+                        pdf.text(text, x, y, { align: 'right' });
+                    } else {
+                        pdf.text(text, x, y);
+                    }
+                    return y + (options.lineHeight || 7);
+                };
 
-                // إضافة صفحات إضافية إذا لزم الأمر
-                while (heightLeft >= 0) {
-                    position = heightLeft - imgHeight;
-                    pdf.addPage();
-                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-                    heightLeft -= pageHeight;
+                // دالة لإضافة خط
+                const addLine = (y) => {
+                    pdf.setLineWidth(0.5);
+                    pdf.line(margin, y, pageWidth - margin, y);
+                    return y + 5;
+                };
+
+                // رأس الصفحة
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(16);
+                yPosition = addText('المملكة العربية السعودية', pageWidth / 2, yPosition, { align: 'center', size: 16, style: 'bold' });
+                yPosition = addText('وزارة التعليم', pageWidth / 2, yPosition, { align: 'center', size: 14, style: 'bold' });
+                yPosition = addText('مكتب تعليم أحد والعوالي', pageWidth / 2, yPosition, { align: 'center', size: 12, style: 'bold' });
+                yPosition = addText('متوسطة المنذر بن عمرو الأنصاري', pageWidth / 2, yPosition, { align: 'center', size: 12, style: 'bold' });
+                yPosition = addText('مدير المدرسة: خالد المطيري', pageWidth / 2, yPosition, { align: 'center', size: 10 });
+                
+                yPosition += 10;
+                yPosition = addLine(yPosition);
+                
+                // عنوان النموذج
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(18);
+                yPosition = addText('نموذج متابعة الطالب', pageWidth / 2, yPosition, { align: 'center', size: 18, style: 'bold' });
+                yPosition += 10;
+
+                // بيانات الطالب
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(14);
+                yPosition = addText('بيانات الطالب:', margin, yPosition, { size: 14, style: 'bold' });
+                yPosition += 5;
+
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(12);
+                const studentInfo = savedActionData.studentInfo;
+                yPosition = addText(`اسم الطالب: ${studentInfo.name}`, margin, yPosition);
+                yPosition = addText(`الصف: ${studentInfo.grade}`, margin, yPosition);
+                yPosition = addText(`الشعبة: ${studentInfo.section}`, margin, yPosition);
+                yPosition = addText(`المادة: ${studentInfo.subject}`, margin, yPosition);
+                yPosition = addText(`الحصة: ${studentInfo.period}`, margin, yPosition);
+                yPosition = addText(`المعلم: ${studentInfo.teacherName}`, margin, yPosition);
+                
+                if (studentInfo.reasons && studentInfo.reasons.length > 0) {
+                    yPosition = addText(`أسباب المخالفة: ${studentInfo.reasons.join(', ')}`, margin, yPosition);
+                }
+                if (studentInfo.otherReason) {
+                    yPosition = addText(`أسباب أخرى: ${studentInfo.otherReason}`, margin, yPosition);
+                }
+                if (studentInfo.problemDescription) {
+                    yPosition = addText(`وصف المشكلة: ${studentInfo.problemDescription}`, margin, yPosition);
+                }
+                
+                yPosition += 10;
+                yPosition = addLine(yPosition);
+
+                // الإجراءات المحفوظة فقط
+                for (let i = 1; i <= 3; i++) {
+                    const action = savedActionData[`action${i}`];
+                    if (action) {
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setFontSize(14);
+                        const actionTitles = {
+                            1: 'الإجراء الأول - التوجيه والإرشاد',
+                            2: 'الإجراء الثاني - الإنذار والمتابعة', 
+                            3: 'الإجراء الثالث - التحويل للإدارة'
+                        };
+                        yPosition = addText(actionTitles[i], margin, yPosition, { size: 14, style: 'bold' });
+                        yPosition += 5;
+
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setFontSize(11);
+                        yPosition = addText(`وصف الإجراء: ${action.details}`, margin, yPosition);
+                        yPosition = addText(`اسم المعلم: ${action.teacherName}`, margin, yPosition);
+                        yPosition = addText(`التوقيع: ${action.signature}`, margin, yPosition);
+                        yPosition = addText(`التاريخ: ${action.date}`, margin, yPosition);
+
+                        if (i === 3 && action.deputy) {
+                            yPosition += 5;
+                            pdf.setFont('helvetica', 'bold');
+                            yPosition = addText('إجراءات وكيل شؤون الطلاب:', margin, yPosition, { style: 'bold' });
+                            pdf.setFont('helvetica', 'normal');
+                            if (action.deputy.details) {
+                                yPosition = addText(`وصف الإجراء: ${action.deputy.details}`, margin, yPosition);
+                                yPosition = addText(`اسم الوكيل: ${action.deputy.name}`, margin, yPosition);
+                                yPosition = addText(`التوقيع: ${action.deputy.signature}`, margin, yPosition);
+                                yPosition = addText(`التاريخ: ${action.deputy.date}`, margin, yPosition);
+                            } else {
+                                yPosition = addText('وصف الإجراء: ___________________________________', margin, yPosition);
+                                yPosition = addText('اسم الوكيل: _______________ التوقيع: _______________ التاريخ: _______________', margin, yPosition);
+                            }
+                            
+                            if (action.deputy.transferToCounselor) {
+                                yPosition = addText('✓ تمت إحالته إلى المرشد الطلابي', margin, yPosition);
+                            }
+
+                            yPosition += 5;
+                            pdf.setFont('helvetica', 'bold');
+                            yPosition = addText('إجراءات المرشد الطلابي:', margin, yPosition, { style: 'bold' });
+                            pdf.setFont('helvetica', 'normal');
+                            if (action.counselor && action.counselor.details) {
+                                yPosition = addText(`وصف الإجراء: ${action.counselor.details}`, margin, yPosition);
+                                yPosition = addText(`اسم المرشد: ${action.counselor.name}`, margin, yPosition);
+                                yPosition = addText(`التوقيع: ${action.counselor.signature}`, margin, yPosition);
+                                yPosition = addText(`التاريخ: ${action.counselor.date}`, margin, yPosition);
+                            } else {
+                                yPosition = addText('وصف الإجراء: ___________________________________', margin, yPosition);
+                                yPosition = addText('اسم المرشد: _______________ التوقيع: _______________ التاريخ: _______________', margin, yPosition);
+                            }
+                        }
+
+                        yPosition += 10;
+                        if (i < 3) {
+                            yPosition = addLine(yPosition);
+                        }
+                    }
                 }
 
-                // اسم الملف مع رقم المخالفة ونوع الإجراء
-                const actionType = getActionType(currentViolationCount);
+                // خانات فارغة للوكيل والمرشد إذا لم تكن معبأة في الإجراء الثالث
+                if (!savedActionData.action3 || !savedActionData.action3.deputy || !savedActionData.action3.deputy.details) {
+                    yPosition += 10;
+                    pdf.setFont('helvetica', 'bold');
+                    yPosition = addText('إجراءات وكيل شؤون الطلاب:', margin, yPosition, { style: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    yPosition = addText('وصف الإجراء: ___________________________________', margin, yPosition);
+                    yPosition = addText('اسم الوكيل: _______________ التوقيع: _______________ التاريخ: _______________', margin, yPosition);
+                    yPosition += 10;
+                    
+                    pdf.setFont('helvetica', 'bold');
+                    yPosition = addText('إجراءات المرشد الطلابي:', margin, yPosition, { style: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    yPosition = addText('وصف الإجراء: ___________________________________', margin, yPosition);
+                    yPosition = addText('اسم المرشد: _______________ التوقيع: _______________ التاريخ: _______________', margin, yPosition);
+                }
+
+                // تذييل الصفحة
+                pdf.setFont('helvetica', 'italic');
+                pdf.setFontSize(10);
+                pdf.text('تنفيذ وتصميم: نواف الصبحي', pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+                // حفظ الملف
                 const currentDate = new Date().toLocaleDateString('ar-SA').replace(/\//g, '-');
-                const fileName = `مخالفة_${currentViolationCount}_${actionType.replace(/\s+/g, '_')}_${studentName}_${grade}_${section}_${currentDate}.pdf`;
+                const fileName = `نموذج_متابعة_${studentInfo.name.replace(/\s+/g, '_')}_${studentInfo.grade.replace(/\s+/g, '_')}_${studentInfo.section}_${currentDate}.pdf`;
                 
                 pdf.save(fileName);
 
-                // تحديث سجل الطالب بمعلومات الحفظ
-                const studentKey = `${studentName}_${grade}_${section}`;
-                if (studentDatabase[studentKey]) {
-                    if (!studentDatabase[studentKey].actions) {
-                        studentDatabase[studentKey].actions = {};
-                    }
-                    studentDatabase[studentKey].actions[`action${currentViolationCount}`] = {
-                        savedAt: new Date().toISOString(),
-                        pdfGenerated: true,
-                        actionType: actionType
-                    };
-                    saveToStorage();
-                }
+                showAlert(`✅ تم إنشاء ملف PDF منظم بنجاح!<br><strong>اسم الملف:</strong> ${fileName}<br><small>الملف يحتوي على جميع البيانات المحفوظة</small>`, 'success');
 
-                // إظهار الأزرار مرة أخرى
-                document.querySelectorAll('.btn').forEach(btn => btn.style.display = 'inline-flex');
-
-                showAlert(`تم حفظ ملف PDF بنجاح!<br><strong>اسم الملف:</strong> ${fileName}`, 'success');
-            }).catch(error => {
+            } catch (error) {
                 console.error('خطأ في إنشاء PDF:', error);
                 showAlert('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
-                
-                // إظهار الأزرار مرة أخرى
-                document.querySelectorAll('.btn').forEach(btn => btn.style.display = 'inline-flex');
+            }
+        }
+
+        // إزالة دالة addSaveButtons لأنها لم تعد مطلوبة
+        // حيث أن أزرار الحفظ أصبحت مضمنة في HTML مباشرة
+
+        // الحصول على الأسباب المحددة
+        function getSelectedReasons() {
+            const reasons = [];
+            document.querySelectorAll('input[name="reason"]:checked').forEach(checkbox => {
+                reasons.push(checkbox.value);
             });
+            return reasons;
+        }
+
+        // إنشاء PDF مبسط ومنظم
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            
+            // التحقق من البيانات الأساسية
+            const studentName = document.getElementById('studentName').value.trim();
+            const grade = document.getElementById('grade').value;
+            const section = document.getElementById('section').value;
+            
+            if (!studentName || !grade || !section) {
+                showAlert('يرجى تعبئة بيانات الطالب الأساسية قبل حفظ الـ PDF', 'warning');
+                return;
+            }
+
+            if (currentViolationCount === 0) {
+                showAlert('يرجى إجراء فحص لسجل الطالب أولاً', 'warning');
+                return;
+            }
+
+            // جمع البيانات الحالية إذا لم تكن محفوظة
+            if (!savedActionData.studentInfo) {
+                savedActionData.studentInfo = {
+                    name: studentName,
+                    grade: grade,
+                    section: section,
+                    subject: document.getElementById('subject').value.trim(),
+                    period: document.getElementById('period').value,
+                    teacherName: document.getElementById('teacherName').value.trim(),
+                    reasons: getSelectedReasons(),
+                    otherReason: document.getElementById('otherReason').value.trim(),
+                    problemDescription: document.getElementById('problemDescription').value.trim()
+                };
+            }
+
+            showAlert('جاري إنشاء ملف PDF منظم... يرجى الانتظار', 'info');
+
+            try {
+                // إنشاء PDF جديد
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // إعدادات الصفحة
+                const pageWidth = 210;
+                const pageHeight = 297;
+                const margin = 20;
+                const contentWidth = pageWidth - (margin * 2);
+                let yPosition = margin;
+
+                // دالة لإضافة نص مع تحقق من نهاية الصفحة
+                const addText = (text, x, y, options = {}) => {
+                    pdf.setFont('helvetica', options.style || 'normal');
+                    pdf.setFontSize(options.size || 12);
+                    if (options.align === 'center') {
+                        pdf.text(text, x, y, { align: 'center' });
+                    } else if (options.align === 'right') {
+                        pdf.text(text, x, y, { align: 'right' });
+                    } else {
+                        pdf.text(text, x, y);
+                    }
+                    return y + (options.lineHeight || 7);
+                };
+
+                // دالة لإضافة خط
+                const addLine = (y) => {
+                    pdf.setLineWidth(0.5);
+                    pdf.line(margin, y, pageWidth - margin, y);
+                    return y + 5;
+                };
+
+                // رأس الصفحة
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(16);
+                yPosition = addText('المملكة العربية السعودية', pageWidth / 2, yPosition, { align: 'center', size: 16, style: 'bold' });
+                yPosition = addText('وزارة التعليم', pageWidth / 2, yPosition, { align: 'center', size: 14, style: 'bold' });
+                yPosition = addText('مكتب تعليم أحد والعوالي', pageWidth / 2, yPosition, { align: 'center', size: 12, style: 'bold' });
+                yPosition = addText('متوسطة المنذر بن عمرو الأنصاري', pageWidth / 2, yPosition, { align: 'center', size: 12, style: 'bold' });
+                yPosition = addText('مدير المدرسة: خالد المطيري', pageWidth / 2, yPosition, { align: 'center', size: 10 });
+                
+                yPosition += 10;
+                yPosition = addLine(yPosition);
+                
+                // عنوان النموذج
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(18);
+                yPosition = addText('نموذج متابعة الطالب', pageWidth / 2, yPosition, { align: 'center', size: 18, style: 'bold' });
+                yPosition += 10;
+
+                // بيانات الطالب
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(14);
+                yPosition = addText('بيانات الطالب:', margin, yPosition, { size: 14, style: 'bold' });
+                yPosition += 5;
+
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(12);
+                const studentInfo = savedActionData.studentInfo;
+                yPosition = addText(`اسم الطالب: ${studentInfo.name}`, margin, yPosition);
+                yPosition = addText(`الصف: ${studentInfo.grade}`, margin, yPosition);
+                yPosition = addText(`الشعبة: ${studentInfo.section}`, margin, yPosition);
+                yPosition = addText(`المادة: ${studentInfo.subject}`, margin, yPosition);
+                yPosition = addText(`الحصة: ${studentInfo.period}`, margin, yPosition);
+                yPosition = addText(`المعلم: ${studentInfo.teacherName}`, margin, yPosition);
+                
+                if (studentInfo.reasons && studentInfo.reasons.length > 0) {
+                    yPosition = addText(`أسباب المخالفة: ${studentInfo.reasons.join(', ')}`, margin, yPosition);
+                }
+                if (studentInfo.otherReason) {
+                    yPosition = addText(`أسباب أخرى: ${studentInfo.otherReason}`, margin, yPosition);
+                }
+                if (studentInfo.problemDescription) {
+                    yPosition = addText(`وصف المشكلة: ${studentInfo.problemDescription}`, margin, yPosition);
+                }
+                
+                yPosition += 10;
+                yPosition = addLine(yPosition);
+
+                // الإجراءات
+                for (let i = 1; i <= 3; i++) {
+                    const action = savedActionData[`action${i}`];
+                    if (action) {
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setFontSize(14);
+                        const actionTitles = {
+                            1: 'الإجراء الأول - التوجيه والإرشاد',
+                            2: 'الإجراء الثاني - الإنذار والمتابعة', 
+                            3: 'الإجراء الثالث - التحويل للإدارة'
+                        };
+                        yPosition = addText(actionTitles[i], margin, yPosition, { size: 14, style: 'bold' });
+                        yPosition += 5;
+
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setFontSize(11);
+                        yPosition = addText(`وصف الإجراء: ${action.details}`, margin, yPosition);
+                        yPosition = addText(`اسم المعلم: ${action.teacherName}`, margin, yPosition);
+                        yPosition = addText(`التوقيع: ${action.signature}`, margin, yPosition);
+                        yPosition = addText(`التاريخ: ${action.date}`, margin, yPosition);
+
+                        if (i === 3 && action.deputy) {
+                            yPosition += 5;
+                            pdf.setFont('helvetica', 'bold');
+                            yPosition = addText('إجراءات وكيل شؤون الطلاب:', margin, yPosition, { style: 'bold' });
+                            pdf.setFont('helvetica', 'normal');
+                            yPosition = addText(`وصف الإجراء: ${action.deputy.details}`, margin, yPosition);
+                            yPosition = addText(`اسم الوكيل: ${action.deputy.name}`, margin, yPosition);
+                            yPosition = addText(`التوقيع: ${action.deputy.signature}`, margin, yPosition);
+                            yPosition = addText(`التاريخ: ${action.deputy.date}`, margin, yPosition);
+                            
+                            if (action.deputy.transferToCounselor) {
+                                yPosition = addText('✓ تمت إحالته إلى المرشد الطلابي', margin, yPosition);
+                            }
+
+                            if (action.counselor && action.counselor.details) {
+                                yPosition += 5;
+                                pdf.setFont('helvetica', 'bold');
+                                yPosition = addText('إجراءات المرشد الطلابي:', margin, yPosition, { style: 'bold' });
+                                pdf.setFont('helvetica', 'normal');
+                                yPosition = addText(`وصف الإجراء: ${action.counselor.details}`, margin, yPosition);
+                                yPosition = addText(`اسم المرشد: ${action.counselor.name}`, margin, yPosition);
+                                yPosition = addText(`التوقيع: ${action.counselor.signature}`, margin, yPosition);
+                                yPosition = addText(`التاريخ: ${action.counselor.date}`, margin, yPosition);
+                            }
+                        }
+
+                        yPosition += 10;
+                        if (i < 3) {
+                            yPosition = addLine(yPosition);
+                        }
+                    }
+                }
+
+                // خانات فارغة للوكيل والمرشد إذا لم تكن معبأة
+                if (!savedActionData.action3 || !savedActionData.action3.deputy || !savedActionData.action3.deputy.details) {
+                    yPosition += 10;
+                    pdf.setFont('helvetica', 'bold');
+                    yPosition = addText('إجراءات وكيل شؤون الطلاب:', margin, yPosition, { style: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    yPosition = addText('وصف الإجراء: ___________________________________', margin, yPosition);
+                    yPosition = addText('اسم الوكيل: _____________________ التوقيع: _____________________ التاريخ: _____________________', margin, yPosition);
+                    yPosition += 10;
+                    
+                    pdf.setFont('helvetica', 'bold');
+                    yPosition = addText('إجراءات المرشد الطلابي:', margin, yPosition, { style: 'bold' });
+                    pdf.setFont('helvetica', 'normal');
+                    yPosition = addText('وصف الإجراء: ___________________________________', margin, yPosition);
+                    yPosition = addText('اسم المرشد: _____________________ التوقيع: _____________________ التاريخ: _____________________', margin, yPosition);
+                }
+
+                // تذييل الصفحة
+                pdf.setFont('helvetica', 'italic');
+                pdf.setFontSize(10);
+                pdf.text('تنفيذ وتصميم: نواف الصبحي', pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+                // حفظ الملف
+                const currentDate = new Date().toLocaleDateString('ar-SA').replace(/\//g, '-');
+                const fileName = `نموذج_متابعة_${studentInfo.name.replace(/\s+/g, '_')}_${studentInfo.grade.replace(/\s+/g, '_')}_${studentInfo.section}_${currentDate}.pdf`;
+                
+                pdf.save(fileName);
+
+                showAlert(`تم إنشاء ملف PDF منظم بنجاح!<br><strong>اسم الملف:</strong> ${fileName}`, 'success');
+
+            } catch (error) {
+                console.error('خطأ في إنشاء PDF:', error);
+                showAlert('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.', 'error');
+            }
+        }
+
+        // إضافة أزرار حفظ للإجراءات
+        function addSaveButtons() {
+            // إضافة زر حفظ للإجراء الأول
+            const action1 = document.getElementById('action1');
+            if (action1) {
+                const saveBtn1 = document.createElement('button');
+                saveBtn1.type = 'button';
+                saveBtn1.className = 'btn btn-success';
+                saveBtn1.style.marginTop = '15px';
+                saveBtn1.innerHTML = '<i class="fas fa-save"></i> حفظ بيانات الإجراء الأول';
+                saveBtn1.onclick = () => saveActionData(1);
+                
+                const signatureSection1 = action1.querySelector('.signature-section');
+                if (signatureSection1) {
+                    signatureSection1.appendChild(saveBtn1);
+                }
+            }
+
+            // إضافة زر حفظ للإجراء الثاني
+            const action2 = document.getElementById('action2');
+            if (action2) {
+                const saveBtn2 = document.createElement('button');
+                saveBtn2.type = 'button';
+                saveBtn2.className = 'btn btn-success';
+                saveBtn2.style.marginTop = '15px';
+                saveBtn2.innerHTML = '<i class="fas fa-save"></i> حفظ بيانات الإجراء الثاني';
+                saveBtn2.onclick = () => saveActionData(2);
+                
+                const signatureSection2 = action2.querySelector('.signature-section');
+                if (signatureSection2) {
+                    signatureSection2.appendChild(saveBtn2);
+                }
+            }
+
+            // إضافة زر حفظ للإجراء الثالث
+            const action3 = document.getElementById('action3');
+            if (action3) {
+                const saveBtn3 = document.createElement('button');
+                saveBtn3.type = 'button';
+                saveBtn3.className = 'btn btn-success';
+                saveBtn3.style.marginTop = '15px';
+                saveBtn3.innerHTML = '<i class="fas fa-save"></i> حفظ بيانات الإجراء الثالث';
+                saveBtn3.onclick = () => saveActionData(3);
+                
+                const lastSignatureSection = action3.querySelectorAll('.signature-section');
+                if (lastSignatureSection.length > 0) {
+                    lastSignatureSection[lastSignatureSection.length - 1].appendChild(saveBtn3);
+                }
+            }
         }
 
         // عرض التنبيهات المحسنة
@@ -1700,5 +2276,15 @@
             saveToStorage();
         });
     </script>
+
+    <!-- تذييل الموقع -->
+    <footer style="margin-top: 40px; padding: 20px; text-align: center; background: linear-gradient(135deg, #f8f9ff 0%, #e8f2ff 100%); border-top: 2px solid #e1e8f0; color: #666; font-family: 'Amiri', serif;">
+        <p style="margin: 0; font-size: 16px; font-weight: 600;">
+            تنفيذ وتصميم: <span style="color: var(--primary-color); font-weight: 700;">نواف الصبحي</span>
+        </p>
+        <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.8;">
+            نظام متابعة الطلاب الذكي - متوسطة المنذر بن عمرو الأنصاري
+        </p>
+    </footer>
 </body>
 </html>
