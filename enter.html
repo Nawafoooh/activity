@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدخال البيانات حسب الأدوار</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .user-selector {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .role-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .role-btn {
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            color: white;
+            padding: 20px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .role-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .role-btn.active {
+            background: linear-gradient(145deg, #27ae60, #229954);
+        }
+
+        .data-entry-area {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        .data-entry-area.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #3498db;
+        }
+
+        .observation-form {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 5px solid #3498db;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+
+        .rating-scale {
+            display: flex;
+            justify-content: space-between;
+            background: #ecf0f1;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .rating-item {
+            text-align: center;
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .rating-item:hover {
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .rating-item.selected {
+            background: #3498db;
+            color: white;
+        }
+
+        .rating-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .rating-description {
+            font-size: 0.9em;
+        }
+
+        .evidence-checklist {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .evidence-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .evidence-item:hover {
+            background: #e9ecef;
+        }
+
+        .evidence-item input[type="checkbox"] {
+            margin-left: 15px;
+            transform: scale(1.2);
+        }
+
+        .evidence-item label {
+            flex: 1;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .btn {
+            background: linear-gradient(145deg, #27ae60, #229954);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(145deg, #3498db, #2980b9);
+        }
+
+        .btn-warning {
+            background: linear-gradient(145deg, #f39c12, #e67e22);
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .summary-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .summary-label {
+            font-size: 1.2em;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            color: #0c5460;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+
+        .teacher-observation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .teacher-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .teacher-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .teacher-name {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+
+        .quick-rating {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+        }
+
+        .quick-rating button {
+            padding: 8px 15px;
+            border: 2px solid #bdc3c7;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quick-rating button:hover {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .quick-rating button.selected {
+            background: #27ae60;
+            color: white;
+            border-color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>نظام إدخال البيانات حسب الأدوار</h1>
+            <p>إدخال المرئيات والملاحظات لتحديث الصفحة الرئيسية</p>
+        </div>
+
+        <div class="user-selector">
+            <h2>اختر دورك في المدرسة:</h2>
+            <div class="role-buttons">
+                <button class="role-btn" onclick="selectRole('math-coordinator')">منسق قسم الرياضيات</button>
+                <button class="role-btn" onclick="selectRole('arabic-coordinator')">منسق قسم اللغة العربية</button>
+                <button class="role-btn" onclick="selectRole('environment-manager')">مسؤول البيئة المدرسية</button>
+                <button class="role-btn" onclick="selectRole('outcomes-manager')">مسؤول نواتج التعلم</button>
+                <button class="role-btn" onclick="selectRole('activities-coordinator')">منسق الأنشطة</button>
+                <button class="role-btn" onclick="selectRole('guidance-counselor')">الموجه الطلابي</button>
+            </div>
+        </div>
+
+        <!-- منسق قسم الرياضيات -->
+        <div id="math-coordinator" class="data-entry-area">
+            <div class="section-title">منسق قسم الرياضيات - إدخال المرئيات والملاحظات</div>
+            
+            <div class="alert alert-info">
+                <strong>مهامك:</strong> متابعة أداء معلمي الرياضيات، تقييم طرق التدريس، رصد تحصيل الطلاب، ومتابعة الأنشطة العلاجية والإثرائية
+            </div>
+
+            <div class="teacher-observation-grid">
+                <div class="teacher-card">
+                    <div class="teacher-name">أ. عبدالله خالد</div>
+                    <div class="form-section">
+                <h3>ملاحظات المتابعة اليومية</h3>
+                <div class="form-group">
+                    <label>الحوادث أو المشاكل المسجلة:</label>
+                    <textarea rows="3" placeholder="مثال: طالب تعرض لإصابة بسيطة أثناء الاستراحة، تم تقديم الإسعاف وإبلاغ ولي الأمر"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>النجاحات والإنجازات:</label>
+                    <textarea rows="3" placeholder="مثال: فوز فريق المدرسة في مسابقة العلوم، تكريم 5 طلاب متفوقين، إنجاز مشروع خدمة مجتمعية"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>التوصيات والخطط المستقبلية:</label>
+                    <textarea rows="3" placeholder="مثال: تكثيف البرامج العلاجية في الرياضيات، توسيع برامج الأنشطة اللاصفية، تطوير برامج الموهوبين"></textarea>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-value">87%</div>
+                <div class="summary-label">مؤشر نواتج التعلم الإجمالي</div>
+            </div>
+
+            <div style="text-align: center;">
+                <button class="btn" onclick="saveOutcomesData()">حفظ وإرسال للصفحة الرئيسية</button>
+                <button class="btn btn-secondary" onclick="generateOutcomesReport()">إنشاء تقرير مفصل</button>
+            </div>
+        </div>
+
+        <!-- منسق الأنشطة -->
+        <div id="activities-coordinator" class="data-entry-area">
+            <div class="section-title">منسق الأنشطة - تقرير الأنشطة اليومية</div>
+            
+            <div class="alert alert-info">
+                <strong>مهامك:</strong> تنظيم الأنشطة اللاصفية، متابعة المسابقات، البرامج الإثرائية، والفعاليات المدرسية
+            </div>
+
+            <div class="form-section">
+                <h3>الأنشطة المنفذة اليوم</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>نوع النشاط:</label>
+                        <select>
+                            <option>نشاط علمي</option>
+                            <option>نشاط ثقافي</option>
+                            <option>نشاط رياضي</option>
+                            <option>نشاط اجتماعي</option>
+                            <option>نشاط تطوعي</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>عدد المشاركين:</label>
+                        <input type="number" min="0" value="45" placeholder="عدد الطلاب المشاركين">
+                    </div>
+                    <div class="form-group">
+                        <label>مستوى التفاعل:</label>
+                        <select>
+                            <option>ممتاز</option>
+                            <option selected>جيد جداً</option>
+                            <option>جيد</option>
+                            <option>مقبول</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>تحقيق الأهداف:</label>
+                        <input type="number" min="0" max="100" value="85" placeholder="نسبة تحقيق أهداف النشاط">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>وصف النشاط والنتائج:</label>
+                    <textarea rows="4" placeholder="مثال: ورشة تعلم البرمجة للصف الثالث متوسط، شارك 25 طالب، تعلموا أساسيات البرمجة، أظهروا حماساً كبيراً"></textarea>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>البرامج الإثرائية والمسابقات</h3>
+                <div class="evidence-checklist">
+                    <div class="evidence-item">
+                        <input type="checkbox" id="talent-program" checked>
+                        <label for="talent-program">برنامج اكتشاف المواهب نشط</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="competitions" checked>
+                        <label for="competitions">المشاركة في المسابقات الخارجية</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="enrichment-activities">
+                        <label for="enrichment-activities">الأنشطة الإثرائية للموهوبين</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="community-service" checked>
+                        <label for="community-service">أنشطة خدمة المجتمع</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-value">91%</div>
+                <div class="summary-label">فعالية الأنشطة المدرسية</div>
+            </div>
+
+            <div style="text-align: center;">
+                <button class="btn" onclick="saveActivitiesData()">حفظ وإرسال للصفحة الرئيسية</button>
+                <button class="btn btn-secondary" onclick="planNextActivity()">تخطيط النشاط التالي</button>
+            </div>
+        </div>
+
+        <!-- الموجه الطلابي -->
+        <div id="guidance-counselor" class="data-entry-area">
+            <div class="section-title">الموجه الطلابي - تقرير التوجيه والإرشاد</div>
+            
+            <div class="alert alert-info">
+                <strong>مهامك:</strong> التوجيه الأكاديمي والمهني، معالجة المشاكل السلوكية، الدعم النفسي، وبرامج التوعية
+            </div>
+
+            <div class="form-section">
+                <h3>الحالات المتابعة اليوم</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>عدد الطلاب المراجعين:</label>
+                        <input type="number" min="0" value="8" placeholder="عدد الطلاب">
+                    </div>
+                    <div class="form-group">
+                        <label>الحالات الجديدة:</label>
+                        <input type="number" min="0" value="2" placeholder="حالات جديدة">
+                    </div>
+                    <div class="form-group">
+                        <label>الحالات المحلولة:</label>
+                        <input type="number" min="0" value="3" placeholder="تم حلها">
+                    </div>
+                    <div class="form-group">
+                        <label>حالات تحتاج متابعة:</label>
+                        <input type="number" min="0" value="5" placeholder="متابعة مستمرة">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>أنواع المشاكل والحلول</h3>
+                <div class="form-group">
+                    <label>المشاكل الأكاديمية:</label>
+                    <textarea rows="3" placeholder="مثال: طالب يعاني من ضعف في الرياضيات، تم وضع خطة دعم إضافية وتنسيق مع معلم المادة"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>المشاكل السلوكية:</label>
+                    <textarea rows="3" placeholder="مثال: طالب يتأخر عن الطابور، تم التحدث معه ووضع خطة للتحسن مع متابعة يومية"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>التوجيه المهني:</label>
+                    <textarea rows="3" placeholder="مثال: جلسة توجيه لطلاب الثالث متوسط حول اختيار التخصص في الثانوية، حضر 30 طالب"></textarea>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>البرامج الوقائية والتوعوية</h3>
+                <div class="evidence-checklist">
+                    <div class="evidence-item">
+                        <input type="checkbox" id="prevention-programs" checked>
+                        <label for="prevention-programs">برامج الوقاية من المشاكل السلوكية</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="awareness-sessions" checked>
+                        <label for="awareness-sessions">جلسات التوعية</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="parent-communication">
+                        <label for="parent-communication">التواصل مع أولياء الأمور</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="peer-support" checked>
+                        <label for="peer-support">برامج الدعم بين الأقران</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-value">88%</div>
+                <div class="summary-label">فعالية برامج التوجيه والإرشاد</div>
+            </div>
+
+            <div style="text-align: center;">
+                <button class="btn" onclick="saveGuidanceData()">حفظ وإرسال للصفحة الرئيسية</button>
+                <button class="btn btn-warning" onclick="reportUrgentCase()">تبليغ عن حالة عاجلة</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function selectRole(roleId) {
+            // إخفاء جميع المناطق
+            const areas = document.querySelectorAll('.data-entry-area');
+            areas.forEach(area => area.classList.remove('active'));
+            
+            // إظهار المنطقة المحددة
+            document.getElementById(roleId).classList.add('active');
+            
+            // تحديث الأزرار
+            const buttons = document.querySelectorAll('.role-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function selectQuickRating(button, rating) {
+            const siblings = button.parentNode.querySelectorAll('button');
+            siblings.forEach(btn => btn.classList.remove('selected'));
+            button.classList.add('selected');
+        }
+
+        function selectRating(element, rating) {
+            const siblings = element.parentNode.querySelectorAll('.rating-item');
+            siblings.forEach(item => item.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        function saveMathData() {
+            const curriculum = document.getElementById('math-curriculum').value;
+            const teaching = document.getElementById('math-teaching').value;
+            const assessment = document.getElementById('math-assessment').value;
+            const activities = document.getElementById('math-activities').value;
+            
+            const overall = Math.round((parseInt(curriculum) + parseInt(teaching) + parseInt(assessment) + parseInt(activities)) / 4);
+            document.getElementById('math-overall').textContent = overall + '%';
+            
+            alert(`تم حفظ بيانات قسم الرياضيات وإرسالها للصفحة الرئيسية!\nالتقييم الإجمالي: ${overall}%`);
+        }
+
+        function saveEnvironmentData() {
+            alert('تم حفظ تقرير البيئة المدرسية وإرساله للصفحة الرئيسية!\nحالة البيئة: ممتازة (94%)');
+        }
+
+        function saveOutcomesData() {
+            alert('تم حفظ بيانات نواتج التعلم وإرسالها للصفحة الرئيسية!\nمؤشر نواتج التعلم: 87%');
+        }
+
+        function saveActivitiesData() {
+            alert('تم حفظ تقرير الأنشطة وإرساله للصفحة الرئيسية!\nفعالية الأنشطة: 91%');
+        }
+
+        function saveGuidanceData() {
+            alert('تم حفظ تقرير التوجيه والإرشاد وإرساله للصفحة الرئيسية!\nفعالية البرامج: 88%');
+        }
+
+        function previewMathReport() {
+            alert('معاينة التقرير:\n- تحسن في طرق التدريس\n- حاجة لتطوير الأنشطة\n- متابعة إضافية مطلوبة لبعض المعلمين');
+        }
+
+        function reportUrgentIssue() {
+            alert('تم إرسال تبليغ عاجل للإدارة حول مشكلة تتطلب تدخل فوري');
+        }
+
+        function generateOutcomesReport() {
+            alert('جاري إنشاء تقرير مفصل عن نواتج التعلم...');
+        }
+
+        function planNextActivity() {
+            alert('فتح واجهة تخطيط النشاط التالي...');
+        }
+
+        function reportUrgentCase() {
+            alert('تم تبليغ الإدارة عن حالة تتطلب تدخل عاجل');
+        }
+
+        // تحديث تلقائي للحسابات
+        document.addEventListener('DOMContentLoaded', function() {
+            const mathInputs = ['math-curriculum', 'math-teaching', 'math-assessment', 'math-activities'];
+            mathInputs.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', function() {
+                        updateMathOverall();
+                    });
+                }
+            });
+        });
+
+        function updateMathOverall() {
+            const curriculum = parseInt(document.getElementById('math-curriculum').value) || 0;
+            const teaching = parseInt(document.getElementById('math-teaching').value) || 0;
+            const assessment = parseInt(document.getElementById('math-assessment').value) || 0;
+            const activities = parseInt(document.getElementById('math-activities').value) || 0;
+            
+            const overall = Math.round((curriculum + teaching + assessment + activities) / 4);
+            document.getElementById('math-overall').textContent = overall + '%';
+        }
+    </script>
+</body>
+</html>-group">
+                        <label>تقييم أداء اليوم:</label>
+                        <div class="quick-rating">
+                            <button onclick="selectQuickRating(this, 'excellent')">ممتاز</button>
+                            <button onclick="selectQuickRating(this, 'good')">جيد</button>
+                            <button onclick="selectQuickRating(this, 'needs-improvement')">يحتاج تحسين</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>ملاحظات على الأداء:</label>
+                        <textarea rows="3" placeholder="مثال: استخدم طرق تفاعلية في شرح المعادلات، الطلاب متفاعلون بشكل ملحوظ"></textarea>
+                    </div>
+                </div>
+
+                <div class="teacher-card">
+                    <div class="teacher-name">أ. سارة محمد</div>
+                    <div class="form-group">
+                        <label>تقييم أداء اليوم:</label>
+                        <div class="quick-rating">
+                            <button onclick="selectQuickRating(this, 'excellent')">ممتاز</button>
+                            <button onclick="selectQuickRating(this, 'good')">جيد</button>
+                            <button onclick="selectQuickRating(this, 'needs-improvement')">يحتاج تحسين</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>ملاحظات على الأداء:</label>
+                        <textarea rows="3" placeholder="مثال: تحتاج لتنويع أساليب التقويم، اقترحت عليها استخدام التقويم التكويني أكثر"></textarea>
+                    </div>
+                </div>
+
+                <div class="teacher-card">
+                    <div class="teacher-name">أ. أحمد يوسف</div>
+                    <div class="form-group">
+                        <label>تقييم أداء اليوم:</label>
+                        <div class="quick-rating">
+                            <button onclick="selectQuickRating(this, 'excellent')">ممتاز</button>
+                            <button onclick="selectQuickRating(this, 'good')">جيد</button>
+                            <button onclick="selectQuickRating(this, 'needs-improvement')">يحتاج تحسين</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>ملاحظات على الأداء:</label>
+                        <textarea rows="3" placeholder="مثال: تطور ملحوظ في استخدام التقنية، الطلاب أظهروا فهماً أفضل للمفاهيم"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>تقييم أداء القسم الإجمالي</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>تنفيذ المنهج (%):</label>
+                        <input type="number" min="0" max="100" value="78" id="math-curriculum">
+                        <small>النسبة المنجزة من المنهج حتى اليوم</small>
+                    </div>
+                    <div class="form-group">
+                        <label>جودة طرق التدريس (%):</label>
+                        <input type="number" min="0" max="100" value="82" id="math-teaching">
+                        <small>تقييم عام لطرق التدريس المستخدمة</small>
+                    </div>
+                    <div class="form-group">
+                        <label>فعالية التقويم (%):</label>
+                        <input type="number" min="0" max="100" value="74" id="math-assessment">
+                        <small>مدى تنوع وفعالية أساليب التقويم</small>
+                    </div>
+                    <div class="form-group">
+                        <label>الأنشطة والإثراء (%):</label>
+                        <input type="number" min="0" max="100" value="69" id="math-activities">
+                        <small>جودة الأنشطة العلاجية والإثرائية</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>التحديات والإنجازات</h3>
+                <div class="form-group">
+                    <label>التحديات الحالية:</label>
+                    <textarea rows="4" placeholder="مثال: ضعف في مهارات حل المسائل اللفظية لدى طلاب الصف الثاني متوسط، نحتاج لمزيد من التدريب العملي"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>الإنجازات والنجاحات:</label>
+                    <textarea rows="4" placeholder="مثال: تحسن ملحوظ في نتائج الاختبارات القصيرة، زيادة مشاركة الطلاب في حل التمارين"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>التوصيات للتحسين:</label>
+                    <textarea rows="4" placeholder="مثال: زيادة الأنشطة التفاعلية، تطوير برنامج دعم للطلاب الضعاف، تدريب إضافي على استخدام التقنية"></textarea>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-value" id="math-overall">76%</div>
+                <div class="summary-label">التقييم العام للقسم</div>
+            </div>
+
+            <div style="text-align: center;">
+                <button class="btn" onclick="saveMathData()">حفظ وإرسال للصفحة الرئيسية</button>
+                <button class="btn btn-secondary" onclick="previewMathReport()">معاينة التقرير</button>
+            </div>
+        </div>
+
+        <!-- مسؤول البيئة المدرسية -->
+        <div id="environment-manager" class="data-entry-area">
+            <div class="section-title">مسؤول البيئة المدرسية - تقرير الحالة اليومية</div>
+            
+            <div class="alert alert-info">
+                <strong>مهامك:</strong> متابعة الأمن والسلامة، حالة المرافق، النظافة، الصيانة، والبيئة التعليمية العامة
+            </div>
+
+            <div class="form-section">
+                <h3>متطلبات الأمن والسلامة</h3>
+                <div class="evidence-checklist">
+                    <div class="evidence-item">
+                        <input type="checkbox" id="safety-cert" checked>
+                        <label for="safety-cert">شهادة الأمن والسلامة سارية المفعول</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="fire-extinguishers" checked>
+                        <label for="fire-extinguishers">طفايات الحريق في مواضعها وصالحة</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="emergency-exits">
+                        <label for="emergency-exits">مخارج الطوارئ واضحة وغير مسدودة</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="first-aid" checked>
+                        <label for="first-aid">صندوق الإسعافات الأولية مجهز</label>
+                    </div>
+                    <div class="evidence-item">
+                        <input type="checkbox" id="safety-signs" checked>
+                        <label for="safety-signs">لوحات السلامة موضوعة في أماكنها</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>حالة المرافق والمباني</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>حالة الفصول الدراسية:</label>
+                        <select>
+                            <option value="excellent">ممتازة</option>
+                            <option value="good" selected>جيدة</option>
+                            <option value="needs-maintenance">تحتاج صيانة</option>
+                            <option value="poor">سيئة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>حالة دورات المياه:</label>
+                        <select>
+                            <option value="excellent">ممتازة</option>
+                            <option value="good" selected>جيدة</option>
+                            <option value="needs-maintenance">تحتاج صيانة</option>
+                            <option value="poor">سيئة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>حالة المختبرات:</label>
+                        <select>
+                            <option value="excellent" selected>ممتازة</option>
+                            <option value="good">جيدة</option>
+                            <option value="needs-maintenance">تحتاج صيانة</option>
+                            <option value="poor">سيئة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>حالة الساحات والممرات:</label>
+                        <select>
+                            <option value="excellent">ممتازة</option>
+                            <option value="good" selected>جيدة</option>
+                            <option value="needs-maintenance">تحتاج صيانة</option>
+                            <option value="poor">سيئة</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>أعمال الصيانة والتطوير</h3>
+                <div class="form-group">
+                    <label>الصيانة المنجزة اليوم:</label>
+                    <textarea rows="3" placeholder="مثال: إصلاح مكيف الفصل 12، تنظيف خزان المياه، إضافة لوحة إرشادية جديدة"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>الصيانة المطلوبة:</label>
+                    <textarea rows="3" placeholder="مثال: إصلاح باب المختبر، طلاء الجدار الخارجي، تنظيف المكيفات"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>التطويرات المقترحة:</label>
+                    <textarea rows="3" placeholder="مثال: إضافة مظلات للساحة، تركيب كاميرات مراقبة إضافية، تحسين الإضاءة"></textarea>
+                </div>
+            </div>
+
+            <div class="rating-scale">
+                <div class="rating-item" onclick="selectRating(this, 1)">
+                    <div class="rating-number">1</div>
+                    <div class="rating-description">ضعيف</div>
+                </div>
+                <div class="rating-item" onclick="selectRating(this, 2)">
+                    <div class="rating-number">2</div>
+                    <div class="rating-description">مقبول</div>
+                </div>
+                <div class="rating-item" onclick="selectRating(this, 3)">
+                    <div class="rating-number">3</div>
+                    <div class="rating-description">جيد</div>
+                </div>
+                <div class="rating-item selected" onclick="selectRating(this, 4)">
+                    <div class="rating-number">4</div>
+                    <div class="rating-description">ممتاز</div>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-value">94%</div>
+                <div class="summary-label">تقييم البيئة المدرسية العام</div>
+            </div>
+
+            <div style="text-align: center;">
+                <button class="btn" onclick="saveEnvironmentData()">حفظ وإرسال للصفحة الرئيسية</button>
+                <button class="btn btn-warning" onclick="reportUrgentIssue()">تبليغ عن مشكلة عاجلة</button>
+            </div>
+        </div>
+
+        <!-- مسؤول نواتج التعلم -->
+        <div id="outcomes-manager" class="data-entry-area">
+            <div class="section-title">مسؤول نواتج التعلم - متابعة وتقييم</div>
+            
+            <div class="alert alert-info">
+                <strong>مهامك:</strong> متابعة التحصيل الدراسي، السلوك الطلابي، المشاركة في الأنشطة، والتطوير الشخصي للطلاب
+            </div>
+
+            <div class="form-section">
+                <h3>السلوك والانضباط المدرسي</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>نسبة الحضور اليوم (%):</label>
+                        <input type="number" min="0" max="100" value="91" id="attendance-today">
+                        <small>من إجمالي 450 طالب</small>
+                    </div>
+                    <div class="form-group">
+                        <label>عدد المخالفات السلوكية:</label>
+                        <input type="number" min="0" value="2" id="violations-today">
+                        <small>المسجلة اليوم</small>
+                    </div>
+                    <div class="form-group">
+                        <label>نسبة الالتزام بقواعد السلوك (%):</label>
+                        <input type="number" min="0" max="100" value="93" id="behavior-compliance">
+                    </div>
+                    <div class="form-group">
+                        <label>المشاركة في الأنشطة اليوم:</label>
+                        <input type="number" min="0" value="78" id="activity-participation">
+                        <small>عدد الطلاب المشاركين</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>التحصيل الدراسي والأداء الأكاديمي</h3>
+                <div class="form-group">
+                    <label>نتائج الاختبارات الأسبوعية:</label>
+                    <textarea rows="3" placeholder="مثال: تحسن في نتائج الرياضيات بنسبة 12%، استقرار في اللغة العربية، انخفاض طفيف في العلوم يحتاج متابعة"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>البرامج العلاجية والإثرائية:</label>
+                    <textarea rows="3" placeholder="مثال: تنفيذ برنامج دعم لـ15 طالب في الرياضيات، برنامج إثراء للموهوبين في العلوم لـ8 طلاب"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>التطوير الشخصي والاجتماعي:</label>
+                    <textarea rows="3" placeholder="مثال: ورشة عن مهارات التواصل، نشاط تطوعي لتنظيف البيئة، مسابقة ثقافية بين الصفوف"></textarea>
+                </div>
+            </div>
+
+            <div class="form
