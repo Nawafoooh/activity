@@ -1068,9 +1068,35 @@
         }
 
         // Start test function
-        window.startTest = function() {
+        window.startTest = async function() {
             if (!currentStudent) {
                 showNotification('يرجى تسجيل الدخول أولاً', 'error');
+                return;
+            }
+
+            // Load fresh questions from database
+            try {
+                showNotification('جارٍ تحميل الأسئلة...', 'info');
+                const questionsQuery = query(collection(db, 'questions'), where('active', '==', true));
+                const questionsSnapshot = await getDocs(questionsQuery);
+                
+                if (!questionsSnapshot.empty) {
+                    questions = [];
+                    questionsSnapshot.forEach((doc) => {
+                        questions.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    if (questions.length === 0) {
+                        showNotification('لا توجد أسئلة متاحة حالياً. تواصل مع المعلم.', 'error');
+                        return;
+                    }
+                } else {
+                    showNotification('لا توجد أسئلة متاحة حالياً. تواصل مع المعلم.', 'error');
+                    return;
+                }
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                showNotification('حدث خطأ في تحميل الأسئلة', 'error');
                 return;
             }
 
