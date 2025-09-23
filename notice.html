@@ -587,177 +587,273 @@
             setTimeout(() => { if (toast.parentElement) toast.remove(); }, 3000);
         }
 
-        // PDF Export with Arabic support using HTML2Canvas
+        // PDF Export - Simplified and more reliable approach
         async function exportToPDF(domainId) {
             try {
                 showToast('جاري إنشاء التقرير...', 'info');
                 
-                // Create HTML report
-                const reportElement = createReportHTML(domainId);
-                document.body.appendChild(reportElement);
-                
-                // Convert to canvas
-                const canvas = await html2canvas(reportElement, {
-                    allowTaint: true, useCORS: true, scale: 2, backgroundColor: '#ffffff',
-                    letterRendering: true, logging: false
-                });
-                
-                document.body.removeChild(reportElement);
-                
-                // Create PDF
                 const { jsPDF } = window.jsPDF;
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                const imgWidth = pageWidth - 20;
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                const imgData = canvas.toDataURL('image/png');
-                
-                if (imgHeight > pageHeight - 20) {
-                    // Multi-page
-                    const pagesCount = Math.ceil(imgHeight / (pageHeight - 20));
-                    const pageCanvas = document.createElement('canvas');
-                    const pageCtx = pageCanvas.getContext('2d');
-                    pageCanvas.width = canvas.width;
-                    pageCanvas.height = canvas.height / pagesCount;
-                    
-                    for (let i = 0; i < pagesCount; i++) {
-                        if (i > 0) pdf.addPage();
-                        pageCtx.fillStyle = '#ffffff';
-                        pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-                        pageCtx.drawImage(canvas, 0, i * pageCanvas.height, canvas.width, pageCanvas.height, 0, 0, pageCanvas.width, pageCanvas.height);
-                        const pageImgData = pageCanvas.toDataURL('image/png');
-                        pdf.addImage(pageImgData, 'PNG', 10, 10, imgWidth, pageHeight - 20);
-                    }
-                } else {
-                    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+                if (!jsPDF) {
+                    throw new Error('مكتبة jsPDF غير متوفرة');
                 }
                 
-                const domainTitle = indicatorsData[domainId]?.title || 'تقرير';
+                // Create PDF with proper settings
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                // Get data safely
+                const schoolName = document.getElementById('schoolName')?.value || 'متوسطة المنذر بن عمرو الأنصاري';
+                const principalName = document.getElementById('principalName')?.value || 'خالد سعود المطيري';
+                const reportDate = document.getElementById('reportDate')?.value || new Date().toISOString().split('T')[0];
+                const domainTitle = indicatorsData[domainId]?.title || 'مجال غير محدد';
+                
+                // Safe date formatting
+                const arabicDate = new Date(reportDate).toLocaleDateString('ar-SA');
+                
+                const pageWidth = doc.internal.pageSize.width;
+                const pageHeight = doc.internal.pageSize.height;
+                let yPos = 20;
+                
+                // Header
+                doc.setFillColor(44, 85, 48);
+                doc.rect(0, 0, pageWidth, 40, 'F');
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(12);
+                doc.text('المملكة العربية السعودية', pageWidth/2, yPos, { align: 'center' });
+                
+                yPos += 6;
+                doc.setFontSize(14);
+                doc.text('وزارة التعليم', pageWidth/2, yPos, { align: 'center' });
+                
+                yPos += 6;
+                doc.setFontSize(10);
+                doc.text('مكتب قطاع أحد والعوالي', pageWidth/2, yPos, { align: 'center' });
+                
+                yPos += 8;
+                doc.setFontSize(13);
+                doc.text('تقرير متابعة مؤشرات التقويم المدرسي', pageWidth/2, yPos, { align: 'center' });
+                
+                // Reset for content
+                doc.setTextColor(0, 0, 0);
+                yPos = 50;
+                
+                // School info box
+                doc.setDrawColor(44, 85, 48);
+                doc.setFillColor(248, 248, 248);
+                doc.rect(10, yPos, pageWidth - 20, 18, 'FD');
+                
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10);
+                doc.setTextColor(44, 85, 48);
+                doc.text('معلومات المدرسة', 15, yPos + 6);
+                
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(9);
+                doc.text(`اسم المدرسة: ${schoolName}`, 15, yPos + 11);
+                doc.text(`مدير المدرسة: ${principalName}`, 15, yPos + 15);
+                doc.text(`تاريخ التقرير: ${arabicDate}`, pageWidth - 60, yPos + 11);
+                doc.text(`تاريخ الإنشاء: ${new Date().toLocaleDateString('ar-SA')}`, pageWidth - 60, yPos + 15);
+                
+                yPos += 25;
+                
+                // Domain title
+                doc.setFillColor(44, 85, 48);
+                doc.rect(10, yPos, pageWidth - 20, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(11);
+                doc.text(domainTitle, pageWidth/2, yPos + 5.5, { align: 'center' });
+                
+                yPos += 15;
+                
+                // Table using autoTable
+                const tableData = [];
+                if (indicatorsData[domainId]?.indicators) {
+                    indicatorsData[domainId].indicators.forEach(indicator => {
+                        const data = trackingData[domainId]?.[indicator.code] || {
+                            responsible: '', followupDate: '', status: 'incomplete', progress: 0
+                        };
+                        
+                        const statusText = data.status === 'complete' ? 'مكتمل' : 'غير مكتمل';
+                        const dateText = data.followupDate ? 
+                            new Date(data.followupDate).toLocaleDateString('ar-SA') : '-';
+                        
+                        // Limit title length for PDF
+                        const shortTitle = indicator.title.length > 40 ? 
+                            indicator.title.substring(0, 37) + '...' : indicator.title;
+                        
+                        tableData.push([
+                            indicator.code,
+                            shortTitle,
+                            data.responsible || '-',
+                            dateText,
+                            statusText,
+                            `${data.progress}%`
+                        ]);
+                    });
+                }
+                
+                // Create table
+                doc.autoTable({
+                    head: [['الرقم', 'وصف المؤشر', 'المسؤول', 'التاريخ', 'الحالة', 'النسبة']],
+                    body: tableData,
+                    startY: yPos,
+                    styles: {
+                        font: 'helvetica',
+                        fontSize: 8,
+                        cellPadding: 2,
+                        textColor: [0, 0, 0],
+                        halign: 'center'
+                    },
+                    headStyles: {
+                        fillColor: [44, 85, 48],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold',
+                        halign: 'center'
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 20 },  // الرقم
+                        1: { cellWidth: 60, halign: 'right' }, // الوصف
+                        2: { cellWidth: 25 },  // المسؤول
+                        3: { cellWidth: 20 },  // التاريخ
+                        4: { cellWidth: 20 },  // الحالة
+                        5: { cellWidth: 15 }   // النسبة
+                    },
+                    margin: { left: 10, right: 10 }
+                });
+                
+                // Statistics
+                let totalProgress = 0, completedCount = 0, totalIndicators = 0;
+                if (indicatorsData[domainId]?.indicators) {
+                    totalIndicators = indicatorsData[domainId].indicators.length;
+                    indicatorsData[domainId].indicators.forEach(indicator => {
+                        const data = trackingData[domainId]?.[indicator.code] || { progress: 0, status: 'incomplete' };
+                        totalProgress += parseInt(data.progress || 0);
+                        if (data.status === 'complete') completedCount++;
+                    });
+                }
+                
+                const averageProgress = totalIndicators > 0 ? Math.round(totalProgress / totalIndicators) : 0;
+                const finalY = doc.lastAutoTable.finalY + 10;
+                
+                // Summary box
+                doc.setDrawColor(44, 85, 48);
+                doc.setFillColor(248, 248, 248);
+                doc.rect(10, finalY, pageWidth - 20, 20, 'FD');
+                
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(44, 85, 48);
+                doc.setFontSize(10);
+                doc.text('ملخص الإنجاز', 15, finalY + 6);
+                
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(8);
+                doc.text(`إجمالي المؤشرات: ${totalIndicators}`, 15, finalY + 11);
+                doc.text(`المؤشرات المكتملة: ${completedCount}`, 15, finalY + 15);
+                doc.text(`النسبة الإجمالية: ${averageProgress}%`, pageWidth/2, finalY + 11);
+                doc.text(`المؤشرات المتبقية: ${totalIndicators - completedCount}`, pageWidth/2, finalY + 15);
+                
+                // Footer
+                const footerY = pageHeight - 15;
+                doc.setFillColor(44, 85, 48);
+                doc.rect(0, footerY, pageWidth, 15, 'F');
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(9);
+                doc.text('نُراقب • نُقيم • نُطور', pageWidth/2, footerY + 5, { align: 'center' });
+                
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(7);
+                doc.text('تنفيذ: نواف الصبحي', pageWidth/2, footerY + 9, { align: 'center' });
+                doc.text(`تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')}`, pageWidth/2, footerY + 12, { align: 'center' });
+                
+                // Save PDF
                 const fileName = `تقرير_${domainTitle.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
-                pdf.save(fileName);
-                showToast('تم تصدير التقرير بنجاح مع دعم كامل للعربية!', 'success');
+                doc.save(fileName);
+                
+                showToast('تم تصدير التقرير بنجاح!', 'success');
                 
             } catch (error) {
                 console.error('PDF Export Error:', error);
-                showToast('حدث خطأ في تصدير التقرير. يرجى المحاولة مرة أخرى.', 'danger');
+                
+                // Simple fallback method
+                try {
+                    await exportSimplePDF(domainId);
+                } catch (fallbackError) {
+                    console.error('Fallback Error:', fallbackError);
+                    showToast('عذراً، تعذر تصدير التقرير. يرجى التأكد من وجود اتصال بالإنترنت ومحاولة تحديث الصفحة.', 'danger');
+                }
             }
         }
 
-        function createReportHTML(domainId) {
-            const reportDiv = document.createElement('div');
-            reportDiv.style.cssText = `width: 210mm; min-height: 297mm; padding: 20mm; background: white; font-family: 'Arial', 'Tahoma', sans-serif; font-size: 12px; line-height: 1.5; color: #000; position: absolute; top: -9999px; left: -9999px; direction: rtl; text-align: right;`;
+        // Simple fallback PDF method
+        async function exportSimplePDF(domainId) {
+            const { jsPDF } = window.jsPDF;
+            const doc = new jsPDF();
             
             const schoolName = document.getElementById('schoolName')?.value || 'متوسطة المنذر بن عمرو الأنصاري';
             const principalName = document.getElementById('principalName')?.value || 'خالد سعود المطيري';
-            const reportDate = document.getElementById('reportDate')?.value || new Date().toISOString().split('T')[0];
-            const arabicDate = new Date(reportDate).toLocaleDateString('ar-SA');
             const domainTitle = indicatorsData[domainId]?.title || 'مجال غير محدد';
             
-            reportDiv.innerHTML = `
-                <div style="background: linear-gradient(135deg, #2c5530, #4a7c59); color: white; padding: 20px; margin: -20mm -20mm 20px -20mm; text-align: center;">
-                    <h2 style="margin: 0; font-size: 14px;">المملكة العربية السعودية</h2>
-                    <h1 style="margin: 5px 0; font-size: 18px;">وزارة التعليم</h1>
-                    <h3 style="margin: 0; font-size: 12px;">مكتب قطاع أحد والعوالي</h3>
-                    <h2 style="margin: 15px 0 5px 0; font-size: 16px;">تقرير متابعة مؤشرات التقويم المدرسي</h2>
-                </div>
-                
-                <div style="background: #f8f9fa; border: 2px solid #2c5530; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                    <h3 style="color: #2c5530; margin: 0 0 10px 0; font-size: 14px;">معلومات المدرسة</h3>
-                    <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
-                        <div style="flex: 1; margin-left: 20px;">
-                            <p style="margin: 5px 0;"><strong>اسم المدرسة:</strong> ${schoolName}</p>
-                            <p style="margin: 5px 0;"><strong>مدير المدرسة:</strong> ${principalName}</p>
-                        </div>
-                        <div style="flex: 1;">
-                            <p style="margin: 5px 0;"><strong>تاريخ التقرير:</strong> ${arabicDate}</p>
-                            <p style="margin: 5px 0;"><strong>تاريخ الإنشاء:</strong> ${new Date().toLocaleDateString('ar-SA')}</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="background: #2c5530; color: white; padding: 15px; margin-bottom: 20px; text-align: center; border-radius: 8px;">
-                    <h2 style="margin: 0; font-size: 16px;">${domainTitle}</h2>
-                </div>
-                
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10px;">
-                    <thead>
-                        <tr style="background: #2c5530; color: white;">
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">رقم المؤشر</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">وصف المؤشر</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">المسؤول</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">تاريخ المتابعة</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">الحالة</th>
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">النسبة</th>
-                        </tr>
-                    </thead>
-                    <tbody>${generateTableRows(domainId)}</tbody>
-                </table>
-                
-                ${generateStatistics(domainId)}
-                
-                <div style="background: #2c5530; color: white; padding: 15px; margin: 20px -20mm -20mm -20mm; text-align: center;">
-                    <p style="margin: 0; font-size: 12px; font-weight: bold;">نُراقب • نُقيم • نُطور</p>
-                    <p style="margin: 5px 0 0 0; font-size: 10px;">تم إنشاء هذا التقرير بواسطة نظام متابعة مؤشرات التقويم المدرسي</p>
-                    <p style="margin: 5px 0 0 0; font-size: 10px;">تنفيذ: نواف الصبحي</p>
-                </div>
-            `;
-            return reportDiv;
-        }
-
-        function generateTableRows(domainId) {
-            let rows = '';
-            if (indicatorsData[domainId]?.indicators) {
-                indicatorsData[domainId].indicators.forEach((indicator, index) => {
-                    const data = trackingData[domainId]?.[indicator.code] || { responsible: '', followupDate: '', status: 'incomplete', progress: 0 };
-                    const statusText = data.status === 'complete' ? '✅ مكتمل' : '❌ غير مكتمل';
-                    const followupDateText = data.followupDate ? new Date(data.followupDate).toLocaleDateString('ar-SA') : '-';
-                    const bgColor = index % 2 === 0 ? '#f8f9fa' : '#ffffff';
-                    
-                    rows += `<tr style="background: ${bgColor};">
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold;">${indicator.code}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: right;">${indicator.title}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${data.responsible || '-'}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${followupDateText}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${statusText}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center; font-weight: bold;">${data.progress}%</td>
-                    </tr>`;
-                });
-            }
-            return rows;
-        }
-
-        function generateStatistics(domainId) {
-            let totalProgress = 0, completedCount = 0, totalIndicators = 0;
+            let y = 20;
             
+            // Simple header
+            doc.setFontSize(16);
+            doc.text('تقرير متابعة مؤشرات التقويم المدرسي', 20, y);
+            y += 10;
+            
+            doc.setFontSize(12);
+            doc.text('المملكة العربية السعودية - وزارة التعليم', 20, y);
+            y += 7;
+            doc.text('مكتب قطاع أحد والعوالي', 20, y);
+            y += 15;
+            
+            doc.text(`اسم المدرسة: ${schoolName}`, 20, y);
+            y += 7;
+            doc.text(`مدير المدرسة: ${principalName}`, 20, y);
+            y += 7;
+            doc.text(`التاريخ: ${new Date().toLocaleDateString('ar-SA')}`, 20, y);
+            y += 15;
+            
+            // Domain
+            doc.setFontSize(14);
+            doc.text(domainTitle, 20, y);
+            y += 15;
+            
+            // Indicators
+            doc.setFontSize(10);
             if (indicatorsData[domainId]?.indicators) {
-                totalIndicators = indicatorsData[domainId].indicators.length;
                 indicatorsData[domainId].indicators.forEach(indicator => {
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    
                     const data = trackingData[domainId]?.[indicator.code] || { progress: 0, status: 'incomplete' };
-                    totalProgress += parseInt(data.progress || 0);
-                    if (data.status === 'complete') completedCount++;
+                    const status = data.status === 'complete' ? 'مكتمل' : 'غير مكتمل';
+                    
+                    doc.text(`${indicator.code}: ${status} (${data.progress}%)`, 20, y);
+                    y += 6;
                 });
             }
             
-            const averageProgress = totalIndicators > 0 ? Math.round(totalProgress / totalIndicators) : 0;
-            const remainingCount = totalIndicators - completedCount;
+            // Footer
+            y = doc.internal.pageSize.height - 20;
+            doc.text('نُراقب • نُقيم • نُطور', 20, y);
+            doc.text('تنفيذ: نواف الصبحي', 20, y + 7);
             
-            return `<div style="background: #f8f9fa; border: 2px solid #2c5530; border-radius: 8px; padding: 20px; margin-top: 20px;">
-                <h3 style="color: #2c5530; margin: 0 0 15px 0; text-align: center;">ملخص إحصائي شامل</h3>
-                <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
-                    <div style="flex: 1; margin-left: 20px;">
-                        <p style="margin: 8px 0;"><strong>إجمالي المؤشرات:</strong> ${totalIndicators}</p>
-                        <p style="margin: 8px 0;"><strong>المؤشرات المكتملة:</strong> ${completedCount}</p>
-                    </div>
-                    <div style="flex: 1;">
-                        <p style="margin: 8px 0;"><strong>النسبة الإجمالية:</strong> ${averageProgress}%</p>
-                        <p style="margin: 8px 0;"><strong>المؤشرات المتبقية:</strong> ${remainingCount}</p>
-                    </div>
-                </div>
-                <div style="background: #e9ecef; border-radius: 10px; height: 20px; margin-top: 15px; overflow: hidden;">
-                    <div style="background: linear-gradient(90deg, #28a745, #20c997); height: 100%; width: ${averageProgress}%; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 11px;">${averageProgress}%</div>
-                </div>
-            </div>`;
+            const fileName = `تقرير_مبسط_${Date.now()}.pdf`;
+            doc.save(fileName);
+            
+            showToast('تم تصدير التقرير بالطريقة المبسطة', 'success');
         }
 
         // Initialize app
