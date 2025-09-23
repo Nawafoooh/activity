@@ -423,7 +423,299 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    
     <script>
+        // Firebase Configuration - إعدادات مشروعك
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2hVGA367i2ZrtezTXITHuR6l84YTTS64",
+            authDomain: "kpischool-52b95.firebaseapp.com",
+            projectId: "kpischool-52b95",
+            storageBucket: "kpischool-52b95.firebasestorage.app",
+            messagingSenderId: "874100041787",
+            appId: "1:874100041787:web:1daa1a5ab6e32a3e7e141e",
+            measurementId: "G-P2HJ9T8YB4"
+        };
+
+        // Initialize Firebase
+        let db = null;
+        let currentSchoolId = null;
+
+        function initializeFirebase() {
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                db = firebase.firestore();
+                
+                // تسجيل دخول مجهول للمدارس
+                firebase.auth().signInAnonymously()
+                    .then(() => {
+                        console.log('تم الاتصال بـ Firebase بنجاح');
+                        generateSchoolId();
+                        loadDataFromFirebase();
+                    })
+                    .catch((error) => {
+                        console.error('خطأ في الاتصال بـ Firebase:', error);
+                        showToast('تعذر الاتصال بقاعدة البيانات. سيتم العمل بالوضع المحلي.', 'warning');
+                        initializeApp();
+                    });
+            } catch (error) {
+                console.error('خطأ في تهيئة Firebase:', error);
+                showToast('تعذر تهيئة قاعدة البيانات. سيتم العمل بالوضع المحلي.', 'warning');
+                initializeApp();
+            }
+        }
+
+        // توليد معرف فريد للمدرسة
+        function generateSchoolId() {
+            // محاولة الحصول على المعرف المحفوظ محلياً
+            currentSchoolId = localStorage.getItem('schoolId');
+            
+            if (!currentSchoolId) {
+                // إنشاء معرف جديد باستخدام اسم المدرسة والتاريخ
+                const schoolName = document.getElementById('schoolName')?.value || 'school';
+                const timestamp = Date.now();
+                currentSchoolId = `${schoolName.replace(/\s+/g, '_')}_${timestamp}`;
+                localStorage.setItem('schoolId', currentSchoolId);
+            }
+            
+            // عرض معرف المدرسة للمستخدم
+            showSchoolId();
+        }
+
+        // عرض معرف المدرسة
+        function showSchoolId() {
+            const schoolInfo = document.querySelector('.school-info h4');
+            if (schoolInfo && currentSchoolId) {
+                schoolInfo.innerHTML = `
+                    <i class="fas fa-info-circle"></i> معلومات المدرسة 
+                    <small class="text-muted">(معرف المدرسة: ${currentSchoolId})</small>
+                `;
+            }
+        }
+
+        // حفظ البيانات إلى Firebase
+        async function saveToFirebase() {
+            if (!db || !currentSchoolId) return;
+
+            try {
+                const schoolData = {
+                    schoolInfo: {
+                        name: document.getElementById('schoolName')?.value || '',
+                        principal: document.getElementById('principalName')?.value || '',
+                        reportDate: document.getElementById('reportDate')?.value || '',
+                        domain1Responsible: document.getElementById('domain-1-responsible')?.value || '',
+                        domain2Responsible: document.getElementById('domain-2-responsible')?.value || '',
+                        domain3Responsible: document.getElementById('domain-3-responsible')?.value || '',
+                        domain4Responsible: document.getElementById('domain-4-responsible')?.value || ''
+                    },
+                    trackingData: trackingData,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                    version: '2.0'
+                };
+
+                await db.collection('schools').doc(currentSchoolId).set(schoolData, { merge: true });
+                console.log('تم حفظ البيانات بنجاح');
+                
+                // إظهار مؤشر الحفظ
+                showSaveIndicator();
+                
+            } catch (error) {
+                console.error('خطأ في حفظ البيانات:', error);
+                showToast('تعذر حفظ البيانات في قاعدة البيانات', 'warning');
+            }
+        }
+
+        // تحميل البيانات من Firebase
+        async function loadDataFromFirebase() {
+            if (!db || !currentSchoolId) {
+                initializeApp();
+                return;
+            }
+
+            try {
+                const doc = await db.collection('schools').doc(currentSchoolId).get();
+                
+                if (doc.exists) {
+                    const data = doc.data();
+                    
+                    // تحميل معلومات المدرسة
+                    if (data.schoolInfo) {
+                        document.getElementById('schoolName').value = data.schoolInfo.name || '';
+                        document.getElementById('principalName').value = data.schoolInfo.principal || '';
+                        document.getElementById('reportDate').value = data.schoolInfo.reportDate || '';
+                        document.getElementById('domain-1-responsible').value = data.schoolInfo.domain1Responsible || '';
+                        document.getElementById('domain-2-responsible').value = data.schoolInfo.domain2Responsible || '';
+                        document.getElementById('domain-3-responsible').value = data.schoolInfo.domain3Responsible || '';
+                        document.getElementById('domain-4-responsible').value = data.schoolInfo.domain4Responsible || '';
+                    }
+                    
+                    // تحميل بيانات التتبع
+                    if (data.trackingData) {
+                        trackingData = data.trackingData;
+                    }
+                    
+                    showToast('تم تحميل البيانات المحفوظة بنجاح', 'success');
+                } else {
+                    console.log('لا توجد بيانات محفوظة للمدرسة');
+                }
+                
+                initializeApp();
+                
+            } catch (error) {
+                console.error('خطأ في تحميل البيانات:', error);
+                showToast('تعذر تحميل البيانات المحفوظة', 'warning');
+                initializeApp();
+            }
+        }
+
+        // مؤشر الحفظ التلقائي
+        function showSaveIndicator() {
+            const indicator = document.createElement('div');
+            indicator.className = 'position-fixed';
+            indicator.style.cssText = 'top: 10px; left: 10px; z-index: 9999; background: #28a745; color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px;';
+            indicator.innerHTML = '<i class="fas fa-check"></i> تم الحفظ';
+            document.body.appendChild(indicator);
+            
+            setTimeout(() => {
+                if (indicator.parentElement) indicator.remove();
+            }, 2000);
+        }
+
+        // حفظ تلقائي عند أي تغيير
+        function enableAutoSave() {
+            let saveTimeout;
+            
+            // مراقبة تغييرات الحقول
+            const watchedFields = [
+                'schoolName', 'principalName', 'reportDate',
+                'domain-1-responsible', 'domain-2-responsible', 
+                'domain-3-responsible', 'domain-4-responsible'
+            ];
+            
+            watchedFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', () => {
+                        clearTimeout(saveTimeout);
+                        saveTimeout = setTimeout(saveToFirebase, 1000); // حفظ بعد ثانية من التوقف عن الكتابة
+                    });
+                }
+            });
+        }
+
+        // إضافة زر مشاركة/تصدير معرف المدرسة
+        function addShareButton() {
+            const schoolInfo = document.querySelector('.school-info .row');
+            if (schoolInfo && currentSchoolId) {
+                const shareDiv = document.createElement('div');
+                shareDiv.className = 'col-12 mt-3';
+                shareDiv.innerHTML = `
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-outline-primary btn-sm" onclick="copySchoolId()">
+                            <i class="fas fa-copy"></i> نسخ معرف المدرسة
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="loadSchoolById()">
+                            <i class="fas fa-download"></i> تحميل بيانات مدرسة أخرى
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="exportBackup()">
+                            <i class="fas fa-file-export"></i> نسخة احتياطية
+                        </button>
+                    </div>
+                `;
+                schoolInfo.appendChild(shareDiv);
+            }
+        }
+
+        // نسخ معرف المدرسة
+        function copySchoolId() {
+            if (currentSchoolId) {
+                navigator.clipboard.writeText(currentSchoolId).then(() => {
+                    showToast('تم نسخ معرف المدرسة', 'success');
+                }).catch(() => {
+                    showToast('تعذر نسخ المعرف', 'warning');
+                });
+            }
+        }
+
+        // تحميل بيانات مدرسة أخرى
+        async function loadSchoolById() {
+            const schoolId = prompt('أدخل معرف المدرسة:');
+            if (!schoolId || !db) return;
+
+            try {
+                const doc = await db.collection('schools').doc(schoolId).get();
+                
+                if (doc.exists) {
+                    const data = doc.data();
+                    
+                    // تحديث المعرف الحالي
+                    currentSchoolId = schoolId;
+                    localStorage.setItem('schoolId', currentSchoolId);
+                    
+                    // تحميل البيانات
+                    if (data.schoolInfo) {
+                        document.getElementById('schoolName').value = data.schoolInfo.name || '';
+                        document.getElementById('principalName').value = data.schoolInfo.principal || '';
+                        document.getElementById('reportDate').value = data.schoolInfo.reportDate || '';
+                        document.getElementById('domain-1-responsible').value = data.schoolInfo.domain1Responsible || '';
+                        document.getElementById('domain-2-responsible').value = data.schoolInfo.domain2Responsible || '';
+                        document.getElementById('domain-3-responsible').value = data.schoolInfo.domain3Responsible || '';
+                        document.getElementById('domain-4-responsible').value = data.schoolInfo.domain4Responsible || '';
+                    }
+                    
+                    if (data.trackingData) {
+                        trackingData = data.trackingData;
+                        populateTables();
+                        updateProgress();
+                    }
+                    
+                    showSchoolId();
+                    showToast('تم تحميل بيانات المدرسة بنجاح', 'success');
+                    
+                } else {
+                    showToast('لا توجد بيانات لهذا المعرف', 'warning');
+                }
+                
+            } catch (error) {
+                console.error('خطأ في تحميل بيانات المدرسة:', error);
+                showToast('تعذر تحميل بيانات المدرسة', 'danger');
+            }
+        }
+
+        // تصدير نسخة احتياطية
+        function exportBackup() {
+            const backupData = {
+                schoolId: currentSchoolId,
+                schoolInfo: {
+                    name: document.getElementById('schoolName')?.value || '',
+                    principal: document.getElementById('principalName')?.value || '',
+                    reportDate: document.getElementById('reportDate')?.value || '',
+                    domain1Responsible: document.getElementById('domain-1-responsible')?.value || '',
+                    domain2Responsible: document.getElementById('domain-2-responsible')?.value || '',
+                    domain3Responsible: document.getElementById('domain-3-responsible')?.value || '',
+                    domain4Responsible: document.getElementById('domain-4-responsible')?.value || ''
+                },
+                trackingData: trackingData,
+                exportDate: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_${currentSchoolId}_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('تم تصدير النسخة الاحتياطية', 'success');
+        }
         // Data structure for indicators
         const indicatorsData = {
             1: {
@@ -565,7 +857,7 @@
             return row;
         }
 
-        // Update indicator data
+        // Update indicator data with auto-save
         function updateIndicatorData(domainId, indicatorCode, field, value) {
             if (trackingData[domainId] && trackingData[domainId][indicatorCode]) {
                 trackingData[domainId][indicatorCode][field] = value;
@@ -575,8 +867,57 @@
                     populateTables();
                 }
                 updateProgress();
+                
+                // حفظ تلقائي بعد تحديث البيانات
+                if (db && currentSchoolId) {
+                    setTimeout(saveToFirebase, 500);
+                }
             }
         }
+
+        // Save comments with auto-save
+        function saveComments() {
+            if (currentModalIndicator) {
+                const comments = document.getElementById('modalComments').value;
+                const {domainId, indicatorCode} = currentModalIndicator;
+                trackingData[domainId][indicatorCode].comments = comments;
+                
+                const modal = bootstrap.Modal.getInstance(document.getElementById('documentsModal'));
+                modal.hide();
+                
+                showToast('تم حفظ الملاحظات بنجاح', 'success');
+                
+                // حفظ تلقائي
+                if (db && currentSchoolId) {
+                    setTimeout(saveToFirebase, 500);
+                }
+            }
+        }
+
+        // Initialize application
+        function initializeApp() {
+            loadData();
+            populateTables();
+            updateProgress();
+            setCurrentDate();
+            
+            // تمكين الحفظ التلقائي إذا كان Firebase متاحاً
+            if (db) {
+                enableAutoSave();
+                addShareButton();
+            }
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // محاولة تهيئة Firebase أولاً
+            if (typeof firebase !== 'undefined') {
+                initializeFirebase();
+            } else {
+                console.log('Firebase غير متاح، سيتم العمل بالوضع المحلي');
+                initializeApp();
+            }
+        });
 
         // Update progress bars
         function updateProgress() {
