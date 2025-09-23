@@ -650,12 +650,23 @@
             });
         }
 
-        // User management and permissions system
+        // User management system with controlled permissions
         let currentUser = null;
         let userRole = 'viewer';
         let activeUsers = [];
 
-        // Initialize user system
+        // مدراء النظام المعتمدون
+        const systemAdmins = [
+            'نواف منصور الصبحي',
+            'خالد سعود المطيري'
+        ];
+
+        // مسؤولو المجالات المعتمدون (سيتم تحديثها لاحقاً)
+        const domainManagers = [
+            // سيتم إضافتهم بعد الاجتماع
+        ];
+
+        // Initialize user system with controlled permissions
         function initializeUserSystem() {
             // تحميل بيانات المستخدم المحفوظة
             const savedUser = localStorage.getItem('currentUser');
@@ -664,11 +675,11 @@
             if (savedUser) {
                 document.getElementById('currentUser').value = savedUser;
                 currentUser = savedUser;
-            }
-            
-            if (savedRole) {
-                document.getElementById('userRole').value = savedRole;
-                userRole = savedRole;
+                
+                // تحديد الصلاحية تلقائياً حسب الاسم
+                userRole = determineUserRole(savedUser);
+                document.getElementById('userRole').value = userRole;
+                document.getElementById('userRole').disabled = true; // منع تغيير الصلاحية
             }
             
             // تطبيق الصلاحيات
@@ -680,10 +691,20 @@
             }
         }
 
-        // حفظ ملف المستخدم
+        // تحديد صلاحية المستخدم تلقائياً
+        function determineUserRole(userName) {
+            if (systemAdmins.includes(userName)) {
+                return 'admin';
+            } else if (domainManagers.includes(userName)) {
+                return 'domain_manager';
+            } else {
+                return 'viewer';
+            }
+        }
+
+        // حفظ ملف المستخدم مع التحكم في الصلاحيات
         function saveUserProfile() {
             const userName = document.getElementById('currentUser').value.trim();
-            const role = document.getElementById('userRole').value;
             
             if (!userName) {
                 showToast('يرجى إدخال اسم المستخدم', 'warning');
@@ -691,7 +712,13 @@
             }
             
             currentUser = userName;
-            userRole = role;
+            
+            // تحديد الصلاحية تلقائياً حسب الاسم
+            userRole = determineUserRole(userName);
+            
+            // تحديث واجهة المستخدم
+            document.getElementById('userRole').value = userRole;
+            document.getElementById('userRole').disabled = true;
             
             // حفظ محلياً
             localStorage.setItem('currentUser', currentUser);
@@ -705,41 +732,101 @@
                 updateUserActivity();
             }
             
-            showToast(`تم حفظ المستخدم: ${currentUser} (${getUserRoleText(userRole)})`, 'success');
+            // إظهار رسالة حسب الصلاحية
+            showWelcomeMessage();
         }
 
-        // تطبيق صلاحيات المستخدم
+        // إظهار رسالة ترحيب حسب الصلاحية
+        function showWelcomeMessage() {
+            let message = '';
+            let type = 'info';
+            
+            switch(userRole) {
+                case 'admin':
+                    message = `مرحباً ${currentUser} - لديك صلاحيات مدير النظام الكاملة`;
+                    type = 'success';
+                    break;
+                case 'domain_manager':
+                    message = `مرحباً ${currentUser} - أنت مسؤول مجال ويمكنك التعديل`;
+                    type = 'info';
+                    break;
+                case 'viewer':
+                    message = `مرحباً ${currentUser} - يمكنك المشاهدة فقط بدون تعديل`;
+                    type = 'warning';
+                    break;
+            }
+            
+            showToast(message, type);
+        }
+
+        // تطبيق صلاحيات المستخدم بدقة
         function applyUserPermissions() {
             const isAdmin = userRole === 'admin';
             const isDomainManager = userRole === 'domain_manager';
             const isViewer = userRole === 'viewer';
             
-            // تعطيل التعديل للمشاهدين فقط
+            // بالنسبة للمشاهدين - تعطيل كامل
             if (isViewer) {
-                // تعطيل جميع عناصر الإدخال
+                // تعطيل جميع عناصر الإدخال ما عدا اسم المستخدم
                 document.querySelectorAll('input:not(#currentUser), select:not(#userRole), textarea').forEach(element => {
                     element.disabled = true;
+                    element.style.backgroundColor = '#f8f9fa';
+                    element.style.cursor = 'not-allowed';
                 });
                 
-                // إخفاء أزرار التصدير للمشاهدين
+                // تعطيل جميع الأزرار ما عدا المشاهدة
+                document.querySelectorAll('button').forEach(btn => {
+                    if (!btn.onclick || !btn.onclick.toString().includes('showDocuments')) {
+                        btn.disabled = true;
+                        btn.style.opacity = '0.5';
+                        btn.style.cursor = 'not-allowed';
+                    }
+                });
+                
+                // إخفاء أزرار التصدير
                 document.querySelectorAll('.btn-export').forEach(btn => {
                     btn.style.display = 'none';
                 });
                 
-                showToast('أنت في وضع المشاهدة فقط', 'info');
+                // إضافة رسالة تحذيرية
+                addViewerWarning();
+                
             } else {
                 // تمكين التعديل للمدراء ومسؤولي المجالات
-                document.querySelectorAll('input, select, textarea').forEach(element => {
+                document.querySelectorAll('input, select, textarea, button').forEach(element => {
                     element.disabled = false;
+                    element.style.backgroundColor = '';
+                    element.style.cursor = '';
+                    element.style.opacity = '';
                 });
                 
                 document.querySelectorAll('.btn-export').forEach(btn => {
                     btn.style.display = 'inline-block';
                 });
+                
+                // إزالة رسالة التحذير إن وجدت
+                const warning = document.getElementById('viewer-warning');
+                if (warning) warning.remove();
             }
+            
+            // تعطيل تغيير الصلاحية للجميع
+            document.getElementById('userRole').disabled = true;
             
             // إضافة مؤشر الصلاحية
             addPermissionIndicator();
+        }
+
+        // إضافة تحذير للمشاهدين
+        function addViewerWarning() {
+            const warning = document.createElement('div');
+            warning.id = 'viewer-warning';
+            warning.className = 'alert alert-warning';
+            warning.style.cssText = 'position: fixed; top: 70px; right: 20px; z-index: 9999; max-width: 300px;';
+            warning.innerHTML = `
+                <i class="fas fa-eye"></i> <strong>وضع المشاهدة فقط</strong><br>
+                <small>لا يمكنك تعديل أي بيانات. للحصول على صلاحيات التعديل، اتصل بمدير النظام.</small>
+            `;
+            document.body.appendChild(warning);
         }
 
         // إضافة مؤشر الصلاحية
@@ -763,6 +850,92 @@
             if (oldIndicator) oldIndicator.remove();
             
             document.body.appendChild(indicator);
+        }
+
+        // إضافة لوحة إدارة المستخدمين للمدراء فقط
+        function addAdminPanel() {
+            if (userRole !== 'admin') return;
+            
+            const adminPanel = document.createElement('div');
+            adminPanel.className = 'alert alert-info mt-3';
+            adminPanel.innerHTML = `
+                <h6><i class="fas fa-crown"></i> لوحة إدارة المستخدمين</h6>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-primary" onclick="addDomainManager()">
+                        <i class="fas fa-user-plus"></i> إضافة مسؤول مجال
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="viewAllUsers()">
+                        <i class="fas fa-users-cog"></i> إدارة المستخدمين
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning" onclick="showSystemStats()">
+                        <i class="fas fa-chart-pie"></i> إحصائيات النظام
+                    </button>
+                </div>
+            `;
+            
+            const userManagement = document.querySelector('.school-info').nextElementSibling;
+            userManagement.appendChild(adminPanel);
+        }
+
+        // إضافة مسؤول مجال جديد (للمدراء فقط)
+        function addDomainManager() {
+            if (userRole !== 'admin') {
+                showToast('غير مسموح - مدراء النظام فقط', 'danger');
+                return;
+            }
+            
+            const userName = prompt('أدخل اسم مسؤول المجال الجديد:');
+            if (!userName) return;
+            
+            if (domainManagers.includes(userName)) {
+                showToast('هذا المستخدم مسؤول مجال بالفعل', 'warning');
+                return;
+            }
+            
+            domainManagers.push(userName);
+            
+            // حفظ في Firebase
+            if (db && currentSchoolId) {
+                saveUserPermissions();
+            }
+            
+            showToast(`تم إضافة ${userName} كمسؤول مجال`, 'success');
+            logActivity('إضافة مسؤول مجال', `تم إضافة ${userName} كمسؤول مجال`);
+        }
+
+        // حفظ صلاحيات المستخدمين في Firebase
+        async function saveUserPermissions() {
+            if (!db || !currentSchoolId || userRole !== 'admin') return;
+            
+            try {
+                await db.collection('schools').doc(currentSchoolId).set({
+                    permissions: {
+                        systemAdmins: systemAdmins,
+                        domainManagers: domainManagers,
+                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                    }
+                }, { merge: true });
+            } catch (error) {
+                console.error('خطأ في حفظ الصلاحيات:', error);
+            }
+        }
+
+        // تحميل صلاحيات المستخدمين من Firebase
+        async function loadUserPermissions() {
+            if (!db || !currentSchoolId) return;
+            
+            try {
+                const doc = await db.collection('schools').doc(currentSchoolId).get();
+                if (doc.exists && doc.data().permissions) {
+                    const permissions = doc.data().permissions;
+                    if (permissions.domainManagers) {
+                        domainManagers.length = 0; // مسح القائمة
+                        domainManagers.push(...permissions.domainManagers);
+                    }
+                }
+            } catch (error) {
+                console.error('خطأ في تحميل الصلاحيات:', error);
+            }
         }
 
         // الحصول على لون الصلاحية
@@ -1309,20 +1482,40 @@
             }
         }
 
-        // Initialize application with user system
+        // Initialize application with enhanced user system
         function initializeApp() {
-            loadData();
-            populateTables();
-            updateProgress();
-            setCurrentDate();
-            
-            // تهيئة نظام المستخدمين
-            initializeUserSystem();
-            
-            // تمكين الحفظ التلقائي إذا كان Firebase متاحاً
-            if (db) {
-                enableAutoSave();
-                addShareButton();
+            // تحميل صلاحيات المستخدمين أولاً
+            if (db && currentSchoolId) {
+                loadUserPermissions().then(() => {
+                    loadData();
+                    populateTables();
+                    updateProgress();
+                    setCurrentDate();
+                    initializeUserSystem();
+                    
+                    // إضافة لوحة الإدارة للمدراء
+                    if (userRole === 'admin') {
+                        setTimeout(addAdminPanel, 1000);
+                    }
+                    
+                    enableAutoSave();
+                    addShareButton();
+                });
+            } else {
+                loadData();
+                populateTables();
+                updateProgress();
+                setCurrentDate();
+                initializeUserSystem();
+                
+                if (userRole === 'admin') {
+                    setTimeout(addAdminPanel, 1000);
+                }
+                
+                if (db) {
+                    enableAutoSave();
+                    addShareButton();
+                }
             }
         }
 
