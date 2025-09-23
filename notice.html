@@ -551,3 +551,429 @@
                     {
                         code: "4-2-1-1",
                         title: "تتوافر متطلبات الأمن والسلامة في جميع مرافق المدرسة",
+                        documents: ["سجل لجنة الأمن والسلامة", "شهادة الأمن والسلامة من الدفاع المدني (سارية)", "سجل الموجه الصحي", "الشهادات الصحية للعاملين سارية المفعول"]
+                    },
+                    {
+                        code: "4-2-1-2",
+                        title: "تعمل المدرسة على صيانة جميع مرافق المبنى بانتظام",
+                        documents: ["سجل الصيانة الدورية", "سجل لجنة الأمن والسلامة"]
+                    }
+                ]
+            }
+        };
+
+        // Initialize data structure for tracking
+        let trackingData = {};
+        let currentModalIndicator = null;
+
+        // Initialize the application
+        function initializeApp() {
+            loadData();
+            populateTables();
+            updateProgress();
+            setCurrentDate();
+        }
+
+        // Set current date
+        function setCurrentDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('reportDate').value = today;
+        }
+
+        // Load data from memory
+        function loadData() {
+            // Initialize tracking data for all indicators
+            for (let domainId in indicatorsData) {
+                if (!trackingData[domainId]) {
+                    trackingData[domainId] = {};
+                }
+                
+                indicatorsData[domainId].indicators.forEach(indicator => {
+                    if (!trackingData[domainId][indicator.code]) {
+                        trackingData[domainId][indicator.code] = {
+                            responsible: '',
+                            followupDate: '',
+                            status: 'incomplete',
+                            progress: 0,
+                            comments: ''
+                        };
+                    }
+                });
+            }
+        }
+
+        // Save data to memory (no localStorage used)
+        function saveData() {
+            // Data is stored in memory only
+            console.log('Data saved to memory');
+        }
+
+        // Populate tables with indicators
+        function populateTables() {
+            for (let domainId in indicatorsData) {
+                const tbody = document.getElementById(`domain-${domainId}-body`);
+                tbody.innerHTML = '';
+                
+                indicatorsData[domainId].indicators.forEach(indicator => {
+                    const data = trackingData[domainId][indicator.code];
+                    const row = createIndicatorRow(domainId, indicator, data);
+                    tbody.appendChild(row);
+                });
+            }
+        }
+
+        // Create table row for indicator
+        function createIndicatorRow(domainId, indicator, data) {
+            const row = document.createElement('tr');
+            
+            const progressColor = data.progress >= 100 ? '#28a745' : data.progress >= 50 ? '#ffc107' : '#dc3545';
+            
+            row.innerHTML = `
+                <td>
+                    <strong>${indicator.code}</strong><br>
+                    <small class="text-muted">${indicator.title}</small>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" 
+                           value="${data.responsible}" 
+                           onchange="updateIndicatorData('${domainId}', '${indicator.code}', 'responsible', this.value)">
+                </td>
+                <td>
+                    <input type="date" class="form-control form-control-sm" 
+                           value="${data.followupDate}" 
+                           onchange="updateIndicatorData('${domainId}', '${indicator.code}', 'followupDate', this.value)">
+                </td>
+                <td>
+                    <select class="form-select form-select-sm" 
+                            onchange="updateIndicatorData('${domainId}', '${indicator.code}', 'status', this.value)">
+                        <option value="incomplete" ${data.status === 'incomplete' ? 'selected' : ''}>❌ غير مكتمل</option>
+                        <option value="complete" ${data.status === 'complete' ? 'selected' : ''}>✅ مكتمل</option>
+                    </select>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <input type="range" class="form-range me-2" min="0" max="100" 
+                               value="${data.progress}" 
+                               onchange="updateIndicatorData('${domainId}', '${indicator.code}', 'progress', this.value)"
+                               style="width: 60px;">
+                        <span class="badge" style="background-color: ${progressColor}; color: white; font-size: 0.8rem;">
+                            ${data.progress}%
+                        </span>
+                    </div>
+                </td>
+                <td>
+                    <button class="btn btn-outline-primary btn-view-docs" 
+                            onclick="showDocuments('${domainId}', '${indicator.code}')">
+                        <i class="fas fa-eye"></i> عرض
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-info btn-sm" 
+                            onclick="showComments('${domainId}', '${indicator.code}')"
+                            title="${data.comments || 'لا توجد ملاحظات'}">
+                        <i class="fas fa-comment"></i>
+                    </button>
+                </td>
+            `;
+            
+            return row;
+        }
+
+        // Update indicator data
+        function updateIndicatorData(domainId, indicatorCode, field, value) {
+            trackingData[domainId][indicatorCode][field] = value;
+            
+            // Auto-update status based on progress
+            if (field === 'progress') {
+                const progress = parseInt(value);
+                trackingData[domainId][indicatorCode].status = progress >= 100 ? 'complete' : 'incomplete';
+                populateTables();
+            }
+            
+            updateProgress();
+            saveData();
+        }
+
+        // Update progress indicators
+        function updateProgress() {
+            for (let domainId in indicatorsData) {
+                const indicators = indicatorsData[domainId].indicators;
+                let totalProgress = 0;
+                
+                indicators.forEach(indicator => {
+                    const data = trackingData[domainId][indicator.code];
+                    totalProgress += parseInt(data.progress || 0);
+                });
+                
+                const averageProgress = Math.round(totalProgress / indicators.length);
+                
+                const progressBar = document.getElementById(`progress-${domainId}`);
+                const progressText = document.getElementById(`progress-text-${domainId}`);
+                
+                if (progressBar && progressText) {
+                    progressBar.style.width = `${averageProgress}%`;
+                    progressText.textContent = `نسبة الإنجاز: ${averageProgress}%`;
+                }
+            }
+        }
+
+        // Show documents modal
+        function showDocuments(domainId, indicatorCode) {
+            const indicator = indicatorsData[domainId].indicators.find(ind => ind.code === indicatorCode);
+            currentModalIndicator = {domainId, indicatorCode};
+            
+            document.getElementById('modalTitle').textContent = `الوثائق المطلوبة - المؤشر ${indicatorCode}`;
+            
+            const documentsContainer = document.getElementById('requiredDocuments');
+            documentsContainer.innerHTML = '';
+            
+            indicator.documents.forEach(doc => {
+                const docElement = document.createElement('div');
+                docElement.className = 'document-item';
+                docElement.innerHTML = `<i class="fas fa-file-alt me-2"></i>${doc}`;
+                documentsContainer.appendChild(docElement);
+            });
+            
+            // Load existing comments
+            const comments = trackingData[domainId][indicatorCode].comments || '';
+            document.getElementById('modalComments').value = comments;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('documentsModal'));
+            modal.show();
+        }
+
+        // Show comments
+        function showComments(domainId, indicatorCode) {
+            showDocuments(domainId, indicatorCode);
+        }
+
+        // Save comments from modal
+        function saveComments() {
+            if (currentModalIndicator) {
+                const comments = document.getElementById('modalComments').value;
+                const {domainId, indicatorCode} = currentModalIndicator;
+                
+                trackingData[domainId][indicatorCode].comments = comments;
+                saveData();
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('documentsModal'));
+                modal.hide();
+                
+                // Show success message
+                showToast('تم حفظ الملاحظات بنجاح', 'success');
+            }
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-check-circle me-2"></i>
+                    ${message}
+                    <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 3000);
+        }
+
+        // Export to PDF with Arabic support
+        function exportToPDF(domainId) {
+            const { jsPDF } = window.jspdf;
+            
+            // Create PDF with custom settings for Arabic
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            // Get school info
+            const schoolName = document.getElementById('schoolName').value || 'متوسطة المنذر بن عمرو الأنصاري';
+            const principalName = document.getElementById('principalName').value || 'خالد سعود المطيري';
+            const reportDate = document.getElementById('reportDate').value || new Date().toISOString().split('T')[0];
+            
+            // Convert date to Arabic format
+            const dateObj = new Date(reportDate);
+            const arabicDate = `${dateObj.getDate()}/${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
+            
+            let yPosition = 30;
+            
+            // Add header with logo area
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            
+            // Header in center
+            doc.text('المملكة العربية السعودية', 105, yPosition, { align: 'center' });
+            yPosition += 7;
+            doc.setFontSize(14);
+            doc.text('وزارة التعليم', 105, yPosition, { align: 'center' });
+            yPosition += 7;
+            doc.setFontSize(11);
+            doc.text('مكتب قطاع أحد والعوالي', 105, yPosition, { align: 'center' });
+            yPosition += 15;
+            
+            // Report title
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text('تقرير متابعة مؤشرات التقويم المدرسي', 105, yPosition, { align: 'center' });
+            yPosition += 15;
+            
+            // School information box
+            doc.setDrawColor(50, 85, 48);
+            doc.setLineWidth(0.5);
+            doc.rect(20, yPosition - 5, 170, 25);
+            
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text('اسم المدرسة: ' + schoolName, 25, yPosition + 3);
+            doc.text('مدير المدرسة: ' + principalName, 25, yPosition + 10);
+            doc.text('تاريخ التقرير: ' + arabicDate, 25, yPosition + 17);
+            
+            yPosition += 35;
+            
+            // Domain title
+            const domainTitle = indicatorsData[domainId].title;
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(50, 85, 48);
+            doc.text(domainTitle, 105, yPosition, { align: 'center' });
+            yPosition += 15;
+            
+            // Prepare table data
+            const tableHeaders = ['النسبة', 'الحالة', 'تاريخ المتابعة', 'المسؤول', 'وصف المؤشر', 'رقم المؤشر'];
+            const tableData = [];
+            
+            indicatorsData[domainId].indicators.forEach(indicator => {
+                const data = trackingData[domainId][indicator.code];
+                const statusText = data.status === 'complete' ? '✅ مكتمل' : '❌ غير مكتمل';
+                const progressText = data.progress + '%';
+                
+                tableData.push([
+                    progressText,
+                    statusText,
+                    data.followupDate || '-',
+                    data.responsible || '-',
+                    indicator.title,
+                    indicator.code
+                ]);
+            });
+            
+            // Create table with Arabic support
+            doc.autoTable({
+                head: [tableHeaders],
+                body: tableData,
+                startY: yPosition,
+                styles: {
+                    font: 'helvetica',
+                    fontSize: 9,
+                    cellPadding: 3,
+                    textColor: [0, 0, 0],
+                    lineColor: [128, 128, 128],
+                    lineWidth: 0.1
+                },
+                headStyles: {
+                    fillColor: [50, 85, 48],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                bodyStyles: {
+                    fillColor: [245, 245, 245],
+                    halign: 'center'
+                },
+                alternateRowStyles: {
+                    fillColor: [255, 255, 255]
+                },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 20 }, // النسبة
+                    1: { halign: 'center', cellWidth: 25 }, // الحالة
+                    2: { halign: 'center', cellWidth: 25 }, // التاريخ
+                    3: { halign: 'center', cellWidth: 30 }, // المسؤول
+                    4: { halign: 'right', cellWidth: 70 },  // الوصف
+                    5: { halign: 'center', cellWidth: 20 }  // الرقم
+                },
+                margin: { left: 10, right: 10 }
+            });
+            
+            // Calculate overall progress
+            let totalProgress = 0;
+            let completedCount = 0;
+            indicatorsData[domainId].indicators.forEach(indicator => {
+                const data = trackingData[domainId][indicator.code];
+                totalProgress += parseInt(data.progress || 0);
+                if (data.status === 'complete') completedCount++;
+            });
+            const averageProgress = Math.round(totalProgress / indicatorsData[domainId].indicators.length);
+            const totalIndicators = indicatorsData[domainId].indicators.length;
+            
+            // Add summary section
+            const finalY = doc.lastAutoTable.finalY + 15;
+            
+            // Summary box
+            doc.setDrawColor(50, 85, 48);
+            doc.setFillColor(248, 249, 250);
+            doc.rect(20, finalY, 170, 25, 'FD');
+            
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(50, 85, 48);
+            doc.text('ملخص الإنجاز', 25, finalY + 7);
+            
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(0, 0, 0);
+            doc.text(`إجمالي المؤشرات: ${totalIndicators}`, 25, finalY + 14);
+            doc.text(`المؤشرات المكتملة: ${completedCount}`, 25, finalY + 21);
+            doc.text(`النسبة الإجمالية: ${averageProgress}%`, 120, finalY + 14);
+            doc.text(`المؤشرات المتبقية: ${totalIndicators - completedCount}`, 120, finalY + 21);
+            
+            // Add footer
+            const pageHeight = doc.internal.pageSize.height;
+            doc.setFontSize(8);
+            doc.setTextColor(128, 128, 128);
+            doc.text('تم إنشاء هذا التقرير بواسطة نظام متابعة مؤشرات التقويم المدرسي', 105, pageHeight - 20, { align: 'center' });
+            doc.text('نُراقب • نُقيم • نُطور', 105, pageHeight - 15, { align: 'center' });
+            doc.text('تنفيذ: نواف الصبحي', 105, pageHeight - 10, { align: 'center' });
+            doc.text(`تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')}`, 105, pageHeight - 5, { align: 'center' });
+            
+            // Add page numbers if multiple pages
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(128, 128, 128);
+                doc.text(`صفحة ${i} من ${pageCount}`, 190, pageHeight - 2, { align: 'right' });
+            }
+            
+            // Save PDF with Arabic filename
+            const fileName = `تقرير_${domainTitle.replace(/\s+/g, '_')}_${arabicDate.replace(/\//g, '-')}.pdf`;
+            doc.save(fileName);
+            
+            showToast('تم تصدير التقرير بنجاح بصيغة PDF', 'success');
+        }
+
+        // Auto-save when school info changes
+        document.getElementById('schoolName').addEventListener('change', saveData);
+        document.getElementById('principalName').addEventListener('change', saveData);
+        document.getElementById('reportDate').addEventListener('change', saveData);
+
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
