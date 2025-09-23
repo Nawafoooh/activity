@@ -8,6 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -964,239 +965,334 @@
             }, 3000);
         }
 
-        // Export to PDF with enhanced features
-        function exportToPDF(domainId) {
-            const { jsPDF } = window.jspdf;
-            
+        // Export to PDF with improved Arabic support and error handling
+        async function exportToPDF(domainId) {
             try {
-                // Create PDF with enhanced settings
+                // Show loading message
+                showToast('جاري إنشاء التقرير...', 'info');
+                
+                const { jsPDF } = window.jspdf;
+                
+                // Create PDF with optimized settings
                 const doc = new jsPDF({
                     orientation: 'portrait',
                     unit: 'mm',
                     format: 'a4',
+                    putOnlyUsedFonts: true,
                     compress: true
                 });
                 
-                // Get school info
-                const schoolName = document.getElementById('schoolName').value || 'متوسطة المنذر بن عمرو الأنصاري';
-                const principalName = document.getElementById('principalName').value || 'خالد سعود المطيري';
-                const reportDate = document.getElementById('reportDate').value || new Date().toISOString().split('T')[0];
+                // Get school info safely
+                const schoolName = document.getElementById('schoolName')?.value || 'متوسطة المنذر بن عمرو الأنصاري';
+                const principalName = document.getElementById('principalName')?.value || 'خالد سعود المطيري';
+                const reportDate = document.getElementById('reportDate')?.value || new Date().toISOString().split('T')[0];
                 
-                // Convert date to Arabic format
-                const dateObj = new Date(reportDate);
-                const arabicDate = `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+                // Safe date formatting
+                let arabicDate;
+                try {
+                    const dateObj = new Date(reportDate);
+                    arabicDate = `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
+                } catch {
+                    arabicDate = new Date().toLocaleDateString('ar-SA');
+                }
                 
-                let yPosition = 25;
                 const pageWidth = doc.internal.pageSize.width;
                 const pageHeight = doc.internal.pageSize.height;
+                let yPosition = 20;
                 
-                // Enhanced header design
+                // Add a small delay to ensure proper rendering
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Header with better Arabic text handling
                 doc.setFillColor(44, 85, 48);
-                doc.rect(0, 0, pageWidth, 50, 'F');
+                doc.rect(0, 0, pageWidth, 45, 'F');
                 
+                // Use system fonts for better Arabic support
                 doc.setTextColor(255, 255, 255);
-                doc.setFontSize(14);
+                doc.setFontSize(12);
                 doc.setFont("helvetica", "bold");
-                doc.text('المملكة العربية السعودية', pageWidth/2, yPosition, { align: 'center' });
                 
-                yPosition += 6;
+                // Header text with better positioning
+                doc.text('المملكة العربية السعودية', pageWidth/2, yPosition + 5, { align: 'center' });
+                doc.setFontSize(14);
+                doc.text('وزارة التعليم', pageWidth/2, yPosition + 12, { align: 'center' });
+                doc.setFontSize(11);
+                doc.text('مكتب قطاع أحد والعوالي', pageWidth/2, yPosition + 19, { align: 'center' });
                 doc.setFontSize(16);
-                doc.text('وزارة التعليم', pageWidth/2, yPosition, { align: 'center' });
+                doc.text('تقرير متابعة مؤشرات التقويم المدرسي', pageWidth/2, yPosition + 30, { align: 'center' });
                 
-                yPosition += 6;
-                doc.setFontSize(12);
-                doc.text('مكتب قطاع أحد والعوالي', pageWidth/2, yPosition, { align: 'center' });
+                yPosition = 55;
                 
-                yPosition += 10;
-                doc.setFontSize(18);
-                doc.text('تقرير متابعة مؤشرات التقويم المدرسي', pageWidth/2, yPosition, { align: 'center' });
-                
-                // Reset colors and position
+                // School information box
                 doc.setTextColor(0, 0, 0);
-                yPosition = 65;
-                
-                // School information with enhanced design
-                doc.setFillColor(248, 249, 250);
-                doc.setDrawColor(44, 85, 48);
-                doc.setLineWidth(0.5);
-                doc.roundedRect(15, yPosition, pageWidth - 30, 25, 3, 3, 'FD');
-                
-                doc.setFontSize(12);
-                doc.setFont("helvetica", "bold");
-                doc.setTextColor(44, 85, 48);
-                doc.text('معلومات المدرسة', 20, yPosition + 7);
-                
-                doc.setFont("helvetica", "normal");
-                doc.setTextColor(0, 0, 0);
-                doc.setFontSize(10);
-                doc.text(`اسم المدرسة: ${schoolName}`, 20, yPosition + 14);
-                doc.text(`مدير المدرسة: ${principalName}`, 20, yPosition + 20);
-                doc.text(`تاريخ التقرير: ${arabicDate}`, pageWidth - 80, yPosition + 14);
-                doc.text(`تاريخ الإنشاء: ${new Date().toLocaleDateString('ar-SA')}`, pageWidth - 80, yPosition + 20);
-                
-                yPosition += 35;
-                
-                // Domain title with enhanced styling
-                const domainTitle = indicatorsData[domainId].title;
-                doc.setFillColor(44, 85, 48);
-                doc.roundedRect(15, yPosition, pageWidth - 30, 12, 2, 2, 'F');
-                
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(14);
-                doc.setFont("helvetica", "bold");
-                doc.text(domainTitle, pageWidth/2, yPosition + 8, { align: 'center' });
-                
-                yPosition += 20;
-                
-                // Enhanced table with better Arabic support
-                const tableHeaders = ['النسبة %', 'الحالة', 'تاريخ المتابعة', 'المسؤول', 'وصف المؤشر', 'رقم المؤشر'];
-                const tableData = [];
-                
-                indicatorsData[domainId].indicators.forEach((indicator, index) => {
-                    const data = trackingData[domainId][indicator.code];
-                    const statusText = data.status === 'complete' ? 'مكتمل ✓' : 'غير مكتمل ✗';
-                    const progressText = `${data.progress}%`;
-                    const followupDateText = data.followupDate ? new Date(data.followupDate).toLocaleDateString('ar-SA') : '-';
-                    
-                    // Wrap long text for better display
-                    const wrappedTitle = indicator.title.length > 50 ? 
-                        indicator.title.substring(0, 47) + '...' : indicator.title;
-                    
-                    tableData.push([
-                        progressText,
-                        statusText,
-                        followupDateText,
-                        data.responsible || '-',
-                        wrappedTitle,
-                        indicator.code
-                    ]);
-                });
-                
-                // Create enhanced table
-                doc.autoTable({
-                    head: [tableHeaders],
-                    body: tableData,
-                    startY: yPosition,
-                    theme: 'grid',
-                    styles: {
-                        font: 'helvetica',
-                        fontSize: 8,
-                        cellPadding: 3,
-                        textColor: [0, 0, 0],
-                        lineColor: [200, 200, 200],
-                        lineWidth: 0.1,
-                        halign: 'center',
-                        valign: 'middle'
-                    },
-                    headStyles: {
-                        fillColor: [44, 85, 48],
-                        textColor: [255, 255, 255],
-                        fontStyle: 'bold',
-                        fontSize: 9,
-                        halign: 'center'
-                    },
-                    bodyStyles: {
-                        fillColor: [255, 255, 255],
-                        alternateRowStyles: { fillColor: [248, 249, 250] }
-                    },
-                    columnStyles: {
-                        0: { halign: 'center', cellWidth: 18 }, // النسبة
-                        1: { halign: 'center', cellWidth: 22 }, // الحالة
-                        2: { halign: 'center', cellWidth: 25 }, // التاريخ
-                        3: { halign: 'center', cellWidth: 30 }, // المسؤول
-                        4: { halign: 'right', cellWidth: 75 },  // الوصف
-                        5: { halign: 'center', cellWidth: 20 }  // الرقم
-                    },
-                    margin: { left: 15, right: 15 }
-                });
-                
-                // Calculate comprehensive statistics
-                let totalProgress = 0;
-                let completedCount = 0;
-                let inProgressCount = 0;
-                
-                indicatorsData[domainId].indicators.forEach(indicator => {
-                    const data = trackingData[domainId][indicator.code];
-                    const progress = parseInt(data.progress || 0);
-                    totalProgress += progress;
-                    
-                    if (data.status === 'complete') {
-                        completedCount++;
-                    } else if (progress > 0) {
-                        inProgressCount++;
-                    }
-                });
-                
-                const averageProgress = Math.round(totalProgress / indicatorsData[domainId].indicators.length);
-                const totalIndicators = indicatorsData[domainId].indicators.length;
-                const pendingCount = totalIndicators - completedCount - inProgressCount;
-                
-                // Enhanced summary section
-                const finalY = doc.lastAutoTable.finalY + 15;
-                
-                // Summary box with gradient effect
-                doc.setFillColor(248, 249, 250);
                 doc.setDrawColor(44, 85, 48);
                 doc.setLineWidth(1);
-                doc.roundedRect(15, finalY, pageWidth - 30, 35, 3, 3, 'FD');
+                doc.setFillColor(250, 250, 250);
+                doc.rect(10, yPosition, pageWidth - 20, 20, 'FD');
                 
-                // Summary title
-                doc.setFontSize(12);
+                doc.setFontSize(10);
                 doc.setFont("helvetica", "bold");
                 doc.setTextColor(44, 85, 48);
-                doc.text('ملخص إحصائي شامل', 20, finalY + 8);
+                doc.text('معلومات المدرسة', 15, yPosition + 6);
                 
-                // Statistics in two columns
                 doc.setFont("helvetica", "normal");
                 doc.setTextColor(0, 0, 0);
-                doc.setFontSize(10);
+                doc.setFontSize(9);
+                doc.text('اسم المدرسة: ' + schoolName, 15, yPosition + 12);
+                doc.text('مدير المدرسة: ' + principalName, 15, yPosition + 16);
+                doc.text('تاريخ التقرير: ' + arabicDate, pageWidth - 70, yPosition + 12);
+                doc.text('تاريخ الإنشاء: ' + new Date().toLocaleDateString('ar-SA'), pageWidth - 70, yPosition + 16);
                 
-                // Right column
-                doc.text(`إجمالي المؤشرات: ${totalIndicators}`, 20, finalY + 16);
-                doc.text(`المؤشرات المكتملة: ${completedCount}`, 20, finalY + 22);
-                doc.text(`المؤشرات قيد التنفيذ: ${inProgressCount}`, 20, finalY + 28);
+                yPosition += 30;
                 
-                // Left column
-                doc.text(`النسبة الإجمالية: ${averageProgress}%`, pageWidth/2 + 10, finalY + 16);
-                doc.text(`المؤشرات المتبقية: ${pendingCount}`, pageWidth/2 + 10, finalY + 22);
-                
-                // Enhanced footer with professional styling
-                const footerY = pageHeight - 25;
+                // Domain title
+                const domainTitle = indicatorsData[domainId]?.title || 'مجال غير محدد';
                 doc.setFillColor(44, 85, 48);
-                doc.rect(0, footerY, pageWidth, 25, 'F');
+                doc.rect(10, yPosition, pageWidth - 20, 10, 'F');
                 
                 doc.setTextColor(255, 255, 255);
-                doc.setFontSize(10);
+                doc.setFontSize(12);
                 doc.setFont("helvetica", "bold");
-                doc.text('نُراقب • نُقيم • نُطور', pageWidth/2, footerY + 8, { align: 'center' });
+                doc.text(domainTitle, pageWidth/2, yPosition + 7, { align: 'center' });
                 
-                doc.setFontSize(8);
+                yPosition += 18;
+                
+                // Prepare table data with error handling
+                const tableHeaders = ['النسبة', 'الحالة', 'التاريخ', 'المسؤول', 'وصف المؤشر', 'الرقم'];
+                const tableData = [];
+                
+                if (indicatorsData[domainId]?.indicators) {
+                    indicatorsData[domainId].indicators.forEach((indicator) => {
+                        try {
+                            const data = trackingData[domainId]?.[indicator.code] || {
+                                responsible: '',
+                                followupDate: '',
+                                status: 'incomplete',
+                                progress: 0,
+                                comments: ''
+                            };
+                            
+                            const statusText = data.status === 'complete' ? 'مكتمل' : 'غير مكتمل';
+                            const progressText = data.progress + '%';
+                            const followupDateText = data.followupDate ? 
+                                new Date(data.followupDate).toLocaleDateString('ar-SA') : '-';
+                            
+                            // Truncate long titles
+                            const wrappedTitle = indicator.title.length > 45 ? 
+                                indicator.title.substring(0, 42) + '...' : indicator.title;
+                            
+                            tableData.push([
+                                progressText,
+                                statusText,
+                                followupDateText,
+                                data.responsible || '-',
+                                wrappedTitle,
+                                indicator.code
+                            ]);
+                        } catch (error) {
+                            console.warn('Error processing indicator:', indicator.code, error);
+                        }
+                    });
+                }
+                
+                // Create table with better error handling
+                try {
+                    doc.autoTable({
+                        head: [tableHeaders],
+                        body: tableData,
+                        startY: yPosition,
+                        theme: 'striped',
+                        styles: {
+                            font: 'helvetica',
+                            fontSize: 8,
+                            cellPadding: 2,
+                            textColor: [0, 0, 0],
+                            lineColor: [150, 150, 150],
+                            lineWidth: 0.1,
+                            halign: 'center',
+                            valign: 'middle',
+                            fontStyle: 'normal'
+                        },
+                        headStyles: {
+                            fillColor: [44, 85, 48],
+                            textColor: [255, 255, 255],
+                            fontStyle: 'bold',
+                            fontSize: 9,
+                            halign: 'center'
+                        },
+                        alternateRowStyles: {
+                            fillColor: [245, 245, 245]
+                        },
+                        columnStyles: {
+                            0: { halign: 'center', cellWidth: 15 },
+                            1: { halign: 'center', cellWidth: 20 },
+                            2: { halign: 'center', cellWidth: 22 },
+                            3: { halign: 'center', cellWidth: 25 },
+                            4: { halign: 'right', cellWidth: 75 },
+                            5: { halign: 'center', cellWidth: 18 }
+                        },
+                        margin: { left: 10, right: 10 },
+                        tableWidth: 'auto'
+                    });
+                } catch (tableError) {
+                    console.error('Table creation error:', tableError);
+                    // Fallback: create simple table
+                    doc.text('جدول المؤشرات (نسخة مبسطة)', 15, yPosition);
+                    yPosition += 10;
+                    
+                    tableData.forEach((row, index) => {
+                        const rowText = `${row[5]}: ${row[4]} - ${row[1]} (${row[0]})`;
+                        doc.text(rowText, 15, yPosition + (index * 5));
+                    });
+                }
+                
+                // Calculate statistics safely
+                let totalProgress = 0;
+                let completedCount = 0;
+                let totalIndicators = 0;
+                
+                if (indicatorsData[domainId]?.indicators) {
+                    totalIndicators = indicatorsData[domainId].indicators.length;
+                    
+                    indicatorsData[domainId].indicators.forEach(indicator => {
+                        try {
+                            const data = trackingData[domainId]?.[indicator.code] || { progress: 0, status: 'incomplete' };
+                            const progress = parseInt(data.progress || 0);
+                            totalProgress += progress;
+                            
+                            if (data.status === 'complete') {
+                                completedCount++;
+                            }
+                        } catch (error) {
+                            console.warn('Error calculating stats for:', indicator.code);
+                        }
+                    });
+                }
+                
+                const averageProgress = totalIndicators > 0 ? Math.round(totalProgress / totalIndicators) : 0;
+                
+                // Summary section
+                const finalY = Math.max(doc.lastAutoTable?.finalY || yPosition + 50, yPosition + 50);
+                
+                doc.setDrawColor(44, 85, 48);
+                doc.setFillColor(248, 249, 250);
+                doc.rect(10, finalY + 10, pageWidth - 20, 25, 'FD');
+                
+                doc.setFontSize(11);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(44, 85, 48);
+                doc.text('ملخص الإنجاز', 15, finalY + 18);
+                
                 doc.setFont("helvetica", "normal");
-                doc.text('تم إنشاء هذا التقرير بواسطة نظام متابعة مؤشرات التقويم المدرسي', pageWidth/2, footerY + 14, { align: 'center' });
-                doc.text('تنفيذ: نواف الصبحي', pageWidth/2, footerY + 19, { align: 'center' });
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(9);
+                doc.text(`إجمالي المؤشرات: ${totalIndicators}`, 15, finalY + 23);
+                doc.text(`المؤشرات المكتملة: ${completedCount}`, 15, finalY + 28);
+                doc.text(`النسبة الإجمالية: ${averageProgress}%`, pageWidth/2, finalY + 23);
+                doc.text(`المؤشرات المتبقية: ${totalIndicators - completedCount}`, pageWidth/2, finalY + 28);
                 
-                // Add page numbers for multiple pages
+                // Footer
+                const footerY = pageHeight - 20;
+                doc.setFillColor(44, 85, 48);
+                doc.rect(0, footerY, pageWidth, 20, 'F');
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "bold");
+                doc.text('نُراقب • نُقيم • نُطور', pageWidth/2, footerY + 6, { align: 'center' });
+                
+                doc.setFontSize(7);
+                doc.setFont("helvetica", "normal");
+                doc.text('تم إنشاء هذا التقرير بواسطة نظام متابعة مؤشرات التقويم المدرسي', pageWidth/2, footerY + 10, { align: 'center' });
+                doc.text('تنفيذ: نواف الصبحي', pageWidth/2, footerY + 14, { align: 'center' });
+                
+                // Page numbers
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
                     doc.setPage(i);
-                    doc.setTextColor(128, 128, 128);
+                    doc.setTextColor(100, 100, 100);
                     doc.setFontSize(8);
-                    doc.text(`صفحة ${i} من ${pageCount}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
+                    doc.text(`صفحة ${i} من ${pageCount}`, pageWidth - 15, pageHeight - 5, { align: 'right' });
                 }
                 
-                // Generate filename with timestamp
-                const timestamp = new Date().getTime();
-                const fileName = `تقرير_${domainTitle.replace(/\s+/g, '_')}_${arabicDate.replace(/\//g, '-')}_${timestamp}.pdf`;
+                // Generate safe filename
+                const timestamp = Date.now();
+                const safeDomainName = domainTitle.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_');
+                const fileName = `تقرير_${safeDomainName}_${timestamp}.pdf`;
                 
                 // Save PDF
                 doc.save(fileName);
                 
-                showToast('تم تصدير التقرير بنجاح! جودة عالية ومحسن للطباعة', 'success');
+                showToast('تم تصدير التقرير بنجاح!', 'success');
                 
             } catch (error) {
-                console.error('Error generating PDF:', error);
-                showToast('حدث خطأ في تصدير التقرير. يرجى المحاولة مرة أخرى.', 'danger');
+                console.error('PDF Export Error:', error);
+                showToast('حدث خطأ في تصدير التقرير. سيتم المحاولة بطريقة بديلة...', 'warning');
+                
+                // Fallback method using simpler approach
+                try {
+                    await exportToPDFSimple(domainId);
+                } catch (fallbackError) {
+                    console.error('Fallback PDF Error:', fallbackError);
+                    showToast('عذراً، تعذر تصدير التقرير. يرجى التحقق من المتصفح والمحاولة مرة أخرى.', 'danger');
+                }
             }
+        }
+
+        // Simplified fallback PDF export method
+        async function exportToPDFSimple(domainId) {
+            const { jsPDF } = window.jspdf;
+            
+            const doc = new jsPDF();
+            
+            // Basic header
+            doc.setFontSize(16);
+            doc.text('تقرير متابعة مؤشرات التقويم المدرسي', 20, 20);
+            
+            doc.setFontSize(12);
+            doc.text('المملكة العربية السعودية - وزارة التعليم', 20, 30);
+            doc.text('مكتب قطاع أحد والعوالي', 20, 40);
+            
+            // School info
+            const schoolName = document.getElementById('schoolName')?.value || 'متوسطة المنذر بن عمرو الأنصاري';
+            const principalName = document.getElementById('principalName')?.value || 'خالد سعود المطيري';
+            
+            doc.text(`اسم المدرسة: ${schoolName}`, 20, 55);
+            doc.text(`مدير المدرسة: ${principalName}`, 20, 65);
+            doc.text(`التاريخ: ${new Date().toLocaleDateString('ar-SA')}`, 20, 75);
+            
+            // Domain title
+            const domainTitle = indicatorsData[domainId]?.title || 'مجال غير محدد';
+            doc.setFontSize(14);
+            doc.text(domainTitle, 20, 90);
+            
+            // Simple indicators list
+            let yPos = 105;
+            doc.setFontSize(10);
+            
+            if (indicatorsData[domainId]?.indicators) {
+                indicatorsData[domainId].indicators.forEach((indicator, index) => {
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    const data = trackingData[domainId]?.[indicator.code] || { progress: 0, status: 'incomplete' };
+                    const status = data.status === 'complete' ? 'مكتمل' : 'غير مكتمل';
+                    
+                    doc.text(`${indicator.code}: ${status} (${data.progress}%)`, 20, yPos);
+                    yPos += 7;
+                });
+            }
+            
+            // Footer
+            doc.text('نُراقب • نُقيم • نُطور', 20, doc.internal.pageSize.height - 20);
+            doc.text('تنفيذ: نواف الصبحي', 20, doc.internal.pageSize.height - 10);
+            
+            const fileName = `تقرير_مبسط_${Date.now()}.pdf`;
+            doc.save(fileName);
+            
+            showToast('تم تصدير التقرير بالطريقة المبسطة', 'success');
         }
 
         // Auto-save when school info changes
