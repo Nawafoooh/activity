@@ -224,6 +224,48 @@
     </div>
 
     <div class="container">
+        <!-- User Management Section -->
+        <div class="school-info">
+            <h4><i class="fas fa-users"></i> إدارة المستخدمين والصلاحيات</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="info-field">
+                        <label>المستخدم الحالي:</label>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="currentUser" placeholder="أدخل اسمك" class="form-control">
+                            <select id="userRole" class="form-select" style="width: 150px;">
+                                <option value="admin">مدير النظام</option>
+                                <option value="domain_manager">مسؤول مجال</option>
+                                <option value="viewer">مشاهد فقط</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="info-field">
+                        <label>آخر تحديث:</label>
+                        <div id="lastUpdateInfo" class="text-muted small">لم يتم التحديث بعد</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-primary btn-sm" onclick="saveUserProfile()">
+                            <i class="fas fa-save"></i> حفظ المستخدم
+                        </button>
+                        <button class="btn btn-info btn-sm" onclick="showActiveUsers()">
+                            <i class="fas fa-users"></i> المستخدمين النشطين
+                        </button>
+                        <button class="btn btn-warning btn-sm" onclick="showActivityLog()">
+                            <i class="fas fa-history"></i> سجل النشاطات
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- School Information -->
         <div class="school-info">
             <h4><i class="fas fa-info-circle"></i> معلومات المدرسة</h4>
@@ -608,7 +650,313 @@
             });
         }
 
-        // إضافة زر مشاركة/تصدير معرف المدرسة
+        // User management and permissions system
+        let currentUser = null;
+        let userRole = 'viewer';
+        let activeUsers = [];
+
+        // Initialize user system
+        function initializeUserSystem() {
+            // تحميل بيانات المستخدم المحفوظة
+            const savedUser = localStorage.getItem('currentUser');
+            const savedRole = localStorage.getItem('userRole');
+            
+            if (savedUser) {
+                document.getElementById('currentUser').value = savedUser;
+                currentUser = savedUser;
+            }
+            
+            if (savedRole) {
+                document.getElementById('userRole').value = savedRole;
+                userRole = savedRole;
+            }
+            
+            // تطبيق الصلاحيات
+            applyUserPermissions();
+            
+            // تحديث معلومات المستخدم في Firebase
+            if (db && currentSchoolId && currentUser) {
+                updateUserActivity();
+            }
+        }
+
+        // حفظ ملف المستخدم
+        function saveUserProfile() {
+            const userName = document.getElementById('currentUser').value.trim();
+            const role = document.getElementById('userRole').value;
+            
+            if (!userName) {
+                showToast('يرجى إدخال اسم المستخدم', 'warning');
+                return;
+            }
+            
+            currentUser = userName;
+            userRole = role;
+            
+            // حفظ محلياً
+            localStorage.setItem('currentUser', currentUser);
+            localStorage.setItem('userRole', userRole);
+            
+            // تطبيق الصلاحيات
+            applyUserPermissions();
+            
+            // تحديث في Firebase
+            if (db && currentSchoolId) {
+                updateUserActivity();
+            }
+            
+            showToast(`تم حفظ المستخدم: ${currentUser} (${getUserRoleText(userRole)})`, 'success');
+        }
+
+        // تطبيق صلاحيات المستخدم
+        function applyUserPermissions() {
+            const isAdmin = userRole === 'admin';
+            const isDomainManager = userRole === 'domain_manager';
+            const isViewer = userRole === 'viewer';
+            
+            // تعطيل التعديل للمشاهدين فقط
+            if (isViewer) {
+                // تعطيل جميع عناصر الإدخال
+                document.querySelectorAll('input:not(#currentUser), select:not(#userRole), textarea').forEach(element => {
+                    element.disabled = true;
+                });
+                
+                // إخفاء أزرار التصدير للمشاهدين
+                document.querySelectorAll('.btn-export').forEach(btn => {
+                    btn.style.display = 'none';
+                });
+                
+                showToast('أنت في وضع المشاهدة فقط', 'info');
+            } else {
+                // تمكين التعديل للمدراء ومسؤولي المجالات
+                document.querySelectorAll('input, select, textarea').forEach(element => {
+                    element.disabled = false;
+                });
+                
+                document.querySelectorAll('.btn-export').forEach(btn => {
+                    btn.style.display = 'inline-block';
+                });
+            }
+            
+            // إضافة مؤشر الصلاحية
+            addPermissionIndicator();
+        }
+
+        // إضافة مؤشر الصلاحية
+        function addPermissionIndicator() {
+            const indicator = document.createElement('div');
+            indicator.id = 'permission-indicator';
+            indicator.className = 'position-fixed';
+            indicator.style.cssText = `
+                bottom: 20px; left: 20px; z-index: 9999; 
+                background: ${getPermissionColor()}; color: white; 
+                padding: 8px 15px; border-radius: 20px; font-size: 12px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            `;
+            indicator.innerHTML = `
+                <i class="fas ${getPermissionIcon()}"></i> 
+                ${currentUser || 'غير محدد'} - ${getUserRoleText(userRole)}
+            `;
+            
+            // إزالة المؤشر السابق إن وجد
+            const oldIndicator = document.getElementById('permission-indicator');
+            if (oldIndicator) oldIndicator.remove();
+            
+            document.body.appendChild(indicator);
+        }
+
+        // الحصول على لون الصلاحية
+        function getPermissionColor() {
+            switch(userRole) {
+                case 'admin': return '#dc3545';      // أحمر للمدير
+                case 'domain_manager': return '#ffc107'; // أصفر لمسؤول المجال
+                case 'viewer': return '#6c757d';     // رمادي للمشاهد
+                default: return '#6c757d';
+            }
+        }
+
+        // الحصول على أيقونة الصلاحية
+        function getPermissionIcon() {
+            switch(userRole) {
+                case 'admin': return 'fa-crown';
+                case 'domain_manager': return 'fa-user-tie';
+                case 'viewer': return 'fa-eye';
+                default: return 'fa-user';
+            }
+        }
+
+        // الحصول على نص الصلاحية
+        function getUserRoleText(role) {
+            switch(role) {
+                case 'admin': return 'مدير النظام';
+                case 'domain_manager': return 'مسؤول مجال';
+                case 'viewer': return 'مشاهد فقط';
+                default: return 'غير محدد';
+            }
+        }
+
+        // تحديث نشاط المستخدم في Firebase
+        async function updateUserActivity() {
+            if (!db || !currentSchoolId || !currentUser) return;
+            
+            try {
+                const userActivity = {
+                    name: currentUser,
+                    role: userRole,
+                    lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+                    userAgent: navigator.userAgent,
+                    timestamp: Date.now()
+                };
+                
+                await db.collection('schools').doc(currentSchoolId)
+                    .collection('users').doc(currentUser).set(userActivity, { merge: true });
+                
+                // تحديث معلومات آخر تحديث
+                updateLastUpdateInfo();
+                
+            } catch (error) {
+                console.error('خطأ في تحديث نشاط المستخدم:', error);
+            }
+        }
+
+        // عرض المستخدمين النشطين
+        async function showActiveUsers() {
+            if (!db || !currentSchoolId) {
+                showToast('قاعدة البيانات غير متاحة', 'warning');
+                return;
+            }
+            
+            try {
+                const usersSnapshot = await db.collection('schools').doc(currentSchoolId)
+                    .collection('users').orderBy('lastActive', 'desc').limit(10).get();
+                
+                let usersList = '<div class="users-list">';
+                usersSnapshot.forEach(doc => {
+                    const user = doc.data();
+                    const lastActive = user.lastActive ? 
+                        new Date(user.lastActive.toDate()).toLocaleString('ar-SA') : 'غير محدد';
+                    
+                    usersList += `
+                        <div class="user-item" style="padding: 8px; border: 1px solid #ddd; margin: 5px 0; border-radius: 5px;">
+                            <strong><i class="fas ${getPermissionIcon(user.role)}"></i> ${user.name}</strong>
+                            <br><small class="text-muted">${getUserRoleText(user.role)} - آخر نشاط: ${lastActive}</small>
+                        </div>
+                    `;
+                });
+                usersList += '</div>';
+                
+                showModal('المستخدمين النشطين', usersList);
+                
+            } catch (error) {
+                console.error('خطأ في جلب المستخدمين:', error);
+                showToast('تعذر جلب قائمة المستخدمين', 'danger');
+            }
+        }
+
+        // عرض سجل النشاطات
+        async function showActivityLog() {
+            if (!db || !currentSchoolId) {
+                showToast('قاعدة البيانات غير متاحة', 'warning');
+                return;
+            }
+            
+            try {
+                const activitiesSnapshot = await db.collection('schools').doc(currentSchoolId)
+                    .collection('activities').orderBy('timestamp', 'desc').limit(20).get();
+                
+                let activitiesList = '<div class="activities-list" style="max-height: 400px; overflow-y: auto;">';
+                
+                if (activitiesSnapshot.empty) {
+                    activitiesList += '<p class="text-muted">لا توجد نشاطات مسجلة</p>';
+                } else {
+                    activitiesSnapshot.forEach(doc => {
+                        const activity = doc.data();
+                        const timestamp = new Date(activity.timestamp).toLocaleString('ar-SA');
+                        
+                        activitiesList += `
+                            <div class="activity-item" style="padding: 8px; border-bottom: 1px solid #eee;">
+                                <div class="d-flex justify-content-between">
+                                    <strong>${activity.user || 'مستخدم غير معروف'}</strong>
+                                    <small class="text-muted">${timestamp}</small>
+                                </div>
+                                <div class="text-muted">${activity.action || 'نشاط غير محدد'}</div>
+                                ${activity.details ? `<small class="text-info">${activity.details}</small>` : ''}
+                            </div>
+                        `;
+                    });
+                }
+                activitiesList += '</div>';
+                
+                showModal('سجل النشاطات', activitiesList);
+                
+            } catch (error) {
+                console.error('خطأ في جلب سجل النشاطات:', error);
+                showToast('تعذر جلب سجل النشاطات', 'danger');
+            }
+        }
+
+        // تسجيل نشاط في السجل
+        async function logActivity(action, details = '') {
+            if (!db || !currentSchoolId || !currentUser) return;
+            
+            try {
+                await db.collection('schools').doc(currentSchoolId)
+                    .collection('activities').add({
+                        user: currentUser,
+                        role: userRole,
+                        action: action,
+                        details: details,
+                        timestamp: Date.now(),
+                        serverTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+            } catch (error) {
+                console.error('خطأ في تسجيل النشاط:', error);
+            }
+        }
+
+        // عرض نافذة منبثقة مخصصة
+        function showModal(title, content) {
+            const modalHtml = `
+                <div class="modal fade" id="customModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header" style="background: linear-gradient(45deg, #2c5530, #4a7c59); color: white;">
+                                <h5 class="modal-title">${title}</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                ${content}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // إزالة النافذة السابقة إن وجدت
+            const oldModal = document.getElementById('customModal');
+            if (oldModal) oldModal.remove();
+            
+            // إضافة النافذة الجديدة
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = new bootstrap.Modal(document.getElementById('customModal'));
+            modal.show();
+            
+            // إزالة النافذة عند الإغلاق
+            document.getElementById('customModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+        }
+
+        // تحديث معلومات آخر تحديث
+        function updateLastUpdateInfo() {
+            const lastUpdateElement = document.getElementById('lastUpdateInfo');
+            if (lastUpdateElement) {
+                const now = new Date().toLocaleString('ar-SA');
+                lastUpdateElement.innerHTML = `
+                    <i class="fas fa-clock"></i> ${now} بواسطة ${currentUser || 'مستخدم غير معروف'}
+                `;
+            }
+        }
         function addShareButton() {
             const schoolInfo = document.querySelector('.school-info .row');
             if (schoolInfo && currentSchoolId) {
@@ -857,9 +1205,10 @@
             return row;
         }
 
-        // Update indicator data with auto-save
+        // Update indicator data with activity logging
         function updateIndicatorData(domainId, indicatorCode, field, value) {
             if (trackingData[domainId] && trackingData[domainId][indicatorCode]) {
+                const oldValue = trackingData[domainId][indicatorCode][field];
                 trackingData[domainId][indicatorCode][field] = value;
                 
                 if (field === 'progress') {
@@ -868,6 +1217,15 @@
                 }
                 updateProgress();
                 
+                // تسجيل النشاط
+                if (currentUser) {
+                    const indicator = indicatorsData[domainId].indicators.find(ind => ind.code === indicatorCode);
+                    logActivity(
+                        `تحديث المؤشر ${indicatorCode}`,
+                        `${indicator?.title}: ${field} من ${oldValue} إلى ${value}`
+                    );
+                }
+                
                 // حفظ تلقائي بعد تحديث البيانات
                 if (db && currentSchoolId) {
                     setTimeout(saveToFirebase, 500);
@@ -875,7 +1233,7 @@
             }
         }
 
-        // Save comments with auto-save
+        // Save comments with activity logging
         function saveComments() {
             if (currentModalIndicator) {
                 const comments = document.getElementById('modalComments').value;
@@ -887,10 +1245,84 @@
                 
                 showToast('تم حفظ الملاحظات بنجاح', 'success');
                 
+                // تسجيل النشاط
+                if (currentUser) {
+                    logActivity(
+                        `إضافة ملاحظة للمؤشر ${indicatorCode}`,
+                        `تم حفظ ملاحظة جديدة`
+                    );
+                }
+                
                 // حفظ تلقائي
                 if (db && currentSchoolId) {
                     setTimeout(saveToFirebase, 500);
                 }
+            }
+        }
+
+        // Enhanced PDF export with user tracking
+        async function exportToPDF(domainId) {
+            try {
+                showToast('جاري إنشاء التقرير...', 'info');
+                
+                // تسجيل النشاط
+                if (currentUser) {
+                    const domainTitle = indicatorsData[domainId]?.title || 'مجال غير محدد';
+                    logActivity('تصدير تقرير PDF', `تصدير تقرير ${domainTitle}`);
+                }
+                
+                // Check if jsPDF is available
+                if (typeof window.jspdf === 'undefined') {
+                    throw new Error('jsPDF library not loaded');
+                }
+                
+                const { jsPDF } = window.jspdf;
+                
+                // Create new PDF document
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                await generateSinglePagePDFReport(pdf, domainId);
+                
+                // Generate filename
+                const domainTitle = indicatorsData[domainId]?.title || 'مجال_غير_محدد';
+                const timestamp = new Date().toISOString().slice(0, 10);
+                const filename = `تقرير_${domainTitle.replace(/\s+/g, '_')}_${timestamp}.pdf`;
+                
+                // Save the PDF
+                pdf.save(filename);
+                showToast('تم إنشاء التقرير بنجاح', 'success');
+                
+            } catch (error) {
+                console.error('PDF Generation Error:', error);
+                showToast('حدث خطأ في إنشاء PDF. جاري المحاولة بطريقة بديلة...', 'warning');
+                
+                // Fallback to print method
+                try {
+                    await exportToPrint(domainId);
+                } catch (fallbackError) {
+                    showToast('عذراً، تعذر إنشاء التقرير. يرجى المحاولة مرة أخرى.', 'danger');
+                }
+            }
+        }
+
+        // Initialize application with user system
+        function initializeApp() {
+            loadData();
+            populateTables();
+            updateProgress();
+            setCurrentDate();
+            
+            // تهيئة نظام المستخدمين
+            initializeUserSystem();
+            
+            // تمكين الحفظ التلقائي إذا كان Firebase متاحاً
+            if (db) {
+                enableAutoSave();
+                addShareButton();
             }
         }
 
