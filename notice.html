@@ -7,6 +7,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.plugin.autotable.min.js"></script></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -165,6 +166,16 @@
             padding: 10px;
             width: 100%;
         }
+        
+        .footer {
+            background-color: #2c5530;
+            color: white;
+            padding: 15px 0;
+            margin-top: 50px;
+            position: relative;
+            bottom: 0;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -172,11 +183,25 @@
     <div class="header">
         <div class="container">
             <div class="text-center">
+                <h6 class="mb-1">المملكة العربية السعودية</h6>
+                <h5 class="mb-1">وزارة التعليم</h5>
+                <h6 class="mb-3">مكتب قطاع أحد والعوالي</h6>
                 <h1><i class="fas fa-school"></i> نظام متابعة مؤشرات التقويم المدرسي</h1>
                 <p class="mb-0">وفقاً للدليل الإسترشادي لأخصائي التقويم المدرسي - هيئة تقويم التعليم والتدريب</p>
             </div>
         </div>
     </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="text-center">
+                <p class="mb-0">
+                    <i class="fas fa-code"></i> نُراقب • نُقيم • نُطور
+                </p>
+            </div>
+        </div>
+    </footer>
 
     <div class="container">
         <!-- School Information -->
@@ -186,13 +211,13 @@
                 <div class="col-md-4">
                     <div class="info-field">
                         <label>اسم المدرسة:</label>
-                        <input type="text" id="schoolName" placeholder="أدخل اسم المدرسة">
+                        <input type="text" id="schoolName" placeholder="أدخل اسم المدرسة" value="متوسطة المنذر بن عمرو الأنصاري">
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="info-field">
                         <label>اسم المدير:</label>
-                        <input type="text" id="principalName" placeholder="أدخل اسم المدير">
+                        <input type="text" id="principalName" placeholder="أدخل اسم المدير" value="خالد سعود المطيري">
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -340,6 +365,17 @@
             </div>
         </div>
     </div>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="text-center">
+                <p class="mb-0">
+                    <i class="fas fa-code"></i> تنفيذ: نواف الصبحي
+                </p>
+            </div>
+        </div>
+    </footer>
 
     <!-- Documents Modal -->
     <div class="modal fade" id="documentsModal" tabindex="-1">
@@ -774,87 +810,178 @@
             }, 3000);
         }
 
-        // Export to PDF
+        // Export to PDF with Arabic support
         function exportToPDF(domainId) {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
+            
+            // Create PDF with custom settings for Arabic
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
             
             // Get school info
-            const schoolName = document.getElementById('schoolName').value || 'اسم المدرسة';
-            const principalName = document.getElementById('principalName').value || 'اسم المدير';
+            const schoolName = document.getElementById('schoolName').value || 'متوسطة المنذر بن عمرو الأنصاري';
+            const principalName = document.getElementById('principalName').value || 'خالد سعود المطيري';
             const reportDate = document.getElementById('reportDate').value || new Date().toISOString().split('T')[0];
             
-            // Set font (Arabic support might be limited)
-            doc.setFontSize(16);
+            // Convert date to Arabic format
+            const dateObj = new Date(reportDate);
+            const arabicDate = `${dateObj.getDate()}/${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
             
-            // Add header
-            doc.text('Ministry of Education - Saudi Arabia', 20, 20);
-            doc.text('School Evaluation Report', 20, 30);
+            let yPosition = 30;
+            
+            // Add header with logo area
             doc.setFontSize(12);
-            doc.text(`School: ${schoolName}`, 20, 45);
-            doc.text(`Principal: ${principalName}`, 20, 55);
-            doc.text(`Date: ${reportDate}`, 20, 65);
+            doc.setFont("helvetica", "bold");
+            
+            // Header in center
+            doc.text('المملكة العربية السعودية', 105, yPosition, { align: 'center' });
+            yPosition += 7;
+            doc.setFontSize(14);
+            doc.text('وزارة التعليم', 105, yPosition, { align: 'center' });
+            yPosition += 7;
+            doc.setFontSize(11);
+            doc.text('مكتب قطاع أحد والعوالي', 105, yPosition, { align: 'center' });
+            yPosition += 15;
+            
+            // Report title
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text('تقرير متابعة مؤشرات التقويم المدرسي', 105, yPosition, { align: 'center' });
+            yPosition += 15;
+            
+            // School information box
+            doc.setDrawColor(50, 85, 48);
+            doc.setLineWidth(0.5);
+            doc.rect(20, yPosition - 5, 170, 25);
+            
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text('اسم المدرسة: ' + schoolName, 25, yPosition + 3);
+            doc.text('مدير المدرسة: ' + principalName, 25, yPosition + 10);
+            doc.text('تاريخ التقرير: ' + arabicDate, 25, yPosition + 17);
+            
+            yPosition += 35;
             
             // Domain title
             const domainTitle = indicatorsData[domainId].title;
             doc.setFontSize(14);
-            doc.text(`Domain: ${domainTitle}`, 20, 85);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(50, 85, 48);
+            doc.text(domainTitle, 105, yPosition, { align: 'center' });
+            yPosition += 15;
             
-            // Table headers
-            let yPosition = 100;
-            doc.setFontSize(10);
-            doc.text('Indicator', 20, yPosition);
-            doc.text('Responsible', 70, yPosition);
-            doc.text('Date', 110, yPosition);
-            doc.text('Status', 140, yPosition);
-            doc.text('Progress', 170, yPosition);
+            // Prepare table data
+            const tableHeaders = ['النسبة', 'الحالة', 'تاريخ المتابعة', 'المسؤول', 'وصف المؤشر', 'رقم المؤشر'];
+            const tableData = [];
             
-            yPosition += 10;
-            
-            // Add indicators data
             indicatorsData[domainId].indicators.forEach(indicator => {
                 const data = trackingData[domainId][indicator.code];
+                const statusText = data.status === 'complete' ? '✅ مكتمل' : '❌ غير مكتمل';
+                const progressText = data.progress + '%';
                 
-                if (yPosition > 270) {
-                    doc.addPage();
-                    yPosition = 20;
-                }
-                
-                doc.text(indicator.code, 20, yPosition);
-                doc.text(data.responsible || '-', 70, yPosition);
-                doc.text(data.followupDate || '-', 110, yPosition);
-                doc.text(data.status === 'complete' ? 'Complete' : 'Incomplete', 140, yPosition);
-                doc.text(`${data.progress}%`, 170, yPosition);
-                
-                yPosition += 8;
-                
-                // Add comments if available
-                if (data.comments) {
-                    doc.setFontSize(8);
-                    doc.text(`Comments: ${data.comments.substring(0, 50)}...`, 20, yPosition);
-                    yPosition += 6;
-                    doc.setFontSize(10);
-                }
+                tableData.push([
+                    progressText,
+                    statusText,
+                    data.followupDate || '-',
+                    data.responsible || '-',
+                    indicator.title,
+                    indicator.code
+                ]);
+            });
+            
+            // Create table with Arabic support
+            doc.autoTable({
+                head: [tableHeaders],
+                body: tableData,
+                startY: yPosition,
+                styles: {
+                    font: 'helvetica',
+                    fontSize: 9,
+                    cellPadding: 3,
+                    textColor: [0, 0, 0],
+                    lineColor: [128, 128, 128],
+                    lineWidth: 0.1
+                },
+                headStyles: {
+                    fillColor: [50, 85, 48],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                bodyStyles: {
+                    fillColor: [245, 245, 245],
+                    halign: 'center'
+                },
+                alternateRowStyles: {
+                    fillColor: [255, 255, 255]
+                },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 20 }, // النسبة
+                    1: { halign: 'center', cellWidth: 25 }, // الحالة
+                    2: { halign: 'center', cellWidth: 25 }, // التاريخ
+                    3: { halign: 'center', cellWidth: 30 }, // المسؤول
+                    4: { halign: 'right', cellWidth: 70 },  // الوصف
+                    5: { halign: 'center', cellWidth: 20 }  // الرقم
+                },
+                margin: { left: 10, right: 10 }
             });
             
             // Calculate overall progress
             let totalProgress = 0;
+            let completedCount = 0;
             indicatorsData[domainId].indicators.forEach(indicator => {
                 const data = trackingData[domainId][indicator.code];
                 totalProgress += parseInt(data.progress || 0);
+                if (data.status === 'complete') completedCount++;
             });
             const averageProgress = Math.round(totalProgress / indicatorsData[domainId].indicators.length);
+            const totalIndicators = indicatorsData[domainId].indicators.length;
             
-            // Add summary
-            yPosition += 20;
+            // Add summary section
+            const finalY = doc.lastAutoTable.finalY + 15;
+            
+            // Summary box
+            doc.setDrawColor(50, 85, 48);
+            doc.setFillColor(248, 249, 250);
+            doc.rect(20, finalY, 170, 25, 'FD');
+            
             doc.setFontSize(12);
-            doc.text(`Overall Progress: ${averageProgress}%`, 20, yPosition);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(50, 85, 48);
+            doc.text('ملخص الإنجاز', 25, finalY + 7);
             
-            // Save PDF
-            const fileName = `${domainTitle.replace(/\s+/g, '_')}_Report_${reportDate}.pdf`;
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(0, 0, 0);
+            doc.text(`إجمالي المؤشرات: ${totalIndicators}`, 25, finalY + 14);
+            doc.text(`المؤشرات المكتملة: ${completedCount}`, 25, finalY + 21);
+            doc.text(`النسبة الإجمالية: ${averageProgress}%`, 120, finalY + 14);
+            doc.text(`المؤشرات المتبقية: ${totalIndicators - completedCount}`, 120, finalY + 21);
+            
+            // Add footer
+            const pageHeight = doc.internal.pageSize.height;
+            doc.setFontSize(8);
+            doc.setTextColor(128, 128, 128);
+            doc.text('تم إنشاء هذا التقرير بواسطة نظام متابعة مؤشرات التقويم المدرسي', 105, pageHeight - 20, { align: 'center' });
+            doc.text('تنفيذ: نواف الصبحي', 105, pageHeight - 15, { align: 'center' });
+            doc.text(`تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')}`, 105, pageHeight - 10, { align: 'center' });
+            
+            // Add page numbers if multiple pages
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(128, 128, 128);
+                doc.text(`صفحة ${i} من ${pageCount}`, 190, pageHeight - 5, { align: 'right' });
+            }
+            
+            // Save PDF with Arabic filename
+            const fileName = `تقرير_${domainTitle.replace(/\s+/g, '_')}_${arabicDate.replace(/\//g, '-')}.pdf`;
             doc.save(fileName);
             
-            showToast('تم تصدير التقرير بنجاح', 'success');
+            showToast('تم تصدير التقرير بنجاح بصيغة PDF', 'success');
         }
 
         // Auto-save when school info changes
