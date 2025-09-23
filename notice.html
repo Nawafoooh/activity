@@ -3,603 +3,869 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة متابعة المدير - نظام الجودة التعليمية</title>
+    <title>نظام متابعة مؤشرات التقويم المدرسي</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
         }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
+        
         .header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #3498db, #e74c3c, #f39c12, #27ae60);
-        }
-
-        .header h1 {
-            color: #2c3e50;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
+            background: linear-gradient(135deg, #2c5530 0%, #4a7c59 100%);
+            color: white;
+            padding: 20px 0;
             margin-bottom: 30px;
         }
-
-        .summary-card {
-            background: rgba(255, 255, 255, 0.95);
+        
+        .domain-card {
+            background: white;
             border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
             overflow: hidden;
-            transition: transform 0.3s ease;
         }
-
-        .summary-card:hover {
-            transform: translateY(-5px);
+        
+        .domain-header {
+            background: linear-gradient(45deg, #2c5530, #4a7c59);
+            color: white;
+            padding: 20px;
+            font-size: 1.3rem;
+            font-weight: bold;
         }
-
-        .summary-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--card-color);
+        
+        .progress-indicator {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
         }
-
-        .card-icon {
-            font-size: 3em;
-            color: var(--card-color);
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .table-container {
+            padding: 0;
+        }
+        
+        .custom-table {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .custom-table th {
+            background-color: #f8f9fa;
+            border: none;
+            font-weight: 600;
+            color: #495057;
+            padding: 15px 10px;
+        }
+        
+        .custom-table td {
+            padding: 12px 10px;
+            border-top: 1px solid #dee2e6;
+            vertical-align: middle;
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-complete {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-incomplete {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .btn-view-docs {
+            padding: 5px 12px;
+            font-size: 0.8rem;
+            border-radius: 15px;
+        }
+        
+        .btn-export {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            margin: 20px;
+        }
+        
+        .modal-header {
+            background: linear-gradient(45deg, #2c5530, #4a7c59);
+            color: white;
+        }
+        
+        .documents-section {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
             margin-bottom: 15px;
         }
-
-        .card-value {
-            font-size: 2.5em;
+        
+        .document-item {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            border-right: 3px solid #28a745;
+        }
+        
+        .comments-section {
+            margin-top: 20px;
+        }
+        
+        .progress-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 10px;
+            color: white;
         }
-
-        .card-label {
-            color: #7f8c8d;
-            font-size: 1.1em;
+        
+        .school-info {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .info-field {
+            margin-bottom: 15px;
+        }
+        
+        .info-field label {
             font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+            display: block;
         }
-
-        .progress-bar {
+        
+        .info-field input {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
             width: 100%;
-            height: 8px;
-            background: #ecf0f1;
-            border-radius: 4px;
-            margin: 15px 0;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--card-color);
-            border-radius: 4px;
-            transition: width 0.8s ease;
-        }
-
-        .domains-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .domain-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            border-left: 5px solid var(--domain-color);
-        }
-
-        .domain-title {
-            font-size: 1.5em;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .domain-icon {
-            font-size: 1.8em;
-            color: var(--domain-color);
-        }
-
-        .indicators-list {
-            space-y: 15px;
-        }
-
-        .indicator-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            border-left: 3px solid var(--indicator-color);
-        }
-
-        .indicator-text {
-            font-weight: 500;
-            color: #2c3e50;
-            flex: 1;
-        }
-
-        .indicator-status {
-            padding: 8px 15px;
-            border-radius: 20px;
-            color: white;
-            font-size: 0.9em;
-            font-weight: 600;
-            min-width: 80px;
-            text-align: center;
-        }
-
-        .status-excellent {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-        }
-
-        .status-good {
-            background: linear-gradient(135deg, #f39c12, #e67e22);
-        }
-
-        .status-needs-work {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-        }
-
-        .status-pending {
-            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
-        }
-
-        .recent-updates {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-        }
-
-        .section-title {
-            font-size: 1.8em;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 3px solid #3498db;
-        }
-
-        .update-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px;
-            border-bottom: 1px solid #ecf0f1;
-            transition: background 0.3s ease;
-        }
-
-        .update-item:hover {
-            background: #f8f9fa;
-        }
-
-        .update-time {
-            color: #7f8c8d;
-            font-size: 0.9em;
-            min-width: 100px;
-        }
-
-        .update-text {
-            flex: 1;
-            font-weight: 500;
-        }
-
-        .actions-bar {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-
-        .btn-primary {
-            background: linear-gradient(145deg, #3498db, #2980b9);
-            color: white;
-        }
-
-        .btn-success {
-            background: linear-gradient(145deg, #27ae60, #229954);
-            color: white;
-        }
-
-        .btn-warning {
-            background: linear-gradient(145deg, #f39c12, #e67e22);
-            color: white;
-        }
-
-        .chart-container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-            height: 300px;
-            position: relative;
-        }
-
-        .chart-title {
-            font-size: 1.3em;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #2c3e50;
-            text-align: center;
-        }
-
-        @media (max-width: 768px) {
-            .domains-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .summary-cards {
-                grid-template-columns: 1fr 1fr;
-            }
-            
-            .actions-bar {
-                flex-direction: column;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>لوحة متابعة المدير</h1>
-            <p>نظام الجودة التعليمية المطور - المتابعة الشاملة للمجالات الخمسة</p>
-        </div>
-
-        <div class="actions-bar">
-            <button class="btn btn-primary" onclick="refreshData()">تحديث البيانات</button>
-            <button class="btn btn-success" onclick="generateReport()">إنشاء تقرير شامل</button>
-            <button class="btn btn-warning" onclick="openTeacherPage()">صفحة المعلمين</button>
-        </div>
-
-        <div class="summary-cards">
-            <div class="summary-card" style="--card-color: #3498db;">
-                <div class="card-icon">📊</div>
-                <div class="card-value" id="overall-score">87%</div>
-                <div class="card-label">المؤشر العام للجودة</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 87%"></div>
-                </div>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="text-center">
+                <h1><i class="fas fa-school"></i> نظام متابعة مؤشرات التقويم المدرسي</h1>
+                <p class="mb-0">وفقاً للدليل الإسترشادي لأخصائي التقويم المدرسي - هيئة تقويم التعليم والتدريب</p>
             </div>
-            <div class="summary-card" style="--card-color: #27ae60;">
-                <div class="card-icon">✅</div>
-                <div class="card-value" id="completed-indicators">42</div>
-                <div class="card-label">المؤشرات المحققة</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 84%"></div>
-                </div>
-            </div>
-            <div class="summary-card" style="--card-color: #f39c12;">
-                <div class="card-icon">⏳</div>
-                <div class="card-value" id="pending-indicators">8</div>
-                <div class="card-label">تحتاج متابعة</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 16%"></div>
-                </div>
-            </div>
-            <div class="summary-card" style="--card-color: #e74c3c;">
-                <div class="card-icon">👥</div>
-                <div class="card-value" id="active-teachers">28</div>
-                <div class="card-label">المعلمون النشطون</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 93%"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="domains-grid">
-            <!-- مجال التدريس -->
-            <div class="domain-card" style="--domain-color: #3498db;">
-                <div class="domain-title">
-                    <span class="domain-icon">📚</span>
-                    مجال التدريس
-                </div>
-                <div class="indicators-list">
-                    <div class="indicator-item" style="--indicator-color: #27ae60;">
-                        <div class="indicator-text">تدعم المدرسة تنفيذ المناهج لتحقيق نواتج التعلم</div>
-                        <div class="indicator-status status-excellent">ممتاز</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #f39c12;">
-                        <div class="indicator-text">تنوع استراتيجيات التدريس لتلبية احتياجات المتعلمين</div>
-                        <div class="indicator-status status-good">جيد</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #27ae60;">
-                        <div class="indicator-text">استخدام أساليب وأدوات تقويم متنوعة وفاعلة</div>
-                        <div class="indicator-status status-excellent">ممتاز</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #f39c12;">
-                        <div class="indicator-text">تقديم التغذية الراجعة للمتعلمين بانتظام</div>
-                        <div class="indicator-status status-good">جيد</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #e74c3c;">
-                        <div class="indicator-text">تفعيل التعلم الإلكتروني لدعم التعلم</div>
-                        <div class="indicator-status status-needs-work">يحتاج عمل</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- مجال نواتج التعلم -->
-            <div class="domain-card" style="--domain-color: #27ae60;">
-                <div class="domain-title">
-                    <span class="domain-icon">🎯</span>
-                    مجال نواتج التعلم
-                </div>
-                <div class="indicators-list">
-                    <div class="indicator-item" style="--indicator-color: #27ae60;">
-                        <div class="indicator-text">تحقيق نتائج متقدمة في الاختبارات الوطنية</div>
-                        <div class="indicator-status status-excellent">ممتاز</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #f39c12;">
-                        <div class="indicator-text">تحليل نتائج التقويم وتوظيفها في التحسين</div>
-                        <div class="indicator-status status-good">جيد</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #27ae60;">
-                        <div class="indicator-text">تعزيز مشاركة الأسرة في تعلم الأبناء</div>
-                        <div class="indicator-status status-excellent">ممتاز</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- مجال الأنشطة المدرسية -->
-            <div class="domain-card" style="--domain-color: #f39c12;">
-                <div class="domain-title">
-                    <span class="domain-icon">🎨</span>
-                    مجال الأنشطة المدرسية
-                </div>
-                <div class="indicators-list">
-                    <div class="indicator-item" style="--indicator-color: #27ae60;">
-                        <div class="indicator-text">توفير برامج وأنشطة إثرائية غير صفية</div>
-                        <div class="indicator-status status-excellent">ممتاز</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #f39c12;">
-                        <div class="indicator-text">توفير أنشطة تعلم تطبيقية ترتبط بالحياة</div>
-                        <div class="indicator-status status-good">جيد</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #e74c3c;">
-                        <div class="indicator-text">الشراكة مع الأسرة والمجتمع في الأنشطة</div>
-                        <div class="indicator-status status-needs-work">يحتاج عمل</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- مجال التوجيه الطلابي -->
-            <div class="domain-card" style="--domain-color: #9b59b6;">
-                <div class="domain-title">
-                    <span class="domain-icon">🧭</span>
-                    مجال التوجيه الطلابي
-                </div>
-                <div class="indicators-list">
-                    <div class="indicator-item" style="--indicator-color: #27ae60;">
-                        <div class="indicator-text">تعزيز القيم الإسلامية والهوية الوطنية</div>
-                        <div class="indicator-status status-excellent">ممتاز</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #27ae60;">
-                        <div class="indicator-text">توفير مناخ آمن للتعلم والنمو</div>
-                        <div class="indicator-status status-excellent">ممتاز</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #f39c12;">
-                        <div class="indicator-text">بناء العلاقات الإيجابية والتعاون</div>
-                        <div class="indicator-status status-good">جيد</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- مجال التطوير المهني -->
-            <div class="domain-card" style="--domain-color: #e74c3c;">
-                <div class="domain-title">
-                    <span class="domain-icon">📈</span>
-                    مجال التطوير المهني
-                </div>
-                <div class="indicators-list">
-                    <div class="indicator-item" style="--indicator-color: #f39c12;">
-                        <div class="indicator-text">دعم التطوير المهني وفقاً لنتائج التقويم</div>
-                        <div class="indicator-status status-good">جيد</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #e74c3c;">
-                        <div class="indicator-text">تشجيع منسوبي المدرسة للحصول على الرخصة المهنية</div>
-                        <div class="indicator-status status-needs-work">يحتاج عمل</div>
-                    </div>
-                    <div class="indicator-item" style="--indicator-color: #95a5a6;">
-                        <div class="indicator-text">التطوير المؤسسي الشامل للمدرسة</div>
-                        <div class="indicator-status status-pending">قيد العمل</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="recent-updates">
-            <div class="section-title">آخر التحديثات</div>
-            <div class="update-item">
-                <div class="update-time">09:30 ص</div>
-                <div class="update-text">تم تحديث بيانات مجال التدريس من قبل أ. فاطمة أحمد</div>
-            </div>
-            <div class="update-item">
-                <div class="update-time">09:15 ص</div>
-                <div class="update-text">إكمال تقييم مؤشرات نواتج التعلم - القسم الثاني</div>
-            </div>
-            <div class="update-item">
-                <div class="update-time">08:45 ص</div>
-                <div class="update-text">تم رفع الشواهد والأدلة لمجال الأنشطة المدرسية</div>
-            </div>
-            <div class="update-item">
-                <div class="update-time">08:30 ص</div>
-                <div class="update-text">بداية جلسة عمل جديدة - 12 معلم نشط</div>
-            </div>
-        </div>
-
-        <div class="chart-container">
-            <div class="chart-title">مقارنة أداء المجالات الخمسة</div>
-            <canvas id="domainsChart" width="800" height="200"></canvas>
         </div>
     </div>
 
+    <div class="container">
+        <!-- School Information -->
+        <div class="school-info">
+            <h4><i class="fas fa-info-circle"></i> معلومات المدرسة</h4>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="info-field">
+                        <label>اسم المدرسة:</label>
+                        <input type="text" id="schoolName" placeholder="أدخل اسم المدرسة">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-field">
+                        <label>اسم المدير:</label>
+                        <input type="text" id="principalName" placeholder="أدخل اسم المدير">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-field">
+                        <label>تاريخ التقرير:</label>
+                        <input type="date" id="reportDate">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Domain 1: School Management -->
+        <div class="domain-card">
+            <div class="domain-header">
+                <i class="fas fa-cogs"></i> مجال الإدارة المدرسية
+                <div class="progress-indicator">
+                    <div class="progress-bar" id="progress-1" style="width: 0%"></div>
+                </div>
+                <small id="progress-text-1">نسبة الإنجاز: 0%</small>
+            </div>
+            <div class="table-container">
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th width="15%">المؤشر</th>
+                            <th width="20%">المسؤول</th>
+                            <th width="15%">تاريخ المتابعة</th>
+                            <th width="15%">الحالة</th>
+                            <th width="10%">نسبة الإنجاز</th>
+                            <th width="15%">الوثائق</th>
+                            <th width="10%">الملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="domain-1-body">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-center">
+                <button class="btn btn-primary btn-export" onclick="exportToPDF(1)">
+                    <i class="fas fa-download"></i> تصدير تقرير PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Domain 2: Teaching and Learning -->
+        <div class="domain-card">
+            <div class="domain-header">
+                <i class="fas fa-chalkboard-teacher"></i> مجال التعليم والتعلم
+                <div class="progress-indicator">
+                    <div class="progress-bar" id="progress-2" style="width: 0%"></div>
+                </div>
+                <small id="progress-text-2">نسبة الإنجاز: 0%</small>
+            </div>
+            <div class="table-container">
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th width="15%">المؤشر</th>
+                            <th width="20%">المسؤول</th>
+                            <th width="15%">تاريخ المتابعة</th>
+                            <th width="15%">الحالة</th>
+                            <th width="10%">نسبة الإنجاز</th>
+                            <th width="15%">الوثائق</th>
+                            <th width="10%">الملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="domain-2-body">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-center">
+                <button class="btn btn-primary btn-export" onclick="exportToPDF(2)">
+                    <i class="fas fa-download"></i> تصدير تقرير PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Domain 3: Learning Outcomes -->
+        <div class="domain-card">
+            <div class="domain-header">
+                <i class="fas fa-graduation-cap"></i> مجال نواتج التعلم
+                <div class="progress-indicator">
+                    <div class="progress-bar" id="progress-3" style="width: 0%"></div>
+                </div>
+                <small id="progress-text-3">نسبة الإنجاز: 0%</small>
+            </div>
+            <div class="table-container">
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th width="15%">المؤشر</th>
+                            <th width="20%">المسؤول</th>
+                            <th width="15%">تاريخ المتابعة</th>
+                            <th width="15%">الحالة</th>
+                            <th width="10%">نسبة الإنجاز</th>
+                            <th width="15%">الوثائق</th>
+                            <th width="10%">الملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="domain-3-body">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-center">
+                <button class="btn btn-primary btn-export" onclick="exportToPDF(3)">
+                    <i class="fas fa-download"></i> تصدير تقرير PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Domain 4: School Environment -->
+        <div class="domain-card">
+            <div class="domain-header">
+                <i class="fas fa-shield-alt"></i> مجال البيئة المدرسية
+                <div class="progress-indicator">
+                    <div class="progress-bar" id="progress-4" style="width: 0%"></div>
+                </div>
+                <small id="progress-text-4">نسبة الإنجاز: 0%</small>
+            </div>
+            <div class="table-container">
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th width="15%">المؤشر</th>
+                            <th width="20%">المسؤول</th>
+                            <th width="15%">تاريخ المتابعة</th>
+                            <th width="15%">الحالة</th>
+                            <th width="10%">نسبة الإنجاز</th>
+                            <th width="15%">الوثائق</th>
+                            <th width="10%">الملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="domain-4-body">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-center">
+                <button class="btn btn-primary btn-export" onclick="exportToPDF(4)">
+                    <i class="fas fa-download"></i> تصدير تقرير PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documents Modal -->
+    <div class="modal fade" id="documentsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">الوثائق والسجلات المطلوبة</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="documents-section">
+                        <h6><i class="fas fa-file-alt"></i> الوثائق المطلوبة:</h6>
+                        <div id="requiredDocuments">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div class="comments-section">
+                        <h6><i class="fas fa-comments"></i> مرئيات وملاحظات المسؤول:</h6>
+                        <textarea class="form-control" id="modalComments" rows="4" placeholder="أضف ملاحظاتك هنا..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-success" onclick="saveComments()">حفظ الملاحظات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        // تحديث البيانات كل دقيقتين
-        setInterval(function() {
-            refreshData();
-        }, 120000);
+        // Data structure for indicators
+        const indicatorsData = {
+            1: { // School Management
+                title: "مجال الإدارة المدرسية",
+                indicators: [
+                    {
+                        code: "1-1-1-1",
+                        title: "تضع المدرسة خطة تشغيلية مكتملة العناصر",
+                        documents: ["سجل الخطة التشغيلية", "سجل برامج الخطة التشغيلية", "سجل اللجان المدرسية", "سجل التكليفات"]
+                    },
+                    {
+                        code: "1-1-1-2", 
+                        title: "تتابع المدرسة تنفيذ خطتها وتطورها",
+                        documents: ["سجل الخطة التشغيلية (قسم المتابعة والتقويم)", "سجل برامج النشاط", "سجل برامج الإرشاد", "سجل اللجنة الإدارية", "سجل توثيق البرامج", "سجل تطوير وتحسين الخطة التشغيلية"]
+                    },
+                    {
+                        code: "1-2-1-1",
+                        title: "تعزز المدرسة القيم الإسلامية والهوية الوطنية",
+                        documents: ["سجل لجنة التوجيه والإرشاد", "سجل التوجيه والإرشاد", "سجل الأنشطة والبرامج"]
+                    },
+                    {
+                        code: "1-2-1-2",
+                        title: "تلتزم المدرسة بقيم مهنة التعليم وأخلاقياتها",
+                        documents: ["سجل الاجتماعات", "سجل التبليغات", "سجل البرامج والأنشطة", "نشرات", "خطة متابعة السلوك الوظيفي", "سجل التحفيز والتكريم", "سجل المخالفات", "سجل حصر الغياب والتأخر", "سجل استئذان الموظفين"]
+                    },
+                    {
+                        code: "1-2-1-3",
+                        title: "توفر المدرسة مناخًا آمنًا للتعلم والنمو",
+                        documents: ["سجل البرامج الوقائية والعلاجية", "سجل التوجيه والإرشاد", "سجل مجالس الحوار الطلابي", "سجل المخالفات السلوكية", "سجل الحالات الطارئة"]
+                    },
+                    {
+                        code: "1-2-1-4",
+                        title: "تنشر المدرسة قواعد السلوك والمواظبة",
+                        documents: ["سجل التوجيه والإرشاد", "سجل الانضباط المدرسي", "سجل التوقيع على قواعد السلوك والمواظبة", "سجل الحالات الطارئة", "سجل المخالفات السلوكية", "سجل البرامج الوقائية والعلاجية", "سجل تعزيز السلوك الإيجابي"]
+                    },
+                    {
+                        code: "1-2-1-5",
+                        title: "توفر المدرسة برامج وأنشطة تربوية داعمة للسلوك الإيجابي",
+                        documents: ["سجل تعزيز السلوك الإيجابي", "سجل لجنة التوجيه والإرشاد", "سجل التوجيه والإرشاد", "سجل المخالفات السلوكية"]
+                    },
+                    {
+                        code: "1-2-1-6",
+                        title: "توفر المدرسة برامج وأنشطة إثرائية لتطوير مواهب المتعلمين",
+                        documents: ["سجل الأنشطة الإثرائية", "سجل الأنشطة والبرامج", "سجل لجنة التوجيه والإرشاد", "سجل الموهوبين", "سجل لجنة التميز", "سجل المسابقات"]
+                    },
+                    {
+                        code: "1-3-1-1",
+                        title: "تعزز المدرسة العمل التعاوني والعلاقات الإيجابية",
+                        documents: ["سجل الخطة التشغيلية", "سجل البرامج والأنشطة", "سجل النمو المهني"]
+                    },
+                    {
+                        code: "1-3-1-2",
+                        title: "تعزز المدرسة مشاركة الأسرة في تعلم أبنائها",
+                        documents: ["سجل استطلاع الرأي والاستبانات", "سجل التواصل مع أولياء الأمور", "ملف البرامج والأنشطة", "سجل التوجيه والإرشاد", "سجل مجالس أولياء الأمور"]
+                    },
+                    {
+                        code: "1-3-1-3",
+                        title: "تعزز المدرسة الشراكة المجتمعية لدعم التعلم",
+                        documents: ["سجل الخطة التشغيلية", "سجل البرامج والأنشطة", "سجل الشراكة المجتمعية", "سجل التوجيه والإرشاد"]
+                    },
+                    {
+                        code: "1-4-1-1",
+                        title: "توفر المدرسة كادرًا تعليميًا مكتملًا ومؤهلًا",
+                        documents: ["سجل أحوال الموظفين", "سجل التكاليف", "سجل اللجنة الإدارية", "سجل توزيع الأنصبة", "الجدول المدرسي", "بيانات الكادر التعليمي من نظام نور"]
+                    },
+                    {
+                        code: "1-4-1-2",
+                        title: "توفر المدرسة كادرًا إداريًا مكتملًا ومؤهلًا",
+                        documents: ["سجل أحوال الموظفين", "سجل التكاليف", "سجل اللجنة الإدارية", "بيانات الكادر الإداري من نظام نور", "سجل الوصف الوظيفي"]
+                    },
+                    {
+                        code: "1-4-1-3",
+                        title: "تظهر المدرسة ثباتًا واستدامة مالية",
+                        documents: ["سجل الخطة المالية", "سجل الموازنة المالية", "سجل فريق الصندوق المدرسي", "سجل السياسات المالية", "سجل تحصيل الرسوم", "استمارة الرسوم الدراسية", "الموقع الإلكتروني للمدرسة"]
+                    },
+                    {
+                        code: "1-4-1-4",
+                        title: "تشجع المدرسة منسوبيها للحصول على الرخصة المهنية",
+                        documents: ["سجل الرخصة المهنية", "سجل النمو المهني"]
+                    },
+                    {
+                        code: "1-4-1-5",
+                        title: "تدعم المدرسة التطوير المهني لمنسوبيها",
+                        documents: ["سجل النمو المهني"]
+                    },
+                    {
+                        code: "1-4-1-6",
+                        title: "تطبق المدرسة التقويم الذاتي المبني على المعايير",
+                        documents: ["سجل لجنة التميز", "سجل التقويم الذاتي"]
+                    },
+                    {
+                        code: "1-4-1-7",
+                        title: "تنفذ المدرسة خطة للتحسين بناءً على نتائج التقويم",
+                        documents: ["سجل تطوير وتحسين الخطة التشغيلية", "سجل اللجنة الإدارية"]
+                    }
+                ]
+            },
+            2: { // Teaching and Learning
+                title: "مجال التعليم والتعلم",
+                indicators: [
+                    {
+                        code: "2-1-1-2",
+                        title: "تدعم المدرسة تنفيذ المناهج لتحقيق نواتج التعلم",
+                        documents: ["عينة من ملفات إنجاز المعلمين", "عينة من الأنشطة الصفية", "عينة من خطة توزيع المناهج", "ملف متابعة تنفيذ المنهج"]
+                    },
+                    {
+                        code: "2-1-1-6",
+                        title: "تنمي المدرسة المهارات القرائية والعددية الأساسية",
+                        documents: ["سجل الأنشطة الإثرائية", "سجل الأنشطة العلاجية", "سجل المسابقات", "نتائج الاختبارات الوطنية", "سجل تحدي القراءة", "سجل سد الفجوة (للرياضيات)"]
+                    },
+                    {
+                        code: "2-1-1-7",
+                        title: "تنمي المدرسة مهارات التفكير العليا لدى المتعلمين",
+                        documents: ["عينة من الأنشطة الصفية الخاصة بالمتعلمين"]
+                    },
+                    {
+                        code: "2-2-1-1",
+                        title: "تقيم المدرسة أداء المتعلمين باستخدام أساليب متنوعة",
+                        documents: ["عينة من الأنشطة الصفية الخاصة بالمتعلمين", "سجل تحضير الدروس", "سجل النمو المهني"]
+                    },
+                    {
+                        code: "2-2-1-2",
+                        title: "تحلل المدرسة نتائج التقويم وتوظفها في تحسين التعلم",
+                        documents: ["سجل تحليل النتائج (لمختلف التخصصات)", "سجل الأنشطة العلاجية", "سجل الأنشطة الإثرائية"]
+                    },
+                    {
+                        code: "2-2-1-3",
+                        title: "تقدم المدرسة التغذية الراجعة للمتعلمين بانتظام",
+                        documents: ["سجل متابعة أداء المتعلمين", "سجل إنجاز المتعلمين / الكتب"]
+                    }
+                ]
+            },
+            3: { // Learning Outcomes
+                title: "مجال نواتج التعلم",
+                indicators: [
+                    {
+                        code: "3-2-1-4",
+                        title: "يشارك المتعلمون في الأنشطة المجتمعية والأعمال التطوعية",
+                        documents: ["سجل العمل التطوعي", "سجل التوجيه والإرشاد"]
+                    },
+                    {
+                        code: "3-2-1-5",
+                        title: "يلتزم المتعلمون بقواعد السلوك والانضباط المدرسي",
+                        documents: ["سجل المخالفات السلوكية", "سجل الانضباط المدرسي", "سجل التوجيه والإرشاد", "سجل التكريم"]
+                    }
+                ]
+            },
+            4: { // School Environment
+                title: "مجال البيئة المدرسية",
+                indicators: [
+                    {
+                        code: "4-2-1-1",
+                        title: "تتوافر متطلبات الأمن والسلامة في جميع مرافق المدرسة",
+                        documents: ["سجل لجنة الأمن والسلامة", "شهادة الأمن والسلامة من الدفاع المدني (سارية)", "سجل الموجه الصحي", "الشهادات الصحية للعاملين سارية المفعول"]
+                    },
+                    {
+                        code: "4-2-1-2",
+                        title: "تعمل المدرسة على صيانة جميع مرافق المبنى بانتظام",
+                        documents: ["سجل الصيانة الدورية", "سجل لجنة الأمن والسلامة"]
+                    }
+                ]
+            }
+        };
 
-        function refreshData() {
-            // محاكاة تحديث البيانات
-            console.log('جاري تحديث البيانات...');
-            
-            // إضافة تأثير بصري للتحديث
-            const cards = document.querySelectorAll('.summary-card');
-            cards.forEach(card => {
-                card.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    card.style.transform = 'scale(1)';
-                }, 200);
-            });
+        // Initialize data structure for tracking
+        let trackingData = {};
+        let currentModalIndicator = null;
 
-            // إضافة تحديث جديد لقائمة التحديثات
-            addNewUpdate();
+        // Initialize the application
+        function initializeApp() {
+            loadData();
+            populateTables();
+            updateProgress();
+            setCurrentDate();
         }
 
-        function addNewUpdate() {
-            const updatesContainer = document.querySelector('.recent-updates');
-            const now = new Date();
-            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
-                          now.getMinutes().toString().padStart(2, '0') + ' ص';
+        // Set current date
+        function setCurrentDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('reportDate').value = today;
+        }
+
+        // Load data from localStorage
+        function loadData() {
+            const saved = JSON.parse(localStorage.getItem('schoolEvaluationData')) || {};
             
-            const newUpdate = document.createElement('div');
-            newUpdate.className = 'update-item';
-            newUpdate.innerHTML = `
-                <div class="update-time">${timeStr}</div>
-                <div class="update-text">تم تحديث البيانات تلقائياً - جميع المؤشرات محدثة</div>
+            // Initialize tracking data for all indicators
+            for (let domainId in indicatorsData) {
+                if (!trackingData[domainId]) {
+                    trackingData[domainId] = {};
+                }
+                
+                indicatorsData[domainId].indicators.forEach(indicator => {
+                    if (!trackingData[domainId][indicator.code]) {
+                        trackingData[domainId][indicator.code] = {
+                            responsible: '',
+                            followupDate: '',
+                            status: 'incomplete',
+                            progress: 0,
+                            comments: ''
+                        };
+                    }
+                });
+            }
+            
+            // Merge with saved data
+            Object.assign(trackingData, saved);
+            
+            // Load school info
+            document.getElementById('schoolName').value = localStorage.getItem('schoolName') || '';
+            document.getElementById('principalName').value = localStorage.getItem('principalName') || '';
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('schoolEvaluationData', JSON.stringify(trackingData));
+            localStorage.setItem('schoolName', document.getElementById('schoolName').value);
+            localStorage.setItem('principalName', document.getElementById('principalName').value);
+        }
+
+        // Populate tables with indicators
+        function populateTables() {
+            for (let domainId in indicatorsData) {
+                const tbody = document.getElementById(`domain-${domainId}-body`);
+                tbody.innerHTML = '';
+                
+                indicatorsData[domainId].indicators.forEach(indicator => {
+                    const data = trackingData[domainId][indicator.code];
+                    const row = createIndicatorRow(domainId, indicator, data);
+                    tbody.appendChild(row);
+                });
+            }
+        }
+
+        // Create table row for indicator
+        function createIndicatorRow(domainId, indicator, data) {
+            const row = document.createElement('tr');
+            
+            const progressColor = data.progress >= 100 ? '#28a745' : data.progress >= 50 ? '#ffc107' : '#dc3545';
+            
+            row.innerHTML = `
+                <td>
+                    <strong>${indicator.code}</strong><br>
+                    <small class="text-muted">${indicator.title}</small>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm" 
+                           value="${data.responsible}" 
+                           onchange="updateIndicatorData('${domainId}', '${indicator.code}', 'responsible', this.value)">
+                </td>
+                <td>
+                    <input type="date" class="form-control form-control-sm" 
+                           value="${data.followupDate}" 
+                           onchange="updateIndicatorData('${domainId}', '${indicator.code}', 'followupDate', this.value)">
+                </td>
+                <td>
+                    <select class="form-select form-select-sm" 
+                            onchange="updateIndicatorData('${domainId}', '${indicator.code}', 'status', this.value)">
+                        <option value="incomplete" ${data.status === 'incomplete' ? 'selected' : ''}>❌ غير مكتمل</option>
+                        <option value="complete" ${data.status === 'complete' ? 'selected' : ''}>✅ مكتمل</option>
+                    </select>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <input type="range" class="form-range me-2" min="0" max="100" 
+                               value="${data.progress}" 
+                               onchange="updateIndicatorData('${domainId}', '${indicator.code}', 'progress', this.value)"
+                               style="width: 60px;">
+                        <span class="badge" style="background-color: ${progressColor}; color: white; font-size: 0.8rem;">
+                            ${data.progress}%
+                        </span>
+                    </div>
+                </td>
+                <td>
+                    <button class="btn btn-outline-primary btn-view-docs" 
+                            onclick="showDocuments('${domainId}', '${indicator.code}')">
+                        <i class="fas fa-eye"></i> عرض
+                    </button>
+                </td>
+                <td>
+                    <button class="btn btn-outline-info btn-sm" 
+                            onclick="showComments('${domainId}', '${indicator.code}')"
+                            title="${data.comments || 'لا توجد ملاحظات'}">
+                        <i class="fas fa-comment"></i>
+                    </button>
+                </td>
             `;
             
-            // إضافة التحديث في أول القائمة
-            const firstUpdate = updatesContainer.querySelector('.update-item');
-            if (firstUpdate) {
-                updatesContainer.insertBefore(newUpdate, firstUpdate);
+            return row;
+        }
+
+        // Update indicator data
+        function updateIndicatorData(domainId, indicatorCode, field, value) {
+            trackingData[domainId][indicatorCode][field] = value;
+            
+            // Auto-update status based on progress
+            if (field === 'progress') {
+                const progress = parseInt(value);
+                trackingData[domainId][indicatorCode].status = progress >= 100 ? 'complete' : 'incomplete';
+                populateTables();
             }
             
-            // الحد الأقصى 10 تحديثات
-            const updates = updatesContainer.querySelectorAll('.update-item');
-            if (updates.length > 10) {
-                updatesContainer.removeChild(updates[updates.length - 1]);
+            updateProgress();
+            saveData();
+        }
+
+        // Update progress indicators
+        function updateProgress() {
+            for (let domainId in indicatorsData) {
+                const indicators = indicatorsData[domainId].indicators;
+                let totalProgress = 0;
+                
+                indicators.forEach(indicator => {
+                    const data = trackingData[domainId][indicator.code];
+                    totalProgress += parseInt(data.progress || 0);
+                });
+                
+                const averageProgress = Math.round(totalProgress / indicators.length);
+                
+                const progressBar = document.getElementById(`progress-${domainId}`);
+                const progressText = document.getElementById(`progress-text-${domainId}`);
+                
+                if (progressBar && progressText) {
+                    progressBar.style.width = `${averageProgress}%`;
+                    progressText.textContent = `نسبة الإنجاز: ${averageProgress}%`;
+                }
             }
         }
 
-        function generateReport() {
-            alert('جاري إنشاء التقرير الشامل...\n\nسيتم تضمين:\n✓ تقييم المجالات الخمسة\n✓ تحليل المؤشرات\n✓ التوصيات والخطط\n✓ الشواهد والأدلة');
-        }
-
-        function openTeacherPage() {
-            // فتح صفحة المعلمين في نافذة جديدة
-            window.open('teacher-input.html', '_blank');
-        }
-
-        // رسم مخطط بياني بسيط
-        function drawChart() {
-            const canvas = document.getElementById('domainsChart');
-            if (!canvas) return;
+        // Show documents modal
+        function showDocuments(domainId, indicatorCode) {
+            const indicator = indicatorsData[domainId].indicators.find(ind => ind.code === indicatorCode);
+            currentModalIndicator = {domainId, indicatorCode};
             
-            const ctx = canvas.getContext('2d');
-            const data = [85, 90, 75, 88, 70]; // نسب المجالات الخمسة
-            const labels = ['التدريس', 'نواتج التعلم', 'الأنشطة', 'التوجيه', 'التطوير المهني'];
-            const colors = ['#3498db', '#27ae60', '#f39c12', '#9b59b6', '#e74c3c'];
+            document.getElementById('modalTitle').textContent = `الوثائق المطلوبة - المؤشر ${indicatorCode}`;
             
-            const barWidth = 60;
-            const barSpacing = 80;
-            const startX = 80;
-            const maxHeight = 150;
+            const documentsContainer = document.getElementById('requiredDocuments');
+            documentsContainer.innerHTML = '';
             
-            // رسم الأعمدة
-            data.forEach((value, index) => {
-                const x = startX + (index * (barWidth + barSpacing));
-                const height = (value / 100) * maxHeight;
-                const y = canvas.height - height - 50;
-                
-                // رسم العمود
-                ctx.fillStyle = colors[index];
-                ctx.fillRect(x, y, barWidth, height);
-                
-                // كتابة النسبة
-                ctx.fillStyle = '#2c3e50';
-                ctx.font = '14px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(value + '%', x + barWidth/2, y - 5);
-                
-                // كتابة اسم المجال
-                ctx.fillText(labels[index], x + barWidth/2, canvas.height - 20);
+            indicator.documents.forEach(doc => {
+                const docElement = document.createElement('div');
+                docElement.className = 'document-item';
+                docElement.innerHTML = `<i class="fas fa-file-alt me-2"></i>${doc}`;
+                documentsContainer.appendChild(docElement);
             });
+            
+            // Load existing comments
+            const comments = trackingData[domainId][indicatorCode].comments || '';
+            document.getElementById('modalComments').value = comments;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('documentsModal'));
+            modal.show();
         }
 
-        // رسم المخطط عند تحميل الصفحة
-        window.onload = function() {
-            drawChart();
-        };
+        // Show comments
+        function showComments(domainId, indicatorCode) {
+            showDocuments(domainId, indicatorCode);
+        }
+
+        // Save comments from modal
+        function saveComments() {
+            if (currentModalIndicator) {
+                const comments = document.getElementById('modalComments').value;
+                const {domainId, indicatorCode} = currentModalIndicator;
+                
+                trackingData[domainId][indicatorCode].comments = comments;
+                saveData();
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('documentsModal'));
+                modal.hide();
+                
+                // Show success message
+                showToast('تم حفظ الملاحظات بنجاح', 'success');
+            }
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-check-circle me-2"></i>
+                    ${message}
+                    <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 3000);
+        }
+
+        // Export to PDF
+        function exportToPDF(domainId) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Get school info
+            const schoolName = document.getElementById('schoolName').value || 'اسم المدرسة';
+            const principalName = document.getElementById('principalName').value || 'اسم المدير';
+            const reportDate = document.getElementById('reportDate').value || new Date().toISOString().split('T')[0];
+            
+            // Set font (Arabic support might be limited)
+            doc.setFontSize(16);
+            
+            // Add header
+            doc.text('Ministry of Education - Saudi Arabia', 20, 20);
+            doc.text('School Evaluation Report', 20, 30);
+            doc.setFontSize(12);
+            doc.text(`School: ${schoolName}`, 20, 45);
+            doc.text(`Principal: ${principalName}`, 20, 55);
+            doc.text(`Date: ${reportDate}`, 20, 65);
+            
+            // Domain title
+            const domainTitle = indicatorsData[domainId].title;
+            doc.setFontSize(14);
+            doc.text(`Domain: ${domainTitle}`, 20, 85);
+            
+            // Table headers
+            let yPosition = 100;
+            doc.setFontSize(10);
+            doc.text('Indicator', 20, yPosition);
+            doc.text('Responsible', 70, yPosition);
+            doc.text('Date', 110, yPosition);
+            doc.text('Status', 140, yPosition);
+            doc.text('Progress', 170, yPosition);
+            
+            yPosition += 10;
+            
+            // Add indicators data
+            indicatorsData[domainId].indicators.forEach(indicator => {
+                const data = trackingData[domainId][indicator.code];
+                
+                if (yPosition > 270) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                
+                doc.text(indicator.code, 20, yPosition);
+                doc.text(data.responsible || '-', 70, yPosition);
+                doc.text(data.followupDate || '-', 110, yPosition);
+                doc.text(data.status === 'complete' ? 'Complete' : 'Incomplete', 140, yPosition);
+                doc.text(`${data.progress}%`, 170, yPosition);
+                
+                yPosition += 8;
+                
+                // Add comments if available
+                if (data.comments) {
+                    doc.setFontSize(8);
+                    doc.text(`Comments: ${data.comments.substring(0, 50)}...`, 20, yPosition);
+                    yPosition += 6;
+                    doc.setFontSize(10);
+                }
+            });
+            
+            // Calculate overall progress
+            let totalProgress = 0;
+            indicatorsData[domainId].indicators.forEach(indicator => {
+                const data = trackingData[domainId][indicator.code];
+                totalProgress += parseInt(data.progress || 0);
+            });
+            const averageProgress = Math.round(totalProgress / indicatorsData[domainId].indicators.length);
+            
+            // Add summary
+            yPosition += 20;
+            doc.setFontSize(12);
+            doc.text(`Overall Progress: ${averageProgress}%`, 20, yPosition);
+            
+            // Save PDF
+            const fileName = `${domainTitle.replace(/\s+/g, '_')}_Report_${reportDate}.pdf`;
+            doc.save(fileName);
+            
+            showToast('تم تصدير التقرير بنجاح', 'success');
+        }
+
+        // Auto-save when school info changes
+        document.getElementById('schoolName').addEventListener('change', saveData);
+        document.getElementById('principalName').addEventListener('change', saveData);
+        document.getElementById('reportDate').addEventListener('change', saveData);
+
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
     </script>
 </body>
 </html>
