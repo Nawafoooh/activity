@@ -7,8 +7,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
         body {
@@ -482,6 +480,7 @@
         let trackingData = {};
         let currentModalIndicator = null;
 
+        // Initialize application when DOM is loaded
         function initializeApp() {
             loadData();
             populateTables();
@@ -489,35 +488,46 @@
             setCurrentDate();
         }
 
+        // Set current date
         function setCurrentDate() {
-            document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('reportDate');
+            if (dateInput) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
         }
 
+        // Load initial data structure
         function loadData() {
             for (let domainId in indicatorsData) {
                 if (!trackingData[domainId]) trackingData[domainId] = {};
                 indicatorsData[domainId].indicators.forEach(indicator => {
                     if (!trackingData[domainId][indicator.code]) {
                         trackingData[domainId][indicator.code] = {
-                            status: 'incomplete', progress: 0, comments: ''
+                            status: 'incomplete', 
+                            progress: 0, 
+                            comments: ''
                         };
                     }
                 });
             }
         }
 
+        // Populate all tables with data
         function populateTables() {
             for (let domainId in indicatorsData) {
                 const tbody = document.getElementById(`domain-${domainId}-body`);
-                tbody.innerHTML = '';
-                indicatorsData[domainId].indicators.forEach(indicator => {
-                    const data = trackingData[domainId][indicator.code];
-                    const row = createIndicatorRow(domainId, indicator, data);
-                    tbody.appendChild(row);
-                });
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    indicatorsData[domainId].indicators.forEach(indicator => {
+                        const data = trackingData[domainId][indicator.code];
+                        const row = createIndicatorRow(domainId, indicator, data);
+                        tbody.appendChild(row);
+                    });
+                }
             }
         }
 
+        // Create table row for indicator
         function createIndicatorRow(domainId, indicator, data) {
             const row = document.createElement('tr');
             const progressColor = data.progress >= 100 ? '#28a745' : data.progress >= 50 ? '#ffc107' : '#dc3545';
@@ -555,25 +565,34 @@
             return row;
         }
 
+        // Update indicator data
         function updateIndicatorData(domainId, indicatorCode, field, value) {
-            trackingData[domainId][indicatorCode][field] = value;
-            if (field === 'progress') {
-                trackingData[domainId][indicatorCode].status = parseInt(value) >= 100 ? 'complete' : 'incomplete';
-                populateTables();
+            if (trackingData[domainId] && trackingData[domainId][indicatorCode]) {
+                trackingData[domainId][indicatorCode][field] = value;
+                
+                if (field === 'progress') {
+                    trackingData[domainId][indicatorCode].status = parseInt(value) >= 100 ? 'complete' : 'incomplete';
+                    populateTables();
+                }
+                updateProgress();
             }
-            updateProgress();
         }
 
+        // Update progress bars
         function updateProgress() {
             for (let domainId in indicatorsData) {
                 const indicators = indicatorsData[domainId].indicators;
                 let totalProgress = 0;
+                
                 indicators.forEach(indicator => {
-                    totalProgress += parseInt(trackingData[domainId][indicator.code].progress || 0);
+                    const data = trackingData[domainId][indicator.code];
+                    totalProgress += parseInt(data ? data.progress : 0);
                 });
+                
                 const averageProgress = Math.round(totalProgress / indicators.length);
                 const progressBar = document.getElementById(`progress-${domainId}`);
                 const progressText = document.getElementById(`progress-text-${domainId}`);
+                
                 if (progressBar && progressText) {
                     progressBar.style.width = `${averageProgress}%`;
                     progressText.textContent = `نسبة الإنجاز: ${averageProgress}%`;
@@ -581,43 +600,61 @@
             }
         }
 
+        // Show documents modal
         function showDocuments(domainId, indicatorCode) {
             const indicator = indicatorsData[domainId].indicators.find(ind => ind.code === indicatorCode);
+            if (!indicator) return;
+            
             currentModalIndicator = {domainId, indicatorCode};
+            
             document.getElementById('modalTitle').textContent = `الوثائق المطلوبة - المؤشر ${indicatorCode}`;
+            
             const documentsContainer = document.getElementById('requiredDocuments');
             documentsContainer.innerHTML = '';
+            
             indicator.documents.forEach(doc => {
                 const docElement = document.createElement('div');
                 docElement.className = 'document-item';
                 docElement.innerHTML = `<i class="fas fa-file-alt me-2"></i>${doc}`;
                 documentsContainer.appendChild(docElement);
             });
+            
             const comments = trackingData[domainId][indicatorCode].comments || '';
             document.getElementById('modalComments').value = comments;
-            new bootstrap.Modal(document.getElementById('documentsModal')).show();
+            
+            const modal = new bootstrap.Modal(document.getElementById('documentsModal'));
+            modal.show();
         }
 
+        // Save comments
         function saveComments() {
             if (currentModalIndicator) {
                 const comments = document.getElementById('modalComments').value;
                 const {domainId, indicatorCode} = currentModalIndicator;
                 trackingData[domainId][indicatorCode].comments = comments;
-                bootstrap.Modal.getInstance(document.getElementById('documentsModal')).hide();
+                
+                const modal = bootstrap.Modal.getInstance(document.getElementById('documentsModal'));
+                modal.hide();
+                
                 showToast('تم حفظ الملاحظات بنجاح', 'success');
             }
         }
 
+        // Show toast notification
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
             toast.className = `alert alert-${type} position-fixed`;
             toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-            toast.innerHTML = `<div class="d-flex align-items-center">
-                <i class="fas fa-check-circle me-2"></i>${message}
-                <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
-            </div>`;
+            toast.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-check-circle me-2"></i>${message}
+                    <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+            `;
             document.body.appendChild(toast);
-            setTimeout(() => { if (toast.parentElement) toast.remove(); }, 3000);
+            setTimeout(() => { 
+                if (toast.parentElement) toast.remove(); 
+            }, 3000);
         }
 
         // Professional PDF Export with Arabic Support
@@ -625,24 +662,18 @@
             try {
                 showToast('جاري إنشاء التقرير...', 'info');
                 
-                // Import jsPDF
+                // Check if jsPDF is available
+                if (typeof window.jspdf === 'undefined') {
+                    throw new Error('jsPDF library not loaded');
+                }
+                
                 const { jsPDF } = window.jspdf;
                 
-                // Create new PDF document with A4 size
+                // Create new PDF document
                 const pdf = new jsPDF({
                     orientation: 'portrait',
                     unit: 'mm',
-                    format: 'a4',
-                    putOnlyUsedFonts: true
-                });
-                
-                // Set document properties
-                pdf.setProperties({
-                    title: `تقرير متابعة مؤشرات التقويم المدرسي - ${indicatorsData[domainId]?.title}`,
-                    subject: 'تقرير متابعة مؤشرات التقويم المدرسي',
-                    author: 'نواف الصبحي',
-                    creator: 'نظام متابعة مؤشرات التقويم المدرسي',
-                    producer: 'هيئة تقويم التعليم والتدريب'
+                    format: 'a4'
                 });
                 
                 await generateSinglePagePDFReport(pdf, domainId);
@@ -654,12 +685,11 @@
                 
                 // Save the PDF
                 pdf.save(filename);
-                
                 showToast('تم إنشاء التقرير بنجاح', 'success');
                 
             } catch (error) {
                 console.error('PDF Generation Error:', error);
-                showToast('حدث خطأ في إنشاء التقرير. جاري المحاولة بطريقة بديلة...', 'warning');
+                showToast('حدث خطأ في إنشاء PDF. جاري المحاولة بطريقة بديلة...', 'warning');
                 
                 // Fallback to print method
                 try {
@@ -670,10 +700,10 @@
             }
         }
 
-        // Generate single-page PDF report with professional Arabic layout
+        // Generate single-page PDF report
         async function generateSinglePagePDFReport(pdf, domainId) {
-            const pageWidth = 210; // A4 width in mm
-            const pageHeight = 297; // A4 height in mm
+            const pageWidth = 210;
+            const pageHeight = 297;
             const margin = 15;
             let currentY = margin;
             
@@ -697,15 +727,10 @@
             }
             const averageProgress = totalIndicators > 0 ? Math.round(totalProgress / totalIndicators) : 0;
 
-            // Header Section with Gradient Effect
-            pdf.setFillColor(44, 85, 48); // Dark green
+            // Header Section
+            pdf.setFillColor(44, 85, 48);
             pdf.rect(0, 0, pageWidth, 45, 'F');
             
-            // Saudi Arabia Emblem placeholder (you can add actual image if available)
-            pdf.setFillColor(255, 255, 255);
-            pdf.circle(pageWidth/2, 22, 8, 'F');
-            
-            // Header text
             pdf.setTextColor(255, 255, 255);
             pdf.setFontSize(12);
             pdf.text('المملكة العربية السعودية', pageWidth/2, 10, { align: 'center' });
@@ -715,12 +740,10 @@
             pdf.text('مكتب قطاع أحد والعوالي', pageWidth/2, 24, { align: 'center' });
             pdf.setFontSize(16);
             pdf.text('تقرير متابعة مؤشرات التقويم المدرسي', pageWidth/2, 35, { align: 'center' });
-            pdf.setFontSize(8);
-            pdf.text('وفقاً للدليل الإسترشادي لأخصائي التقويم المدرسي - هيئة تقويم التعليم والتدريب', pageWidth/2, 41, { align: 'center' });
             
             currentY = 50;
             
-            // School Information Section
+            // School Information
             pdf.setFillColor(248, 249, 250);
             pdf.rect(margin, currentY, pageWidth - 2*margin, 25, 'F');
             pdf.setDrawColor(44, 85, 48);
@@ -735,128 +758,69 @@
             pdf.text(`اسم المدرسة: ${schoolName}`, margin + 5, currentY + 12);
             pdf.text(`مدير المدرسة: ${principalName}`, margin + 5, currentY + 17);
             pdf.text(`تاريخ التقرير: ${arabicDate}`, pageWidth - margin - 60, currentY + 12);
-            pdf.text(`تاريخ الإنشاء: ${new Date().toLocaleDateString('ar-SA')}`, pageWidth - margin - 60, currentY + 17);
+            pdf.text(`المسؤول: ${domainResponsible}`, pageWidth - margin - 60, currentY + 17);
             
             currentY += 30;
             
             // Domain Section
             pdf.setFillColor(44, 85, 48);
-            pdf.rect(margin, currentY, pageWidth - 2*margin, 20, 'F');
+            pdf.rect(margin, currentY, pageWidth - 2*margin, 15, 'F');
             pdf.setTextColor(255, 255, 255);
             pdf.setFontSize(14);
-            pdf.text(domainTitle, pageWidth/2, currentY + 8, { align: 'center' });
-            pdf.setFontSize(10);
-            pdf.text(`المسؤول: ${domainResponsible}`, pageWidth/2, currentY + 15, { align: 'center' });
-            
-            currentY += 25;
-            
-            // Progress Bar
-            const progressBarWidth = pageWidth - 2*margin - 20;
-            const progressBarHeight = 6;
-            pdf.setFillColor(233, 236, 239); // Light gray background
-            pdf.rect(margin + 10, currentY, progressBarWidth, progressBarHeight, 'F');
-            pdf.setFillColor(40, 167, 69); // Green progress
-            pdf.rect(margin + 10, currentY, (progressBarWidth * averageProgress / 100), progressBarHeight, 'F');
-            
-            pdf.setTextColor(0, 0, 0);
-            pdf.setFontSize(9);
-            pdf.text(`نسبة الإنجاز الإجمالية: ${averageProgress}%`, pageWidth/2, currentY + 12, { align: 'center' });
+            pdf.text(`${domainTitle} - نسبة الإنجاز: ${averageProgress}%`, pageWidth/2, currentY + 10, { align: 'center' });
             
             currentY += 20;
             
-            // Table Header
-            const tableStartY = currentY;
-            const colWidths = [25, 90, 35, 30]; // Column widths
-            const rowHeight = 8;
-            
-            pdf.setFillColor(44, 85, 48);
-            pdf.rect(margin, currentY, pageWidth - 2*margin, rowHeight, 'F');
-            
-            pdf.setTextColor(255, 255, 255);
-            pdf.setFontSize(9);
-            let xPos = margin + 5;
-            pdf.text('المؤشر', xPos, currentY + 5);
-            xPos += colWidths[0];
-            pdf.text('وصف المؤشر', xPos, currentY + 5);
-            xPos += colWidths[1];
-            pdf.text('الحالة', xPos, currentY + 5);
-            xPos += colWidths[2];
-            pdf.text('النسبة %', xPos, currentY + 5);
-            
-            currentY += rowHeight;
-            
-            // Table Rows - Compact layout for single page
-            pdf.setTextColor(0, 0, 0);
-            pdf.setFontSize(7); // Smaller font for more content
-            
+            // Table
+            const tableData = [];
             if (indicatorsData[domainId]?.indicators) {
-                const maxRows = Math.floor((pageHeight - currentY - 40) / rowHeight); // Reserve space for footer
-                const indicators = indicatorsData[domainId].indicators.slice(0, maxRows);
-                
-                indicators.forEach((indicator, index) => {
+                indicatorsData[domainId].indicators.forEach(indicator => {
                     const data = trackingData[domainId]?.[indicator.code] || { status: 'incomplete', progress: 0 };
-                    
-                    // Alternate row colors
-                    if (index % 2 === 0) {
-                        pdf.setFillColor(248, 249, 250);
-                        pdf.rect(margin, currentY, pageWidth - 2*margin, rowHeight, 'F');
-                    }
-                    
-                    // Row border
-                    pdf.setDrawColor(222, 226, 230);
-                    pdf.rect(margin, currentY, pageWidth - 2*margin, rowHeight, 'S');
-                    
-                    xPos = margin + 2;
-                    pdf.text(indicator.code, xPos, currentY + 5);
-                    xPos += colWidths[0];
-                    
-                    // Truncate long titles for single page
-                    let title = indicator.title;
-                    if (title.length > 45) {
-                        title = title.substring(0, 42) + '...';
-                    }
-                    pdf.text(title, xPos, currentY + 5);
-                    xPos += colWidths[1];
-                    
-                    const statusText = data.status === 'complete' ? '✓ مكتمل' : '✗ غير مكتمل';
-                    pdf.text(statusText, xPos, currentY + 5);
-                    xPos += colWidths[2];
-                    
-                    pdf.text(`${data.progress}%`, xPos, currentY + 5);
-                    
-                    currentY += rowHeight;
+                    const statusText = data.status === 'complete' ? 'مكتمل' : 'غير مكتمل';
+                    tableData.push([
+                        indicator.code,
+                        indicator.title.length > 40 ? indicator.title.substring(0, 37) + '...' : indicator.title,
+                        statusText,
+                        `${data.progress}%`
+                    ]);
                 });
             }
             
-            // Summary Statistics (Compact)
-            currentY += 5;
+            pdf.autoTable({
+                head: [['المؤشر', 'الوصف', 'الحالة', 'النسبة']],
+                body: tableData,
+                startY: currentY,
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 2
+                },
+                headStyles: {
+                    fillColor: [44, 85, 48],
+                    textColor: 255
+                },
+                columnStyles: {
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 90 },
+                    2: { cellWidth: 35 },
+                    3: { cellWidth: 30 }
+                }
+            });
+            
+            // Summary
+            const finalY = pdf.lastAutoTable.finalY + 10;
             pdf.setFillColor(248, 249, 250);
-            pdf.rect(margin, currentY, pageWidth - 2*margin, 15, 'F');
-            pdf.setDrawColor(44, 85, 48);
-            pdf.rect(margin, currentY, pageWidth - 2*margin, 15, 'S');
-            
-            pdf.setTextColor(44, 85, 48);
-            pdf.setFontSize(10);
-            pdf.text('الملخص الإحصائي', pageWidth/2, currentY + 5, { align: 'center' });
-            
+            pdf.rect(margin, finalY, pageWidth - 2*margin, 15, 'F');
             pdf.setTextColor(0, 0, 0);
-            pdf.setFontSize(8);
-            pdf.text(`إجمالي المؤشرات: ${totalIndicators}`, margin + 10, currentY + 10);
-            pdf.text(`المكتملة: ${completedCount}`, margin + 60, currentY + 10);
-            pdf.text(`المتبقية: ${totalIndicators - completedCount}`, margin + 100, currentY + 10);
-            pdf.text(`النسبة الإجمالية: ${averageProgress}%`, margin + 140, currentY + 10);
+            pdf.setFontSize(9);
+            pdf.text(`الملخص: إجمالي: ${totalIndicators} | مكتمل: ${completedCount} | متبقي: ${totalIndicators - completedCount} | النسبة: ${averageProgress}%`, 
+                     pageWidth/2, finalY + 8, { align: 'center' });
             
             // Footer
-            currentY = pageHeight - 20;
             pdf.setFillColor(44, 85, 48);
-            pdf.rect(0, currentY, pageWidth, 20, 'F');
-            
+            pdf.rect(0, pageHeight - 20, pageWidth, 20, 'F');
             pdf.setTextColor(255, 255, 255);
-            pdf.setFontSize(12);
-            pdf.text('نُراقب • نُقيم • نُطور', pageWidth/2, currentY + 8, { align: 'center' });
-            pdf.setFontSize(8);
-            pdf.text('تم إنشاء هذا التقرير بواسطة نظام متابعة مؤشرات التقويم المدرسي', pageWidth/2, currentY + 13, { align: 'center' });
-            pdf.text('تنفيذ: نواف الصبحي', pageWidth/2, currentY + 17, { align: 'center' });
+            pdf.setFontSize(10);
+            pdf.text('نُراقب • نُقيم • نُطور - تنفيذ: نواف الصبحي', pageWidth/2, pageHeight - 10, { align: 'center' });
         }
 
         // Fallback print method
@@ -872,30 +836,18 @@
                 printWindow.print();
                 setTimeout(() => printWindow.close(), 1000);
             }, 500);
+            
+            showToast('تم فتح نافذة الطباعة', 'success');
         }
 
-        // Generate compact HTML for single-page printing
+        // Generate compact HTML for printing
         function generateCompactPrintableReport(domainId) {
             const schoolName = document.getElementById('schoolName')?.value || 'متوسطة المنذر بن عمرو الأنصاري';
             const principalName = document.getElementById('principalName')?.value || 'خالد سعود المطيري';
-            const reportDate = document.getElementById('reportDate')?.value || new Date().toISOString().split('T')[0];
             const domainTitle = indicatorsData[domainId]?.title || 'مجال غير محدد';
             const domainResponsible = document.getElementById(`domain-${domainId}-responsible`)?.value || 'غير محدد';
-            const arabicDate = new Date(reportDate).toLocaleDateString('ar-SA');
+            const arabicDate = new Date().toLocaleDateString('ar-SA');
             
-            // Calculate statistics
-            let totalProgress = 0, completedCount = 0, totalIndicators = 0;
-            if (indicatorsData[domainId]?.indicators) {
-                totalIndicators = indicatorsData[domainId].indicators.length;
-                indicatorsData[domainId].indicators.forEach(indicator => {
-                    const data = trackingData[domainId]?.[indicator.code] || { progress: 0, status: 'incomplete' };
-                    totalProgress += parseInt(data.progress || 0);
-                    if (data.status === 'complete') completedCount++;
-                });
-            }
-            const averageProgress = totalIndicators > 0 ? Math.round(totalProgress / totalIndicators) : 0;
-            
-            // Generate compact table rows
             let tableRows = '';
             if (indicatorsData[domainId]?.indicators) {
                 indicatorsData[domainId].indicators.forEach((indicator, index) => {
@@ -905,10 +857,10 @@
                     
                     tableRows += `
                         <tr style="background-color: ${bgColor};">
-                            <td style="padding: 3px 5px; font-size: 8px; font-weight: bold;">${indicator.code}</td>
-                            <td style="padding: 3px 5px; font-size: 8px;">${indicator.title}</td>
-                            <td style="padding: 3px 5px; font-size: 8px; text-align: center;">${statusText}</td>
-                            <td style="padding: 3px 5px; font-size: 8px; text-align: center; font-weight: bold;">${data.progress}%</td>
+                            <td style="padding: 3px; font-size: 8px;">${indicator.code}</td>
+                            <td style="padding: 3px; font-size: 8px;">${indicator.title}</td>
+                            <td style="padding: 3px; font-size: 8px; text-align: center;">${statusText}</td>
+                            <td style="padding: 3px; font-size: 8px; text-align: center;">${data.progress}%</td>
                         </tr>
                     `;
                 });
@@ -921,386 +873,35 @@
                     <meta charset="UTF-8">
                     <title>تقرير متابعة مؤشرات التقويم المدرسي</title>
                     <style>
-                        @page {
-                            size: A4;
-                            margin: 10mm;
-                        }
-                        body {
-                            font-family: 'Arial', 'Tahoma', sans-serif;
-                            font-size: 10px;
-                            line-height: 1.2;
-                            margin: 0;
-                            padding: 0;
-                            direction: rtl;
-                        }
-                        .header {
-                            background: linear-gradient(135deg, #2c5530, #4a7c59);
-                            color: white;
-                            padding: 10px;
-                            text-align: center;
-                            margin-bottom: 10px;
-                        }
-                        .header h1 { margin: 2px 0; font-size: 14px; }
-                        .header h2 { margin: 0; font-size: 12px; }
-                        .header h3 { margin: 0; font-size: 10px; }
-                        .school-info {
-                            background: #f8f9fa;
-                            border: 1px solid #2c5530;
-                            padding: 8px;
-                            margin-bottom: 10px;
-                            font-size: 9px;
-                        }
-                        .domain-title {
-                            background: #2c5530;
-                            color: white;
-                            padding: 8px;
-                            text-align: center;
-                            margin-bottom: 10px;
-                            font-size: 12px;
-                        }
-                        table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin-bottom: 10px;
-                            font-size: 8px;
-                        }
-                        th {
-                            background: #2c5530;
-                            color: white;
-                            padding: 4px;
-                            text-align: center;
-                            border: 1px solid #ddd;
-                        }
-                        td {
-                            border: 1px solid #ddd;
-                        }
-                        .summary {
-                            background: #f8f9fa;
-                            border: 1px solid #2c5530;
-                            padding: 8px;
-                            margin-top: 10px;
-                            font-size: 9px;
-                        }
-                        .footer {
-                            background: #2c5530;
-                            color: white;
-                            padding: 8px;
-                            text-align: center;
-                            margin-top: 10px;
-                            font-size: 9px;
-                        }
+                        @page { size: A4; margin: 10mm; }
+                        body { font-family: Arial, sans-serif; font-size: 10px; direction: rtl; }
+                        .header { background: #2c5530; color: white; padding: 10px; text-align: center; }
+                        table { width: 100%; border-collapse: collapse; font-size: 8px; }
+                        th, td { border: 1px solid #ddd; padding: 3px; }
+                        th { background: #2c5530; color: white; }
                     </style>
                 </head>
                 <body>
                     <div class="header">
-                        <h2>المملكة العربية السعودية - وزارة التعليم - مكتب قطاع أحد والعوالي</h2>
-                        <h1>تقرير متابعة مؤشرات التقويم المدرسي</h1>
+                        <h2>المملكة العربية السعودية - وزارة التعليم</h2>
+                        <h3>تقرير متابعة مؤشرات التقويم المدرسي</h3>
+                        <p>المدرسة: ${schoolName} | المدير: ${principalName} | المسؤول: ${domainResponsible}</p>
                     </div>
-                    
-                    <div class="school-info">
-                        <strong>اسم المدرسة:</strong> ${schoolName} | 
-                        <strong>المدير:</strong> ${principalName} | 
-                        <strong>التاريخ:</strong> ${arabicDate} | 
-                        <strong>المسؤول:</strong> ${domainResponsible}
-                    </div>
-                    
-                    <div class="domain-title">${domainTitle} - نسبة الإنجاز: ${averageProgress}%</div>
-                    
+                    <h3>${domainTitle}</h3>
                     <table>
                         <thead>
-                            <tr>
-                                <th style="width: 12%;">المؤشر</th>
-                                <th style="width: 60%;">الوصف</th>
-                                <th style="width: 18%;">الحالة</th>
-                                <th style="width: 10%;">النسبة</th>
-                            </tr>
+                            <tr><th>المؤشر</th><th>الوصف</th><th>الحالة</th><th>النسبة</th></tr>
                         </thead>
-                        <tbody>
-                            ${tableRows}
-                        </tbody>
+                        <tbody>${tableRows}</tbody>
                     </table>
-                    
-                    <div class="summary">
-                        <strong>الملخص:</strong> 
-                        إجمالي المؤشرات: ${totalIndicators} | 
-                        المكتملة: ${completedCount} | 
-                        المتبقية: ${totalIndicators - completedCount} | 
-                        النسبة الإجمالية: ${averageProgress}%
-                    </div>
-                    
-                    <div class="footer">
-                        <strong>نُراقب • نُقيم • نُطور</strong> | تنفيذ: نواف الصبحي
-                    </div>
                 </body>
                 </html>
             `;
         }
 
-        // Fallback: Export as text file
-        async function exportAsTextFile(domainId) {
-            const schoolName = document.getElementById('schoolName')?.value || 'متوسطة المنذر بن عمرو الأنصاري';
-            const principalName = document.getElementById('principalName')?.value || 'خالد سعود المطيري';
-            const domainTitle = indicatorsData[domainId]?.title || 'مجال غير محدد';
-            const domainResponsible = document.getElementById(`domain-${domainId}-responsible`)?.value || 'غير محدد';
-            const arabicDate = new Date().toLocaleDateString('ar-SA');
-            
-            let content = `تقرير متابعة مؤشرات التقويم المدرسي\n`;
-            content += `المملكة العربية السعودية - وزارة التعليم\n`;
-            content += `مكتب قطاع أحد والعوالي\n\n`;
-            content += `اسم المدرسة: ${schoolName}\n`;
-            content += `مدير المدرسة: ${principalName}\n`;
-            content += `تاريخ التقرير: ${arabicDate}\n\n`;
-            content += `${domainTitle}\n`;
-            content += `المسؤول: ${domainResponsible}\n`;
-            content += `${'='.repeat(50)}\n\n`;
-            
-            if (indicatorsData[domainId]?.indicators) {
-                indicatorsData[domainId].indicators.forEach(indicator => {
-                    const data = trackingData[domainId]?.[indicator.code] || { 
-                        status: 'incomplete', progress: 0 
-                    };
-                    const status = data.status === 'complete' ? 'مكتمل' : 'غير مكتمل';
-                    
-                    content += `المؤشر: ${indicator.code}\n`;
-                    content += `الوصف: ${indicator.title}\n`;
-                    content += `الحالة: ${status}\n`;
-                    content += `النسبة: ${data.progress}%\n`;
-                    content += `${'-'.repeat(30)}\n`;
-                });
-            }
-            
-            content += `\nنُراقب • نُقيم • نُطور\n`;
-            content += `تنفيذ: نواف الصبحي\n`;
-            
-            // Create and download text file
-            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `تقرير_${domainTitle.replace(/\s+/g, '_')}_${Date.now()}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            showToast('تم تحميل التقرير كملف نصي', 'success');
-        }gradient(135deg, #2c5530, #4a7c59);
-                            color: white;
-                            padding: 20px;
-                            text-align: center;
-                            margin: -20px -20px 20px -20px;
-                            border-radius: 0 0 10px 10px;
-                        }
-                        
-                        .header h1 { margin: 5px 0; font-size: 18px; }
-                        .header h2 { margin: 0; font-size: 14px; }
-                        .header h3 { margin: 0; font-size: 12px; }
-                        
-                        .school-info {
-                            background: #f8f9fa;
-                            border: 2px solid #2c5530;
-                            border-radius: 8px;
-                            padding: 15px;
-                            margin-bottom: 20px;
-                        }
-                        
-                        .domain-title {
-                            background: #2c5530;
-                            color: white;
-                            padding: 15px;
-                            text-align: center;
-                            border-radius: 5px;
-                            margin-bottom: 20px;
-                            font-size: 16px;
-                            font-weight: bold;
-                        }
-                        
-                        .domain-responsible {
-                            background: #e9ecef;
-                            border: 1px solid #2c5530;
-                            padding: 10px;
-                            border-radius: 5px;
-                            margin-bottom: 20px;
-                            font-weight: bold;
-                            color: #2c5530;
-                        }
-                        
-                        table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin-bottom: 20px;
-                            font-size: 10px;
-                        }
-                        
-                        th {
-                            background: #2c5530;
-                            color: white;
-                            padding: 8px;
-                            text-align: center;
-                            border: 1px solid #ddd;
-                            font-weight: bold;
-                        }
-                        
-                        .summary {
-                            background: #f8f9fa;
-                            border: 2px solid #2c5530;
-                            border-radius: 8px;
-                            padding: 15px;
-                            margin-top: 20px;
-                        }
-                        
-                        .summary h3 {
-                            color: #2c5530;
-                            text-align: center;
-                            margin: 0 0 10px 0;
-                        }
-                        
-                        .stats {
-                            display: flex;
-                            justify-content: space-between;
-                            flex-wrap: wrap;
-                        }
-                        
-                        .stats div {
-                            flex: 1;
-                            margin: 5px;
-                        }
-                        
-                        .footer {
-                            background: #2c5530;
-                            color: white;
-                            padding: 15px;
-                            text-align: center;
-                            margin: 20px -20px -20px -20px;
-                            border-radius: 10px 10px 0 0;
-                        }
-                        
-                        @media print {
-                            body { margin: 0; padding: 10px; }
-                            .header { margin: -10px -10px 15px -10px; }
-                            .footer { margin: 15px -10px -10px -10px; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h2>المملكة العربية السعودية</h2>
-                        <h1>وزارة التعليم</h1>
-                        <h3>مكتب قطاع أحد والعوالي</h3>
-                        <h1>تقرير متابعة مؤشرات التقويم المدرسي</h1>
-                    </div>
-                    
-                    <div class="school-info">
-                        <h3 style="color: #2c5530; margin: 0 0 10px 0;">معلومات المدرسة</h3>
-                        <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
-                            <div style="flex: 1; margin-left: 20px;">
-                                <p><strong>اسم المدرسة:</strong> ${schoolName}</p>
-                                <p><strong>مدير المدرسة:</strong> ${principalName}</p>
-                            </div>
-                            <div style="flex: 1;">
-                                <p><strong>تاريخ التقرير:</strong> ${arabicDate}</p>
-                                <p><strong>تاريخ الإنشاء:</strong> ${new Date().toLocaleDateString('ar-SA')}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="domain-title">${domainTitle}</div>
-                    
-                    <div class="domain-responsible">
-                        <i class="fas fa-user"></i> المسؤول عن المجال: ${domainResponsible}
-                    </div>
-                    
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 15%;">رقم المؤشر</th>
-                                <th style="width: 55%;">وصف المؤشر</th>
-                                <th style="width: 15%;">الحالة</th>
-                                <th style="width: 15%;">النسبة</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRows}
-                        </tbody>
-                    </table>
-                    
-                    <div class="summary">
-                        <h3>ملخص إحصائي شامل</h3>
-                        <div class="stats">
-                            <div>
-                                <p><strong>إجمالي المؤشرات:</strong> ${totalIndicators}</p>
-                                <p><strong>المؤشرات المكتملة:</strong> ${completedCount}</p>
-                            </div>
-                            <div>
-                                <p><strong>النسبة الإجمالية:</strong> ${averageProgress}%</p>
-                                <p><strong>المؤشرات المتبقية:</strong> ${totalIndicators - completedCount}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="footer">
-                        <p style="margin: 0; font-size: 14px; font-weight: bold;">نُراقب • نُقيم • نُطور</p>
-                        <p style="margin: 5px 0 0 0;">تم إنشاء هذا التقرير بواسطة نظام متابعة مؤشرات التقويم المدرسي</p>
-                        <p style="margin: 5px 0 0 0;">تنفيذ: نواف الصبحي</p>
-                    </div>
-                </body>
-                </html>
-            `;
-        }
-
-        // Fallback: Export as text file
-        async function exportAsTextFile(domainId) {
-            const schoolName = document.getElementById('schoolName')?.value || 'متوسطة المنذر بن عمرو الأنصاري';
-            const principalName = document.getElementById('principalName')?.value || 'خالد سعود المطيري';
-            const domainTitle = indicatorsData[domainId]?.title || 'مجال غير محدد';
-            const domainResponsible = document.getElementById(`domain-${domainId}-responsible`)?.value || 'غير محدد';
-            const arabicDate = new Date().toLocaleDateString('ar-SA');
-            
-            let content = `تقرير متابعة مؤشرات التقويم المدرسي\n`;
-            content += `المملكة العربية السعودية - وزارة التعليم\n`;
-            content += `مكتب قطاع أحد والعوالي\n\n`;
-            content += `اسم المدرسة: ${schoolName}\n`;
-            content += `مدير المدرسة: ${principalName}\n`;
-            content += `تاريخ التقرير: ${arabicDate}\n\n`;
-            content += `${domainTitle}\n`;
-            content += `المسؤول: ${domainResponsible}\n`;
-            content += `${'='.repeat(50)}\n\n`;
-            
-            if (indicatorsData[domainId]?.indicators) {
-                indicatorsData[domainId].indicators.forEach(indicator => {
-                    const data = trackingData[domainId]?.[indicator.code] || { 
-                        status: 'incomplete', progress: 0 
-                    };
-                    const status = data.status === 'complete' ? 'مكتمل' : 'غير مكتمل';
-                    
-                    content += `المؤشر: ${indicator.code}\n`;
-                    content += `الوصف: ${indicator.title}\n`;
-                    content += `الحالة: ${status}\n`;
-                    content += `النسبة: ${data.progress}%\n`;
-                    content += `${'-'.repeat(30)}\n`;
-                });
-            }
-            
-            content += `\nنُراقب • نُقيم • نُطور\n`;
-            content += `تنفيذ: نواف الصبحي\n`;
-            
-            // Create and download text file
-            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `تقرير_${domainTitle.replace(/\s+/g, '_')}_${Date.now()}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            showToast('تم تحميل التقرير كملف نصي', 'success');
-        }
-
-        // Initialize app
+        // Initialize app when DOM is ready
         document.addEventListener('DOMContentLoaded', initializeApp);
-        
+
         // Mobile optimizations
         if ('ontouchstart' in window) {
             document.addEventListener('touchstart', function() {}, true);
