@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استبيان تقييم أولياء الأمور - مع Firebase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="white" opacity="0.1"/><circle cx="80" cy="40" r="1.5" fill="white" opacity="0.1"/><circle cx="40" cy="80" r="1" fill="white" opacity="0.1"/></svg>');
+        }
+        
+        .school-logo {
+            width: 80px;
+            height: 80px;
+            background: #3498db;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .form-content {
+            padding: 40px;
+        }
+        
+        .intro {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border-right: 5px solid #3498db;
+        }
+        
+        .intro h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            border: 1px solid #e1e8ed;
+            border-radius: 15px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .section:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .section-header {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .section-content {
+            padding: 25px;
+            background: #fafbfc;
+        }
+        
+        .question {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .question:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .question-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        
+        .rating-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .rating-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .rating-circle {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #bdc3c7;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+        
+        .rating-circle:hover {
+            border-color: #3498db;
+            background: #3498db;
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .rating-circle.selected {
+            border-color: #27ae60;
+            background: #27ae60;
+            color: white;
+        }
+        
+        .text-input {
+            width: 100%;
+            min-height: 80px;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+        
+        .text-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        .multiple-choice {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .choice-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .choice-option:hover {
+            background: #e9ecef;
+            border-color: #3498db;
+        }
+        
+        .choice-option.selected {
+            background: #e8f5e8;
+            border-color: #27ae60;
+        }
+        
+        .choice-radio {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #bdc3c7;
+            border-radius: 50%;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .choice-option.selected .choice-radio {
+            border-color: #27ae60;
+            background: #27ae60;
+        }
+        
+        .choice-option.selected .choice-radio::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+        }
+        
+        .submit-section {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+        
+        .submit-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+        }
+        
+        .submit-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: #e1e8ed;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 3px;
+        }
+        
+        .progress-text {
+            text-align: center;
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .success-message {
+            display: none;
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .success-message.show {
+            display: block;
+        }
+        
+        .error-message {
+            display: none;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .form-content {
+                padding: 20px;
+            }
+            
+            .rating-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .rating-circle {
+                width: 35px;
+                height: 35px;
+                font-size: 14px;
+            }
+            
+            .section-header {
+                font-size: 16px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="school-logo">🏫</div>
+            <h1>مدرسة المنذر بن عمرو الأنصاري </h1>
+            <p>استبيان تقييم العملية التعليمية من وجهة نظر أولياء الأمور</p>
+        </div>
+        
+        <div class="form-content">
+            <div class="intro">
+                <h3>🎯 أعزاءنا أولياء الأمور</h3>
+                <p>نقدر ثقتكم ومشاركتكم في تطوير العملية التعليمية. هذا الاستبيان يهدف لجمع آرائكم حول تجربة أبنائكم خلال الشهر المنصرم.</p>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; border-right: 4px solid #3498db;">
+                    <h4 style="color: #2c3e50; margin-bottom: 15px;">📝 إرشادات مهمة للتعبئة:</h4>
+                    <ul style="margin: 0; padding-right: 20px; line-height: 1.8; color: #34495e;">
+                        <li><strong>الصدق والموضوعية:</strong> أجب بناءً على واقع ابنك خلال الشهر الماضي فقط</li>
+                        <li><strong>اعتمد على ما ينقله ابنك:</strong> ركز على تجاربه اليومية وما تلاحظه في المنزل</li>
+                        <li><strong>تجنب العموميات:</strong> إجابات محددة أفضل من "ممتاز" أو "سيء" فقط</li>
+                        <li><strong>سرية تامة:</strong> إجاباتك سرية ولن تؤثر على ابنك، هدفها التطوير فقط</li>
+                        <li><strong>اقترح حلول:</strong> عند ذكر مشكلة، شاركنا مقترحاً للتحسين إن أمكن</li>
+                    </ul>
+                </div>
+                
+                <p><strong>⏱️ وقت التعبئة:</strong> 8-10 دقائق تقريباً</p>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">0% مكتمل</div>
+
+            <form id="parentSurvey">
+                <!-- معلومات الطالب -->
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">👤</div>
+                        معلومات الطالب
+                    </div>
+                    <div class="section-content">
+                        <div class="question">
+                            <div class="question-text">
+                                اسم الطالب (اختياري)
+                            </div>
+                            <input type="text" name="studentName" class="text-input" style="min-height: 50px;" placeholder="يمكنك كتابة اسم الطالب أو تركه فارغاً للحفاظ على الخصوصية">
+                        </div>
+
+                        <div class="question">
+                            <div class="question-text">
+                                صف الطالب
+                            </div>
+                            <div class="multiple-choice">
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="1">
+                                    <div class="choice-radio"></div>
+                                    <span>الأول المتوسط</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="2">
+                                    <div class="choice-radio"></div>
+                                    <span>الثاني المتوسط</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="3">
+                                    <div class="choice-radio"></div>
+                                    <span>الثالث المتوسط</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="studentGrade" value="">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- التحصيل الأكاديمي -->
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">📚</div>
+                        التحصيل الأكاديمي (كما ينعكس على الطالب في المنزل)
+                    </div>
+                    <div class="section-content">
+                        <div class="question">
+                            <div class="question-text">
+                                هل يتحدث ابنك معك في المنزل عن فهمه للمواد الدراسية أم يشكو من صعوبتها؟ (يشمل مستوى الدافعية والحماس)
+                            </div>
+                            <div class="multiple-choice">
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="4">
+                                    <div class="choice-radio"></div>
+                                    <span>يتحدث بحماس عن فهمه للمواد ويظهر رغبة في التعلم</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="3">
+                                    <div class="choice-radio"></div>
+                                    <span>يتحدث أحياناً ويظهر فهماً جيداً مع حماس متوسط</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="2">
+                                    <div class="choice-radio"></div>
+                                    <span>نادراً ما يتحدث عن المواد أو يظهر اهتماماً</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="1">
+                                    <div class="choice-radio"></div>
+                                    <span>يشكو من صعوبة المواد ويبدي عدم رغبة في الدراسة</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="academicMotivation" value="">
+                        </div>
+
+                        <div class="question">
+                            <div class="question-text">
+                                مقارنة بالفصل السابق، هل تلاحظ تحسناً أم تراجعاً في مستوى ابنك الأكاديمي؟
+                            </div>
+                            <div class="rating-container">
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 5)">5</div>
+                                    <span style="font-size: 12px;">تحسن كبير</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 4)">4</div>
+                                    <span style="font-size: 12px;">تحسن ملحوظ</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 3)">3</div>
+                                    <span style="font-size: 12px;">نفس المستوى</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 2)">2</div>
+                                    <span style="font-size: 12px;">تراجع بسيط</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 1)">1</div>
+                                    <span style="font-size: 12px;">تراجع واضح</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="academicImprovement" value="">
+                        </div>
+
+                        <div class="question">
+                            <div class="question-text">
+                                هل كمية الواجبات المنزلية مناسبة أم تشكل ضغطاً على ابنك؟
+                            </div>
+                            <div class="multiple-choice">
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="4">
+                                    <div class="choice-radio"></div>
+                                    <span>مناسبة تماماً ويؤديها بسهولة</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="3">
+                                    <div class="choice-radio"></div>
+                                    <span>مناسبة في معظم الأيام</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="2">
+                                    <div class="choice-radio"></div>
+                                    <span>كثيرة أحياناً وتحتاج وقت أطول</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="1">
+                                    <div class="choice-radio"></div>
+                                    <span>مفرطة وتسبب توتراً له</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="homeworkLoad" value="">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- البيئة التعليمية -->
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">🏛️</div>
+                        البيئة التعليمية (كما ينعكس على شعور الطالب)
+                    </div>
+                    <div class="section-content">
+                        <div class="question">
+                            <div class="question-text">
+                                كيف يبدو شعور ابنك تجاه الذهاب إلى المدرسة يومياً؟
+                            </div>
+                            <div class="rating-container">
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 5)">😍</div>
+                                    <span style="font-size: 12px;">متحمس جداً</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 4)">😊</div>
+                                    <span style="font-size: 12px;">مرتاح</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 3)">😐</div>
+                                    <span style="font-size: 12px;">طبيعي</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 2)">😞</div>
+                                    <span style="font-size: 12px;">متردد</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 1)">😫</div>
+                                    <span style="font-size: 12px;">متذمر</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="schoolFeeling" value="">
+                        </div>
+
+                        <div class="question">
+                            <div class="question-text">
+                                هل يذكر لك ابنك أن المعلمين يتعاملون معه باحترام وعدالة؟
+                            </div>
+                            <div class="multiple-choice">
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="4">
+                                    <div class="choice-radio"></div>
+                                    <span>نعم، يتحدث بإعجاب عن أغلب المعلمين</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="3">
+                                    <div class="choice-radio"></div>
+                                    <span>يذكر التعامل الجيد في معظم المواقف</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="2">
+                                    <div class="choice-radio"></div>
+                                    <span>لا يتحدث كثيراً عن هذا الموضوع</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="1">
+                                    <div class="choice-radio"></div>
+                                    <span>أحياناً يشكو من تعامل بعض المعلمين</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="teacherTreatment" value="">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- التواصل -->
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">📱</div>
+                        التواصل والشراكة
+                    </div>
+                    <div class="section-content">
+                        <div class="question">
+                            <div class="question-text">
+                                هل تشعر أنك شريك فعلي في تعليم ابنك، أم مجرد متابع من بعيد؟
+                            </div>
+                            <div class="multiple-choice">
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="4">
+                                    <div class="choice-radio"></div>
+                                    <span>شريك فعلي، رأيي مسموع وأشارك في القرارات</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="3">
+                                    <div class="choice-radio"></div>
+                                    <span>أشارك أحياناً وأشعر بالاهتمام بآرائي</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="2">
+                                    <div class="choice-radio"></div>
+                                    <span>أتابع فقط ولا أشارك كثيراً في القرارات</span>
+                                </div>
+                                <div class="choice-option" onclick="selectChoice(this)" data-value="1">
+                                    <div class="choice-radio"></div>
+                                    <span>أشعر أنني مجرد متابع من بعيد</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="parentPartnership" value="">
+                        </div>
+
+                        <div class="question">
+                            <div class="question-text">
+                                هل قنوات التواصل مع المدرسة واضحة وسهلة الاستخدام؟
+                            </div>
+                            <div class="rating-container">
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 5)">5</div>
+                                    <span style="font-size: 12px;">ممتازة</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 4)">4</div>
+                                    <span style="font-size: 12px;">جيدة جداً</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 3)">3</div>
+                                    <span style="font-size: 12px;">مقبولة</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 2)">2</div>
+                                    <span style="font-size: 12px;">صعبة أحياناً</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 1)">1</div>
+                                    <span style="font-size: 12px;">معقدة</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="communicationChannels" value="">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- التقييم العام -->
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-icon">💡</div>
+                        التقييم العام والمقترحات
+                    </div>
+                    <div class="section-content">
+                        <div class="question">
+                            <div class="question-text">
+                                ما أبرز ما تميزت به المدرسة خلال الشهر المنصرم من وجهة نظرك؟
+                            </div>
+                            <textarea name="positiveAspects" class="text-input" placeholder="شاركنا رأيك حول أبرز الإيجابيات التي لاحظتها..."></textarea>
+                        </div>
+
+                        <div class="question">
+                            <div class="question-text">
+                                ما أهم نقطة تراها تحتاج لتحسين عاجل في المدرسة؟
+                            </div>
+                            <textarea name="improvementAreas" class="text-input" placeholder="ما هي أولوياتك للتحسين والتطوير..."></textarea>
+                        </div>
+
+                        <div class="question">
+                            <div class="question-text">
+                                هل لديك رسالة أو نقطة معينة تود توصيلها مباشرة لإدارة المدرسة؟
+                            </div>
+                            <textarea name="messageToAdmin" class="text-input" placeholder="مساحة مخصصة لأي رسالة تريد إيصالها للإدارة (اقتراح، شكوى، فكرة تطويرية...)"></textarea>
+                        </div>
+
+                        <div class="question">
+                            <div class="question-text">
+                                تقييمك العام لأداء المدرسة خلال الشهر المنصرم
+                            </div>
+                            <div class="rating-container">
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 5)">⭐⭐⭐⭐⭐</div>
+                                    <span style="font-size: 12px;">ممتاز</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 4)">⭐⭐⭐⭐</div>
+                                    <span style="font-size: 12px;">جيد جداً</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 3)">⭐⭐⭐</div>
+                                    <span style="font-size: 12px;">جيد</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 2)">⭐⭐</div>
+                                    <span style="font-size: 12px;">مقبول</span>
+                                </div>
+                                <div class="rating-option">
+                                    <div class="rating-circle" onclick="selectRating(this, 1)">⭐</div>
+                                    <span style="font-size: 12px;">يحتاج تحسين</span>
+                                </div>
+                            </div>
+                            <input type="hidden" name="overallRating" value="">
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <div class="submit-section">
+                <h3 style="color: #2c3e50; margin-bottom: 15px;">🙏 شكراً لكم</h3>
+                <p style="margin-bottom: 25px; color: #7f8c8d;">آراؤكم وملاحظاتكم القيمة تساعدنا في تطوير العملية التعليمية وتحقيق أفضل النتائج لأبنائكم</p>
+                <button type="button" class="submit-btn" onclick="submitSurvey()">
+                    إرسال الاستبيان ✅
+                </button>
+                
+                <div class="loading" id="loadingMessage">
+                    <p>⏳ جاري حفظ البيانات في قاعدة البيانات...</p>
+                </div>
+                
+                <div class="success-message" id="successMessage">
+                    <h3>✅ تم الإرسال بنجاح!</h3>
+                    <p>شكراً لكم! تم حفظ استبيانكم في قاعدة البيانات بنجاح. آراؤكم قيمة جداً لنا في تطوير العملية التعليمية.</p>
+                    <p><strong>رقم الاستجابة:</strong> <span id="responseId"></span></p>
+                </div>
+                
+                <div class="error-message" id="errorMessage">
+                    <h3>❌ حدث خطأ!</h3>
+                    <p>عذراً، حدث خطأ أثناء حفظ البيانات. يرجى المحاولة مرة أخرى.</p>
+                    <button class="btn" onclick="submitSurvey()" style="background: white; color: #e74c3c; margin-top: 10px;">إعادة المحاولة</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Import Firebase functions
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+        import { getAnalytics } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD8bugX85UtK4JVHUnjkbSLAyOb31x909Y",
+            authDomain: "forms-school.firebaseapp.com",
+            projectId: "forms-school",
+            storageBucket: "forms-school.firebasestorage.app",
+            messagingSenderId: "270437208329",
+            appId: "1:270437208329:web:2c01c8a48d68910234c3d8",
+            measurementId: "G-Z7KB0YDNQ6"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const analytics = getAnalytics(app);
+
+        // Make Firebase functions available globally
+        window.db = db;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.serverTimestamp = serverTimestamp;
+
+        console.log('Firebase initialized successfully');
+    </script>
+
+    <script>
+        let currentProgress = 0;
+        const totalQuestions = 8; // عدد الأسئلة الأساسية
+
+        function selectChoice(element) {
+            // إلغاء تحديد الخيارات الأخرى في نفس السؤال
+            const parent = element.closest('.question');
+            const siblings = parent.querySelectorAll('.choice-option');
+            siblings.forEach(sibling => sibling.classList.remove('selected'));
+            
+            // تحديد الخيار المحدد
+            element.classList.add('selected');
+            
+            // حفظ القيمة في الحقل المخفي
+            const hiddenInput = parent.querySelector('input[type="hidden"]');
+            if (hiddenInput) {
+                hiddenInput.value = element.getAttribute('data-value');
+            }
+            
+            updateProgress();
+        }
+
+        function selectRating(element, value) {
+            // إلغاء تحديد الخيارات الأخرى في نفس السؤال
+            const parent = element.closest('.question');
+            const siblings = parent.querySelectorAll('.rating-circle');
+            siblings.forEach(sibling => sibling.classList.remove('selected'));
+            
+            // تحديد الخيار المحدد
+            element.classList.add('selected');
+            
+            // حفظ القيمة في الحقل المخفي
+            const hiddenInput = parent.querySelector('input[type="hidden"]');
+            if (hiddenInput) {
+                hiddenInput.value = value;
+            }
+            
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const form = document.getElementById('parentSurvey');
+            const hiddenInputs = form.querySelectorAll('input[type="hidden"]');
+            const textInputs = form.querySelectorAll('input[type="text"], textarea');
+            
+            let answeredQuestions = 0;
+            
+            // Count hidden inputs (rating and choice questions)
+            hiddenInputs.forEach(input => {
+                if (input.value !== '') answeredQuestions++;
+            });
+            
+            // Count text inputs (optional, but we'll include filled ones)
+            textInputs.forEach(input => {
+                if (input.value.trim() !== '') answeredQuestions++;
+            });
+            
+            const progressPercentage = Math.min((answeredQuestions / totalQuestions) * 100, 100);
+            
+            document.getElementById('progressFill').style.width = progressPercentage + '%';
+            document.getElementById('progressText').textContent = Math.round(progressPercentage) + '% مكتمل';
+        }
+
+        async function submitSurvey() {
+            const form = document.getElementById('parentSurvey');
+            const formData = new FormData(form);
+            
+            // التحقق من اكتمال الأسئلة الأساسية
+            const requiredFields = ['studentGrade', 'academicMotivation', 'academicImprovement', 'homeworkLoad', 'schoolFeeling', 'teacherTreatment', 'parentPartnership', 'communicationChannels', 'overallRating'];
+            const missingFields = requiredFields.filter(field => !formData.get(field));
+            
+            if (missingFields.length > 0) {
+                alert('يرجى الإجابة على جميع الأسئلة الأساسية قبل الإرسال');
+                return;
+            }
+
+            // إظهار رسالة التحميل
+            document.getElementById('loadingMessage').classList.add('show');
+            document.querySelector('.submit-btn').disabled = true;
+            document.getElementById('successMessage').classList.remove('show');
+            document.getElementById('errorMessage').classList.remove('show');
+
+            try {
+                // إعداد البيانات للحفظ
+                const surveyData = {
+                    // معلومات الطالب
+                    studentName: formData.get('studentName') || 'غير محدد',
+                    studentGrade: parseInt(formData.get('studentGrade')),
+                    
+                    // التحصيل الأكاديمي
+                    academicMotivation: parseInt(formData.get('academicMotivation')),
+                    academicImprovement: parseInt(formData.get('academicImprovement')),
+                    homeworkLoad: parseInt(formData.get('homeworkLoad')),
+                    
+                    // البيئة التعليمية
+                    schoolFeeling: parseInt(formData.get('schoolFeeling')),
+                    teacherTreatment: parseInt(formData.get('teacherTreatment')),
+                    
+                    // التواصل
+                    parentPartnership: parseInt(formData.get('parentPartnership')),
+                    communicationChannels: parseInt(formData.get('communicationChannels')),
+                    
+                    // التقييم العام
+                    positiveAspects: formData.get('positiveAspects') || '',
+                    improvementAreas: formData.get('improvementAreas') || '',
+                    messageToAdmin: formData.get('messageToAdmin') || '',
+                    overallRating: parseInt(formData.get('overallRating')),
+                    
+                    // معلومات إضافية
+                    submissionDate: window.serverTimestamp(),
+                    academicYear: '2024-2025',
+                    month: 'ربيع الأول 1446',
+                    
+                    // حسابات إضافية
+                    academicAverage: calculateAcademicAverage(formData),
+                    environmentAverage: calculateEnvironmentAverage(formData),
+                    communicationAverage: calculateCommunicationAverage(formData)
+                };
+
+                // حفظ البيانات في Firebase
+                const docRef = await window.addDoc(window.collection(window.db, 'parentSurveys'), surveyData);
+                
+                // إخفاء رسالة التحميل وإظهار رسالة النجاح
+                document.getElementById('loadingMessage').classList.remove('show');
+                document.getElementById('successMessage').classList.add('show');
+                document.getElementById('responseId').textContent = docRef.id;
+                
+                // إخفاء النموذج
+                document.getElementById('parentSurvey').style.display = 'none';
+                document.querySelector('.submit-btn').style.display = 'none';
+                
+                // إرسال Analytics event
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', 'survey_submitted', {
+                        'event_category': 'engagement',
+                        'event_label': 'parent_survey',
+                        'student_grade': surveyData.studentGrade,
+                        'overall_rating': surveyData.overallRating
+                    });
+                }
+                
+                console.log('Survey submitted successfully with ID: ', docRef.id);
+                
+            } catch (error) {
+                console.error('Error submitting survey: ', error);
+                
+                // إخفاء رسالة التحميل وإظهار رسالة الخطأ
+                document.getElementById('loadingMessage').classList.remove('show');
+                document.getElementById('errorMessage').classList.add('show');
+                document.querySelector('.submit-btn').disabled = false;
+            }
+        }
+
+        // دوال حساب المتوسطات
+        function calculateAcademicAverage(formData) {
+            const values = [
+                parseInt(formData.get('academicMotivation')),
+                parseInt(formData.get('academicImprovement')),
+                parseInt(formData.get('homeworkLoad'))
+            ];
+            return values.reduce((a, b) => a + b) / values.length;
+        }
+
+        function calculateEnvironmentAverage(formData) {
+            const values = [
+                parseInt(formData.get('schoolFeeling')),
+                parseInt(formData.get('teacherTreatment'))
+            ];
+            return values.reduce((a, b) => a + b) / values.length;
+        }
+
+        function calculateCommunicationAverage(formData) {
+            const values = [
+                parseInt(formData.get('parentPartnership')),
+                parseInt(formData.get('communicationChannels'))
+            ];
+            return values.reduce((a, b) => a + b) / values.length;
+        }
+
+        // تحديث شريط التقدم عند كتابة النص
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.text-input, input[type="text"]').forEach(input => {
+                input.addEventListener('input', updateProgress);
+            });
+
+            // تأثيرات الحركة عند التمرير
+            function animateOnScroll() {
+                const sections = document.querySelectorAll('.section');
+                sections.forEach(section => {
+                    const sectionTop = section.getBoundingClientRect().top;
+                    const windowHeight = window.innerHeight;
+                    
+                    if (sectionTop < windowHeight * 0.8) {
+                        section.style.opacity = '1';
+                        section.style.transform = 'translateY(0)';
+                    }
+                });
+            }
+
+            // إعداد التأثيرات الأولية
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.opacity = '0';
+                section.style.transform = 'translateY(30px)';
+                section.style.transition = 'all 0.6s ease';
+            });
+
+            window.addEventListener('scroll', animateOnScroll);
+            animateOnScroll(); // تشغيل فوري
+        });
+
+        // منع إرسال النموذج التقليدي
+        document.getElementById('parentSurvey').addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitSurvey();
+        });
+    </script>
+</body>
+</html>
