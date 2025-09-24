@@ -418,12 +418,10 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script type="module">
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        // Import deleteDoc function
-        import { getFirestore, collection, addDoc, getDocs, setDoc, doc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-        
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <script>
         // Your web app's Firebase configuration
         const firebaseConfig = {
           apiKey: "AIzaSyCkjB-x-vKlZH27Zlfqvb_wFQNSVMdDC1A",
@@ -436,59 +434,92 @@
         };
 
         // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
         // Data storage
         let students = [];
         let teams = [];
+        let isFirebaseReady = false;
+
+        // Check Firebase connection
+        db.enableNetwork().then(() => {
+            isFirebaseReady = true;
+            console.log('Firebase connected successfully');
+        }).catch((error) => {
+            console.error('Firebase connection failed:', error);
+        });
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', async function() {
-            await loadStudentsFromFirebase();
-            await loadTeamsFromFirebase();
-            updateStats();
-            displayStudents();
-            displayTeams();
+            // Wait for Firebase to be ready
+            setTimeout(async () => {
+                try {
+                    await loadStudentsFromFirebase();
+                    await loadTeamsFromFirebase();
+                    updateStats();
+                    displayStudents();
+                    displayTeams();
+                } catch (error) {
+                    console.error('Error initializing:', error);
+                    // Fall back to local storage if Firebase fails
+                    students = JSON.parse(localStorage.getItem('competitionStudents') || '[]');
+                    teams = JSON.parse(localStorage.getItem('competitionTeams') || '[]');
+                    updateStats();
+                    displayStudents();
+                    displayTeams();
+                }
+            }, 1000);
         });
 
         // Load students from Firebase
         async function loadStudentsFromFirebase() {
             try {
-                const studentsCollection = collection(db, 'students');
-                const studentsSnapshot = await getDocs(studentsCollection);
+                const studentsSnapshot = await db.collection('students').get();
                 students = [];
                 studentsSnapshot.forEach((doc) => {
                     students.push({ id: doc.id, ...doc.data() });
                 });
+                console.log('Loaded students:', students.length);
             } catch (error) {
                 console.error('Error loading students:', error);
+                // Fallback to localStorage
+                students = JSON.parse(localStorage.getItem('competitionStudents') || '[]');
             }
         }
 
         // Load teams from Firebase
         async function loadTeamsFromFirebase() {
             try {
-                const teamsCollection = collection(db, 'teams');
-                const teamsSnapshot = await getDocs(teamsCollection);
+                const teamsSnapshot = await db.collection('teams').get();
                 teams = [];
                 teamsSnapshot.forEach((doc) => {
                     teams.push({ id: doc.id, ...doc.data() });
                 });
+                console.log('Loaded teams:', teams.length);
             } catch (error) {
                 console.error('Error loading teams:', error);
+                // Fallback to localStorage
+                teams = JSON.parse(localStorage.getItem('competitionTeams') || '[]');
             }
         }
 
         // Save student to Firebase
         async function saveStudentToFirebase(student) {
             try {
-                const studentsCollection = collection(db, 'students');
-                await addDoc(studentsCollection, student);
+                await db.collection('students').add(student);
+                // Also save to localStorage as backup
+                const localStudents = JSON.parse(localStorage.getItem('competitionStudents') || '[]');
+                localStudents.push(student);
+                localStorage.setItem('competitionStudents', JSON.stringify(localStudents));
                 return true;
             } catch (error) {
-                console.error('Error saving student:', error);
-                return false;
+                console.error('Firebase save failed, using localStorage:', error);
+                // Fallback to localStorage
+                const localStudents = JSON.parse(localStorage.getItem('competitionStudents') || '[]');
+                localStudents.push({...student, id: Date.now()});
+                localStorage.setItem('competitionStudents', JSON.stringify(localStudents));
+                return true;
             }
         }
 
@@ -496,17 +527,29 @@
         async function saveTeamsToFirebase(teamsData) {
             try {
                 // Clear existing teams
-                const teamsCollection = collection(db, 'teams');
-                const teamsSnapshot = await getDocs(teamsCollection);
+                const teamsSnapshot = await db.collection('teams').get();
+                const batch = db.batch();
                 
-                // Save new teams
-                for (const team of teamsData) {
-                    await addDoc(teamsCollection, team);
-                }
+                teamsSnapshot.forEach((doc) => {
+                    batch.delete(doc.ref);
+                });
+                
+                // Add new teams
+                teamsData.forEach((team) => {
+                    const newTeamRef = db.collection('teams').doc();
+                    batch.set(newTeamRef, team);
+                });
+                
+                await batch.commit();
+                
+                // Also save to localStorage as backup
+                localStorage.setItem('competitionTeams', JSON.stringify(teamsData));
                 return true;
             } catch (error) {
-                console.error('Error saving teams:', error);
-                return false;
+                console.error('Firebase teams save failed, using localStorage:', error);
+                // Fallback to localStorage
+                localStorage.setItem('competitionTeams', JSON.stringify(teamsData));
+                return true;
             }
         }
 
@@ -676,12 +719,12 @@
                 });
 
                 // Add teams to main teams array
-                teamsForGrade.forEach(teamMembers => {
+                teamsForGrade.forEach((teamMembers, index) => {
                     if (teamMembers.length === 10) {
                         const avgGrade = teamMembers.reduce((sum, student) => sum + student.lastYearGrade, 0) / 10;
                         newTeams.push({
                             teamId: teamCounter++,
-                            name: `فريق ${grade}-${newTeams.filter(t => t.grade === grade).length + 1}`,
+                            name: `فريق ${grade}-${index + 1}`,
                             grade: grade,
                             members: teamMembers,
                             averageGrade: Math.round(avgGrade),
@@ -691,31 +734,29 @@
                 });
             });
 
-            // Clear existing teams and save new ones
+            // Show loading
+            const generateBtn = document.querySelector('button[onclick="generateTeams()"]');
+            const originalText = generateBtn.textContent;
+            generateBtn.textContent = 'جاري تكوين الفرق...';
+            generateBtn.disabled = true;
+
             try {
-                // Clear teams collection in Firebase
-                const teamsCollection = collection(db, 'teams');
-                const teamsSnapshot = await getDocs(teamsCollection);
-                
-                // Delete existing teams
-                for (const doc of teamsSnapshot.docs) {
-                    await deleteDoc(doc.ref);
-                }
-                
-                // Save new teams
                 const saved = await saveTeamsToFirebase(newTeams);
                 
                 if (saved) {
                     teams = newTeams;
                     updateStats();
                     displayTeams();
-                    alert(`تم تكوين ${teams.length} فريق بنجاح وحفظها في قاعدة البيانات!`);
+                    alert(`تم تكوين ${teams.length} فريق بنجاح!`);
                 } else {
-                    alert('حدث خطأ في حفظ الفرق');
+                    alert('تم تكوين الفرق ولكن حدث خطأ في الحفظ');
                 }
             } catch (error) {
                 console.error('Error generating teams:', error);
                 alert('حدث خطأ في تكوين الفرق');
+            } finally {
+                generateBtn.textContent = originalText;
+                generateBtn.disabled = false;
             }
         }
 
