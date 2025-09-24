@@ -217,6 +217,26 @@
             font-weight: bold;
         }
 
+        .admin-login {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .admin-login .card {
+            max-width: 400px;
+            width: 90%;
+            animation: slideIn 0.3s ease;
+        }
+
         .admin-panel {
             display: none;
         }
@@ -389,10 +409,25 @@
                     </div>
                 </div>
 
-                <button class="btn btn-admin" onclick="showAdminPanel()">🔧 لوحة المعلم</button>
+                <button class="btn btn-admin" onclick="showAdminLogin()">🔐 لوحة المعلم</button>
             </div>
         </div>
 
+        <!-- Admin Login Modal -->
+        <div class="admin-login" id="adminLogin" style="display: none;">
+            <div class="card">
+                <h2>🔐 تسجيل دخول المعلم</h2>
+                <form id="adminLoginForm">
+                    <div class="form-group">
+                        <label for="adminPassword">كلمة المرور</label>
+                        <input type="password" id="adminPassword" required placeholder="أدخل كلمة المرور">
+                    </div>
+                    <button type="submit" class="btn">دخول</button>
+                    <button type="button" class="btn" onclick="hideAdminLogin()" style="background: #e53e3e; margin-top: 10px;">إلغاء</button>
+                </form>
+                <div id="loginMessage"></div>
+            </div>
+        </div>
         <!-- Admin Panel -->
         <div class="admin-panel" id="adminPanel">
             <div class="card">
@@ -436,6 +471,38 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+
+        // Admin authentication
+        const ADMIN_PASSWORD = 'Nawafsobhi1979';
+        let isAdminAuthenticated = false;
+
+        // Admin login form
+        document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('adminPassword').value;
+            
+            if (password === ADMIN_PASSWORD) {
+                isAdminAuthenticated = true;
+                hideAdminLogin();
+                showAdminPanel();
+                showLoginMessage('تم تسجيل الدخول بنجاح! 🎉', 'success');
+            } else {
+                showLoginMessage('كلمة المرور غير صحيحة ❌', 'error');
+                document.getElementById('adminPassword').value = '';
+            }
+        });
+
+        function showAdminLogin() {
+            document.getElementById('adminLogin').style.display = 'flex';
+            document.getElementById('adminPassword').focus();
+        }
+
+        function hideAdminLogin() {
+            document.getElementById('adminLogin').style.display = 'none';
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('loginMessage').textContent = '';
+        }
 
         // Data storage
         let students = [];
@@ -662,6 +729,11 @@
         }
 
         async function generateTeams() {
+            if (!isAdminAuthenticated) {
+                alert('يجب تسجيل الدخول أولاً');
+                return;
+            }
+            
             if (students.length < 10) {
                 alert('يجب تسجيل 10 طلاب على الأقل لتكوين الفرق');
                 return;
@@ -787,6 +859,11 @@
         }
 
         function showAdminPanel() {
+            if (!isAdminAuthenticated) {
+                showAdminLogin();
+                return;
+            }
+            
             document.getElementById('studentPanel').style.display = 'none';
             document.getElementById('adminPanel').style.display = 'block';
             displayStudents();
@@ -796,9 +873,23 @@
         function showStudentPanel() {
             document.getElementById('adminPanel').style.display = 'none';
             document.getElementById('studentPanel').style.display = 'grid';
+            // Clear admin authentication after leaving
+            isAdminAuthenticated = false;
         }
 
+        // Close admin login with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('adminLogin').style.display === 'flex') {
+                hideAdminLogin();
+            }
+        });
+
         async function exportData() {
+            if (!isAdminAuthenticated) {
+                alert('يجب تسجيل الدخول أولاً');
+                return;
+            }
+            
             try {
                 await loadStudentsFromFirebase();
                 await loadTeamsFromFirebase();
