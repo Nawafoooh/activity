@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم  - تحليل الاستبيان</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
+        
+        .content-area {
+            padding: 30px;
+        }
+        
+        .section-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e1e8ed;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #7f8c8d;
+        }
+        
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .data-table {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .table-header {
+            background: #34495e;
+            color: white;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: right;
+            border-bottom: 1px solid #e1e8ed;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #e74c3c;
+            background: #fdf2f2;
+            border-radius: 10px;
+            margin: 20px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        
+        .filter-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .filter-item select {
+            padding: 8px 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+        }
+        
+        .comments-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .comment-item {
+            padding: 15px;
+            border: 1px solid #e1e8ed;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+        }
+        
+        .comment-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+        
+        .grade-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .grade-1 { background: #1abc9c; color: white; }
+        .grade-2 { background: #3498db; color: white; }
+        .grade-3 { background: #9b59b6; color: white; }
+        
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-overview {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>🔥 لوحة تحكم Firebase - تحليل استبيان أولياء الأمور</h1>
+            <p>مدرسة المنذر بن عمرو الأنصاري المتوسطة | البيانات المباشرة من قاعدة البيانات</p>
+        </div>
+        
+        <!-- إحصائيات سريعة -->
+        <div class="stats-overview">
+            <div class="stat-card">
+                <div class="stat-number" id="totalResponses">⏳</div>
+                <div class="stat-label">إجمالي الردود</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-number" id="avgRating">⏳</div>
+                <div class="stat-label">متوسط التقييم العام</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-number" id="academicAvg">⏳</div>
+                <div class="stat-label">متوسط التحصيل الأكاديمي</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-number" id="communicationAvg">⏳</div>
+                <div class="stat-label">متوسط التواصل</div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <!-- شريط الفلاتر -->
+            <div class="filter-bar">
+                <div class="filter-item">
+                    <label>الصف الدراسي:</label>
+                    <select id="gradeFilter" onchange="applyFilters()">
+                        <option value="all">جميع الصفوف</option>
+                        <option value="1">الأول المتوسط</option>
+                        <option value="2">الثاني المتوسط</option>
+                        <option value="3">الثالث المتوسط</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-primary" onclick="refreshData()">🔄 تحديث البيانات</button>
+                <button class="btn btn-success" onclick="exportToCSV()">📊 تصدير CSV</button>
+            </div>
+
+            <!-- التبويبات -->
+            <div class="section-tabs">
+                <button class="tab active" onclick="showTab(event, 'overview')">نظرة عامة</button>
+                <button class="tab" onclick="showTab(event, 'academic')">التحصيل الأكاديمي</button>
+                <button class="tab" onclick="showTab(event, 'environment')">البيئة التعليمية</button>
+                <button class="tab" onclick="showTab(event, 'detailed')">بيانات تفصيلية</button>
+                <button class="tab" onclick="showTab(event, 'comments')">التعليقات</button>
+            </div>
+
+            <div id="loading" class="loading">
+                <h3>⏳ جاري تحميل البيانات من Firebase...</h3>
+                <p>يرجى الانتظار بينما نجلب أحدث البيانات من قاعدة البيانات</p>
+            </div>
+
+            <div id="error" class="error" style="display: none;">
+                <h3>❌ خطأ في تحميل البيانات</h3>
+                <p>تعذر الاتصال بقاعدة البيانات. تأكد من صحة إعدادات Firebase.</p>
+                <button class="btn btn-primary" onclick="refreshData()">إعادة المحاولة</button>
+            </div>
+
+            <!-- النظرة العامة -->
+            <div id="overview" class="tab-content active" style="display: none;">
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-title">توزيع التقييمات العامة</div>
+                        <canvas id="overallRatingChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">متوسط الرضا حسب الصفوف</div>
+                        <canvas id="gradeComparisonChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">تطور الردود عبر الزمن</div>
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">مقارنة المحاور الرئيسية</div>
+                        <canvas id="mainAreasChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- التحصيل الأكاديمي -->
+            <div id="academic" class="tab-content">
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-title">مستوى الدافعية للتعلم</div>
+                        <canvas id="motivationChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">التحسن الأكاديمي</div>
+                        <canvas id="improvementChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">تقييم الواجبات المنزلية</div>
+                        <canvas id="homeworkChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- البيئة التعليمية -->
+            <div id="environment" class="tab-content">
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <canvas id="schoolFeelingsChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">تقييم معاملة المعلمين</div>
+                        <canvas id="teacherTreatmentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- البيانات التفصيلية -->
+            <div id="detailed" class="tab-content">
+                <div class="data-table">
+                    <div class="table-header">جميع الاستجابات التفصيلية</div>
+                    <table id="detailedTable">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>اسم الطالب</th>
+                                <th>الصف</th>
+                                <th>التحصيل</th>
+                                <th>البيئة</th>
+                                <th>التواصل</th>
+                                <th>التقييم العام</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailedTableBody">
+                            <!-- البيانات ستُحمّل هنا -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- التعليقات -->
+            <div id="comments" class="tab-content">
+                <div class="comments-section">
+                    <div class="chart-title">الإيجابيات المذكورة</div>
+                    <div id="positiveComments">
+                        <!-- التعليقات الإيجابية ستُحمّل هنا -->
+                    </div>
+                </div>
+
+                <div class="comments-section">
+                    <div class="chart-title">نقاط التحسين المقترحة</div>
+                    <div id="improvementComments">
+                        <!-- اقتراحات التحسين ستُحمّل هنا -->
+                    </div>
+                </div>
+
+                <div class="comments-section">
+                    <div class="chart-title">رسائل للإدارة</div>
+                    <div id="adminMessages">
+                        <!-- رسائل الإدارة ستُحمّل هنا -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, query, orderBy, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD8bugX85UtK4JVHUnjkbSLAyOb31x909Y",
+            authDomain: "forms-school.firebaseapp.com",
+            projectId: "forms-school",
+            storageBucket: "forms-school.firebasestorage.app",
+            messagingSenderId: "270437208329",
+            appId: "1:270437208329:web:2c01c8a48d68910234c3d8",
+            measurementId: "G-Z7KB0YDNQ6"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Make functions available globally
+        window.db = db;
+        window.collection = collection;
+        window.getDocs = getDocs;
+        window.query = query;
+        window.orderBy = orderBy;
+        window.where = where;
+        window.onSnapshot = onSnapshot;
+
+        // Global data storage
+        window.allSurveyData = [];
+        window.filteredData = [];
+
+        console.log('Firebase initialized successfully');
+        
+        // Load data immediately
+        loadSurveyData();
+    </script>
+
+    <script>
+        let charts = {}; // Store chart instances
+
+        async function loadSurveyData() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+
+                // Query all survey data
+                const q = window.query(window.collection(window.db, 'parentSurveys'), window.orderBy('submissionDate', 'desc'));
+                const querySnapshot = await window.getDocs(q);
+                
+                window.allSurveyData = [];
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    data.id = doc.id;
+                    // Convert Firestore timestamp to date
+                    if (data.submissionDate && data.submissionDate.toDate) {
+                        data.submissionDate = data.submissionDate.toDate();
+                    }
+                    window.allSurveyData.push(data);
+                });
+
+                window.filteredData = [...window.allSurveyData];
+                
+                console.log(`Loaded ${window.allSurveyData.length} survey responses`);
+                
+                updateDashboard();
+                document.getElementById('loading').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        function updateDashboard() {
+            updateStatistics();
+            updateCharts();
+            updateDetailedTable();
+            updateComments();
+            
+            // Show the overview tab
+            document.getElementById('overview').style.display = 'block';
+        }
+
+        function updateStatistics() {
+            const data = window.filteredData;
+            
+            // Total responses
+            document.getElementById('totalResponses').textContent = data.length;
+            
+            // Average overall rating
+            const avgRating = data.length > 0 ? 
+                (data.reduce((sum, item) => sum + item.overallRating, 0) / data.length).toFixed(1) : '0';
+            document.getElementById('avgRating').textContent = avgRating;
+            
+            // Academic average
+            const academicAvg = data.length > 0 ? 
+                (data.reduce((sum, item) => sum + (item.academicAverage || 0), 0) / data.length).toFixed(1) : '0';
+            document.getElementById('academicAvg').textContent = academicAvg;
+            
+            // Communication average
+            const commAvg = data.length > 0 ? 
+                (data.reduce((sum, item) => sum + (item.communicationAverage || 0), 0) / data.length).toFixed(1) : '0';
+            document.getElementById('communicationAvg').textContent = commAvg;
+        }
+
+        function updateCharts() {
+            // Clear existing charts
+            Object.values(charts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            charts = {};
+
+            const data = window.filteredData;
+            if (data.length === 0) return;
+
+            // Overall Rating Distribution
+            const ratingCounts = [1, 2, 3, 4, 5].map(rating => 
+                data.filter(item => item.overallRating === rating).length
+            );
+
+            const overallCtx = document.getElementById('overallRatingChart').getContext('2d');
+            charts.overall = new Chart(overallCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ضعيف (1)', 'مقبول (2)', 'جيد (3)', 'جيد جداً (4)', 'ممتاز (5)'],
+                    datasets: [{
+                        data: ratingCounts,
+                        backgroundColor: ['#e74c3c', '#e67e22', '#f39c12', '#3498db', '#27ae60']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+
+            // Grade Comparison
+            const gradeAvgs = [1, 2, 3].map(grade => {
+                const gradeData = data.filter(item => item.studentGrade === grade);
+                return gradeData.length > 0 ? 
+                    gradeData.reduce((sum, item) => sum + item.overallRating, 0) / gradeData.length : 0;
+            });
+
+            const gradeCtx = document.getElementById('gradeComparisonChart').getContext('2d');
+            charts.grade = new Chart(gradeCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['الأول المتوسط', 'الثاني المتوسط', 'الثالث المتوسط'],
+                    datasets: [{
+                        label: 'متوسط التقييم',
+                        data: gradeAvgs,
+                        backgroundColor: ['#1abc9c', '#3498db', '#9b59b6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true, max: 5 } }
+                }
+            });
+
+            // Timeline Chart
+            const timelineData = getTimelineData(data);
+            const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+            charts.timeline = new Chart(timelineCtx, {
+                type: 'line',
+                data: {
+                    labels: timelineData.labels,
+                    datasets: [{
+                        label: 'عدد الردود',
+                        data: timelineData.values,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Main Areas Comparison
+            const academicAvg = data.reduce((sum, item) => sum + (item.academicAverage || 0), 0) / data.length;
+            const envAvg = data.reduce((sum, item) => sum + (item.environmentAverage || 0), 0) / data.length;
+            const commAvg = data.reduce((sum, item) => sum + (item.communicationAverage || 0), 0) / data.length;
+
+            const areasCtx = document.getElementById('mainAreasChart').getContext('2d');
+            charts.areas = new Chart(areasCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['التحصيل الأكاديمي', 'البيئة التعليمية', 'التواصل'],
+                    datasets: [{
+                        label: 'متوسط التقييم',
+                        data: [academicAvg, envAvg, commAvg],
+                        backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                        borderColor: '#3498db',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { r: { beginAtZero: true, max: 5 } }
+                }
+            });
+
+            // Academic Charts
+            updateAcademicCharts(data);
+            updateEnvironmentCharts(data);
+        }
+
+        function updateAcademicCharts(data) {
+            // Motivation Chart
+            const motivationCounts = [1, 2, 3, 4].map(level => 
+                data.filter(item => item.academicMotivation === level).length
+            );
+
+            const motivationCtx = document.getElementById('motivationChart')?.getContext('2d');
+            if (motivationCtx) {
+                charts.motivation = new Chart(motivationCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['ضعيف', 'متوسط', 'جيد', 'ممتاز'],
+                        datasets: [{
+                            data: motivationCounts,
+                            backgroundColor: ['#e74c3c', '#f39c12', '#3498db', '#27ae60']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // Improvement Chart
+            const improvementCounts = [1, 2, 3, 4, 5].map(level => 
+                data.filter(item => item.academicImprovement === level).length
+            );
+
+            const improvementCtx = document.getElementById('improvementChart')?.getContext('2d');
+            if (improvementCtx) {
+                charts.improvement = new Chart(improvementCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['تراجع واضح', 'تراجع بسيط', 'نفس المستوى', 'تحسن ملحوظ', 'تحسن كبير'],
+                        datasets: [{
+                            data: improvementCounts,
+                            backgroundColor: ['#e74c3c', '#e67e22', '#f39c12', '#3498db', '#27ae60']
+                        }]
+                    },
+                    options: { responsive: true }
+                });
+            }
+
+            // Homework Chart
+            const homeworkCounts = [1, 2, 3, 4].map(level => 
+                data.filter(item => item.homeworkLoad === level).length
+            );
+
+            const homeworkCtx = document.getElementById('homeworkChart')?.getContext('2d');
+            if (homeworkCtx) {
+                charts.homework = new Chart(homeworkCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['مفرطة', 'كثيرة أحياناً', 'مناسبة غالباً', 'مناسبة تماماً'],
+                        datasets: [{
+                            data: homeworkCounts,
+                            backgroundColor: ['#e74c3c', '#f39c12', '#3498db', '#27ae60']
+                        }]
+                    },
+                    options: { responsive: true }
+                });
+            }
+        }
+
+        function updateEnvironmentCharts(data) {
+            // School Feelings Chart
+            const feelingCounts = [1, 2, 3, 4, 5].map(feeling => 
+                data.filter(item => item.schoolFeeling === feeling).length
+            );
+
+            const feelingsCtx = document.getElementById('schoolFeelingsChart')?.getContext('2d');
+            if (feelingsCtx) {
+                charts.feelings = new Chart(feelingsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['متذمر', 'متردد', 'طبيعي', 'مرتاح', 'متحمس'],
+                        datasets: [{
+                            data: feelingCounts,
+                            backgroundColor: ['#e74c3c', '#e67e22', '#f39c12', '#3498db', '#27ae60']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+
+            // Teacher Treatment Chart
+            const treatmentCounts = [1, 2, 3, 4].map(level => 
+                data.filter(item => item.teacherTreatment === level).length
+            );
+
+            const treatmentCtx = document.getElementById('teacherTreatmentChart')?.getContext('2d');
+            if (treatmentCtx) {
+                charts.treatment = new Chart(treatmentCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['شكاوى', 'صمت', 'تعامل جيد', 'إعجاب'],
+                        datasets: [{
+                            data: treatmentCounts,
+                            backgroundColor: ['#e74c3c', '#f39c12', '#3498db', '#27ae60']
+                        }]
+                    },
+                    options: { responsive: true }
+                });
+            }
+        }
+
+        function updateDetailedTable() {
+            const tbody = document.getElementById('detailedTableBody');
+            tbody.innerHTML = '';
+
+            window.filteredData.forEach(item => {
+                const row = document.createElement('tr');
+                
+                const date = item.submissionDate ? 
+                    new Date(item.submissionDate).toLocaleDateString('ar-SA') : 'غير محدد';
+                
+                row.innerHTML = `
+                    <td>${date}</td>
+                    <td>${item.studentName || 'غير محدد'}</td>
+                    <td><span class="grade-badge grade-${item.studentGrade}">${getGradeName(item.studentGrade)}</span></td>
+                    <td>${(item.academicAverage || 0).toFixed(1)}</td>
+                    <td>${(item.environmentAverage || 0).toFixed(1)}</td>
+                    <td>${(item.communicationAverage || 0).toFixed(1)}</td>
+                    <td>${item.overallRating}/5</td>
+                    <td><button class="btn" onclick="viewDetails('${item.id}')">تفاصيل</button></td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateComments() {
+            // Positive comments
+            const positiveContainer = document.getElementById('positiveComments');
+            positiveContainer.innerHTML = '';
+            
+            window.filteredData.forEach(item => {
+                if (item.positiveAspects && item.positiveAspects.trim()) {
+                    const commentDiv = createCommentElement(item, item.positiveAspects);
+                    positiveContainer.appendChild(commentDiv);
+                }
+            });
+
+            // Improvement suggestions
+            const improvementContainer = document.getElementById('improvementComments');
+            improvementContainer.innerHTML = '';
+            
+            window.filteredData.forEach(item => {
+                if (item.improvementAreas && item.improvementAreas.trim()) {
+                    const commentDiv = createCommentElement(item, item.improvementAreas);
+                    improvementContainer.appendChild(commentDiv);
+                }
+            });
+
+            // Admin messages
+            const adminContainer = document.getElementById('adminMessages');
+            adminContainer.innerHTML = '';
+            
+            window.filteredData.forEach(item => {
+                if (item.messageToAdmin && item.messageToAdmin.trim()) {
+                    const commentDiv = createCommentElement(item, item.messageToAdmin);
+                    adminContainer.appendChild(commentDiv);
+                }
+            });
+        }
+
+        function createCommentElement(item, text) {
+            const div = document.createElement('div');
+            div.className = 'comment-item';
+            
+            const date = item.submissionDate ? 
+                new Date(item.submissionDate).toLocaleDateString('ar-SA') : 'غير محدد';
+            
+            div.innerHTML = `
+                <div class="comment-meta">
+                    <span>ولي أمر - <span class="grade-badge grade-${item.studentGrade}">${getGradeName(item.studentGrade)}</span></span>
+                    <span>${date}</span>
+                </div>
+                <div class="comment-text">${text}</div>
+            `;
+            
+            return div;
+        }
+
+        function getTimelineData(data) {
+            const dates = {};
+            data.forEach(item => {
+                if (item.submissionDate) {
+                    const date = new Date(item.submissionDate).toLocaleDateString('ar-SA');
+                    dates[date] = (dates[date] || 0) + 1;
+                }
+            });
+            
+            return {
+                labels: Object.keys(dates),
+                values: Object.values(dates)
+            };
+        }
+
+        function getGradeName(grade) {
+            const names = { 1: 'الأول المتوسط', 2: 'الثاني المتوسط', 3: 'الثالث المتوسط' };
+            return names[grade] || 'غير محدد';
+        }
+
+        function applyFilters() {
+            const gradeFilter = document.getElementById('gradeFilter').value;
+            
+            window.filteredData = window.allSurveyData.filter(item => {
+                if (gradeFilter !== 'all' && item.studentGrade.toString() !== gradeFilter) {
+                    return false;
+                }
+                return true;
+            });
+            
+            updateDashboard();
+        }
+
+        function showTab(event, tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+                content.style.display = 'none';
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            document.getElementById(tabName).style.display = 'block';
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        function refreshData() {
+            loadSurveyData();
+        }
+
+        function exportToCSV() {
+            const data = window.filteredData;
+            if (data.length === 0) {
+                alert('لا توجد بيانات للتصدير');
+                return;
+            }
+
+            const headers = [
+                'التاريخ', 'اسم الطالب', 'الصف', 'دافعية التعلم', 'التحسن الأكاديمي', 'الواجبات',
+                'شعور تجاه المدرسة', 'معاملة المعلمين', 'شراكة ولي الأمر', 'قنوات التواصل',
+                'التقييم العام', 'الإيجابيات', 'نقاط التحسين', 'رسالة للإدارة'
+            ];
+
+            const csvContent = [
+                headers.join(','),
+                ...data.map(item => [
+                    item.submissionDate ? new Date(item.submissionDate).toLocaleDateString('ar-SA') : '',
+                    `"${item.studentName || ''}"`,
+                    getGradeName(item.studentGrade),
+                    item.academicMotivation,
+                    item.academicImprovement,
+                    item.homeworkLoad,
+                    item.schoolFeeling,
+                    item.teacherTreatment,
+                    item.parentPartnership,
+                    item.communicationChannels,
+                    item.overallRating,
+                    `"${(item.positiveAspects || '').replace(/"/g, '""')}"`,
+                    `"${(item.improvementAreas || '').replace(/"/g, '""')}"`,
+                    `"${(item.messageToAdmin || '').replace(/"/g, '""')}"`
+                ].join(','))
+            ].join('\n');
+
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `survey_data_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        function viewDetails(id) {
+            const item = window.allSurveyData.find(data => data.id === id);
+            if (item) {
+                alert(`تفاصيل الاستجابة:\n\nالطالب: ${item.studentName || 'غير محدد'}\nالصف: ${getGradeName(item.studentGrade)}\nالتقييم العام: ${item.overallRating}/5\n\nالإيجابيات: ${item.positiveAspects || 'لا توجد'}\n\nنقاط التحسين: ${item.improvementAreas || 'لا توجد'}\n\nرسالة للإدارة: ${item.messageToAdmin || 'لا توجد'}`);
+            }
+        }
+    </script>
+</body>
+</html>
