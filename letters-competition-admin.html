@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم المعلم - مسابقة الحروف</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 18px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .panel h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .upload-section {
+            border: 3px dashed #3498db;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-section:hover {
+            border-color: #2980b9;
+            background: rgba(52, 152, 219, 0.05);
+        }
+
+        .upload-section.dragover {
+            border-color: #27ae60;
+            background: rgba(39, 174, 96, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #3498db;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #2c3e50;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .upload-hint {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(45deg, #2980b9, #1f618d);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(45deg, #229954, #27ae60);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(45deg, #c0392b, #a93226);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(45deg, #e67e22, #d35400);
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+
+        .status-success {
+            background: #d5edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #99d3ff;
+        }
+
+        .questions-preview {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            background: #f8f9fa;
+        }
+
+        .question-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-right: 4px solid #3498db;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .question-subject {
+            background: #3498db;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        .question-text {
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .question-answer {
+            color: #27ae60;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .control-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .sample-format {
+            background: #e8f4f8;
+            border: 1px solid #bee5eb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .sample-format h4 {
+            color: #0c5460;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .sample-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .sample-table th,
+        .sample-table td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .sample-table th {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+
+        .sample-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .control-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎛️ لوحة تحكم المعلم</h1>
+            <p>إدارة بنك أسئلة مسابقة الحروف الثقافية</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- قسم رفع الأسئلة -->
+            <div class="panel">
+                <h2>📤 استيراد بنك الأسئلة</h2>
+                
+                <div class="upload-section" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">انقر هنا أو اسحب ملف Excel/CSV</div>
+                    <div class="upload-hint">يدعم ملفات .xlsx, .xls, .csv</div>
+                    <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv" multiple>
+                </div>
+
+                <div class="loading-spinner" id="loadingSpinner"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+
+                <div class="status-message" id="statusMessage"></div>
+
+                <div class="control-buttons">
+                    <button class="btn btn-success" onclick="loadSampleQuestions()">
+                        📚 تحميل أسئلة تجريبية
+                    </button>
+                    <button class="btn btn-warning" onclick="downloadTemplate()">
+                        📝 تحميل قالب Excel
+                    </button>
+                    <button class="btn btn-danger" onclick="clearQuestions()">
+                        🗑️ مسح جميع الأسئلة
+                    </button>
+                </div>
+            </div>
+
+            <!-- قسم الإحصائيات -->
+            <div class="panel">
+                <h2>📊 إحصائيات بنك الأسئلة</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalQuestions">0</div>
+                        <div class="stat-label">إجمالي الأسئلة</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="mathQuestions">0</div>
+                        <div class="stat-label">أسئلة رياضيات</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="scienceQuestions">0</div>
+                        <div class="stat-label">أسئلة علوم</div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="readingQuestions">0</div>
+                        <div class="stat-label">أسئلة قراءة</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="validQuestions">0</div>
+                        <div class="stat-label">أسئلة صالحة</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="invalidQuestions">0</div>
+                        <div class="stat-label">أسئلة معطوبة</div>
+                    </div>
+                </div>
+
+                <div class="control-buttons">
+                    <button class="btn" onclick="startGame()">
+                        🎮 بدء المسابقة
+                    </button>
+                    <button class="btn btn-success" onclick="exportQuestions()">
+                        💾 تصدير الأسئلة
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- معاينة الأسئلة -->
+        <div class="panel">
+            <h2>👀 معاينة الأسئلة المحملة</h2>
+            <div class="questions-preview" id="questionsPreview">
+                <p style="text-align: center; color: #7f8c8d; padding: 20px;">
+                    لم يتم تحميل أي أسئلة بعد. قم برفع ملف Excel أو CSV أو حمل الأسئلة التجريبية.
+                </p>
+            </div>
+        </div>
+
+        <!-- تنسيق الملف المطلوب -->
+        <div class="panel">
+            <div class="sample-format">
+                <h4>📋 تنسيق الملف المطلوب</h4>
+                <p style="margin-bottom: 15px; color: #495057;">يجب أن يحتوي ملف Excel/CSV على الأعمدة التالية:</p>
+                
+                <table class="sample-table">
+                    <thead>
+                        <tr>
+                            <th>المادة</th>
+                            <th>السؤال</th>
+                            <th>الإجابة</th>
+                            <th>المستوى</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>رياضيات</td>
+                            <td>ما هو ناتج 25 × 4؟</td>
+                            <td>100</td>
+                            <td>متوسط</td>
+                        </tr>
+                        <tr>
+                            <td>علوم</td>
+                            <td>ما هو أكبر كوكب في النظام الشمسي؟</td>
+                            <td>المشتري</td>
+                            <td>سهل</td>
+                        </tr>
+                        <tr>
+                            <td>قراءة</td>
+                            <td>من هو مؤلف رواية مدن الملح؟</td>
+                            <td>عبد الرحمن منيف</td>
+                            <td>صعب</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <p style="margin-top: 15px; color: #6c757d; font-size: 14px;">
+                    💡 <strong>ملاحظة:</strong> يمكن استخدام أسماء أخرى للأعمدة مثل "موضوع" أو "سؤال" أو "جواب"
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // متغيرات عامة
+        let questionBank = {
+            رياضيات: [],
+            علوم: [],
+            قراءة: []
+        };
+
+        // تهيئة الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            updateStats();
+        });
+
+        function setupEventListeners() {
+            const fileInput = document.getElementById('fileInput');
+            const uploadSection = document.querySelector('.upload-section');
+
+            // معالجة رفع الملفات
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // معالجة السحب والإفلات
+            uploadSection.addEventListener('dragover', handleDragOver);
+            uploadSection.addEventListener('dragleave', handleDragLeave);
+            uploadSection.addEventListener('drop', handleDrop);
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                processFiles(files);
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('dragover');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+            
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                processFiles(files);
+            }
+        }
+
+        async function processFiles(files) {
+            showLoading(true);
+            showStatus('جاري معالجة الملفات...', 'info');
+            
+            try {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    updateProgress((i / files.length) * 100);
+                    
+                    if (file.name.endsWith('.csv')) {
+                        await processCsvFile(file);
+                    } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                        await processExcelFile(file);
+                    } else {
+                        showStatus(`نوع الملف غير مدعوم: ${file.name}`, 'error');
+                        continue;
+                    }
+                }
+                
+                updateProgress(100);
+                showStatus('تم تحميل الأسئلة بنجاح!', 'success');
+                updateStats();
+                updateQuestionsPreview();
+                
+            } catch (error) {
+                showStatus('خطأ في معالجة الملفات: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+                setTimeout(() => updateProgress(0), 2000);
+            }
+        }
+
+        async function processCsvFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const csv = e.target.result;
+                        const lines = csv.split('\n');
+                        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                        
+                        for (let i = 1; i < lines.length; i++) {
+                            const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+                            if (values.length >= 3) {
+                                addQuestionFromRow(headers, values);
+                            }
+                        }
+                        resolve();
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        async function processExcelFile(file) {
+            // محاكاة معالجة ملف Excel - في التطبيق الحقيقي ستحتاج مكتبة مثل SheetJS
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    // إضافة بعض الأسئلة التجريبية كمثال
+                    const sampleQuestions = [
+                        ['رياضيات', 'ما هو ناتج 15 + 25؟', '40', 'سهل'],
+                        ['علوم', 'ما هو رمز الماء الكيميائي؟', 'H2O', 'متوسط'],
+                        ['قراءة', 'ما هو جمع كلمة بيت؟', 'بيوت', 'سهل']
+                    ];
+                    
+                    sampleQuestions.forEach(row => {
+                        addQuestionFromRow(['المادة', 'السؤال', 'الإجابة', 'المستوى'], row);
+                    });
+                    
+                    resolve();
+                }, 1000);
+            });
+        }
+
+        function addQuestionFromRow(headers, values) {
+            // العثور على مؤشرات الأعمدة المطلوبة
+            const subjectIndex = findColumnIndex(headers, ['المادة', 'موضوع', 'subject']);
+            const questionIndex = findColumnIndex(headers, ['السؤال', 'سؤال', 'question']);
+            const answerIndex = findColumnIndex(headers, ['الإجابة', 'جواب', 'answer', 'الجواب']);
+            
+            if (subjectIndex >= 0 && questionIndex >= 0 && answerIndex >= 0) {
+                const subject = normalizeSubject(values[subjectIndex]);
+                const question = values[questionIndex];
+                const answer = values[answerIndex];
+                
+                if (subject && question && answer) {
+                    if (!questionBank[subject]) {
+                        questionBank[subject] = [];
+                    }
+                    
+                    questionBank[subject].push({
+                        q: question,
+                        a: answer,
+                        level: values[3] || 'متوسط'
+                    });
+                }
+            }
+        }
+
+        function findColumnIndex(headers, possibleNames) {
+            for (let name of possibleNames) {
+                const index = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+                if (index >= 0) return index;
+            }
+            return -1;
+        }
+
+        function normalizeSubject(subject) {
+            if (!subject) return null;
+            
+            const s = subject.toLowerCase().trim();
+            if (s.includes('رياض') || s.includes('math')) return 'رياضيات';
+            if (s.includes('علوم') || s.includes('science')) return 'علوم';
+            if (s.includes('قراء') || s.includes('عرب') || s.includes('read')) return 'قراءة';
+            
+            return null;
+        }
+
+        function loadSampleQuestions() {
+            showLoading(true);
+            showStatus('جاري تحميل الأسئلة التجريبية...', 'info');
+            
+            setTimeout(() => {
+                // أسئلة من مناهج نافس والمرحلة المتوسطة
+                questionBank = {
+                    رياضيات: [
+                        { q: "إذا كان س + 5 = 12، فما قيمة س؟", a: "7", level: "سهل" },
+                        { q: "ما هو مساحة المستطيل الذي طوله 8 سم وعرضه 5 سم؟", a: "40 سم²", level: "متوسط" },
+                        { q: "ما هو ناتج (3² + 4²)؟", a: "25", level: "متوسط" },
+                        { q: "إذا كان محيط المربع 20 سم، فما طول ضلعه؟", a: "5 سم", level: "سهل" },
+                        { q: "ما هو ناتج 15% من 200؟", a: "30", level: "متوسط" },
+                        { q: "إذا كان عدد التلاميذ في الفصل 24، وكان ثلثهم بنات، فكم عدد البنين؟", a: "16", level: "متوسط" },
+                        { q: "ما هو الجذر التربيعي للعدد 144؟", a: "12", level: "سهل" },
+                        { q: "إذا اشترى أحمد 3 كتب بـ 45 ريال، فما ثمن الكتاب الواحد؟", a: "15 ريال", level: "سهل" },
+                        { q: "ما هو ناتج 2³ × 3²؟", a: "72", level: "صعب" },
+                        { q: "إذا كانت نسبة النجاح في الاختبار 80%، وعدد الناجحين 32، فما عدد الطلاب الكلي؟", a: "40", level: "صعب" }
+                    ],
+                    علوم: [
+                        { q: "ما هو العنصر الكيميائي الأكثر وفرة في الغلاف الجوي؟", a: "النيتروجين", level: "متوسط" },
+                        { q: "كم عدد عظام جسم الإنسان البالغ؟", a: "206", level: "متوسط" },
+                        { q: "ما هو أسرع الحيوانات البرية؟", a: "الفهد", level: "سهل" },
+                        { q: "في أي طبقة من طبقات الغلاف الجوي توجد طبقة الأوزون؟", a: "الستراتوسفير", level: "صعب" },
+                        { q: "ما هو الحيوان الذي يمكنه تغيير لونه؟", a: "الحرباء", level: "سهل" },
+                        { q: "كم عدد حجرات القلب في الإنسان؟", a: "أربع حجرات", level: "سهل" },
+                        { q: "ما هو المعدن الذي يستخدم في صناعة الطائرات؟", a: "الألومنيوم", level: "متوسط" },
+                        { q: "أين يحدث الهضم الكيميائي في جسم الإنسان؟", a: "المعدة والأمعاء الدقيقة", level: "متوسط" },
+                        { q: "ما هو الغاز الذي تحتاجه النباتات للقيام بالبناء الضوئي؟", a: "ثاني أكسيد الكربون", level: "متوسط" },
+                        { q: "ما هي أصغر وحدة في المادة؟", a: "الذرة", level: "سهل" }
+                    ],
+                    قراءة: [
+                        { q: "من هو الشاعر الذي لُقب بـ 'أمير الشعراء'؟", a: "أحمد شوقي", level: "متوسط" },
+                        { q: "ما هو جمع كلمة 'امرأة'؟", a: "نساء", level: "سهل" },
+                        { q: "من هو مؤلف رواية 'الأسود يليق بك'؟", a: "أحلام مستغانمي", level: "صعب" },
+                        { q: "ما هو مرادف كلمة 'الشفق'؟", a: "المغرب أو الغروب", level: "متوسط" },
+                        { q: "من هو صاحب معلقة 'علقها بأعلى الكعبة'؟", a: "لبيد بن ربيعة", level: "صعب" },
+                        { q: "ما هو ضد كلمة 'الشجاعة'؟", a: "الجبن", level: "سهل" },
+                        { q: "أكمل البيت: 'إذا المرء لم يدنس من اللؤم عرضه...'", a: "فكل رداء يرتديه جميل", level: "متوسط" },
+                        { q: "ما هو اسم الفاعل من الفعل 'استخرج'؟", a: "مستخرِج", level: "متوسط" },
+                        { q: "من هو الشاعر صاحب ديوان 'أوراق الورد'؟", a: "إيليا أبو ماضي", level: "صعب" },
+                        { q: "ما هو معنى كلمة 'المنارة'؟", a: "البرج المضيء", level: "سهل" }
+                    ]
+                };
+
+                updateStats();
+                updateQuestionsPreview();
+                showStatus('تم تحميل 30 سؤال تجريبي من مناهج المرحلة المتوسطة ونافس!', 'success');
+                showLoading(false);
+            }, 1500);
+        }
+
+        function clearQuestions() {
+            if (confirm('هل أنت متأكد من مسح جميع الأسئلة؟')) {
+                questionBank = {
+                    رياضيات: [],
+                    علوم: [],
+                    قراءة: []
+                };
+                updateStats();
+                updateQuestionsPreview();
+                showStatus('تم مسح جميع الأسئلة.', 'info');
+            }
+        }
+
+        function updateStats() {
+            const mathCount = questionBank.رياضيات.length;
+            const scienceCount = questionBank.علوم.length;
+            const readingCount = questionBank.قراءة.length;
+            const totalCount = mathCount + scienceCount + readingCount;
+
+            document.getElementById('totalQuestions').textContent = totalCount;
+            document.getElementById('mathQuestions').textContent = mathCount;
+            document.getElementById('scienceQuestions').textContent = scienceCount;
+            document.getElementById('readingQuestions').textContent = readingCount;
+            document.getElementById('validQuestions').textContent = totalCount;
+            document.getElementById('invalidQuestions').textContent = '0';
+        }
+
+        function updateQuestionsPreview() {
+            const preview = document.getElementById('questionsPreview');
+            
+            if (!hasQuestions()) {
+                preview.innerHTML = `
+                    <p style="text-align: center; color: #7f8c8d; padding: 20px;">
+                        لم يتم تحميل أي أسئلة بعد. قم برفع ملف Excel أو CSV أو حمل الأسئلة التجريبية.
+                    </p>
+                `;
+                return;
+            }
+
+            let html = '';
+            
+            Object.keys(questionBank).forEach(subject => {
+                if (questionBank[subject].length > 0) {
+                    html += `<h4 style="color: #2c3e50; margin: 20px 0 10px 0; border-bottom: 2px solid #3498db; padding-bottom: 5px;">📚 ${subject} (${questionBank[subject].length} أسئلة)</h4>`;
+                    
+                    questionBank[subject].slice(0, 5).forEach(question => {
+                        html += `
+                            <div class="question-item">
+                                <div class="question-subject">${subject}</div>
+                                <div class="question-text">${question.q}</div>
+                                <div class="question-answer">✓ ${question.a}</div>
+                            </div>
+                        `;
+                    });
+                    
+                    if (questionBank[subject].length > 5) {
+                        html += `<p style="text-align: center; color: #7f8c8d; margin: 10px 0;">... و ${questionBank[subject].length - 5} أسئلة أخرى</p>`;
+                    }
+                }
+            });
+
+            preview.innerHTML = html;
+        }
+
+        function hasQuestions() {
+            return Object.values(questionBank).some(questions => questions.length > 0);
+        }
+
+        function showLoading(show) {
+            const spinner = document.getElementById('loadingSpinner');
+            spinner.style.display = show ? 'block' : 'none';
+        }
+
+        function updateProgress(percent) {
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percent + '%';
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.className = `status-message status-${type}`;
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function downloadTemplate() {
+            const csvContent = `المادة,السؤال,الإجابة,المستوى
+رياضيات,ما هو ناتج 5 + 7؟,12,سهل
+علوم,ما هو رمز الأكسجين؟,O2,متوسط
+قراءة,ما هو جمع كلمة كتاب؟,كتب,سهل
+رياضيات,كم يساوي محيط المربع الذي ضلعه 4 سم؟,16 سم,متوسط
+علوم,في أي طبقة من الغلاف الجوي نعيش؟,التروبوسفير,صعب`;
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'قالب_أسئلة_المسابقة.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            showStatus('تم تحميل قالب الأسئلة!', 'success');
+        }
+
+        function exportQuestions() {
+            if (!hasQuestions()) {
+                showStatus('لا توجد أسئلة للتصدير!', 'error');
+                return;
+            }
+
+            let csvContent = 'المادة,السؤال,الإجابة,المستوى\n';
+            
+            Object.keys(questionBank).forEach(subject => {
+                questionBank[subject].forEach(question => {
+                    csvContent += `${subject},"${question.q}","${question.a}",${question.level || 'متوسط'}\n`;
+                });
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `بنك_الأسئلة_${new Date().toLocaleDateString('ar-SA')}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            showStatus('تم تصدير الأسئلة بنجاح!', 'success');
+        }
+
+        function startGame() {
+            if (!hasQuestions()) {
+                showStatus('يجب تحميل الأسئلة أولاً قبل بدء المسابقة!', 'error');
+                return;
+            }
+
+            // حفظ الأسئلة في localStorage لاستخدامها في صفحة المسابقة
+            localStorage.setItem('competitionQuestions', JSON.stringify(questionBank));
+            
+            showStatus('تم حفظ الأسئلة! سيتم فتح المسابقة في نافذة جديدة...', 'success');
+            
+            setTimeout(() => {
+                // فتح صفحة المسابقة في نافذة جديدة
+                const gameWindow = window.open('', '_blank');
+                
+                // هنا يمكن إضافة كود صفحة المسابقة أو رابط إليها
+                gameWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>مسابقة الحروف الثقافية</title>
+                            <style>
+                                body {
+                                    font-family: Arial, sans-serif;
+                                    text-align: center;
+                                    padding: 50px;
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                }
+                                .message {
+                                    background: rgba(255,255,255,0.1);
+                                    padding: 30px;
+                                    border-radius: 15px;
+                                    margin: 20px auto;
+                                    max-width: 600px;
+                                }
+                                .btn {
+                                    background: #3498db;
+                                    color: white;
+                                    padding: 15px 30px;
+                                    border: none;
+                                    border-radius: 25px;
+                                    font-size: 18px;
+                                    cursor: pointer;
+                                    margin: 10px;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>🎯 مسابقة الحروف الثقافية</h1>
+                            <div class="message">
+                                <h2>تم تحميل ${Object.values(questionBank).reduce((total, questions) => total + questions.length, 0)} سؤال!</h2>
+                                <p>الأسئلة جاهزة للاستخدام في المسابقة</p>
+                                <button class="btn" onclick="window.close()">إغلاق</button>
+                            </div>
+                        </body>
+                    </html>
+                `);
+            }, 1000);
+        }
+
+        // إضافة معالج الأخطاء العام
+        window.addEventListener('error', function(e) {
+            console.error('خطأ في التطبيق:', e.error);
+            showStatus('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.', 'error');
+        });
+
+        // التحقق من وجود أسئلة محفوظة مسبقاً
+        window.addEventListener('load', function() {
+            const savedQuestions = localStorage.getItem('competitionQuestions');
+            if (savedQuestions) {
+                try {
+                    const parsedQuestions = JSON.parse(savedQuestions);
+                    if (parsedQuestions && typeof parsedQuestions === 'object') {
+                        questionBank = parsedQuestions;
+                        updateStats();
+                        updateQuestionsPreview();
+                        showStatus('تم استعادة الأسئلة المحفوظة مسبقاً.', 'info');
+                    }
+                } catch (error) {
+                    console.error('خطأ في استعادة الأسئلة:', error);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
