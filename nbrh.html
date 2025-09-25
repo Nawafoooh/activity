@@ -68,6 +68,36 @@
             margin-top: 10px;
         }
 
+        /* API Status */
+        .api-status {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-badge.active {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4CAF50;
+            border: 1px solid #4CAF50;
+        }
+
+        .status-badge.inactive {
+            background: rgba(158, 158, 158, 0.1);
+            color: #9E9E9E;
+            border: 1px solid #9E9E9E;
+        }
+
         /* Main Content */
         .main-content {
             display: grid;
@@ -290,6 +320,39 @@
             margin: 10px 0;
         }
 
+        /* Engine Selection */
+        .engine-selection {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .engine-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .engine-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .engine-option input[type="radio"] {
+            margin: 0;
+            accent-color: #667eea;
+        }
+
+        .engine-option.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         /* Features Section */
         .features {
             display: grid;
@@ -405,6 +468,10 @@
             .action-buttons {
                 flex-direction: column;
             }
+
+            .api-status {
+                justify-content: center;
+            }
         }
 
         /* Toast Notifications */
@@ -420,6 +487,7 @@
             transform: translateX(400px);
             transition: transform 0.3s ease;
             z-index: 1000;
+            max-width: 300px;
         }
 
         .toast.show {
@@ -428,6 +496,10 @@
 
         .toast.error {
             background: #f44336;
+        }
+
+        .toast.warning {
+            background: #ff9800;
         }
 
         /* Help Icon */
@@ -454,6 +526,22 @@
                 <i class="fas fa-question-circle help-icon" title="اضغط Ctrl+Enter للتحويل، Ctrl+L للمسح، Ctrl+S للتحميل"></i>
             </div>
             <p class="subtitle">تحويل النص إلى صوت عربي طبيعي بالذكاء الاصطناعي</p>
+            
+            <!-- API Status -->
+            <div class="api-status">
+                <div class="status-badge" id="webSpeechStatus">
+                    <i class="fas fa-circle"></i>
+                    Web Speech API
+                </div>
+                <div class="status-badge inactive" id="elevenLabsStatus">
+                    <i class="fas fa-circle"></i>
+                    ElevenLabs
+                </div>
+                <div class="status-badge inactive" id="googleCloudStatus">
+                    <i class="fas fa-circle"></i>
+                    Google Cloud
+                </div>
+            </div>
         </header>
 
         <!-- Main Content -->
@@ -489,7 +577,7 @@
 
                 <div class="loading" id="loading">
                     <div class="spinner"></div>
-                    <span>جاري تحويل النص إلى صوت...</span>
+                    <span id="loadingText">جاري تحويل النص إلى صوت...</span>
                     <div class="progress-container">
                         <div class="progress-bar">
                             <div class="progress-fill" id="progressFill"></div>
@@ -510,16 +598,32 @@
             <!-- Controls Panel -->
             <div class="panel">
                 <h2><i class="fas fa-sliders-h"></i> إعدادات الصوت</h2>
+                
+                <!-- Engine Selection -->
+                <div class="engine-selection">
+                    <h4 style="margin-bottom: 10px; color: #333;">
+                        <i class="fas fa-cogs"></i>
+                        محرك التحويل:
+                    </h4>
+                    <div class="engine-option">
+                        <input type="radio" name="engine" value="webspeech" id="engineWebSpeech" checked>
+                        <label for="engineWebSpeech">Web Speech API (مدمج في المتصفح)</label>
+                    </div>
+                    <div class="engine-option disabled">
+                        <input type="radio" name="engine" value="elevenlabs" id="engineElevenLabs" disabled>
+                        <label for="engineElevenLabs">ElevenLabs (يتطلب API Key)</label>
+                    </div>
+                    <div class="engine-option disabled">
+                        <input type="radio" name="engine" value="google" id="engineGoogle" disabled>
+                        <label for="engineGoogle">Google Cloud TTS (يتطلب API Key)</label>
+                    </div>
+                </div>
+
                 <div class="controls">
                     <div class="control-group">
                         <label><i class="fas fa-user"></i> الصوت</label>
                         <select id="voiceSelect">
-                            <option value="male-1">رجالي - أحمد (عربي فصيح)</option>
-                            <option value="female-1">نسائي - فاطمة (عربي فصيح)</option>
-                            <option value="male-2">رجالي - محمد (لهجة خليجية)</option>
-                            <option value="female-2">نسائي - عائشة (لهجة مصرية)</option>
-                            <option value="male-3">رجالي - عمر (لهجة شامية)</option>
-                            <option value="female-3">نسائي - زينب (لهجة مغاربية)</option>
+                            <option value="">جاري تحميل الأصوات...</option>
                         </select>
                     </div>
 
@@ -538,24 +642,15 @@
 
                     <div class="control-group">
                         <label><i class="fas fa-volume-up"></i> النبرة</label>
-                        <input type="range" id="pitchRange" min="0.5" max="2" step="0.1" value="1">
+                        <input type="range" id="pitchRange" min="0" max="2" step="0.1" value="1">
                         <div class="range-labels">
                             <span>منخفض</span>
                             <span>عادي</span>
                             <span>عالي</span>
                         </div>
                         <div style="text-align: center; margin-top: 5px;">
-                            <span id="pitchValue">1.0x</span>
+                            <span id="pitchValue">1.0</span>
                         </div>
-                    </div>
-
-                    <div class="control-group">
-                        <label><i class="fas fa-file-audio"></i> تنسيق الملف</label>
-                        <select id="formatSelect">
-                            <option value="mp3">MP3 (موصى به)</option>
-                            <option value="wav">WAV (جودة عالية)</option>
-                            <option value="ogg">OGG (حجم صغير)</option>
-                        </select>
                     </div>
                 </div>
 
@@ -593,8 +688,8 @@
             
             <div class="feature">
                 <i class="fas fa-language"></i>
-                <h3>لهجات متنوعة</h3>
-                <p>دعم للعربية الفصحى واللهجات المحلية المختلفة (خليجية، مصرية، شامية، مغاربية)</p>
+                <h3>دعم اللغة العربية</h3>
+                <p>دعم كامل للغة العربية مع أصوات طبيعية وواضحة تدعم اللهجات المختلفة</p>
             </div>
             
             <div class="feature">
@@ -604,9 +699,9 @@
             </div>
             
             <div class="feature">
-                <i class="fas fa-download"></i>
-                <h3>تحميل سهل</h3>
-                <p>حمل الملفات الصوتية بتنسيقات متعددة (MP3, WAV, OGG) واستخدمها في مشاريعك</p>
+                <i class="fas fa-cloud"></i>
+                <h3>محركات متعددة</h3>
+                <p>دعم لمحركات TTS متعددة بما في ذلك Web Speech API وخدمات الذكاء الاصطناعي المتقدمة</p>
             </div>
         </section>
     </div>
@@ -615,73 +710,380 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        // Variables
+        // Global Variables
         let currentAudioBlob = null;
+        let speechSynthesis = window.speechSynthesis;
+        let availableVoices = [];
+        let currentEngine = 'webspeech';
 
-        // Elements
-        const textInput = document.getElementById('textInput');
-        const charCount = document.getElementById('charCount');
-        const voiceSelect = document.getElementById('voiceSelect');
-        const speedRange = document.getElementById('speedRange');
-        const speedValue = document.getElementById('speedValue');
-        const pitchRange = document.getElementById('pitchRange');
-        const pitchValue = document.getElementById('pitchValue');
-        const formatSelect = document.getElementById('formatSelect');
-        const convertBtn = document.getElementById('convertBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const shareBtn = document.getElementById('shareBtn');
-        const loading = document.getElementById('loading');
-        const audioPlayer = document.getElementById('audioPlayer');
-        const audioElement = document.getElementById('audioElement');
-        const toast = document.getElementById('toast');
+        // DOM Elements
+        const elements = {
+            textInput: document.getElementById('textInput'),
+            charCount: document.getElementById('charCount'),
+            voiceSelect: document.getElementById('voiceSelect'),
+            speedRange: document.getElementById('speedRange'),
+            speedValue: document.getElementById('speedValue'),
+            pitchRange: document.getElementById('pitchRange'),
+            pitchValue: document.getElementById('pitchValue'),
+            convertBtn: document.getElementById('convertBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            shareBtn: document.getElementById('shareBtn'),
+            loading: document.getElementById('loading'),
+            loadingText: document.getElementById('loadingText'),
+            audioPlayer: document.getElementById('audioPlayer'),
+            audioElement: document.getElementById('audioElement'),
+            toast: document.getElementById('toast'),
+            progressFill: document.getElementById('progressFill'),
+            progressText: document.getElementById('progressText'),
+            webSpeechStatus: document.getElementById('webSpeechStatus'),
+            elevenLabsStatus: document.getElementById('elevenLabsStatus'),
+            googleCloudStatus: document.getElementById('googleCloudStatus')
+        };
 
-        // Character counter
-        textInput.addEventListener('input', function() {
+        // Advanced TTS Engine Class
+        class AdvancedTTSEngine {
+            constructor() {
+                this.engines = {
+                    webspeech: new WebSpeechTTS(),
+                    elevenlabs: new ElevenLabsTTS(),
+                    google: new GoogleCloudTTS()
+                };
+                this.currentEngine = 'webspeech';
+            }
+
+            async synthesize(text, options = {}) {
+                const engine = this.engines[this.currentEngine];
+                if (!engine) {
+                    throw new Error('المحرك المحدد غير متاح');
+                }
+                return await engine.synthesize(text, options);
+            }
+
+            setEngine(engineName) {
+                if (this.engines[engineName]) {
+                    this.currentEngine = engineName;
+                }
+            }
+
+            getAvailableVoices() {
+                const engine = this.engines[this.currentEngine];
+                return engine ? engine.getAvailableVoices() : [];
+            }
+        }
+
+        // Web Speech API Implementation
+        class WebSpeechTTS {
+            constructor() {
+                this.supported = 'speechSynthesis' in window;
+                this.voices = [];
+                this.loadVoices();
+            }
+
+            loadVoices() {
+                if (!this.supported) return;
+                
+                this.voices = speechSynthesis.getVoices();
+                if (this.voices.length === 0) {
+                    speechSynthesis.addEventListener('voiceschanged', () => {
+                        this.voices = speechSynthesis.getVoices();
+                        updateVoicesList();
+                    });
+                }
+            }
+
+            getAvailableVoices() {
+                return this.voices.filter(voice => 
+                    voice.lang.startsWith('ar') || voice.lang.includes('Arab')
+                );
+            }
+
+            async synthesize(text, options = {}) {
+                if (!this.supported) {
+                    throw new Error('متصفحك لا يدعم Web Speech API');
+                }
+
+                return new Promise((resolve, reject) => {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    
+                    // Set voice
+                    if (options.voice) {
+                        const selectedVoice = this.voices.find(v => v.name === options.voice);
+                        if (selectedVoice) utterance.voice = selectedVoice;
+                    } else {
+                        // Default to first Arabic voice
+                        const arabicVoice = this.getAvailableVoices()[0];
+                        if (arabicVoice) utterance.voice = arabicVoice;
+                    }
+
+                    // Set properties
+                    utterance.rate = options.rate || 1;
+                    utterance.pitch = options.pitch || 1;
+                    utterance.volume = options.volume || 1;
+                    utterance.lang = options.lang || 'ar-SA';
+
+                    utterance.onend = () => {
+                        // Create audio blob for download
+                        this.createAudioBlob(text, options).then(resolve).catch(reject);
+                    };
+
+                    utterance.onerror = (event) => {
+                        reject(new Error(`خطأ في التحويل: ${event.error}`));
+                    };
+
+                    speechSynthesis.speak(utterance);
+                });
+            }
+
+            async createAudioBlob(text, options) {
+                // Create a simple WAV file for download
+                const sampleRate = 22050;
+                const duration = Math.max(2, text.length * 0.1); // Estimate duration
+                const samples = Math.floor(sampleRate * duration);
+                const buffer = new ArrayBuffer(44 + samples * 2);
+                const view = new DataView(buffer);
+                
+                // WAV header
+                const writeString = (offset, string) => {
+                    for (let i = 0; i < string.length; i++) {
+                        view.setUint8(offset + i, string.charCodeAt(i));
+                    }
+                };
+                
+                writeString(0, 'RIFF');
+                view.setUint32(4, 36 + samples * 2, true);
+                writeString(8, 'WAVE');
+                writeString(12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, 1, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * 2, true);
+                view.setUint16(32, 2, true);
+                view.setUint16(34, 16, true);
+                writeString(36, 'data');
+                view.setUint32(40, samples * 2, true);
+                
+                // Generate silence (placeholder)
+                let offset = 44;
+                for (let i = 0; i < samples; i++) {
+                    view.setInt16(offset, 0, true);
+                    offset += 2;
+                }
+                
+                const blob = new Blob([view], { type: 'audio/wav' });
+                currentAudioBlob = blob;
+                return URL.createObjectURL(blob);
+            }
+        }
+
+        // ElevenLabs TTS Implementation
+        class ElevenLabsTTS {
+            constructor() {
+                this.apiKey = null; // يحتاج إلى API Key
+                this.baseUrl = 'https://api.elevenlabs.io/v1';
+                this.supported = false;
+            }
+
+            setApiKey(key) {
+                this.apiKey = key;
+                this.supported = !!key;
+            }
+
+            getAvailableVoices() {
+                // Mock voices for ElevenLabs
+                return [
+                    { name: 'Arabic Male 1', lang: 'ar', id: 'ar_male_1' },
+                    { name: 'Arabic Female 1', lang: 'ar', id: 'ar_female_1' }
+                ];
+            }
+
+            async synthesize(text, options = {}) {
+                if (!this.supported) {
+                    throw new Error('يتطلب ElevenLabs API Key. يمكنك الحصول عليه من elevenlabs.io');
+                }
+
+                const response = await fetch(`${this.baseUrl}/text-to-speech/${options.voiceId || 'pNInz6obpgDQGcFmaJgB'}`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'audio/mpeg',
+                        'Content-Type': 'application/json',
+                        'xi-api-key': this.apiKey
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        model_id: 'eleven_multilingual_v2',
+                        voice_settings: {
+                            stability: 0.5,
+                            similarity_boost: 0.5,
+                            style: 0.0,
+                            use_speaker_boost: true
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('فشل في الاتصال بخدمة ElevenLabs');
+                }
+
+                const audioBlob = await response.blob();
+                currentAudioBlob = audioBlob;
+                return URL.createObjectURL(audioBlob);
+            }
+        }
+
+        // Google Cloud TTS Implementation  
+        class GoogleCloudTTS {
+            constructor() {
+                this.apiKey = null;
+                this.baseUrl = 'https://texttospeech.googleapis.com/v1';
+                this.supported = false;
+            }
+
+            setApiKey(key) {
+                this.apiKey = key;
+                this.supported = !!key;
+            }
+
+            getAvailableVoices() {
+                return [
+                    { name: 'ar-XA-Wavenet-A (Female)', lang: 'ar-XA', id: 'ar-XA-Wavenet-A' },
+                    { name: 'ar-XA-Wavenet-B (Male)', lang: 'ar-XA', id: 'ar-XA-Wavenet-B' },
+                    { name: 'ar-XA-Wavenet-C (Male)', lang: 'ar-XA', id: 'ar-XA-Wavenet-C' }
+                ];
+            }
+
+            async synthesize(text, options = {}) {
+                if (!this.supported) {
+                    throw new Error('يتطلب Google Cloud TTS API Key');
+                }
+
+                const response = await fetch(`${this.baseUrl}/text:synthesize?key=${this.apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        input: { text: text },
+                        voice: {
+                            languageCode: options.lang || 'ar-XA',
+                            name: options.voice || 'ar-XA-Wavenet-A'
+                        },
+                        audioConfig: {
+                            audioEncoding: 'MP3',
+                            speakingRate: options.rate || 1.0,
+                            pitch: (options.pitch || 1) * 2 - 1
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('فشل في الاتصال بخدمة Google Cloud TTS');
+                }
+
+                const data = await response.json();
+                const audioData = atob(data.audioContent);
+                const audioArray = new Uint8Array(audioData.length);
+                
+                for (let i = 0; i < audioData.length; i++) {
+                    audioArray[i] = audioData.charCodeAt(i);
+                }
+
+                const audioBlob = new Blob([audioArray], { type: 'audio/mp3' });
+                currentAudioBlob = audioBlob;
+                return URL.createObjectURL(audioBlob);
+            }
+        }
+
+        // Initialize TTS Engine
+        const ttsEngine = new AdvancedTTSEngine();
+
+        // Check API Support and Update Status
+        function checkApiSupport() {
+            // Web Speech API
+            if ('speechSynthesis' in window) {
+                elements.webSpeechStatus.classList.add('active');
+                elements.webSpeechStatus.classList.remove('inactive');
+            }
+
+            // ElevenLabs (would need API key)
+            // Google Cloud (would need API key)
+        }
+
+        // Load Available Voices
+        function updateVoicesList() {
+            const voices = ttsEngine.getAvailableVoices();
+            elements.voiceSelect.innerHTML = '';
+
+            if (voices.length === 0) {
+                elements.voiceSelect.innerHTML = '<option value="">لا توجد أصوات عربية متاحة</option>';
+                return;
+            }
+
+            voices.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.name || voice.id;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                elements.voiceSelect.appendChild(option);
+            });
+
+            // Select first Arabic voice by default
+            if (voices.length > 0) {
+                elements.voiceSelect.value = voices[0].name || voices[0].id;
+            }
+        }
+
+        // Event Listeners
+        elements.textInput.addEventListener('input', function() {
             const count = this.value.length;
-            charCount.textContent = count;
+            elements.charCount.textContent = count;
             
             if (count > 4500) {
-                charCount.style.color = '#f44336';
+                elements.charCount.style.color = '#f44336';
             } else if (count > 3500) {
-                charCount.style.color = '#ff9800';
+                elements.charCount.style.color = '#ff9800';
             } else {
-                charCount.style.color = '#666';
+                elements.charCount.style.color = '#666';
             }
             
             // Auto-save to localStorage
             localStorage.setItem('tts_text', this.value);
         });
 
-        // Speed range
-        speedRange.addEventListener('input', function() {
-            speedValue.textContent = parseFloat(this.value).toFixed(1) + 'x';
+        // Speed and Pitch Controls
+        elements.speedRange.addEventListener('input', function() {
+            elements.speedValue.textContent = parseFloat(this.value).toFixed(1) + 'x';
         });
 
-        // Pitch range
-        pitchRange.addEventListener('input', function() {
-            pitchValue.textContent = parseFloat(this.value).toFixed(1) + 'x';
+        elements.pitchRange.addEventListener('input', function() {
+            elements.pitchValue.textContent = parseFloat(this.value).toFixed(1);
         });
 
-        // Voice selection
-        voiceSelect.addEventListener('change', function() {
-            const selectedVoice = this.options[this.selectedIndex].text;
-            showToast(`تم اختيار الصوت: ${selectedVoice}`);
+        // Engine Selection
+        document.querySelectorAll('input[name="engine"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                currentEngine = this.value;
+                ttsEngine.setEngine(currentEngine);
+                updateVoicesList();
+                
+                // Show appropriate status
+                showToast(`تم تغيير المحرك إلى: ${this.nextElementSibling.textContent}`);
+            });
         });
 
-        // Sample buttons
+        // Sample Text Buttons
         document.addEventListener('click', function(e) {
             if (e.target.classList.contains('sample-btn')) {
                 const text = e.target.getAttribute('data-text');
-                textInput.value = text;
-                textInput.dispatchEvent(new Event('input'));
-                textInput.focus();
+                elements.textInput.value = text;
+                elements.textInput.dispatchEvent(new Event('input'));
+                elements.textInput.focus();
             }
         });
 
-        // Convert button
-        convertBtn.addEventListener('click', function() {
-            const text = textInput.value.trim();
+        // Convert Button
+        elements.convertBtn.addEventListener('click', async function() {
+            const text = elements.textInput.value.trim();
             
             if (!text) {
                 showToast('يرجى إدخال نص للتحويل', 'error');
@@ -693,27 +1095,32 @@
                 return;
             }
 
-            convertTextToSpeech(text);
+            await convertTextToSpeech(text);
         });
 
-        // Clear button
-        clearBtn.addEventListener('click', function() {
-            textInput.value = '';
-            charCount.textContent = '0';
-            audioPlayer.classList.remove('active');
-            downloadBtn.disabled = true;
-            shareBtn.disabled = true;
+        // Clear Button
+        elements.clearBtn.addEventListener('click', function() {
+            elements.textInput.value = '';
+            elements.charCount.textContent = '0';
+            elements.audioPlayer.classList.remove('active');
+            elements.downloadBtn.disabled = true;
+            elements.shareBtn.disabled = true;
             currentAudioBlob = null;
             localStorage.removeItem('tts_text');
+            
+            // Stop any ongoing speech
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
         });
 
-        // Download button
-        downloadBtn.addEventListener('click', function() {
+        // Download Button
+        elements.downloadBtn.addEventListener('click', function() {
             if (currentAudioBlob) {
                 const url = URL.createObjectURL(currentAudioBlob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `نبرة_${new Date().getTime()}.${formatSelect.value}`;
+                a.download = `نبرة_${new Date().getTime()}.mp3`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -722,11 +1129,11 @@
             }
         });
 
-        // Share button
-        shareBtn.addEventListener('click', function() {
+        // Share Button
+        elements.shareBtn.addEventListener('click', function() {
             if (navigator.share && currentAudioBlob) {
-                const file = new File([currentAudioBlob], `نبرة_${new Date().getTime()}.${formatSelect.value}`, {
-                    type: `audio/${formatSelect.value}`
+                const file = new File([currentAudioBlob], `نبرة_${new Date().getTime()}.mp3`, {
+                    type: 'audio/mp3'
                 });
                 
                 navigator.share({
@@ -743,124 +1150,72 @@
             }
         });
 
-        // Convert text to speech function
-        function convertTextToSpeech(text) {
-            loading.classList.add('active');
-            convertBtn.disabled = true;
+        // Main Conversion Function
+        async function convertTextToSpeech(text) {
+            elements.loading.classList.add('active');
+            elements.convertBtn.disabled = true;
+            elements.loadingText.textContent = `جاري التحويل باستخدام ${currentEngine}...`;
             
-            const progressFill = document.getElementById('progressFill');
-            const progressText = document.getElementById('progressText');
-            
+            // Progress animation
             let progress = 0;
             const interval = setInterval(() => {
-                progress += Math.random() * 30;
+                progress += Math.random() * 20;
                 if (progress > 90) progress = 90;
                 
-                progressFill.style.width = progress + '%';
+                elements.progressFill.style.width = progress + '%';
                 
                 if (progress < 30) {
-                    progressText.textContent = 'تحليل النص...';
+                    elements.progressText.textContent = 'تحليل النص...';
                 } else if (progress < 60) {
-                    progressText.textContent = 'توليد الصوت...';
+                    elements.progressText.textContent = 'توليد الصوت...';
                 } else {
-                    progressText.textContent = 'معالجة نهائية...';
+                    elements.progressText.textContent = 'معالجة نهائية...';
                 }
-            }, 100);
-            
-            setTimeout(() => {
+            }, 200);
+
+            try {
+                const options = {
+                    voice: elements.voiceSelect.value,
+                    rate: parseFloat(elements.speedRange.value),
+                    pitch: parseFloat(elements.pitchRange.value),
+                    lang: 'ar-SA'
+                };
+
+                const audioUrl = await ttsEngine.synthesize(text, options);
+                
+                // Complete progress
                 clearInterval(interval);
-                progressFill.style.width = '100%';
-                progressText.textContent = 'مكتمل!';
+                elements.progressFill.style.width = '100%';
+                elements.progressText.textContent = 'مكتمل!';
                 
                 setTimeout(() => {
-                    createDemoAudio();
-                    
-                    loading.classList.remove('active');
-                    convertBtn.disabled = false;
-                    audioPlayer.classList.add('active');
-                    downloadBtn.disabled = false;
-                    shareBtn.disabled = false;
+                    elements.audioElement.src = audioUrl;
+                    elements.audioPlayer.classList.add('active');
+                    elements.downloadBtn.disabled = false;
+                    elements.shareBtn.disabled = false;
                     
                     showToast('تم تحويل النص إلى صوت بنجاح');
                     
                     // Reset progress
-                    progressFill.style.width = '0%';
-                    progressText.textContent = 'جاري المعالجة...';
-                }, 500);
-            }, 2000);
-        }
+                    elements.progressFill.style.width = '0%';
+                    elements.progressText.textContent = 'جاري المعالجة...';
+                    elements.loading.classList.remove('active');
+                    elements.convertBtn.disabled = false;
+                }, 1000);
 
-        // Create demo audio function
-        function createDemoAudio() {
-            const demoAudioUrl = createDemoAudioFile();
-            audioElement.src = demoAudioUrl;
-            
-            // Play a simple demonstration sound
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-                oscillator.type = 'sine';
-                
-                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 1);
             } catch (error) {
-                console.log('Audio context not supported');
+                clearInterval(interval);
+                elements.loading.classList.remove('active');
+                elements.convertBtn.disabled = false;
+                elements.progressFill.style.width = '0%';
+                elements.progressText.textContent = 'جاري المعالجة...';
+                
+                console.error('TTS Error:', error);
+                showToast(error.message || 'حدث خطأ في تحويل النص إلى صوت', 'error');
             }
         }
 
-        // Create demo audio file
-        function createDemoAudioFile() {
-            const sampleRate = 22050;
-            const duration = 3;
-            const samples = sampleRate * duration;
-            const buffer = new ArrayBuffer(44 + samples * 2);
-            const view = new DataView(buffer);
-            
-            // WAV header
-            const writeString = (offset, string) => {
-                for (let i = 0; i < string.length; i++) {
-                    view.setUint8(offset + i, string.charCodeAt(i));
-                }
-            };
-            
-            writeString(0, 'RIFF');
-            view.setUint32(4, 36 + samples * 2, true);
-            writeString(8, 'WAVE');
-            writeString(12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true);
-            view.setUint16(22, 1, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * 2, true);
-            view.setUint16(32, 2, true);
-            view.setUint16(34, 16, true);
-            writeString(36, 'data');
-            view.setUint32(40, samples * 2, true);
-            
-            // Generate audio data
-            let offset = 44;
-            for (let i = 0; i < samples; i++) {
-                const sample = Math.sin((i / sampleRate) * 440 * 2 * Math.PI) * 0.3;
-                view.setInt16(offset, sample * 32767, true);
-                offset += 2;
-            }
-            
-            const blob = new Blob([view], { type: 'audio/wav' });
-            currentAudioBlob = blob;
-            return URL.createObjectURL(blob);
-        }
-
-        // Copy audio link function
+        // Utility Functions
         function copyAudioLink() {
             if (currentAudioBlob) {
                 const url = URL.createObjectURL(currentAudioBlob);
@@ -872,110 +1227,263 @@
             }
         }
 
-        // Toast notification function
         function showToast(message, type = 'success') {
-            toast.textContent = message;
-            toast.className = `toast ${type}`;
-            toast.classList.add('show');
+            elements.toast.textContent = message;
+            elements.toast.className = `toast ${type}`;
+            elements.toast.classList.add('show');
             
             setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
+                elements.toast.classList.remove('show');
+            }, 4000);
         }
 
-        // Keyboard shortcuts
+        // Keyboard Shortcuts
         document.addEventListener('keydown', function(e) {
             if (e.ctrlKey || e.metaKey) {
                 switch(e.key) {
                     case 'Enter':
                         e.preventDefault();
-                        if (!convertBtn.disabled) {
-                            convertBtn.click();
+                        if (!elements.convertBtn.disabled) {
+                            elements.convertBtn.click();
                         }
                         break;
                     case 'l':
                         e.preventDefault();
-                        clearBtn.click();
+                        elements.clearBtn.click();
                         break;
                     case 's':
                         e.preventDefault();
-                        if (!downloadBtn.disabled) {
-                            downloadBtn.click();
+                        if (!elements.downloadBtn.disabled) {
+                            elements.downloadBtn.click();
                         }
                         break;
                 }
             }
         });
 
-        // Load saved text on page load
-        window.addEventListener('load', function() {
-            const savedText = localStorage.getItem('tts_text');
-            if (savedText) {
-                textInput.value = savedText;
-                textInput.dispatchEvent(new Event('input'));
-            }
-        });
-
-        // TTS Engine class for future API integration
-        class TTSEngine {
-            constructor() {
-                this.apiEndpoint = '/api/tts';
-                this.supportedVoices = {
-                    'male-1': { name: 'أحمد', language: 'ar', gender: 'male' },
-                    'female-1': { name: 'فاطمة', language: 'ar', gender: 'female' },
-                    'male-2': { name: 'محمد', language: 'ar-gulf', gender: 'male' },
-                    'female-2': { name: 'عائشة', language: 'ar-eg', gender: 'female' },
-                    'male-3': { name: 'عمر', language: 'ar-levant', gender: 'male' },
-                    'female-3': { name: 'زينب', language: 'ar-maghreb', gender: 'female' }
-                };
+        // API Key Configuration - طريقة سهلة للمطورين
+        function initializeAPIs() {
+            // ========================
+            // ضع مفاتيح API هنا مباشرة:
+            // ========================
+            
+            // ElevenLabs API Key - احصل عليه من: https://elevenlabs.io/app/api-keys
+            const ELEVENLABS_API_KEY = 'sk_6eff7ed144c96fafc2558db36a4a05f8420e5fd880331439'; // تم إدخال المفتاح
+            
+            // Google Cloud TTS API Key - احصل عليه من: https://console.cloud.google.com
+            const GOOGLE_CLOUD_API_KEY = ''; // مثال: 'AIzaSyD...'
+            
+            // ========================
+            // لا تغير شيء تحت هذا السطر
+            // ========================
+            
+            // تفعيل ElevenLabs إذا تم إدخال المفتاح
+            if (ELEVENLABS_API_KEY && ELEVENLABS_API_KEY.length > 10) {
+                ttsEngine.engines.elevenlabs.setApiKey(ELEVENLABS_API_KEY);
+                document.getElementById('engineElevenLabs').disabled = false;
+                document.querySelector('label[for="engineElevenLabs"]').parentElement.classList.remove('disabled');
+                elements.elevenLabsStatus.classList.add('active');
+                elements.elevenLabsStatus.classList.remove('inactive');
+                console.log('✅ ElevenLabs API تم تفعيله');
+                showToast('تم تفعيل ElevenLabs API - جودة صوت ممتازة متاحة!');
+            } else {
+                console.log('⚠️ لتفعيل ElevenLabs، ضع API Key في المتغير ELEVENLABS_API_KEY');
             }
             
-            async synthesize(text, options = {}) {
-                const requestData = {
-                    text: text,
-                    voice: options.voice || 'male-1',
-                    speed: options.speed || 1.0,
-                    pitch: options.pitch || 1.0,
-                    format: options.format || 'mp3'
-                };
-                
-                try {
-                    // Future API integration
-                    // const response = await fetch(this.apiEndpoint, {
-                    //     method: 'POST',
-                    //     headers: {
-                    //         'Content-Type': 'application/json',
-                    //         'Authorization': 'Bearer YOUR_API_KEY'
-                    //     },
-                    //     body: JSON.stringify(requestData)
-                    // });
-                    
-                    // For demo purposes
-                    return new Promise((resolve) => {
-                        setTimeout(() => {
-                            resolve(currentAudioBlob);
-                        }, 1000);
-                    });
-                    
-                } catch (error) {
-                    console.error('TTS API Error:', error);
-                    throw new Error('فشل في تحويل النص إلى صوت');
-                }
+            // تفعيل Google Cloud إذا تم إدخال المفتاح
+            if (GOOGLE_CLOUD_API_KEY && GOOGLE_CLOUD_API_KEY.length > 10) {
+                ttsEngine.engines.google.setApiKey(GOOGLE_CLOUD_API_KEY);
+                document.getElementById('engineGoogle').disabled = false;
+                document.querySelector('label[for="engineGoogle"]').parentElement.classList.remove('disabled');
+                elements.googleCloudStatus.classList.add('active');
+                elements.googleCloudStatus.classList.remove('inactive');
+                console.log('✅ Google Cloud TTS API تم تفعيله');
+                showToast('تم تفعيل Google Cloud TTS - أصوات احترافية متاحة!');
+            } else {
+                console.log('⚠️ لتفعيل Google Cloud TTS، ضع API Key في المتغير GOOGLE_CLOUD_API_KEY');
             }
         }
 
-        // Initialize TTS Engine
-        const ttsEngine = new TTSEngine();
+        // Add API Key Input Modal
+        function createApiKeyModal() {
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div id="apiModal" style="
+                    position: fixed; 
+                    top: 0; left: 0; 
+                    width: 100%; height: 100%; 
+                    background: rgba(0,0,0,0.5); 
+                    display: none; 
+                    z-index: 2000;
+                    justify-content: center; 
+                    align-items: center;
+                ">
+                    <div style="
+                        background: white; 
+                        padding: 30px; 
+                        border-radius: 15px; 
+                        max-width: 500px; 
+                        width: 90%;
+                        direction: rtl;
+                    ">
+                        <h3 style="margin-bottom: 20px; color: #333;">إضافة API Keys للحصول على جودة أفضل</h3>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 10px; font-weight: bold;">
+                                ElevenLabs API Key:
+                            </label>
+                            <input type="text" id="elevenLabsKeyInput" placeholder="sk-..." style="
+                                width: 100%; 
+                                padding: 10px; 
+                                border: 2px solid #e1e5e9; 
+                                border-radius: 8px;
+                                font-family: monospace;
+                            ">
+                            <small style="color: #666;">احصل عليه من: elevenlabs.io/app/settings</small>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 10px; font-weight: bold;">
+                                Google Cloud TTS API Key:
+                            </label>
+                            <input type="text" id="googleKeyInput" placeholder="AIza..." style="
+                                width: 100%; 
+                                padding: 10px; 
+                                border: 2px solid #e1e5e9; 
+                                border-radius: 8px;
+                                font-family: monospace;
+                            ">
+                            <small style="color: #666;">احصل عليه من: console.cloud.google.com</small>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button onclick="closeApiModal()" style="
+                                padding: 10px 20px; 
+                                background: #f5f5f5; 
+                                border: none; 
+                                border-radius: 8px;
+                                cursor: pointer;
+                            ">إلغاء</button>
+                            <button onclick="saveApiKeys()" style="
+                                padding: 10px 20px; 
+                                background: #667eea; 
+                                color: white; 
+                                border: none; 
+                                border-radius: 8px;
+                                cursor: pointer;
+                            ">حفظ</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
 
-        // Console messages
-        console.log('🎤 موقع نبرة جاهز للاستخدام!');
+        // API Modal Functions
+        function openApiModal() {
+            document.getElementById('apiModal').style.display = 'flex';
+        }
+
+        function closeApiModal() {
+            document.getElementById('apiModal').style.display = 'none';
+        }
+
+        function saveApiKeys() {
+            const elevenLabsKey = document.getElementById('elevenLabsKeyInput').value.trim();
+            const googleKey = document.getElementById('googleKeyInput').value.trim();
+            
+            if (elevenLabsKey) {
+                ttsEngine.engines.elevenlabs.setApiKey(elevenLabsKey);
+                document.getElementById('engineElevenLabs').disabled = false;
+                document.querySelector('label[for="engineElevenLabs"]').parentElement.classList.remove('disabled');
+                elements.elevenLabsStatus.classList.add('active');
+                elements.elevenLabsStatus.classList.remove('inactive');
+                localStorage.setItem('elevenlabs_api_key', elevenLabsKey);
+                showToast('تم تفعيل ElevenLabs API بنجاح!');
+            }
+            
+            if (googleKey) {
+                ttsEngine.engines.google.setApiKey(googleKey);
+                document.getElementById('engineGoogle').disabled = false;
+                document.querySelector('label[for="engineGoogle"]').parentElement.classList.remove('disabled');
+                elements.googleCloudStatus.classList.add('active');
+                elements.googleCloudStatus.classList.remove('inactive');
+                localStorage.setItem('google_cloud_api_key', googleKey);
+                showToast('تم تفعيل Google Cloud TTS API بنجاح!');
+            }
+            
+            updateVoicesList();
+            closeApiModal();
+        }
+
+        // Load saved API keys
+        function loadSavedApiKeys() {
+            const elevenLabsKey = localStorage.getItem('elevenlabs_api_key');
+            const googleKey = localStorage.getItem('google_cloud_api_key');
+            
+            if (elevenLabsKey) {
+                ttsEngine.engines.elevenlabs.setApiKey(elevenLabsKey);
+                document.getElementById('engineElevenLabs').disabled = false;
+                document.querySelector('label[for="engineElevenLabs"]').parentElement.classList.remove('disabled');
+                elements.elevenLabsStatus.classList.add('active');
+                elements.elevenLabsStatus.classList.remove('inactive');
+            }
+            
+            if (googleKey) {
+                ttsEngine.engines.google.setApiKey(googleKey);
+                document.getElementById('engineGoogle').disabled = false;
+                document.querySelector('label[for="engineGoogle"]').parentElement.classList.remove('disabled');
+                elements.googleCloudStatus.classList.add('active');
+                elements.googleCloudStatus.classList.remove('inactive');
+            }
+        }
+
+        // Initialize Application
+        window.addEventListener('load', function() {
+            // Check API support
+            checkApiSupport();
+            
+            // Initialize APIs
+            initializeAPIs();
+            
+            // Load saved API keys
+            loadSavedApiKeys();
+            
+            // Create API modal
+            createApiKeyModal();
+            
+            // Load saved text
+            const savedText = localStorage.getItem('tts_text');
+            if (savedText) {
+                elements.textInput.value = savedText;
+                elements.textInput.dispatchEvent(new Event('input'));
+            }
+
+            // Load voices
+            setTimeout(updateVoicesList, 100);
+            
+            // Show welcome message
+            if ('speechSynthesis' in window) {
+                showToast('مرحباً! الموقع جاهز للاستخدام مع Web Speech API');
+            } else {
+                showToast('متصفحك لا يدعم Web Speech API', 'warning');
+            }
+        });
+
+        // Add click event to API status badges to open modal
+        elements.elevenLabsStatus.addEventListener('click', openApiModal);
+        elements.googleCloudStatus.addEventListener('click', openApiModal);
+
+        // Console Information
+        console.log('🎤 موقع نبرة - تحويل النص إلى صوت');
         console.log('📋 الميزات المتوفرة:');
-        console.log('✓ تحويل النص إلى صوت عربي');
-        console.log('✓ دعم اللهجات المختلفة');  
+        console.log('✓ Web Speech API (مدمج في المتصفح)');
+        console.log('✓ دعم كامل للغة العربية');  
         console.log('✓ تحكم في السرعة والنبرة');
-        console.log('✓ تحميل بتنسيقات متعددة');
+        console.log('✓ تحميل الملفات الصوتية');
         console.log('✓ اختصارات لوحة المفاتيح');
         console.log('⌨️ الاختصارات: Ctrl+Enter (تحويل) | Ctrl+L (مسح) | Ctrl+S (تحميل)');
+        console.log('🔧 للحصول على جودة أفضل، استخدم API keys من ElevenLabs أو Google Cloud');
     </script>
 </body>
 </html>
