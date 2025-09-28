@@ -68,6 +68,52 @@
             opacity: 0.9;
         }
 
+        .questions-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .question-count-card {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .question-count-number {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .question-count-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .questions-source {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .source-admin {
+            background: rgba(39, 174, 96, 0.3);
+            border: 2px solid rgba(39, 174, 96, 0.5);
+        }
+
+        .source-default {
+            background: rgba(243, 156, 18, 0.3);
+            border: 2px solid rgba(243, 156, 18, 0.5);
+        }
+
         .title {
             font-size: 48px;
             font-weight: bold;
@@ -702,6 +748,26 @@
             50% { transform: translateY(-20px) rotate(5deg); opacity: 0.2; }
         }
 
+        /* رسائل الحالة */
+        @keyframes fadeInOut {
+            0% { 
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            20%, 80% { 
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            100% { 
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+        }
+
+        .status-alert {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
         @media (max-width: 768px) {
             .title {
                 font-size: 36px;
@@ -726,6 +792,10 @@
             .timer-display {
                 font-size: 28px;
             }
+
+            .questions-info {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -742,6 +812,29 @@
             <div class="school-info">
                 <h2>متوسطة ابن عمرو الأنصاري</h2>
                 <p>مدير المدرسة: خالد المطيري</p>
+                
+                <div class="questions-info">
+                    <div class="question-count-card">
+                        <div class="question-count-number" id="mathCount">0</div>
+                        <div class="question-count-label">أسئلة رياضيات</div>
+                    </div>
+                    <div class="question-count-card">
+                        <div class="question-count-number" id="scienceCount">0</div>
+                        <div class="question-count-label">أسئلة علوم</div>
+                    </div>
+                    <div class="question-count-card">
+                        <div class="question-count-number" id="readingCount">0</div>
+                        <div class="question-count-label">أسئلة قراءة</div>
+                    </div>
+                    <div class="question-count-card">
+                        <div class="question-count-number" id="totalCount">0</div>
+                        <div class="question-count-label">إجمالي الأسئلة</div>
+                    </div>
+                </div>
+
+                <div class="questions-source" id="questionsSource">
+                    مصدر الأسئلة: جاري التحميل...
+                </div>
             </div>
             
             <h1 class="title">🏆 مسابقة الحروف الثقافية 🏆</h1>
@@ -908,45 +1001,56 @@
     </div>
 
     <script>
-        // بنك الأسئلة للمرحلة المتوسطة مع الإجابات
-        const questionBank = {
-            رياضيات: [
-                { q: "ما هو ناتج: 25 × 4 + 15 ÷ 3؟", a: "105" },
-                { q: "ما هو مربع العدد 12؟", a: "144" },
-                { q: "ما هو محيط المربع الذي طول ضلعه 8 سم؟", a: "32 سم" },
-                { q: "ما هو ناتج: √64 + 6²؟", a: "44" },
-                { q: "ما هو ناتج: (15 + 25) ÷ 8؟", a: "5" },
-                { q: "كم يساوي 0.75 بالكسر الاعتيادي؟", a: "3/4" },
-                { q: "ما هو مساحة المثلث الذي قاعدته 10 سم وارتفاعه 6 سم؟", a: "30 سم²" },
-                { q: "ما هو العدد الأولي التالي بعد العدد 13؟", a: "17" },
-                { q: "ما هو ناتج: 2³ × 3²؟", a: "72" },
-                { q: "كم يساوي 35% من العدد 200؟", a: "70" }
-            ],
-            علوم: [
-                { q: "ما هو الغاز الذي نتنفسه؟", a: "الأكسجين" },
-                { q: "كم عدد عظام جسم الإنسان البالغ تقريباً؟", a: "206 عظمة" },
-                { q: "ما هو أكبر كوكب في النظام الشمسي؟", a: "المشتري" },
-                { q: "ما هي وحدة قياس القوة؟", a: "النيوتن" },
-                { q: "ما هو الجهاز المسؤول عن ضخ الدم في الجسم؟", a: "القلب" },
-                { q: "ما هي الحالة الفيزيائية للماء عند درجة حرارة 100 مئوية؟", a: "غاز (بخار)" },
-                { q: "كم عدد أقمار كوكب الأرض؟", a: "قمر واحد" },
-                { q: "ما هو الحيوان الذي يُعتبر من الثدييات المائية؟", a: "الحوت (أو الدولفين)" },
-                { q: "ما هو المركب الكيميائي للماء؟", a: "H2O" },
-                { q: "أين تقع أكبر عضلة في جسم الإنسان؟", a: "في الفخذ (العضلة الرباعية)" }
-            ],
-            قراءة: [
-                { q: "من هو مؤلف رواية 'مدن الملح'؟", a: "عبد الرحمن منيف" },
-                { q: "ما هو جمع كلمة 'كتاب'؟", a: "كتب" },
-                { q: "ما هو مرادف كلمة 'شجاع'؟", a: "بطل أو جريء" },
-                { q: "من هو الشاعر صاحب ديوان 'شوقي'؟", a: "أحمد شوقي" },
-                { q: "ما هو الفعل من كلمة 'كاتب'؟", a: "كتب" },
-                { q: "ما هو ضد كلمة 'النهار'؟", a: "الليل" },
-                { q: "من هو صاحب معلقة 'قفا نبك'؟", a: "امرؤ القيس" },
-                { q: "ما هو اسم المفعول من الفعل 'كتب'؟", a: "مكتوب" },
-                { q: "أكمل البيت: 'العلم يرفع بيوتاً لا عماد لها...'", a: "والجهل يهدم بيت العز والشرف" },
-                { q: "ما معنى كلمة 'المنارة'؟", a: "البرج المضيء أو الفنار" }
-            ]
+        // بنك الأسئلة - سيتم تحميله من localStorage أو استخدام الأسئلة الافتراضية
+        let questionBank = {
+            رياضيات: [],
+            علوم: [],
+            قراءة: []
         };
+
+        // تحميل الأسئلة من localStorage إذا كانت متوفرة
+        function loadQuestionsFromStorage() {
+            const savedQuestions = localStorage.getItem('competitionQuestions');
+            if (savedQuestions) {
+                try {
+                    const parsedQuestions = JSON.parse(savedQuestions);
+                    if (parsedQuestions && typeof parsedQuestions === 'object') {
+                        questionBank = parsedQuestions;
+                        console.log('تم تحميل الأسئلة من لوحة التحكم:', questionBank);
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('خطأ في تحميل الأسئلة:', error);
+                }
+            }
+            
+            // استخدام الأسئلة الافتراضية إذا لم توجد أسئلة محفوظة
+            questionBank = {
+                رياضيات: [
+                    { q: "ما هو ناتج: 25 × 4 + 15 ÷ 3؟", a: "105" },
+                    { q: "ما هو مربع العدد 12؟", a: "144" },
+                    { q: "ما هو محيط المربع الذي طول ضلعه 8 سم؟", a: "32 سم" },
+                    { q: "ما هو ناتج: √64 + 6²؟", a: "44" },
+                    { q: "ما هو ناتج: (15 + 25) ÷ 8؟", a: "5" }
+                ],
+                علوم: [
+                    { q: "ما هو الغاز الذي نتنفسه؟", a: "الأكسجين" },
+                    { q: "كم عدد عظام جسم الإنسان البالغ تقريباً؟", a: "206 عظمة" },
+                    { q: "ما هو أكبر كوكب في النظام الشمسي؟", a: "المشتري" },
+                    { q: "ما هي وحدة قياس القوة؟", a: "النيوتن" },
+                    { q: "ما هو الجهاز المسؤول عن ضخ الدم في الجسم؟", a: "القلب" }
+                ],
+                قراءة: [
+                    { q: "من هو مؤلف رواية 'مدن الملح'؟", a: "عبد الرحمن منيف" },
+                    { q: "ما هو جمع كلمة 'كتاب'؟", a: "كتب" },
+                    { q: "ما هو مرادف كلمة 'شجاع'؟", a: "بطل أو جريء" },
+                    { q: "من هو الشاعر صاحب ديوان 'شوقي'؟", a: "أحمد شوقي" },
+                    { q: "ما هو الفعل من كلمة 'كاتب'؟", a: "كتب" }
+                ]
+            };
+            console.log('تم تحميل الأسئلة الافتراضية');
+            return false;
+        }
 
         // المتغيرات الرئيسية
         let currentCell = null;
@@ -959,6 +1063,9 @@
 
         // تهيئة حالة اللعبة
         function initializeGame() {
+            // تحديث مؤشر مصدر الأسئلة وعدادات الأسئلة
+            updateQuestionsDisplay();
+            
             const cells = document.querySelectorAll('.letter-cell');
             
             cells.forEach((cell, index) => {
@@ -971,11 +1078,104 @@
             });
         }
 
+        function updateQuestionsDisplay() {
+            const sourceElement = document.getElementById('questionsSource');
+            
+            // تحميل الأسئلة من لوحة التحكم أولاً
+            const questionsLoaded = loadQuestionsFromStorage();
+            
+            // حساب عدد الأسئلة المحملة
+            const mathCount = questionBank.رياضيات.length;
+            const scienceCount = questionBank.علوم.length;
+            const readingCount = questionBank.قراءة.length;
+            const totalQuestions = mathCount + scienceCount + readingCount;
+            
+            // تحديث العدادات
+            document.getElementById('mathCount').textContent = mathCount;
+            document.getElementById('scienceCount').textContent = scienceCount;
+            document.getElementById('readingCount').textContent = readingCount;
+            document.getElementById('totalCount').textContent = totalQuestions;
+            
+            // تحديث مؤشر المصدر
+            if (questionsLoaded && totalQuestions > 15) { // أكثر من الأسئلة الافتراضية
+                showStatus('تم تحميل الأسئلة من لوحة التحكم!', 'success');
+                sourceElement.innerHTML = `📚 مصدر الأسئلة: لوحة التحكم (${totalQuestions} سؤال)`;
+                sourceElement.className = 'questions-source source-admin';
+            } else {
+                sourceElement.innerHTML = `⚠️ مصدر الأسئلة: افتراضية (${totalQuestions} سؤال)<br><small>استخدم لوحة التحكم لرفع أسئلة جديدة</small>`;
+                sourceElement.className = 'questions-source source-default';
+            }
+        }
+
+        function showStatus(message, type) {
+            // إضافة رسالة حالة بصرية
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            const existingAlert = document.querySelector('.status-alert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+            
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `status-alert status-${type}`;
+            alertDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 15px 30px;
+                border-radius: 25px;
+                color: white;
+                font-weight: bold;
+                z-index: 9999;
+                animation: fadeInOut 3s ease forwards;
+            `;
+            
+            if (type === 'success') {
+                alertDiv.style.background = 'linear-gradient(45deg, #27ae60, #2ecc71)';
+            } else if (type === 'error') {
+                alertDiv.style.background = 'linear-gradient(45deg, #e74c3c, #c0392b)';
+            } else {
+                alertDiv.style.background = 'linear-gradient(45deg, #3498db, #2980b9)';
+            }
+            
+            alertDiv.textContent = message;
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 3000);
+        }
+
         // الحصول على سؤال عشوائي
         function getRandomQuestion() {
             const subjects = Object.keys(questionBank);
             const subject = subjects[Math.floor(Math.random() * subjects.length)];
             const questions = questionBank[subject];
+            
+            if (!questions || questions.length === 0) {
+                // إذا لم توجد أسئلة في هذه المادة، جرب مادة أخرى
+                const availableSubjects = subjects.filter(s => questionBank[s] && questionBank[s].length > 0);
+                if (availableSubjects.length === 0) {
+                    return {
+                        subject: 'عام',
+                        text: 'لا توجد أسئلة متاحة',
+                        answer: 'يرجى إضافة أسئلة من لوحة التحكم'
+                    };
+                }
+                const fallbackSubject = availableSubjects[Math.floor(Math.random() * availableSubjects.length)];
+                const fallbackQuestions = questionBank[fallbackSubject];
+                const questionIndex = Math.floor(Math.random() * fallbackQuestions.length);
+                const questionObj = fallbackQuestions[questionIndex];
+                
+                return {
+                    subject: fallbackSubject,
+                    text: questionObj.q,
+                    answer: questionObj.a
+                };
+            }
             
             let questionKey, questionObj;
             do {
@@ -1287,6 +1487,34 @@
                 }, index * 100);
             });
         });
+
+        // إضافة مستمع لتحديث الأسئلة عند تغيير localStorage
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'competitionQuestions') {
+                console.log('تم تحديث الأسئلة من لوحة التحكم');
+                updateQuestionsDisplay();
+            }
+        });
+
+        // تحديث الأسئلة كل 10 ثوان للتأكد من المزامنة
+        setInterval(() => {
+            const currentTotal = Object.values(questionBank).reduce((total, questions) => total + questions.length, 0);
+            const savedQuestions = localStorage.getItem('competitionQuestions');
+            
+            if (savedQuestions) {
+                try {
+                    const parsedQuestions = JSON.parse(savedQuestions);
+                    const savedTotal = Object.values(parsedQuestions).reduce((total, questions) => total + questions.length, 0);
+                    
+                    if (savedTotal !== currentTotal) {
+                        console.log('تم اكتشاف تحديث في الأسئلة، جاري إعادة التحميل...');
+                        updateQuestionsDisplay();
+                    }
+                } catch (error) {
+                    console.error('خطأ في فحص الأسئلة المحفوظة:', error);
+                }
+            }
+        }, 10000);
     </script>
 </body>
 </html>
