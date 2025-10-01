@@ -809,6 +809,7 @@
             try {
                 showNotification('جارٍ معالجة الأسئلة...', 'info');
                 
+                // التحقق من صحة الأسئلة
                 const validQuestions = questions.filter(q => 
                     q.question && 
                     q.options && 
@@ -823,69 +824,100 @@
                     return;
                 }
 
-                // فحص التكرار - الجزء المهم لمنع التكرار
+                // قراءة جميع الأسئلة الموجودة (النشطة فقط)
+                console.log('جارٍ قراءة الأسئلة الموجودة...');
                 const existingQuestionsQuery = query(
                     collection(db, 'questions'), 
                     where('active', '==', true)
                 );
                 const existingSnapshot = await getDocs(existingQuestionsQuery);
                 
-                const existingQuestionsSet = new Set();
+                // إنشاء Map للأسئلة الموجودة مع تطبيع النص
+                const existingQuestionsMap = new Map();
                 existingSnapshot.forEach(doc => {
                     const q = doc.data();
-                    existingQuestionsSet.add(q.question.trim().toLowerCase());
+                    // تطبيع النص: إزالة المسافات الزائدة والأحرف الخاصة وتحويل لأحرف صغيرة
+                    const normalizedQuestion = q.question
+                        .trim()
+                        .replace(/\s+/g, ' ')  // استبدال المسافات المتعددة بمسافة واحدة
+                        .replace(/[.,،؟?!]/g, '')  // إزالة علامات الترقيم
+                        .toLowerCase();
+                    
+                    existingQuestionsMap.set(normalizedQuestion, doc.id);
                 });
 
-                const newQuestions = validQuestions.filter(q => 
-                    !existingQuestionsSet.has(q.question.trim().toLowerCase())
-                );
+                console.log(`عدد الأسئلة الموجودة: ${existingQuestionsMap.size}`);
+
+                // تصفية الأسئلة الجديدة فقط مع تطبيع النص
+                const newQuestions = [];
+                const duplicates = [];
+                
+                validQuestions.forEach(q => {
+                    const normalizedQuestion = q.question
+                        .trim()
+                        .replace(/\s+/g, ' ')
+                        .replace(/[.,،؟?!]/g, '')
+                        .toLowerCase();
+                    
+                    if (!existingQuestionsMap.has(normalizedQuestion)) {
+                        newQuestions.push(q);
+                    } else {
+                        duplicates.push(q.question);
+                    }
+                });
 
                 const totalInFile = validQuestions.length;
-                const duplicateCount = totalInFile - newQuestions.length;
+                const duplicateCount = duplicates.length;
                 const newCount = newQuestions.length;
 
+                console.log(`إجمالي الأسئلة: ${totalInFile}`);
+                console.log(`أسئلة جديدة: ${newCount}`);
+                console.log(`أسئلة مكررة: ${duplicateCount}`);
+
+                // إذا كانت جميع الأسئلة مكررة
                 if (newCount === 0) {
                     showNotification(
-                        `⚠️ جميع الأسئلة (${totalInFile}) موجودة مسبقاً في النظام!\nلم يتم إضافة أي أسئلة جديدة.`,
+                        `جميع الأسئلة (${totalInFile}) موجودة مسبقاً!\nلم يتم إضافة أي أسئلة جديدة.`,
                         'error'
                     );
                     return;
                 }
 
+                // عرض تفاصيل الاستيراد
+                let confirmMessage;
                 if (duplicateCount > 0) {
-                    const confirmMessage = 
-                        `📊 تفاصيل الاستيراد:\n\n` +
-                        `• إجمالي الأسئلة في الملف: ${totalInFile}\n` +
-                        `• أسئلة جديدة: ${newCount} ✅\n` +
-                        `• أسئلة مكررة (تم تجاهلها): ${duplicateCount} ⚠️\n\n` +
+                    confirmMessage = 
+                        `تفاصيل الاستيراد:\n\n` +
+                        `إجمالي الأسئلة في الملف: ${totalInFile}\n` +
+                        `أسئلة جديدة: ${newCount}\n` +
+                        `أسئلة مكررة (سيتم تجاهلها): ${duplicateCount}\n\n` +
                         `هل تريد إضافة الأسئلة الجديدة فقط؟`;
-                    
-                    if (!confirm(confirmMessage)) {
-                        showNotification('تم إلغاء الاستيراد', 'info');
-                        return;
-                    }
                 } else {
-                    const confirmMessage = 
-                        `✅ سيتم إضافة ${newCount} سؤال جديد\n\nهل تريد المتابعة؟`;
-                    
-                    if (!confirm(confirmMessage)) {
-                        showNotification('تم إلغاء الاستيراد', 'info');
-                        return;
-                    }
+                    confirmMessage = 
+                        `سيتم إضافة ${newCount} سؤال جديد\n\nهل تريد المتابعة؟`;
+                }
+                
+                if (!confirm(confirmMessage)) {
+                    showNotification('تم إلغاء الاستيراد', 'info');
+                    return;
                 }
 
+                // إضافة الأسئلة الجديدة فقط
+                showNotification('جارٍ إضافة الأسئلة الجديدة...', 'info');
+                
                 const batch = writeBatch(db);
                 let addedCount = 0;
 
                 for (const question of newQuestions) {
                     const questionDoc = {
-                        question: question.question,
-                        options: question.options,
+                        question: question.question.trim(),
+                        options: question.options.map(opt => opt.trim()),
                         correct: parseInt(question.correct),
-                        subject: question.subject,
-                        explanation: question.explanation || '',
+                        subject: question.subject.trim(),
+                        explanation: question.explanation ? question.explanation.trim() : '',
                         createdAt: new Date(),
-                        active: true
+                        active: true,
+                        published: false
                     };
                     
                     const docRef = doc(collection(db, 'questions'));
@@ -893,19 +925,23 @@
                     addedCount++;
                 }
 
+                // حفظ البيانات
                 await batch.commit();
                 
-                let successMessage = `✅ تم إضافة ${addedCount} سؤال بنجاح!`;
+                // رسالة النجاح
+                let successMessage = `تم إضافة ${addedCount} سؤال بنجاح`;
                 if (duplicateCount > 0) {
-                    successMessage += `\n⚠️ تم تجاهل ${duplicateCount} سؤال مكرر`;
+                    successMessage += `\nتم تجاهل ${duplicateCount} سؤال مكرر`;
                 }
                 
                 showNotification(successMessage, 'success');
-                loadQuestions();
+                
+                // إعادة تحميل الأسئلة
+                await loadQuestions();
                 
             } catch (error) {
                 console.error('Error processing questions:', error);
-                showNotification('حدث خطأ أثناء معالجة الأسئلة', 'error');
+                showNotification('حدث خطأ أثناء معالجة الأسئلة: ' + error.message, 'error');
             }
         }
 
