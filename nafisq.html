@@ -1,77 +1,242 @@
 // ==========================================
-// حل شامل لمشكلة الأداء والضغط
+// نظام ناافس - الكود الكامل المحسّن والمحترف
+// معالجة شاملة لمشكلة الأداء والضغط
 // ==========================================
 
-// 1. تحسين وظيفة التسجيل - بدون قراءة جميع الطلاب
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    getDocs, 
+    query, 
+    where, 
+    orderBy, 
+    limit,
+    updateDoc, 
+    doc 
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+// ==========================================
+// 1. تهيئة Firebase
+// ==========================================
+const firebaseConfig = {
+    apiKey: "AIzaSyD28cfba2NmXlsfBci9jgbne21U9rZLJ2M",
+    authDomain: "nafis-new.firebaseapp.com",
+    projectId: "nafis-new",
+    storageBucket: "nafis-new.firebasestorage.app",
+    messagingSenderId: "366381122504",
+    appId: "1:366381122504:web:b76107c74d7d7ec82df6fd",
+    measurementId: "G-ZD3Z9LEGGM"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ==========================================
+// 2. المتغيرات العامة
+// ==========================================
+let currentStudent = null;
+let currentQuestion = 0;
+let questions = [];
+let studentAnswers = [];
+let autoSaveInterval = null;
+
+// بنك الأسئلة الافتراضي
+const questionBank = [
+    {
+        id: 1,
+        question: "ما هو حاصل ضرب 7 × 8؟",
+        options: ["54", "56", "58", "60"],
+        correct: 1,
+        subject: "رياضيات",
+        active: true
+    },
+    {
+        id: 2,
+        question: "ما هي عاصمة المملكة العربية السعودية؟",
+        options: ["جدة", "الرياض", "الدمام", "مكة المكرمة"],
+        correct: 1,
+        subject: "جغرافيا",
+        active: true
+    },
+    {
+        id: 3,
+        question: "كم عدد أركان الإسلام؟",
+        options: ["4", "5", "6", "7"],
+        correct: 1,
+        subject: "تربية إسلامية",
+        active: true
+    },
+    {
+        id: 4,
+        question: "ما هو أكبر كوكب في النظام الشمسي؟",
+        options: ["الأرض", "المشتري", "زحل", "المريخ"],
+        correct: 1,
+        subject: "علوم",
+        active: true
+    },
+    {
+        id: 5,
+        question: "من هو أول خليفة راشد؟",
+        options: ["عمر بن الخطاب", "أبو بكر الصديق", "عثمان بن عفان", "علي بن أبي طالب"],
+        correct: 1,
+        subject: "تاريخ",
+        active: true
+    }
+];
+
+// ==========================================
+// 3. وظائف مساعدة (Utility Functions)
+// ==========================================
+
+// توليد رقم طالب فريد
+function generateStudentCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// عرض إشعار
+function showNotification(message, type = 'info') {
+    const notification = document.getElementById('notification');
+    const notificationText = document.getElementById('notificationText');
+    
+    if (!notification || !notificationText) return;
+    
+    notificationText.textContent = message;
+    notification.className = `notification ${type}`;
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
+
+// إظهار/إخفاء الأقسام
+function showSection(sectionId) {
+    const sections = ['registration', 'login', 'dashboard', 'testSection', 'resultsSection'];
+    sections.forEach(section => {
+        const element = document.getElementById(section);
+        if (element) {
+            element.classList.add('hidden');
+        }
+    });
+    
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+        targetSection.classList.remove('hidden');
+    }
+}
+
+// مؤشر التحميل
+function setLoading(button, isLoading, originalText = '') {
+    if (!button) return;
+    
+    if (isLoading) {
+        button.disabled = true;
+        button.setAttribute('data-original-text', button.textContent);
+        button.textContent = 'جاري المعالجة...';
+        button.style.opacity = '0.6';
+        button.style.cursor = 'not-allowed';
+    } else {
+        button.disabled = false;
+        const savedText = button.getAttribute('data-original-text');
+        button.textContent = savedText || originalText;
+        button.style.opacity = '1';
+        button.style.cursor = 'pointer';
+        button.removeAttribute('data-original-text');
+    }
+}
+
+// ==========================================
+// 4. وظيفة التسجيل المحسّنة
+// ==========================================
 window.registerStudent = async function() {
     const nameInput = document.getElementById('studentName');
-    const gradeInput = document.getElementById('studentGrade');
-    const registerBtn = event.target;
+    const gradeSelect = document.getElementById('studentGrade');
+    const registerBtn = document.querySelector('#registration .btn');
+    
+    if (!nameInput || !gradeSelect || !registerBtn) {
+        console.error('عناصر النموذج غير موجودة');
+        return;
+    }
     
     const name = nameInput.value.trim().replace(/\s+/g, ' ');
-    const grade = gradeInput.value;
+    const grade = gradeSelect.value;
 
+    // التحقق من البيانات
     if (!name || !grade) {
         showNotification('يرجى إدخال جميع البيانات المطلوبة', 'error');
+        if (!name) nameInput.focus();
         return;
     }
 
+    // التحقق من صيغة الاسم
     const nameParts = name.split(' ').filter(part => part.length > 0);
     if (nameParts.length < 3) {
-        showNotification('يرجى إدخال الاسم الرباعي كاملاً (على الأقل 3 أجزاء)', 'error');
+        showNotification('يرجى إدخال الاسم الرباعي كاملاً (3 أجزاء على الأقل)', 'error');
+        nameInput.focus();
         return;
     }
 
-    try {
-        // تعطيل الزر ووضع مؤشر التحميل
-        registerBtn.disabled = true;
-        registerBtn.innerHTML = 'جاري التسجيل...';
-        registerBtn.style.opacity = '0.6';
+    setLoading(registerBtn, true);
 
-        // ✅ استخدام query بدلاً من قراءة جميع السجلات
+    try {
+        // التحقق من عدم تكرار الاسم (استعلام محسّن)
         const nameQuery = query(
             collection(db, 'students'), 
             where('name', '==', name),
-            limit(1) // نحتاج سجل واحد فقط للتحقق
+            limit(1)
         );
+        
         const existingStudents = await getDocs(nameQuery);
 
         if (!existingStudents.empty) {
             const existingData = existingStudents.docs[0].data();
-            showNotification('هذا الاسم مسجل مسبقاً برقم: ' + existingData.code, 'error');
+            showNotification(`هذا الاسم مسجل مسبقاً برقم: ${existingData.code}`, 'error');
             
             setTimeout(() => {
-                if (confirm(`هذا الاسم مسجل مسبقاً\nرقم الطالب: ${existingData.code}\n\nهل تريد تسجيل الدخول؟`)) {
+                const confirmLogin = confirm(
+                    `الاسم "${name}" مسجل مسبقاً\n` +
+                    `رقم الطالب: ${existingData.code}\n` +
+                    `الصف: ${existingData.grade}\n\n` +
+                    `هل تريد تسجيل الدخول بهذا الحساب؟`
+                );
+                
+                if (confirmLogin) {
                     document.getElementById('loginCode').value = existingData.code;
                     switchToLogin();
                 }
             }, 500);
+            
             return;
         }
 
-        // ✅ توليد رقم فريد مع التحقق من عدم التكرار
+        // توليد رقم طالب فريد مع التحقق
         let studentCode;
-        let codeExists = true;
+        let isUnique = false;
         let attempts = 0;
+        const maxAttempts = 5;
         
-        while (codeExists && attempts < 5) {
+        while (!isUnique && attempts < maxAttempts) {
             studentCode = generateStudentCode();
+            
             const codeQuery = query(
                 collection(db, 'students'),
                 where('code', '==', studentCode),
                 limit(1)
             );
+            
             const codeCheck = await getDocs(codeQuery);
-            codeExists = !codeCheck.empty;
+            isUnique = codeCheck.empty;
             attempts++;
         }
 
-        if (codeExists) {
-            showNotification('خطأ في توليد رقم الطالب. يرجى المحاولة مرة أخرى', 'error');
+        if (!isUnique) {
+            showNotification('خطأ في توليد رقم فريد. يرجى المحاولة مرة أخرى', 'error');
             return;
         }
 
-        // ✅ التسجيل في قاعدة البيانات
+        // إنشاء سجل الطالب
         const studentData = {
             name: name,
             grade: grade,
@@ -83,81 +248,109 @@ window.registerStudent = async function() {
         };
 
         const docRef = await addDoc(collection(db, 'students'), studentData);
+        
+        // تحديث البيانات الحالية
+        currentStudent = {
+            ...studentData,
+            id: docRef.id
+        };
 
-        // حفظ معلومات إضافية
-        currentStudent = { ...studentData, id: docRef.id };
-        localStorage.setItem('nafis_student', JSON.stringify({
+        // حفظ في التخزين المحلي
+        localStorage.setItem('nafis_last_login', JSON.stringify({
             code: studentCode,
             name: name,
             timestamp: Date.now()
         }));
 
-        // عرض رقم الطالب
-        showNotification('تم التسجيل بنجاح! رقمك: ' + studentCode, 'success');
-        
+        // عرض معلومات التسجيل
         const studentInfo = document.getElementById('studentInfo');
-        studentInfo.innerHTML = `
-            <div class="student-code">
-                <h3>✅ تم التسجيل بنجاح!</h3>
-                <p>رقم الطالب الخاص بك:</p>
-                <div class="code-display" id="generatedCode">${studentCode}</div>
-                <p style="font-size: 0.9em; margin-top: 10px; color: rgba(255,255,255,0.9);">
-                    ⚠️ <strong>احفظ هذا الرقم جيداً!</strong><br>
-                    ستحتاجه لتسجيل الدخول في المرات القادمة
-                </p>
-                <button class="btn" onclick="copyCode('${studentCode}')" 
-                        style="background: rgba(255,255,255,0.2); margin-top: 15px;">
-                    📋 نسخ الرقم
-                </button>
-            </div>
-        `;
+        if (studentInfo) {
+            studentInfo.innerHTML = `
+                <div class="student-code">
+                    <h3>✅ تم التسجيل بنجاح!</h3>
+                    <p style="margin: 10px 0;">رقم الطالب الخاص بك:</p>
+                    <div class="code-display">${studentCode}</div>
+                    <p style="font-size: 0.9em; margin-top: 15px; color: rgba(255,255,255,0.9);">
+                        ⚠️ <strong>احفظ هذا الرقم جيداً!</strong><br>
+                        ستحتاجه لتسجيل الدخول في المرات القادمة
+                    </p>
+                    <button class="btn" onclick="copyStudentCode('${studentCode}')" 
+                            style="background: rgba(255,255,255,0.2); margin-top: 15px;">
+                        📋 نسخ رقم الطالب
+                    </button>
+                </div>
+            `;
+        }
 
-        document.getElementById('currentScore').textContent = '0';
+        const scoreElement = document.getElementById('currentScore');
+        if (scoreElement) {
+            scoreElement.textContent = '0';
+        }
+
+        showNotification(`مرحباً ${name}! رقمك: ${studentCode}`, 'success');
         showSection('dashboard');
+        
+        // تحديث الإحصائيات
+        updateHeaderStats();
 
     } catch (error) {
-        console.error('Registration error:', error);
-        let errorMsg = 'حدث خطأ أثناء التسجيل. ';
+        console.error('خطأ في التسجيل:', error);
+        
+        let errorMessage = 'حدث خطأ أثناء التسجيل. ';
         
         if (error.code === 'permission-denied') {
-            errorMsg += 'مشكلة في صلاحيات قاعدة البيانات.';
-        } else if (error.message.includes('quota')) {
-            errorMsg += 'تم تجاوز حد الاستخدام اليومي. يرجى المحاولة لاحقاً.';
+            errorMessage += 'مشكلة في صلاحيات قاعدة البيانات.';
+        } else if (error.code === 'unavailable') {
+            errorMessage += 'تحقق من اتصال الإنترنت.';
+        } else if (error.message && error.message.includes('quota')) {
+            errorMessage += 'تم تجاوز الحد المسموح. حاول لاحقاً.';
         } else {
-            errorMsg += 'يرجى المحاولة مرة أخرى.';
+            errorMessage += 'يرجى المحاولة مرة أخرى.';
         }
         
-        showNotification(errorMsg, 'error');
+        showNotification(errorMessage, 'error');
+        
     } finally {
-        registerBtn.disabled = false;
-        registerBtn.innerHTML = 'تسجيل';
-        registerBtn.style.opacity = '1';
+        setLoading(registerBtn, false, 'تسجيل');
     }
 };
 
-// 2. تحسين وظيفة تسجيل الدخول
+// ==========================================
+// 5. وظيفة تسجيل الدخول المحسّنة
+// ==========================================
 window.loginStudent = async function() {
     const codeInput = document.getElementById('loginCode');
+    const loginBtns = document.querySelectorAll('#login .btn');
+    const loginBtn = loginBtns[0]; // الزر الأول
+    
+    if (!codeInput || !loginBtn) {
+        console.error('عناصر تسجيل الدخول غير موجودة');
+        return;
+    }
+    
     const code = codeInput.value.trim();
 
-    if (!code || code.length !== 6) {
-        showNotification('يرجى إدخال رقم صحيح مكون من 6 أرقام', 'error');
+    if (!code) {
+        showNotification('يرجى إدخال رقم الطالب', 'error');
         codeInput.focus();
         return;
     }
 
-    const loginBtn = event.target;
-    
+    if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+        showNotification('رقم الطالب يجب أن يكون 6 أرقام', 'error');
+        codeInput.focus();
+        return;
+    }
+
+    setLoading(loginBtn, true);
+
     try {
-        loginBtn.disabled = true;
-        loginBtn.innerHTML = 'جاري تسجيل الدخول...';
-        
-        // ✅ استعلام محسّن
         const studentsQuery = query(
             collection(db, 'students'), 
             where('code', '==', code),
             limit(1)
         );
+        
         const querySnapshot = await getDocs(studentsQuery);
 
         if (querySnapshot.empty) {
@@ -168,21 +361,27 @@ window.loginStudent = async function() {
         }
 
         const studentDoc = querySnapshot.docs[0];
-        currentStudent = { id: studentDoc.id, ...studentDoc.data() };
+        currentStudent = {
+            id: studentDoc.id,
+            ...studentDoc.data()
+        };
 
         // استعادة التقدم المحفوظ
-        if (currentStudent.lastQuestion !== undefined) {
+        if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
             currentQuestion = currentStudent.lastQuestion;
             studentAnswers = currentStudent.lastAnswers || [];
+        } else {
+            currentQuestion = 0;
+            studentAnswers = [];
         }
 
         // تحديث آخر نشاط (بدون انتظار)
         updateDoc(doc(db, 'students', studentDoc.id), {
             lastActive: new Date()
-        }).catch(e => console.log('Update lastActive failed:', e));
+        }).catch(e => console.log('تحديث آخر نشاط فشل:', e));
 
-        // حفظ محلي
-        localStorage.setItem('nafis_student', JSON.stringify({
+        // حفظ في التخزين المحلي
+        localStorage.setItem('nafis_last_login', JSON.stringify({
             code: code,
             name: currentStudent.name,
             timestamp: Date.now()
@@ -193,38 +392,52 @@ window.loginStudent = async function() {
         showSection('dashboard');
 
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('خطأ في تسجيل الدخول:', error);
         showNotification('حدث خطأ في تسجيل الدخول. حاول مرة أخرى', 'error');
+        
     } finally {
-        loginBtn.disabled = false;
-        loginBtn.innerHTML = 'دخول بالرقم';
+        setLoading(loginBtn, false, 'دخول بالرقم');
     }
 };
 
-// 3. تحسين البحث بالاسم - مع Throttling
-let searchTimeout;
+// ==========================================
+// 6. وظيفة البحث بالاسم المحسّنة
+// ==========================================
+let searchTimeout = null;
+
 window.searchByName = async function() {
+    const nameInput = document.getElementById('loginName');
+    const searchResults = document.getElementById('searchResults');
+    const searchBtn = document.querySelectorAll('#login .btn')[1]; // الزر الثاني
+    
+    if (!nameInput || !searchResults) {
+        console.error('عناصر البحث غير موجودة');
+        return;
+    }
+    
     clearTimeout(searchTimeout);
     
-    const searchName = document.getElementById('loginName').value.trim();
-    const searchResults = document.getElementById('searchResults');
+    const searchName = nameInput.value.trim();
 
     if (!searchName || searchName.length < 3) {
         showNotification('يرجى إدخال 3 أحرف على الأقل للبحث', 'error');
+        nameInput.focus();
         return;
     }
 
-    searchResults.innerHTML = '<p style="text-align:center;color:#666;">جاري البحث...</p>';
+    searchResults.innerHTML = '<p style="text-align:center;color:#666;padding:15px;">🔍 جاري البحث...</p>';
+    
+    if (searchBtn) setLoading(searchBtn, true);
 
-    // ✅ تأخير البحث لتقليل الضغط
     searchTimeout = setTimeout(async () => {
         try {
-            // البحث المحسّن - نأخذ فقط 20 نتيجة
+            // استعلام محسّن مع حد أقصى للنتائج
             const studentsQuery = query(
                 collection(db, 'students'),
                 orderBy('name'),
-                limit(50) // حد أقصى
+                limit(100)
             );
+            
             const snapshot = await getDocs(studentsQuery);
             
             const matches = [];
@@ -232,7 +445,9 @@ window.searchByName = async function() {
             
             snapshot.forEach(doc => {
                 const data = doc.data();
-                if (data.name.toLowerCase().includes(searchLower)) {
+                const nameLower = data.name.toLowerCase();
+                
+                if (nameLower.includes(searchLower)) {
                     matches.push(data);
                 }
             });
@@ -240,82 +455,630 @@ window.searchByName = async function() {
             if (matches.length === 0) {
                 searchResults.innerHTML = `
                     <div style="text-align:center;padding:20px;color:#666;">
-                        <p>❌ لم يتم العثور على نتائج</p>
-                        <p style="font-size:0.9em;">جرب البحث باسم مختلف أو سجّل حساب جديد</p>
+                        <p style="font-size:1.2em;">❌</p>
+                        <p>لم يتم العثور على نتائج مطابقة</p>
+                        <p style="font-size:0.9em;margin-top:5px;">
+                            جرب البحث باسم آخر أو 
+                            <span style="color:#667eea;cursor:pointer;" onclick="switchToRegister()">
+                                سجّل حساب جديد
+                            </span>
+                        </p>
                     </div>
                 `;
                 return;
             }
 
+            const maxDisplay = 15;
             searchResults.innerHTML = `
                 <div style="margin-bottom:15px;">
-                    <h4 style="color:#333;margin-bottom:10px;">
-                        نتائج البحث (${matches.length}):
+                    <h4 style="color:#333;margin-bottom:10px;padding:10px;background:#f8f9fa;border-radius:8px;">
+                        📋 نتائج البحث: ${matches.length} ${matches.length > maxDisplay ? `(عرض أول ${maxDisplay})` : ''}
                     </h4>
-                    ${matches.slice(0, 10).map(student => `
-                        <div class="search-result" onclick="selectStudent('${student.code}')">
+                    ${matches.slice(0, maxDisplay).map(student => `
+                        <div class="search-result" onclick="selectStudentFromSearch('${student.code}', '${student.name}')">
                             <div class="student-info">
                                 <div class="student-details">
                                     <h4>${student.name}</h4>
-                                    <p>الصف ${student.grade} - النقاط: ${student.score || 0}</p>
+                                    <p>الصف ${student.grade} • النقاط: ${student.score || 0}</p>
                                 </div>
                                 <div class="student-code-badge">${student.code}</div>
                             </div>
                         </div>
                     `).join('')}
-                    ${matches.length > 10 ? 
-                        `<p style="text-align:center;color:#666;margin-top:10px;">
-                            عرض أول 10 نتائج من ${matches.length}
-                        </p>` : ''
-                    }
                 </div>
             `;
+
+            showNotification(`تم العثور على ${matches.length} نتيجة`, 'success');
 
         } catch (error) {
-            console.error('Search error:', error);
+            console.error('خطأ في البحث:', error);
             searchResults.innerHTML = `
                 <div style="text-align:center;padding:20px;color:#e74c3c;">
-                    <p>حدث خطأ في البحث</p>
-                    <p style="font-size:0.9em;">حاول مرة أخرى</p>
+                    <p>حدث خطأ أثناء البحث</p>
+                    <p style="font-size:0.9em;">يرجى المحاولة مرة أخرى</p>
                 </div>
             `;
+            showNotification('حدث خطأ أثناء البحث', 'error');
+        } finally {
+            if (searchBtn) setLoading(searchBtn, false, 'البحث');
         }
-    }, 800); // تأخير 800ms
+    }, 800);
 };
 
-// 4. اختيار طالب من نتائج البحث
-window.selectStudent = function(code) {
-    if (confirm('تسجيل الدخول بهذا الحساب؟')) {
+// ==========================================
+// 7. اختيار طالب من نتائج البحث
+// ==========================================
+window.selectStudentFromSearch = function(code, name) {
+    const searchResults = document.querySelectorAll('.search-result');
+    searchResults.forEach(result => result.classList.remove('selected'));
+    
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('selected');
+    }
+    
+    const confirmLogin = confirm(
+        `هل تريد تسجيل الدخول كـ:\n\n` +
+        `${name}\n` +
+        `رقم الطالب: ${code}؟`
+    );
+    
+    if (confirmLogin) {
         document.getElementById('loginCode').value = code;
         loginStudent();
     }
 };
 
-// 5. نسخ الرقم
-window.copyCode = function(code) {
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(code).then(() => {
-            showNotification('✅ تم نسخ الرقم بنجاح', 'success');
-        }).catch(() => {
-            prompt('انسخ هذا الرقم:', code);
-        });
-    } else {
-        prompt('انسخ هذا الرقم:', code);
+// ==========================================
+// 8. التبديل بين الأقسام
+// ==========================================
+window.switchToLogin = function() {
+    showSection('login');
+    const codeInput = document.getElementById('loginCode');
+    if (codeInput) codeInput.focus();
+    showNotification('قم بتسجيل الدخول برقم الطالب أو البحث بالاسم', 'info');
+};
+
+window.switchToRegister = function() {
+    showSection('registration');
+    const nameInput = document.getElementById('studentName');
+    if (nameInput) nameInput.focus();
+    showNotification('أنشئ حساب جديد بالاسم الرباعي', 'info');
+};
+
+// ==========================================
+// 9. تحديث معلومات لوحة الطالب
+// ==========================================
+function updateDashboardInfo() {
+    if (!currentStudent) return;
+    
+    const studentInfo = document.getElementById('studentInfo');
+    const currentScore = document.getElementById('currentScore');
+    
+    if (!studentInfo) return;
+    
+    let progressInfo = '';
+    
+    if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
+        const progressPercent = Math.round(((currentStudent.lastQuestion + 1) / questions.length) * 100);
+        progressInfo = `
+            <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                <h4 style="margin:0 0 10px 0;">📚 يمكنك متابعة من حيث توقفت</h4>
+                <p style="margin:5px 0;">السؤال: ${currentStudent.lastQuestion + 1} من ${questions.length}</p>
+                <p style="margin:5px 0;">التقدم: ${progressPercent}%</p>
+                <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 8px; margin: 10px 0; overflow: hidden;">
+                    <div style="background: #27ae60; height: 100%; border-radius: 10px; width: ${progressPercent}%;"></div>
+                </div>
+            </div>
+        `;
+    } else if (currentStudent.lastQuestion >= questions.length) {
+        progressInfo = `
+            <div style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                <h4 style="margin:0 0 10px 0;">🎉 تم إكمال جميع الأسئلة!</h4>
+                <p style="margin:0;">يمكنك بدء اختبار جديد أو مراجعة النتائج</p>
+            </div>
+        `;
+    }
+
+    studentInfo.innerHTML = `
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; border-radius: 15px; margin-bottom: 15px;">
+                <h3 style="margin: 0 0 10px 0;">مرحباً ${currentStudent.name}</h3>
+                <p style="margin: 5px 0; opacity: 0.9;">الصف ${currentStudent.grade}</p>
+                <p style="margin: 5px 0; opacity: 0.9;">رقم الطالب: ${currentStudent.code}</p>
+            </div>
+            ${progressInfo}
+        </div>
+    `;
+
+    if (currentScore) {
+        currentScore.textContent = currentStudent.score || 0;
+    }
+}
+
+// ==========================================
+// 10. بدء الاختبار
+// ==========================================
+window.startTest = async function() {
+    if (!currentStudent) {
+        showNotification('يرجى تسجيل الدخول أولاً', 'error');
+        return;
+    }
+
+    try {
+        showNotification('جاري تحميل الأسئلة...', 'info');
+        
+        // تحميل الأسئلة من قاعدة البيانات
+        const questionsQuery = query(
+            collection(db, 'questions'),
+            where('active', '==', true)
+        );
+        const questionsSnapshot = await getDocs(questionsQuery);
+        
+        if (!questionsSnapshot.empty) {
+            questions = [];
+            questionsSnapshot.forEach((doc) => {
+                questions.push({ id: doc.id, ...doc.data() });
+            });
+        }
+        
+        // استخدام الأسئلة الافتراضية إذا لم تكن هناك أسئلة
+        if (questions.length === 0) {
+            questions = [...questionBank];
+            showNotification('جاري استخدام بنك الأسئلة الافتراضي', 'info');
+        }
+
+        // التحقق من وجود تقدم محفوظ
+        if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
+            const resumeConfirm = confirm(
+                `لديك تقدم محفوظ:\n\n` +
+                `السؤال: ${currentStudent.lastQuestion + 1} من ${questions.length}\n` +
+                `النقاط الحالية: ${currentStudent.score || 0}\n\n` +
+                `هل تريد المتابعة من حيث توقفت؟\n` +
+                `(موافق = متابعة | إلغاء = بدء جديد)`
+            );
+            
+            if (resumeConfirm) {
+                currentQuestion = currentStudent.lastQuestion;
+                studentAnswers = currentStudent.lastAnswers || [];
+                showNotification('تم استئناف الاختبار من حيث توقفت', 'success');
+            } else {
+                currentQuestion = 0;
+                studentAnswers = [];
+                showNotification('بدء اختبار جديد', 'info');
+            }
+        } else {
+            currentQuestion = 0;
+            studentAnswers = [];
+        }
+
+        showSection('testSection');
+        displayQuestion();
+        startAutoSave();
+
+    } catch (error) {
+        console.error('خطأ في تحميل الأسئلة:', error);
+        showNotification('حدث خطأ في تحميل الأسئلة', 'error');
     }
 };
 
-// 6. تعطيل التحقق الفوري من الاسم (يسبب ضغط)
+// ==========================================
+// 11. عرض السؤال
+// ==========================================
+function displayQuestion() {
+    if (currentQuestion >= questions.length) {
+        showNotification('تم الانتهاء من جميع الأسئلة!', 'success');
+        clearSavedProgress();
+        stopAutoSave();
+        showSection('dashboard');
+        return;
+    }
+
+    const question = questions[currentQuestion];
+    const container = document.getElementById('questionContainer');
+    const previousAnswer = studentAnswers[currentQuestion];
+    
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="question-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                <span style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 8px 15px; border-radius: 20px; font-size: 0.9em;">
+                    ${question.subject}
+                </span>
+                <span style="color: #666; font-size: 0.9em; font-weight: 500;">
+                    السؤال ${currentQuestion + 1} من ${questions.length}
+                </span>
+            </div>
+            ${previousAnswer !== undefined ? 
+                '<div style="background: #e3f2fd; padding: 10px; border-radius: 8px; margin: 10px 0; color: #1565c0; font-size: 0.9em;">✓ تمت الإجابة على هذا السؤال مسبقاً</div>' : 
+                ''
+            }
+            <div class="question-text">
+                <strong>السؤال ${currentQuestion + 1}:</strong> ${question.question}
+            </div>
+            <div class="options">
+                ${question.options.map((option, index) => `
+                    <div class="option ${previousAnswer === index ? 'selected' : ''}" 
+                         onclick="selectOption(${index})" 
+                         data-index="${index}">
+                        ${String.fromCharCode(65 + index)}) ${option}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    const progress = ((currentQuestion + 1) / questions.length) * 100;
+    const progressFill = document.getElementById('progressFill');
+    if (progressFill) {
+        progressFill.style.width = progress + '%';
+    }
+
+    const nextBtn = document.getElementById('nextBtn');
+    if (nextBtn) {
+        if (currentQuestion === questions.length - 1) {
+            nextBtn.textContent = 'إنهاء الاختبار';
+            nextBtn.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+        } else {
+            nextBtn.textContent = 'التالي';
+            nextBtn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+        }
+    }
+}
+
+// ==========================================
+// 12. اختيار إجابة
+// ==========================================
+window.selectOption = function(index) {
+    const options = document.querySelectorAll('.option');
+    options.forEach(option => option.classList.remove('selected'));
+    
+    if (options[index]) {
+        options[index].classList.add('selected');
+    }
+    
+    studentAnswers[currentQuestion] = index;
+};
+
+// ==========================================
+// 13. الانتقال للسؤال التالي
+// ==========================================
+window.nextQuestion = async function() {
+    if (studentAnswers[currentQuestion] === undefined) {
+        showNotification('يرجى اختيار إجابة قبل الانتقال للسؤال التالي', 'error');
+        return;
+    }
+
+    const question = questions[currentQuestion];
+    const selectedAnswer = studentAnswers[currentQuestion];
+    const isCorrect = selectedAnswer === question.correct;
+
+    // إظهار الإجابة الصحيحة والخاطئة
+    const options = document.querySelectorAll('.option');
+    if (options[question.correct]) {
+        options[question.correct].classList.add('correct');
+    }
+    if (!isCorrect && options[selectedAnswer]) {
+        options[selectedAnswer].classList.add('wrong');
+    }
+
+    // تحديث النقاط
+    if (isCorrect) {
+        currentStudent.score = (currentStudent.score || 0) + 1;
+        showNotification('إجابة صحيحة! +1 نقطة', 'success');
+    } else {
+        currentStudent.score = Math.max(0, (currentStudent.score || 0) - 1);
+        showNotification('إجابة خاطئة! -1 نقطة', 'error');
+    }
+
+    // تحديث في قاعدة البيانات
+    try {
+        const studentQuery = query(
+            collection(db, 'students'),
+            where('code', '==', currentStudent.code),
+            limit(1)
+        );
+        const querySnapshot = await getDocs(studentQuery);
+        
+        if (!querySnapshot.empty) {
+            const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+            await updateDoc(studentDocRef, {
+                score: currentStudent.score,
+                questionsAnswered: (currentStudent.questionsAnswered || 0) + 1,
+                lastActive: new Date()
+            });
+        }
+    } catch (error) {
+        console.error('خطأ في تحديث النقاط:', error);
+    }
+
+    const scoreElement = document.getElementById('currentScore');
+    if (scoreElement) {
+        scoreElement.textContent = currentStudent.score;
+    }
+
+    // الانتقال للسؤال التالي بعد ثانيتين
+    setTimeout(() => {
+        currentQuestion++;
+        displayQuestion();
+    }, 2000);
+};
+
+// ==========================================
+// 14. حفظ والخروج
+// ==========================================
+window.saveAndExit = async function() {
+    if (!currentStudent) {
+        showNotification('خطأ: لم يتم العثور على بيانات الطالب', 'error');
+        return;
+    }
+
+    const saveBtn = document.querySelector('#testSection .btn.secondary');
+    if (saveBtn) setLoading(saveBtn, true);
+
+    try {
+        const studentQuery = query(
+            collection(db, 'students'),
+            where('code', '==', currentStudent.code),
+            limit(1)
+        );
+        const querySnapshot = await getDocs(studentQuery);
+        
+        if (!querySnapshot.empty) {
+            const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+            
+            await updateDoc(studentDocRef, {
+                lastQuestion: currentQuestion,
+                lastAnswers: studentAnswers,
+                score: currentStudent.score,
+                lastActive: new Date(),
+                savedAt: new Date()
+            });
+            
+            currentStudent.lastQuestion = currentQuestion;
+            currentStudent.lastAnswers = studentAnswers;
+            
+            showNotification(
+                `تم حفظ التقدم بنجاح!\nالسؤال الحالي: ${currentQuestion + 1} من ${questions.length}\nالنقاط: ${currentStudent.score}`, 
+                'success'
+            );
+            
+            stopAutoSave();
+            updateDashboardInfo();
+            showSection('dashboard');
+        } else {
+            showNotification('خطأ: لم يتم العثور على الطالب في قاعدة البيانات', 'error');
+        }
+        
+    } catch (error) {
+        console.error('خطأ في الحفظ:', error);
+        showNotification('حدث خطأ أثناء الحفظ. يرجى المحاولة مرة أخرى', 'error');
+    } finally {
+        if (saveBtn) setLoading(saveBtn, false, 'حفظ وخروج');
+    }
+};
+
+// ==========================================
+// 15. مسح التقدم المحفوظ
+// ==========================================
+async function clearSavedProgress() {
+    if (!currentStudent) return;
+    
+    try {
+        const studentQuery = query(
+            collection(db, 'students'),
+            where('code', '==', currentStudent.code),
+            limit(1)
+        );
+        const querySnapshot = await getDocs(studentQuery);
+        
+        if (!querySnapshot.empty) {
+            const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+            await updateDoc(studentDocRef, {
+                lastQuestion: questions.length,
+                lastAnswers: [],
+                completedAt: new Date(),
+                lastActive: new Date()
+            });
+            
+            currentStudent.lastQuestion = questions.length;
+            currentStudent.lastAnswers = [];
+        }
+    } catch (error) {
+        console.error('خطأ في مسح التقدم:', error);
+    }
+}
+
+// ==========================================
+// 16. عرض النتائج
+// ==========================================
+window.showResults = async function() {
+    try {
+        showNotification('جاري تحميل النتائج...', 'info');
+        
+        const studentsSnapshot = await getDocs(collection(db, 'students'));
+        const allStudents = studentsSnapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+        }));
+
+        // ترتيب حسب النقاط
+        allStudents.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+        // طلاب نفس الصف
+        const classStudents = allStudents.filter(student => 
+            student.grade === currentStudent.grade
+        );
+        
+        // عرض ترتيب الصف
+        const classLeaderboard = document.getElementById('classLeaderboard');
+        if (classLeaderboard) {
+            if (classStudents.length === 0) {
+                classLeaderboard.innerHTML = `
+                    <div style="text-align:center;padding:20px;color:#666;">
+                        <p>لا توجد بيانات لعرضها</p>
+                    </div>
+                `;
+            } else {
+                classLeaderboard.innerHTML = classStudents.slice(0, 10).map((student, index) => {
+                    const isCurrentStudent = student.code === currentStudent.code;
+                    const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+                    
+                    return `
+                        <div class="leaderboard-item ${rankClass}" 
+                             style="${isCurrentStudent ? 'border: 3px solid #667eea; box-shadow: 0 0 15px rgba(102, 126, 234, 0.3);' : ''}">
+                            <div class="rank">${index + 1}</div>
+                            <div class="student-name">
+                                ${student.name} ${isCurrentStudent ? '(أنت)' : ''}
+                            </div>
+                            <div class="student-score">${student.score || 0} نقطة</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // عرض ترتيب المدرسة
+        const schoolLeaderboard = document.getElementById('schoolLeaderboard');
+        if (schoolLeaderboard) {
+            if (allStudents.length === 0) {
+                schoolLeaderboard.innerHTML = `
+                    <div style="text-align:center;padding:20px;color:#666;">
+                        <p>لا توجد بيانات لعرضها</p>
+                    </div>
+                `;
+            } else {
+                schoolLeaderboard.innerHTML = allStudents.slice(0, 10).map((student, index) => {
+                    const isCurrentStudent = student.code === currentStudent.code;
+                    const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+                    
+                    return `
+                        <div class="leaderboard-item ${rankClass}"
+                             style="${isCurrentStudent ? 'border: 3px solid #667eea; box-shadow: 0 0 15px rgba(102, 126, 234, 0.3);' : ''}">
+                            <div class="rank">${index + 1}</div>
+                            <div class="student-name">
+                                ${student.name} - الصف ${student.grade} ${isCurrentStudent ? '(أنت)' : ''}
+                            </div>
+                            <div class="student-score">${student.score || 0} نقطة</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        showSection('resultsSection');
+        showNotification('تم تحميل النتائج بنجاح', 'success');
+
+    } catch (error) {
+        console.error('خطأ في تحميل النتائج:', error);
+        showNotification('حدث خطأ أثناء تحميل النتائج', 'error');
+    }
+};
+
+// ==========================================
+// 17. العودة للوحة القيادة
+// ==========================================
+window.backToDashboard = function() {
+    updateDashboardInfo();
+    showSection('dashboard');
+};
+
+// ==========================================
+// 18. تسجيل الخروج
+// ==========================================
+window.logout = function() {
+    if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
+        const saveBeforeLogout = confirm(
+            'لديك اختبار جاري.\n\n' +
+            'هل تريد حفظ التقدم قبل تسجيل الخروج؟\n\n' +
+            '(موافق = حفظ وخروج | إلغاء = خروج بدون حفظ)'
+        );
+        
+        if (saveBeforeLogout) {
+            saveAndExit().then(() => {
+                performLogout();
+            });
+            return;
+        }
+    }
+    
+    performLogout();
+};
+
+function performLogout() {
+    currentStudent = null;
+    currentQuestion = 0;
+    studentAnswers = [];
+    
+    // مسح النماذج
+    const studentName = document.getElementById('studentName');
+    const studentGrade = document.getElementById('studentGrade');
+    const loginCode = document.getElementById('loginCode');
+    const loginName = document.getElementById('loginName');
+    const nameCheckResult = document.getElementById('nameCheckResult');
+    const searchResults = document.getElementById('searchResults');
+    
+    if (studentName) studentName.value = '';
+    if (studentGrade) studentGrade.value = '';
+    if (loginCode) loginCode.value = '';
+    if (loginName) loginName.value = '';
+    if (nameCheckResult) nameCheckResult.innerHTML = '';
+    if (searchResults) searchResults.innerHTML = '';
+    
+    // مسح التخزين المحلي
+    localStorage.removeItem('nafis_last_login');
+    
+    stopAutoSave();
+    showNotification('تم تسجيل الخروج بنجاح', 'info');
+    showSection('registration');
+}
+
+// ==========================================
+// 19. نسخ رقم الطالب
+// ==========================================
+window.copyStudentCode = function(code) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(code).then(() => {
+            showNotification('✅ تم نسخ رقم الطالب بنجاح: ' + code, 'success');
+        }).catch(() => {
+            fallbackCopy(code);
+        });
+    } else {
+        fallbackCopy(code);
+    }
+};
+
+function fallbackCopy(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        showNotification('✅ تم نسخ رقم الطالب: ' + text, 'success');
+    } catch (err) {
+        prompt('انسخ هذا الرقم يدوياً:', text);
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// ==========================================
+// 20. التحقق من الاسم (محسّن)
+// ==========================================
 function setupNameChecking() {
     const nameInput = document.getElementById('studentName');
     const nameCheckResult = document.getElementById('nameCheckResult');
     
     if (!nameInput || !nameCheckResult) return;
     
-    let checkTimeout;
-    
     nameInput.addEventListener('input', function() {
-        clearTimeout(checkTimeout);
-        const name = this.value.trim();
+        const name = this.value.trim().replace(/\s+/g, ' ');
         
         if (name.length < 3) {
             nameCheckResult.innerHTML = '';
@@ -326,7 +1089,7 @@ function setupNameChecking() {
         
         if (nameParts.length < 3) {
             nameCheckResult.innerHTML = 
-                '<span class="name-check-warning">⚠️ أدخل الاسم الرباعي كاملاً</span>';
+                '<span class="name-check-warning">⚠️ يرجى إدخال الاسم الرباعي كاملاً (3 أجزاء على الأقل)</span>';
         } else {
             nameCheckResult.innerHTML = 
                 '<span class="name-check-success">✅ الاسم بصيغة صحيحة</span>';
@@ -334,10 +1097,11 @@ function setupNameChecking() {
     });
 }
 
-// 7. تحسين Auto-save - كل دقيقة بدلاً من 30 ثانية
-let autoSaveInterval;
+// ==========================================
+// 21. الحفظ التلقائي
+// ==========================================
 function startAutoSave() {
-    if (autoSaveInterval) clearInterval(autoSaveInterval);
+    stopAutoSave(); // إيقاف أي حفظ تلقائي سابق
     
     autoSaveInterval = setInterval(async () => {
         if (!currentStudent || document.getElementById('testSection').classList.contains('hidden')) {
@@ -358,74 +1122,249 @@ function startAutoSave() {
                     lastQuestion: currentQuestion,
                     lastAnswers: studentAnswers,
                     score: currentStudent.score,
-                    lastActive: new Date()
+                    lastActive: new Date(),
+                    autoSavedAt: new Date()
                 });
                 
-                // مؤشر بصري بسيط
-                console.log('💾 Auto-saved');
+                console.log('💾 تم الحفظ التلقائي:', new Date().toLocaleTimeString('ar-SA'));
             }
         } catch (error) {
-            console.error('Auto-save error:', error);
+            console.error('خطأ في الحفظ التلقائي:', error);
         }
-    }, 60000); // كل دقيقة بدلاً من 30 ثانية
+    }, 60000); // كل دقيقة
 }
 
-// 8. تحميل تلقائي من localStorage
+function stopAutoSave() {
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+        autoSaveInterval = null;
+    }
+}
+
+// ==========================================
+// 22. تحديث إحصائيات الرأس
+// ==========================================
+async function updateHeaderStats() {
+    try {
+        const headerTotalQuestions = document.getElementById('headerTotalQuestions');
+        const headerActiveStudents = document.getElementById('headerActiveStudents');
+        const headerTotalPoints = document.getElementById('headerTotalPoints');
+        
+        if (!headerTotalQuestions || !headerActiveStudents || !headerTotalPoints) return;
+        
+        // استخدام التخزين المحلي للإحصائيات
+        const cachedStats = localStorage.getItem('nafis_stats_cache');
+        const cacheTime = localStorage.getItem('nafis_stats_cache_time');
+        
+        // إذا كان هناك كاش حديث (أقل من 5 دقائق)
+        if (cachedStats && cacheTime) {
+            const timeDiff = Date.now() - parseInt(cacheTime);
+            if (timeDiff < 5 * 60 * 1000) { // 5 دقائق
+                const stats = JSON.parse(cachedStats);
+                headerTotalQuestions.textContent = stats.questions || 5;
+                headerActiveStudents.textContent = stats.students || 0;
+                headerTotalPoints.textContent = stats.points || 0;
+                return;
+            }
+        }
+        
+        // تحديث من قاعدة البيانات
+        const questionsQuery = query(
+            collection(db, 'questions'),
+            where('active', '==', true)
+        );
+        const questionsSnapshot = await getDocs(questionsQuery);
+        
+        const studentsQuery = query(
+            collection(db, 'students'),
+            limit(200)
+        );
+        const studentsSnapshot = await getDocs(studentsQuery);
+        
+        let totalPoints = 0;
+        studentsSnapshot.forEach(doc => {
+            const data = doc.data();
+            totalPoints += data.score || 0;
+        });
+        
+        const stats = {
+            questions: questionsSnapshot.size || 5,
+            students: studentsSnapshot.size || 0,
+            points: totalPoints
+        };
+        
+        // حفظ في الكاش
+        localStorage.setItem('nafis_stats_cache', JSON.stringify(stats));
+        localStorage.setItem('nafis_stats_cache_time', Date.now().toString());
+        
+        headerTotalQuestions.textContent = stats.questions;
+        headerActiveStudents.textContent = stats.students;
+        headerTotalPoints.textContent = stats.points;
+        
+    } catch (error) {
+        console.error('خطأ في تحديث الإحصائيات:', error);
+    }
+}
+
+// ==========================================
+// 23. تسجيل دخول تلقائي
+// ==========================================
 function autoLogin() {
     try {
-        const saved = localStorage.getItem('nafis_student');
+        const saved = localStorage.getItem('nafis_last_login');
         if (!saved) return;
         
         const data = JSON.parse(saved);
         const hoursPassed = (Date.now() - data.timestamp) / (1000 * 60 * 60);
         
         // تسجيل دخول تلقائي إذا كان أقل من 24 ساعة
-        if (hoursPassed < 24 && data.code) {
-            document.getElementById('loginCode').value = data.code;
-            showNotification('تم العثور على حساب محفوظ: ' + data.name, 'info');
+        if (hoursPassed < 24 && data.code && data.name) {
+            const loginCode = document.getElementById('loginCode');
+            if (loginCode) {
+                loginCode.value = data.code;
+            }
+            
+            showNotification(`تم العثور على آخر تسجيل دخول: ${data.name}`, 'info');
+            
+            // عرض زر تسجيل دخول سريع
+            const loginSection = document.getElementById('login');
+            if (loginSection) {
+                const quickLoginBtn = document.createElement('button');
+                quickLoginBtn.className = 'btn success';
+                quickLoginBtn.textContent = `تسجيل دخول سريع كـ ${data.name}`;
+                quickLoginBtn.onclick = loginStudent;
+                quickLoginBtn.style.marginTop = '10px';
+                
+                const loginWithCode = document.getElementById('loginWithCode');
+                if (loginWithCode) {
+                    loginWithCode.appendChild(quickLoginBtn);
+                }
+            }
         }
     } catch (error) {
-        console.error('Auto-login error:', error);
+        console.error('خطأ في التسجيل التلقائي:', error);
     }
 }
 
-// 9. تعطيل تحديث الإحصائيات المستمر
-async function updateHeaderStats() {
+// ==========================================
+// 24. تهيئة بنك الأسئلة
+// ==========================================
+async function initializeQuestions() {
     try {
-        // فقط عند تحميل الصفحة - ليس بشكل مستمر
-        const studentsCount = localStorage.getItem('nafis_stats_count') || '0';
-        const questionsCount = localStorage.getItem('nafis_questions_count') || '5';
+        const questionsSnapshot = await getDocs(collection(db, 'questions'));
         
-        document.getElementById('headerActiveStudents').textContent = studentsCount;
-        document.getElementById('headerTotalQuestions').textContent = questionsCount;
-        
-        // تحديث خفيف مرة واحدة
-        const studentsSnapshot = await getDocs(query(collection(db, 'students'), limit(1)));
-        // لا نحسب الكل - فقط نعرض رقم تقريبي
-        
+        if (questionsSnapshot.empty) {
+            console.log('إضافة الأسئلة الافتراضية...');
+            
+            for (const question of questionBank) {
+                await addDoc(collection(db, 'questions'), question);
+            }
+            
+            console.log('✅ تم إضافة الأسئلة الافتراضية بنجاح');
+        }
     } catch (error) {
-        console.error('Stats error:', error);
+        console.error('خطأ في تهيئة الأسئلة:', error);
     }
 }
 
-// 10. تهيئة محسّنة
+// ==========================================
+// 25. معالجة الأحداث
+// ==========================================
+
+// اختصارات لوحة المفاتيح
+document.addEventListener('keydown', (event) => {
+    // Enter للتسجيل/الدخول
+    if (event.key === 'Enter') {
+        if (!document.getElementById('login').classList.contains('hidden')) {
+            const loginCode = document.getElementById('loginCode');
+            const loginName = document.getElementById('loginName');
+            
+            if (document.activeElement === loginCode && loginCode.value) {
+                loginStudent();
+            } else if (document.activeElement === loginName && loginName.value) {
+                searchByName();
+            }
+        }
+        
+        if (!document.getElementById('registration').classList.contains('hidden')) {
+            const studentName = document.getElementById('studentName');
+            const studentGrade = document.getElementById('studentGrade');
+            
+            if (studentName.value && studentGrade.value) {
+                registerStudent();
+            }
+        }
+    }
+    
+    // اختصارات الاختبار
+    if (!document.getElementById('testSection').classList.contains('hidden')) {
+        // أرقام 1-4 لاختيار الإجابة
+        if (event.key >= '1' && event.key <= '4') {
+            const optionIndex = parseInt(event.key) - 1;
+            const options = document.querySelectorAll('.option');
+            if (options[optionIndex]) {
+                selectOption(optionIndex);
+            }
+        }
+        
+        // Enter للانتقال للسؤال التالي
+        if (event.key === 'Enter') {
+            nextQuestion();
+        }
+        
+        // Escape للحفظ والخروج
+        if (event.key === 'Escape') {
+            if (confirm('هل تريد حفظ التقدم والخروج؟')) {
+                saveAndExit();
+            }
+        }
+    }
+});
+
+// مراقبة حالة الاتصال بالإنترنت
+window.addEventListener('online', () => {
+    showNotification('✅ تم استعادة الاتصال بالإنترنت', 'success');
+});
+
+window.addEventListener('offline', () => {
+    showNotification('⚠️ انقطع الاتصال بالإنترنت. سيتم حفظ التقدم عند استعادة الاتصال', 'error');
+});
+
+// منع إعادة تحميل الصفحة أثناء الاختبار
+window.addEventListener('beforeunload', (event) => {
+    if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
+        event.preventDefault();
+        event.returnValue = 'لديك اختبار جارٍ. هل أنت متأكد من الخروج؟';
+        return event.returnValue;
+    }
+});
+
+// ==========================================
+// 26. تهيئة التطبيق
+// ==========================================
 function initApp() {
+    console.log('🚀 بدء تحميل نظام ناافس...');
+    
     showSection('registration');
     setupNameChecking();
     autoLogin();
+    initializeQuestions();
     updateHeaderStats();
     
-    // بدء Auto-save عند بدء الاختبار
-    window.startTest = (function(original) {
-        return async function() {
-            await original.apply(this, arguments);
-            startAutoSave();
-        };
-    })(window.startTest);
+    // تحديث الإحصائيات كل 5 دقائق
+    setInterval(updateHeaderStats, 5 * 60 * 1000);
+    
+    console.log('✅ تم تحميل نظام ناافس بنجاح');
 }
 
-// تشغيل التطبيق
-document.addEventListener('DOMContentLoaded', initApp);
-initApp();
+// ==========================================
+// 27. تشغيل التطبيق
+// ==========================================
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
-console.log('✅ Nafis Performance Optimization Loaded');
+// نسخة احتياطية للتشغيل
+setTimeout(initApp, 1000);
