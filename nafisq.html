@@ -901,7 +901,8 @@
     <script type="module">
         // Firebase Configuration
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, writeBatch, enableIndexedDbPersistence } from "https://www.gstatic.com/
+            firebasejs/10.7.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD28cfba2NmXlsfBci9jgbne21U9rZLJ2M",
@@ -916,6 +917,15 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // تفعيل Offline Persistence
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.log('Persistence failed: Multiple tabs open');
+            } else if (err.code == 'unimplemented') {
+                console.log('Persistence not available');
+            }
+        });
+
         // Global variables
         let currentStudent = null;
         let currentQuestion = 0;
@@ -929,35 +939,40 @@
                 question: "ما هو حاصل ضرب 7 × 8؟",
                 options: ["54", "56", "58", "60"],
                 correct: 1,
-                subject: "رياضيات"
+                subject: "رياضيات",
+                active: true
             },
             {
                 id: 2,
                 question: "ما هي عاصمة المملكة العربية السعودية؟",
                 options: ["جدة", "الرياض", "الدمام", "مكة المكرمة"],
                 correct: 1,
-                subject: "جغرافيا"
+                subject: "جغرافيا",
+                active: true
             },
             {
                 id: 3,
                 question: "كم عدد أركان الإسلام؟",
                 options: ["4", "5", "6", "7"],
                 correct: 1,
-                subject: "تربية إسلامية"
+                subject: "تربية إسلامية",
+                active: true
             },
             {
                 id: 4,
                 question: "ما هو أكبر كوكب في النظام الشمسي؟",
                 options: ["الأرض", "المشتري", "زحل", "المريخ"],
                 correct: 1,
-                subject: "علوم"
+                subject: "علوم",
+                active: true
             },
             {
                 id: 5,
                 question: "من هو أول خليفة راشد؟",
                 options: ["عمر بن الخطاب", "أبو بكر الصديق", "عثمان بن عفان", "علي بن أبي طالب"],
                 correct: 1,
-                subject: "تاريخ"
+                subject: "تاريخ",
+                active: true
             }
         ];
 
@@ -1030,7 +1045,7 @@
                         return;
                     }
 
-                    nameCheckResult.innerHTML = '<span style="color: #666;">جارٍ التحقق...</span>';
+                    nameCheckResult.innerHTML = '<span style="color: #666;">جار التحقق...</span>';
 
                     checkTimeout = setTimeout(async () => {
                         try {
@@ -1103,6 +1118,7 @@
                     code: studentCode,
                     score: 0,
                     questionsAnswered: 0,
+                    testCompleted: false,
                     createdAt: new Date(),
                     lastActive: new Date()
                 };
@@ -1287,7 +1303,16 @@
             const studentInfo = document.getElementById('studentInfo');
             let progressInfo = '';
             
-            if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
+            // إذا تم اكتمال الاختبار
+            if (currentStudent.testCompleted === true) {
+                progressInfo = `
+                    <div style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                        <h4>🎉 تم إكمال جميع الأسئلة!</h4>
+                        <p>لقد أنهيت الاختبار بنجاح</p>
+                        <p>يمكنك الآن مراجعة النتائج والترتيب</p>
+                    </div>
+                `;
+            } else if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
                 const progressPercent = Math.round(((currentStudent.lastQuestion + 1) / questions.length) * 100);
                 progressInfo = `
                     <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 15px; border-radius: 10px; margin: 15px 0;">
@@ -1297,13 +1322,6 @@
                         <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 8px; margin: 10px 0;">
                             <div style="background: #27ae60; height: 100%; border-radius: 10px; width: ${progressPercent}%;"></div>
                         </div>
-                    </div>
-                `;
-            } else if (currentStudent.lastQuestion >= questions.length) {
-                progressInfo = `
-                    <div style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 15px; border-radius: 10px; margin: 15px 0;">
-                        <h4>🎉 تم إكمال جميع الأسئلة!</h4>
-                        <p>يمكنك بدء اختبار جديد أو مراجعة النتائج</p>
                     </div>
                 `;
             }
@@ -1327,9 +1345,15 @@
                 return;
             }
 
+            // منع إعادة الاختبار بعد اكتماله
+            if (currentStudent.testCompleted === true) {
+                showNotification('لقد أكملت الاختبار بالفعل! يمكنك فقط مراجعة النتائج', 'error');
+                return;
+            }
+
             // Load fresh questions from database
             try {
-                showNotification('جارٍ تحميل الأسئلة...', 'info');
+                showNotification('جار تحميل الأسئلة...', 'info');
                 const questionsQuery = query(collection(db, 'questions'), where('active', '==', true));
                 const questionsSnapshot = await getDocs(questionsQuery);
                 
@@ -1382,7 +1406,23 @@
         // Display question
         function displayQuestion() {
             if (currentQuestion >= questions.length) {
-                showNotification('تم الانتهاء من جميع الأسئلة!', 'success');
+                // تحديث حالة اكتمال الاختبار
+                if (currentStudent) {
+                    const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
+                    getDocs(studentQuery).then(querySnapshot => {
+                        if (!querySnapshot.empty) {
+                            const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+                            updateDoc(studentDocRef, {
+                                testCompleted: true,
+                                completedAt: new Date(),
+                                lastActive: new Date()
+                            });
+                            currentStudent.testCompleted = true;
+                        }
+                    });
+                }
+                
+                showNotification('تم الانتهاء من جميع الأسئلة! لقد أكملت الاختبار', 'success');
                 clearSavedProgress();
                 showSection('dashboard');
                 return;
@@ -1769,7 +1809,7 @@
         window.addEventListener('beforeunload', (event) => {
             if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
                 event.preventDefault();
-                event.returnValue = 'لديك اختبار جارٍ. هل أنت متأكد من الخروج؟';
+                event.returnValue = 'لديك اختبار جار. هل أنت متأكد من الخروج؟';
                 return event.returnValue;
             }
         });
