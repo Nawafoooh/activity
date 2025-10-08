@@ -662,7 +662,6 @@
         let questions = [];
         let studentAnswers = [];
 
-        // الأسئلة الافتراضية (في حالة عدم وجود أسئلة في Firebase)
         const defaultQuestions = [
             {
                 id: 1,
@@ -731,7 +730,6 @@
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
-        // ✅ دالة تحميل الأسئلة من Firebase أو استخدام الافتراضية
         async function loadQuestions() {
             try {
                 console.log('🔄 جاري تحميل الأسئلة من Firebase...');
@@ -948,15 +946,56 @@
             if (!currentStudent) return;
             
             const studentInfo = document.getElementById('studentInfo');
-            let progressInfo = '';
+            const questionsAnswered = currentStudent.questionsAnswered || 0;
+            const isCompleted = questionsAnswered >= 100;
             
-            if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
+            let progressInfo = '';
+            let statusBadge = '';
+            
+            if (isCompleted) {
+                // ✅ إذا أكمل 100 سؤال
+                statusBadge = `
+                    <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 20px; border-radius: 15px; margin: 15px 0; text-align: center;">
+                        <h3 style="margin-bottom: 10px;">✅ تم إكمال الاختبار</h3>
+                        <p style="font-size: 1.2em; margin: 10px 0;">أجبت على <strong>100 سؤال</strong> كاملة 🎉</p>
+                        <p style="font-size: 1em; margin: 10px 0;">نقاطك النهائية: <strong>${currentStudent.score || 0}</strong></p>
+                        <p style="font-size: 0.9em; opacity: 0.9; margin-top: 15px;">🚫 لا يمكن إعادة الاختبار</p>
+                    </div>
+                `;
+                
+                // إخفاء زر بدء الاختبار
+                setTimeout(() => {
+                    const startTestBtn = document.querySelector('button[onclick="startTest()"]');
+                    if (startTestBtn) {
+                        startTestBtn.disabled = true;
+                        startTestBtn.style.opacity = '0.5';
+                        startTestBtn.style.cursor = 'not-allowed';
+                        startTestBtn.textContent = '✓ تم إكمال الاختبار';
+                    }
+                }, 100);
+                
+            } else if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
+                // ✅ إذا كان لديه تقدم محفوظ
                 const progressPercent = Math.round(((currentStudent.lastQuestion + 1) / questions.length) * 100);
+                const remaining = 100 - questionsAnswered;
+                
                 progressInfo = `
                     <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 15px; border-radius: 10px; margin: 15px 0;">
                         <h4>📚 يمكنك متابعة من حيث توقفت</h4>
                         <p>السؤال: ${currentStudent.lastQuestion + 1} من ${questions.length}</p>
+                        <p>أجبت على: ${questionsAnswered} من 100 سؤال</p>
+                        <p>الأسئلة المتبقية: ${remaining}</p>
                         <p>التقدم: ${progressPercent}%</p>
+                    </div>
+                `;
+            } else {
+                // ✅ عرض التقدم العام
+                const remaining = 100 - questionsAnswered;
+                progressInfo = `
+                    <div style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                        <h4>📊 إحصائياتك</h4>
+                        <p>أجبت على: ${questionsAnswered} من 100 سؤال</p>
+                        <p>الأسئلة المتبقية: ${remaining}</p>
                     </div>
                 `;
             }
@@ -966,6 +1005,7 @@
                     <h3>مرحباً ${currentStudent.name}</h3>
                     <p>الصف: ${currentStudent.grade}</p>
                     <p>رقم الطالب: ${currentStudent.code}</p>
+                    ${statusBadge}
                     ${progressInfo}
                 </div>
             `;
@@ -979,7 +1019,39 @@
                 return;
             }
 
-            // ✅ تحميل الأسئلة من Firebase أو استخدام الافتراضية
+            // ✅ فحص إذا أكمل الطالب 100 سؤال
+            const questionsAnswered = currentStudent.questionsAnswered || 0;
+            if (questionsAnswered >= 100) {
+                showNotification('🎉 تهانينا! لقد أكملت 100 سؤال بنجاح', 'error');
+                
+                // عرض رسالة تفصيلية
+                const completionMessage = `
+                    <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 20px; border-radius: 15px; margin: 20px 0; text-align: center;">
+                        <h3 style="margin-bottom: 15px;">✅ تم إكمال الاختبار</h3>
+                        <p style="font-size: 1.1em; margin: 10px 0;">لقد أجبت على <strong>100 سؤال</strong> كاملة</p>
+                        <p style="font-size: 1em; margin: 10px 0;">نقاطك النهائية: <strong>${currentStudent.score || 0}</strong></p>
+                        <p style="font-size: 0.9em; margin-top: 15px; opacity: 0.9;">🚫 لا يمكن إعادة الاختبار</p>
+                    </div>
+                `;
+                
+                document.getElementById('studentInfo').innerHTML += completionMessage;
+                
+                // إخفاء زر بدء الاختبار
+                const startTestBtn = document.querySelector('button[onclick="startTest()"]');
+                if (startTestBtn) {
+                    startTestBtn.disabled = true;
+                    startTestBtn.style.opacity = '0.5';
+                    startTestBtn.style.cursor = 'not-allowed';
+                    startTestBtn.textContent = '✓ تم إكمال الاختبار';
+                }
+                
+                return; // منع المتابعة
+            }
+
+            // ✅ حساب الأسئلة المتبقية
+            const remainingQuestions = 100 - questionsAnswered;
+            
+            // تحميل الأسئلة من Firebase أو استخدام الافتراضية
             await loadQuestions();
 
             if (questions.length === 0) {
@@ -987,10 +1059,14 @@
                 return;
             }
 
+            // عرض عدد الأسئلة المتبقية
+            showNotification(`باقي لك ${remainingQuestions} سؤال من أصل 100`, 'info');
+
             if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
                 const resumeConfirm = confirm(
                     `هل تريد متابعة من حيث توقفت؟\n` +
-                    `السؤال: ${currentStudent.lastQuestion + 1} من ${questions.length}\n\n` +
+                    `السؤال: ${currentStudent.lastQuestion + 1} من ${questions.length}\n` +
+                    `الأسئلة المتبقية: ${remainingQuestions} من 100\n\n` +
                     `اضغط "موافق" للمتابعة، أو "إلغاء" للبدء من جديد`
                 );
                 
@@ -1024,16 +1100,31 @@
             const container = document.getElementById('questionContainer');
             const previousAnswer = studentAnswers[currentQuestion];
             
+            // ✅ حساب التقدم
+            const questionsAnswered = currentStudent.questionsAnswered || 0;
+            const remaining = 100 - questionsAnswered;
+            
             container.innerHTML = `
                 <div class="question-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                         <span style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9em;">
                             ${question.subject}
                         </span>
-                        <span style="color: #666; font-size: 0.9em;">
-                            السؤال ${currentQuestion + 1} من ${questions.length}
-                        </span>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <span style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9em;">
+                                ${questionsAnswered}/100 ✓
+                            </span>
+                            <span style="color: #666; font-size: 0.9em; padding: 5px;">
+                                السؤال ${currentQuestion + 1} من ${questions.length}
+                            </span>
+                        </div>
                     </div>
+                    ${remaining <= 10 && remaining > 0 ? 
+                        `<div style="background: #fff3cd; border: 2px solid #ffc107; padding: 10px; border-radius: 8px; margin: 10px 0; color: #856404; font-size: 0.9em;">
+                            ⚠️ تنبيه: باقي لك ${remaining} سؤال فقط من أصل 100!
+                        </div>` : 
+                        ''
+                    }
                     <div class="question-text">
                         <strong>السؤال ${currentQuestion + 1}:</strong> ${question.question}
                     </div>
@@ -1097,22 +1188,48 @@
                 showNotification('إجابة خاطئة!', 'error');
             }
 
+            // ✅ تحديث عدد الأسئلة المجابة
+            currentStudent.questionsAnswered = (currentStudent.questionsAnswered || 0) + 1;
+
             try {
                 const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
                 const querySnapshot = await getDocs(studentQuery);
                 if (!querySnapshot.empty) {
                     const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
-                    await updateDoc(studentDocRef, {
+                    
+                    // ✅ تحديث البيانات في Firebase
+                    const updateData = {
                         score: currentStudent.score,
-                        questionsAnswered: (currentStudent.questionsAnswered || 0) + 1,
+                        questionsAnswered: currentStudent.questionsAnswered,
                         lastActive: new Date()
-                    });
+                    };
+
+                    // ✅ إذا وصل لـ 100 سؤال، حفظ تاريخ الإكمال
+                    if (currentStudent.questionsAnswered >= 100) {
+                        updateData.completedAt = new Date();
+                        updateData.testCompleted = true;
+                        updateData.lastQuestion = questions.length; // إنهاء التتبع
+                        updateData.lastAnswers = [];
+                    }
+
+                    await updateDoc(studentDocRef, updateData);
                 }
             } catch (error) {
                 console.error('Error updating score:', error);
             }
 
             document.getElementById('currentScore').textContent = currentStudent.score;
+
+            // ✅ فحص إذا أكمل 100 سؤال
+            if (currentStudent.questionsAnswered >= 100) {
+                setTimeout(() => {
+                    alert(`🎉 مبروك ${currentStudent.name}!\n\nلقد أكملت 100 سؤال بنجاح!\n\nنقاطك النهائية: ${currentStudent.score}\n\n✅ تم إغلاق الاختبار نهائياً`);
+                    clearSavedProgress();
+                    updateDashboardInfo();
+                    showSection('dashboard');
+                }, 2000);
+                return;
+            }
 
             setTimeout(() => {
                 currentQuestion++;
