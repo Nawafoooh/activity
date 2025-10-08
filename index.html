@@ -636,23 +636,11 @@
     </div>
 
     <!-- Notification -->
-    <div id="notification" class="notification">
-        <span id="notificationText"></span>
-    </div>
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyD28cfba2NmXlsfBci9jgbne21U9rZLJ2M",
-            authDomain: "nafis-new.firebaseapp.com",
-            projectId: "nafis-new",
-            storageBucket: "nafis-new.firebasestorage.app",
-            messagingSenderId: "366381122504",
-            appId: "1:366381122504:web:b76107c74d7d7ec82df6fd",
-            measurementId: "G-ZD3Z9LEGGM"
-        };
+        const supabaseUrl = 'https://ylqotcnnjgnuaqjhyrqt.supabase.co'
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlscW90Y25uamdudWFxamh5cnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3MTc5MDQsImV4cCI6MjA3NTI5MzkwNH0.17tFEez5neMvvAvoVpSCH5wAD7XKVwD_FRud8-Sy_aA'
+        const supabase = createClient(supabaseUrl, supabaseKey)
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -734,27 +722,28 @@
         // ✅ دالة تحميل الأسئلة من Firebase أو استخدام الافتراضية
         async function loadQuestions() {
             try {
-                console.log('🔄 جاري تحميل الأسئلة من Firebase...');
-                const questionsQuery = query(collection(db, 'questions'), where('active', '==', true));
-                const questionsSnapshot = await getDocs(questionsQuery);
+                console.log('🔄 جاري تحميل الأسئلة من Supabase...');
+                const { data: questions, error } = await supabase
+                    .from('questions')
+                    .select('*')
+                    .eq('active', true);
                 
-                if (!questionsSnapshot.empty) {
-                    questions = [];
-                    questionsSnapshot.forEach((doc) => {
-                        questions.push({ id: doc.id, ...doc.data() });
-                    });
-                    console.log(`✅ تم تحميل ${questions.length} سؤال من Firebase`);
-                    showNotification(`تم تحميل ${questions.length} سؤال من قاعدة البيانات`, 'success');
+                if (error) throw error;
+                
+                if (questions && questions.length > 0) {
+                    window.questions = questions;
+                    console.log(`✅ تم تحميل ${questions.length} سؤال من Supabase`);
+                    showNotification(`تم تحميل ${questions.length} سؤال`, 'success');
                     return true;
                 } else {
-                    console.log('⚠️ لا توجد أسئلة في Firebase، استخدام الأسئلة الافتراضية');
-                    questions = [...defaultQuestions];
-                    showNotification('يتم استخدام الأسئلة الافتراضية (5 أسئلة)', 'info');
+                    console.log('⚠️ لا توجد أسئلة، استخدام الافتراضية');
+                    window.questions = [...defaultQuestions];
+                    showNotification('يتم استخدام الأسئلة الافتراضية', 'info');
                     return false;
                 }
             } catch (error) {
                 console.error('❌ خطأ في تحميل الأسئلة:', error);
-                questions = [...defaultQuestions];
+                window.questions = [...defaultQuestions];
                 showNotification('خطأ في الاتصال، استخدام الأسئلة الافتراضية', 'error');
                 return false;
             }
@@ -776,36 +765,34 @@
             }
 
             try {
-                const nameQuery = query(collection(db, 'students'), where('name', '==', name));
-                const existingStudents = await getDocs(nameQuery);
+                const { data: existingStudents } = await supabase
+                    .from('students')
+                    .select('*')
+                    .eq('name', name);
 
-                if (!existingStudents.empty) {
+                if (existingStudents && existingStudents.length > 0) {
                     showNotification('هذا الاسم مسجل مسبقاً. استخدم تسجيل الدخول', 'error');
-                    setTimeout(() => {
-                        const switchConfirm = confirm('هل تريد الانتقال لتسجيل الدخول؟');
-                        if (switchConfirm) {
-                            document.getElementById('loginName').value = name;
-                            switchToLogin();
-                        }
-                    }, 1000);
                     return;
                 }
 
                 const studentCode = generateStudentCode();
-                const studentData = {
-                    name: name,
-                    grade: grade,
-                    code: studentCode,
-                    score: 0,
-                    questionsAnswered: 0,
-                    createdAt: new Date(),
-                    lastActive: new Date()
-                };
+                const { data: newStudent, error } = await supabase
+                    .from('students')
+                    .insert([{
+                        name: name,
+                        grade: grade,
+                        code: studentCode,
+                        score: 0,
+                        questions_answered: 0,
+                        created_at: new Date().toISOString(),
+                        last_active: new Date().toISOString()
+                    }])
+                    .select()
+                    .single();
 
-                await addDoc(collection(db, 'students'), studentData);
+                if (error) throw error;
 
-                currentStudent = studentData;
-                currentStudent.id = studentCode;
+                currentStudent = newStudent;
                 
                 const studentInfo = document.getElementById('studentInfo');
                 studentInfo.innerHTML = `
@@ -836,25 +823,28 @@
             }
 
             try {
-                const studentsQuery = query(collection(db, 'students'), where('code', '==', code));
-                const querySnapshot = await getDocs(studentsQuery);
+                const { data: students, error } = await supabase
+                    .from('students')
+                    .select('*')
+                    .eq('code', code)
+                    .single();
 
-                if (querySnapshot.empty) {
+                if (error || !students) {
                     showNotification('رقم الطالب غير صحيح', 'error');
                     return;
                 }
 
-                const studentDoc = querySnapshot.docs[0];
-                currentStudent = { id: studentDoc.id, ...studentDoc.data() };
+                currentStudent = students;
 
-                if (currentStudent.lastQuestion !== undefined) {
-                    currentQuestion = currentStudent.lastQuestion;
-                    studentAnswers = currentStudent.lastAnswers || [];
+                if (currentStudent.last_question !== undefined) {
+                    currentQuestion = currentStudent.last_question;
+                    studentAnswers = currentStudent.last_answers || [];
                 }
 
-                await updateDoc(doc(db, 'students', studentDoc.id), {
-                    lastActive: new Date()
-                });
+                await supabase
+                    .from('students')
+                    .update({ last_active: new Date().toISOString() })
+                    .eq('id', currentStudent.id);
 
                 updateDashboardInfo();
                 showNotification(`مرحباً بك ${currentStudent.name}!`, 'success');
@@ -1098,16 +1088,14 @@
             }
 
             try {
-                const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
-                const querySnapshot = await getDocs(studentQuery);
-                if (!querySnapshot.empty) {
-                    const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
-                    await updateDoc(studentDocRef, {
+                await supabase
+                    .from('students')
+                    .update({
                         score: currentStudent.score,
-                        questionsAnswered: (currentStudent.questionsAnswered || 0) + 1,
-                        lastActive: new Date()
-                    });
-                }
+                        questions_answered: (currentStudent.questions_answered || 0) + 1,
+                        last_active: new Date().toISOString()
+                    })
+                    .eq('id', currentStudent.id);
             } catch (error) {
                 console.error('Error updating score:', error);
             }
