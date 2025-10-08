@@ -504,11 +504,11 @@
                     <div class="stat-label">إجمالي الأسئلة</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number" id="headerActiveStudents">~</div>
+                    <div class="stat-number" id="headerActiveStudents">0</div>
                     <div class="stat-label">طالب نشط</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number" id="headerTotalPoints">~</div>
+                    <div class="stat-number" id="headerTotalPoints">0</div>
                     <div class="stat-label">النقاط المجمعة</div>
                 </div>
             </div>
@@ -632,7 +632,6 @@
         <!-- Footer -->
         <div style="text-align: center; margin-top: 40px; color: white; font-size: 14px;">
             <p>تنفيذ وإشراف الأستاذ نواف الصبحي</p>
-            <p style="font-size: 12px; margin-top: 5px; opacity: 0.8;">⚡ نسخة محسّنة -  2025 Firebase</p>
         </div>
     </div>
 
@@ -643,7 +642,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, limit } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD28cfba2NmXlsfBci9jgbne21U9rZLJ2M",
@@ -663,7 +662,7 @@
         let questions = [];
         let studentAnswers = [];
 
-        // الأسئلة الافتراضية (تُستخدم محلياً بدون قراءة من Firebase)
+        // الأسئلة الافتراضية (في حالة عدم وجود أسئلة في Firebase)
         const defaultQuestions = [
             {
                 id: 1,
@@ -732,12 +731,33 @@
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
-        // ✅ تحسين: استخدام الأسئلة المحلية بدون قراءة من Firebase
+        // ✅ دالة تحميل الأسئلة من Firebase أو استخدام الافتراضية
         async function loadQuestions() {
-            questions = [...defaultQuestions];
-            console.log(`✅ تم تحميل ${questions.length} سؤال محلياً (بدون استهلاك Firebase)`);
-            showNotification(`جاهز للبدء - ${questions.length} سؤال متاح`, 'success');
-            return true;
+            try {
+                console.log('🔄 جاري تحميل الأسئلة من Firebase...');
+                const questionsQuery = query(collection(db, 'questions'), where('active', '==', true));
+                const questionsSnapshot = await getDocs(questionsQuery);
+                
+                if (!questionsSnapshot.empty) {
+                    questions = [];
+                    questionsSnapshot.forEach((doc) => {
+                        questions.push({ id: doc.id, ...doc.data() });
+                    });
+                    console.log(`✅ تم تحميل ${questions.length} سؤال من Firebase`);
+                    showNotification(`تم تحميل ${questions.length} سؤال من قاعدة البيانات`, 'success');
+                    return true;
+                } else {
+                    console.log('⚠️ لا توجد أسئلة في Firebase، استخدام الأسئلة الافتراضية');
+                    questions = [...defaultQuestions];
+                    showNotification('يتم استخدام الأسئلة الافتراضية (5 أسئلة)', 'info');
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ خطأ في تحميل الأسئلة:', error);
+                questions = [...defaultQuestions];
+                showNotification('خطأ في الاتصال، استخدام الأسئلة الافتراضية', 'error');
+                return false;
+            }
         }
 
         window.registerStudent = async function() {
@@ -836,6 +856,529 @@
                     lastActive: new Date()
                 });
 
-                updateDash
+                updateDashboardInfo();
+                showNotification(`مرحباً بك ${currentStudent.name}!`, 'success');
+                showSection('dashboard');
 
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('حدث خطأ أثناء تسجيل الدخول', 'error');
+            }
+        };
+
+        window.searchByName = async function() {
+            const searchName = document.getElementById('loginName').value.trim();
+            const searchResults = document.getElementById('searchResults');
+
+            if (!searchName || searchName.length < 3) {
+                showNotification('يرجى إدخال اسم للبحث (3 أحرف على الأقل)', 'error');
+                return;
+            }
+
+            try {
+                const studentsSnapshot = await getDocs(collection(db, 'students'));
+                const matchingStudents = [];
+
+                studentsSnapshot.forEach(doc => {
+                    const studentData = doc.data();
+                    const studentName = studentData.name.toLowerCase();
+                    const searchQuery = searchName.toLowerCase();
+                    
+                    if (studentName.includes(searchQuery)) {
+                        matchingStudents.push({ id: doc.id, ...studentData });
+                    }
+                });
+
+                if (matchingStudents.length === 0) {
+                    searchResults.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #666;">
+                            <p>لم يتم العثور على طلاب بهذا الاسم</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                searchResults.innerHTML = `
+                    <div style="margin-bottom: 15px;">
+                        <h4 style="color: #333; margin-bottom: 10px;">نتائج البحث (${matchingStudents.length}):</h4>
+                        ${matchingStudents.map(student => `
+                            <div class="search-result" onclick="selectStudentFromSearch('${student.code}', '${student.name}')">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <h4>${student.name}</h4>
+                                        <p style="font-size: 0.9em; color: #666;">الصف ${student.grade} - النقاط: ${student.score || 0}</p>
+                                    </div>
+                                    <div style="background: rgba(102, 126, 234, 0.1); padding: 5px 10px; border-radius: 10px; font-weight: bold;">
+                                        ${student.code}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                showNotification(`تم العثور على ${matchingStudents.length} نتيجة`, 'success');
+
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('حدث خطأ أثناء البحث', 'error');
+            }
+        };
+
+        window.selectStudentFromSearch = function(studentCode, studentName) {
+            const confirmLogin = confirm(`هل تريد تسجيل الدخول كـ ${studentName}؟\nرقم الطالب: ${studentCode}`);
+            
+            if (confirmLogin) {
+                document.getElementById('loginCode').value = studentCode;
+                loginStudent();
+            }
+        };
+
+        window.switchToLogin = function() {
+            showSection('login');
+            showNotification('قم بتسجيل الدخول برقم الطالب أو البحث بالاسم', 'info');
+        };
+
+        window.switchToRegister = function() {
+            showSection('registration');
+            showNotification('أنشئ حساب جديد بالاسم الرباعي', 'info');
+        };
+
+        function updateDashboardInfo() {
+            if (!currentStudent) return;
+            
+            const studentInfo = document.getElementById('studentInfo');
+            let progressInfo = '';
+            
+            if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
+                const progressPercent = Math.round(((currentStudent.lastQuestion + 1) / questions.length) * 100);
+                progressInfo = `
+                    <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                        <h4>📚 يمكنك متابعة من حيث توقفت</h4>
+                        <p>السؤال: ${currentStudent.lastQuestion + 1} من ${questions.length}</p>
+                        <p>التقدم: ${progressPercent}%</p>
+                    </div>
+                `;
+            }
+
+            studentInfo.innerHTML = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h3>مرحباً ${currentStudent.name}</h3>
+                    <p>الصف: ${currentStudent.grade}</p>
+                    <p>رقم الطالب: ${currentStudent.code}</p>
+                    ${progressInfo}
+                </div>
+            `;
+
+            document.getElementById('currentScore').textContent = currentStudent.score || 0;
+        }
+
+        window.startTest = async function() {
+            if (!currentStudent) {
+                showNotification('يرجى تسجيل الدخول أولاً', 'error');
+                return;
+            }
+
+            // ✅ تحميل الأسئلة من Firebase أو استخدام الافتراضية
+            await loadQuestions();
+
+            if (questions.length === 0) {
+                showNotification('لا توجد أسئلة متاحة حالياً', 'error');
+                return;
+            }
+
+            if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length) {
+                const resumeConfirm = confirm(
+                    `هل تريد متابعة من حيث توقفت؟\n` +
+                    `السؤال: ${currentStudent.lastQuestion + 1} من ${questions.length}\n\n` +
+                    `اضغط "موافق" للمتابعة، أو "إلغاء" للبدء من جديد`
+                );
+                
+                if (resumeConfirm) {
+                    currentQuestion = currentStudent.lastQuestion;
+                    studentAnswers = currentStudent.lastAnswers || [];
+                    showNotification('تم استئناف الاختبار من حيث توقفت', 'success');
+                } else {
+                    currentQuestion = 0;
+                    studentAnswers = [];
+                    showNotification('بدء اختبار جديد', 'info');
+                }
+            } else {
+                currentQuestion = 0;
+                studentAnswers = [];
+            }
+
+            showSection('testSection');
+            displayQuestion();
+        };
+
+        function displayQuestion() {
+            if (currentQuestion >= questions.length) {
+                showNotification('تم الانتهاء من جميع الأسئلة!', 'success');
+                clearSavedProgress();
+                showSection('dashboard');
+                return;
+            }
+
+            const question = questions[currentQuestion];
+            const container = document.getElementById('questionContainer');
+            const previousAnswer = studentAnswers[currentQuestion];
+            
+            container.innerHTML = `
+                <div class="question-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <span style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.9em;">
+                            ${question.subject}
+                        </span>
+                        <span style="color: #666; font-size: 0.9em;">
+                            السؤال ${currentQuestion + 1} من ${questions.length}
+                        </span>
+                    </div>
+                    <div class="question-text">
+                        <strong>السؤال ${currentQuestion + 1}:</strong> ${question.question}
+                    </div>
+                    ${previousAnswer !== undefined ? 
+                        '<div style="background: #e3f2fd; padding: 10px; border-radius: 8px; margin: 10px 0; color: #1565c0; font-size: 0.9em;">✓ تمت الإجابة على هذا السؤال مسبقاً</div>' : 
+                        ''
+                    }
+                    <div class="options">
+                        ${question.options.map((option, index) => `
+                            <div class="option ${previousAnswer === index ? 'selected' : ''}" 
+                                 onclick="selectOption(${index})" 
+                                 data-index="${index}">
+                                ${String.fromCharCode(65 + index)}) ${option}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            const progress = ((currentQuestion + 1) / questions.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+
+            const nextBtn = document.getElementById('nextBtn');
+            if (currentQuestion === questions.length - 1) {
+                nextBtn.textContent = 'إنهاء الاختبار';
+                nextBtn.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+            } else {
+                nextBtn.textContent = 'التالي';
+                nextBtn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+            }
+        }
+
+        window.selectOption = function(index) {
+            const options = document.querySelectorAll('.option');
+            options.forEach(option => option.classList.remove('selected'));
+            options[index].classList.add('selected');
+            
+            studentAnswers[currentQuestion] = index;
+        };
+
+        window.nextQuestion = async function() {
+            if (studentAnswers[currentQuestion] === undefined) {
+                showNotification('يرجى اختيار إجابة قبل الانتقال للسؤال التالي', 'error');
+                return;
+            }
+
+            const question = questions[currentQuestion];
+            const selectedAnswer = studentAnswers[currentQuestion];
+            const isCorrect = selectedAnswer === question.correct;
+
+            const options = document.querySelectorAll('.option');
+            options[question.correct].classList.add('correct');
+            if (!isCorrect) {
+                options[selectedAnswer].classList.add('wrong');
+            }
+
+            if (isCorrect) {
+                currentStudent.score += 1;
+                showNotification('إجابة صحيحة! +1 نقطة', 'success');
+            } else {
+                showNotification('إجابة خاطئة!', 'error');
+            }
+
+            try {
+                const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
+                const querySnapshot = await getDocs(studentQuery);
+                if (!querySnapshot.empty) {
+                    const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+                    await updateDoc(studentDocRef, {
+                        score: currentStudent.score,
+                        questionsAnswered: (currentStudent.questionsAnswered || 0) + 1,
+                        lastActive: new Date()
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating score:', error);
+            }
+
+            document.getElementById('currentScore').textContent = currentStudent.score;
+
+            setTimeout(() => {
+                currentQuestion++;
+                displayQuestion();
+            }, 2000);
+        };
+
+        window.saveAndExit = async function() {
+            if (!currentStudent) {
+                showNotification('خطأ: لم يتم العثور على بيانات الطالب', 'error');
+                return;
+            }
+
+            try {
+                const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
+                const querySnapshot = await getDocs(studentQuery);
+                
+                if (!querySnapshot.empty) {
+                    const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+                    
+                    await updateDoc(studentDocRef, {
+                        lastQuestion: currentQuestion,
+                        lastAnswers: studentAnswers,
+                        score: currentStudent.score,
+                        lastActive: new Date(),
+                        savedAt: new Date()
+                    });
+                    
+                    currentStudent.lastQuestion = currentQuestion;
+                    currentStudent.lastAnswers = studentAnswers;
+                    
+                    showNotification('تم حفظ التقدم بنجاح!', 'success');
+                    updateDashboardInfo();
+                    showSection('dashboard');
+                }
+                
+            } catch (error) {
+                console.error('Error saving progress:', error);
+                showNotification('حدث خطأ أثناء الحفظ', 'error');
+            }
+        };
+
+        async function clearSavedProgress() {
+            if (!currentStudent) return;
+            
+            try {
+                const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
+                const querySnapshot = await getDocs(studentQuery);
+                
+                if (!querySnapshot.empty) {
+                    const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+                    await updateDoc(studentDocRef, {
+                        lastQuestion: questions.length,
+                        lastAnswers: [],
+                        completedAt: new Date(),
+                        lastActive: new Date()
+                    });
+                    
+                    currentStudent.lastQuestion = questions.length;
+                    currentStudent.lastAnswers = [];
+                }
+            } catch (error) {
+                console.error('Error clearing progress:', error);
+            }
+        }
+
+        window.showResults = async function() {
+            try {
+                const studentsSnapshot = await getDocs(collection(db, 'students'));
+                const allStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                allStudents.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+                const classStudents = allStudents.filter(student => student.grade === currentStudent.grade);
+                
+                const classLeaderboard = document.getElementById('classLeaderboard');
+                classLeaderboard.innerHTML = classStudents.slice(0, 10).map((student, index) => {
+                    const isCurrentStudent = student.code === currentStudent.code;
+                    const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+                    
+                    return `
+                        <div class="leaderboard-item ${rankClass}" style="${isCurrentStudent ? 'border: 3px solid #667eea;' : ''}">
+                            <div class="rank">${index + 1}</div>
+                            <div class="student-name">
+                                ${student.name} ${isCurrentStudent ? '(أنت) 🌟' : ''}
+                            </div>
+                            <div class="student-score">${student.score || 0} نقطة</div>
+                        </div>
+                    `;
+                }).join('');
+
+                const schoolLeaderboard = document.getElementById('schoolLeaderboard');
+                schoolLeaderboard.innerHTML = allStudents.slice(0, 10).map((student, index) => {
+                    const isCurrentStudent = student.code === currentStudent.code;
+                    const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+                    
+                    return `
+                        <div class="leaderboard-item ${rankClass}" style="${isCurrentStudent ? 'border: 3px solid #667eea;' : ''}">
+                            <div class="rank">${index + 1}</div>
+                            <div class="student-name">
+                                ${student.name} - الصف ${student.grade} ${isCurrentStudent ? '(أنت) 🌟' : ''}
+                            </div>
+                            <div class="student-score">${student.score || 0} نقطة</div>
+                        </div>
+                    `;
+                }).join('');
+
+                showSection('resultsSection');
+
+            } catch (error) {
+                console.error('Error loading results:', error);
+                showNotification('حدث خطأ أثناء تحميل النتائج', 'error');
+            }
+        };
+
+        window.backToDashboard = function() {
+            updateDashboardInfo();
+            showSection('dashboard');
+        };
+
+        window.logout = function() {
+            if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
+                const saveBeforeLogout = confirm('هل تريد حفظ التقدم قبل تسجيل الخروج؟');
+                if (saveBeforeLogout) {
+                    saveAndExit().then(() => {
+                        performLogout();
+                    });
+                    return;
+                }
+            }
+            
+            performLogout();
+        };
+
+        function performLogout() {
+            currentStudent = null;
+            currentQuestion = 0;
+            studentAnswers = [];
+            
+            document.getElementById('studentName').value = '';
+            document.getElementById('studentGrade').value = '';
+            document.getElementById('loginCode').value = '';
+            document.getElementById('loginName').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+            
+            showNotification('تم تسجيل الخروج بنجاح', 'info');
+            showSection('registration');
+        }
+
+        // Auto-save كل دقيقتين
+        setInterval(async () => {
+            if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
+                try {
+                    const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
+                    const querySnapshot = await getDocs(studentQuery);
+                    if (!querySnapshot.empty) {
+                        const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+                        await updateDoc(studentDocRef, {
+                            lastQuestion: currentQuestion,
+                            lastAnswers: studentAnswers,
+                            score: currentStudent.score,
+                            lastActive: new Date(),
+                            autoSavedAt: new Date()
+                        });
+                        
+                        const autoSaveIndicator = document.createElement('div');
+                        autoSaveIndicator.innerHTML = '💾 تم الحفظ التلقائي';
+                        autoSaveIndicator.style.cssText = `
+                            position: fixed; 
+                            bottom: 20px; 
+                            left: 20px; 
+                            background: rgba(76, 175, 80, 0.9); 
+                            color: white; 
+                            padding: 8px 15px; 
+                            border-radius: 20px; 
+                            font-size: 0.8em; 
+                            z-index: 1000;
+                            opacity: 0;
+                            transition: opacity 0.3s ease;
+                        `;
+                        
+                        document.body.appendChild(autoSaveIndicator);
+                        setTimeout(() => autoSaveIndicator.style.opacity = '1', 100);
+                        setTimeout(() => autoSaveIndicator.style.opacity = '0', 2000);
+                        setTimeout(() => document.body.removeChild(autoSaveIndicator), 2500);
+                    }
+                } catch (error) {
+                    console.error('Auto-save error:', error);
+                }
+            }
+        }, 120000);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (event) => {
+            if (!document.getElementById('login').classList.contains('hidden')) {
+                if (event.key === 'Enter') {
+                    if (document.getElementById('loginCode').value) {
+                        loginStudent();
+                    } else if (document.getElementById('loginName').value) {
+                        searchByName();
+                    }
+                }
+            }
+            
+            if (!document.getElementById('registration').classList.contains('hidden')) {
+                if (event.key === 'Enter') {
+                    const name = document.getElementById('studentName').value;
+                    const grade = document.getElementById('studentGrade').value;
+                    if (name && grade) {
+                        registerStudent();
+                    }
+                }
+            }
+
+            if (!document.getElementById('testSection').classList.contains('hidden')) {
+                if (event.key >= '1' && event.key <= '4') {
+                    const optionIndex = parseInt(event.key) - 1;
+                    const options = document.querySelectorAll('.option');
+                    if (options[optionIndex]) {
+                        selectOption(optionIndex);
+                    }
+                }
+                if (event.key === 'Enter') {
+                    nextQuestion();
+                }
+                if (event.key === 'Escape') {
+                    saveAndExit();
+                }
+            }
+        });
+
+        window.addEventListener('beforeunload', (event) => {
+            if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
+                event.preventDefault();
+                event.returnValue = 'لديك اختبار جاري. هل أنت متأكد من الخروج؟';
+                return event.returnValue;
+            }
+        });
+
+        async function updateHeaderStats() {
+            try {
+                await loadQuestions();
+                document.getElementById('headerTotalQuestions').textContent = questions.length;
+
+                const studentsSnapshot = await getDocs(collection(db, 'students'));
+                let totalPoints = 0;
+                studentsSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    totalPoints += data.score || 0;
+                });
+                
+                document.getElementById('headerActiveStudents').textContent = studentsSnapshot.size;
+                document.getElementById('headerTotalPoints').textContent = totalPoints;
+
+            } catch (error) {
+                console.error('Error updating header stats:', error);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            showSection('registration');
+            updateHeaderStats();
+        });
+
+    </script>
+</body>
+</html>
 
