@@ -620,20 +620,25 @@
                 <label for="loginCode">رقم الطالب (6 أرقام)</label>
                 <input type="text" id="loginCode" placeholder="أدخل رقم الطالب" maxlength="6">
             </div>
-            <button class="btn" onclick="loginStudent()">دخول بالرقم</button>
+            <button class="btn" onclick="loginStudent()">دخول</button>
 
-            <div style="text-align: center; margin: 20px 0;">
-                <span style="color: #666;">أو</span>
+            <div class="forgot-number-section">
+                <div class="alert-info" style="margin-top: 25px; text-align: center;">
+                    <h4 style="color: #0c5460; margin-bottom: 10px;">📌 نسيت رقم الطالب؟</h4>
+                    <p style="line-height: 1.8; margin-bottom: 15px;">
+                        للحصول على رقمك، يرجى التواصل مع:
+                    </p>
+                    <div style="background: white; padding: 15px; border-radius: 10px; margin: 10px 0;">
+                        <strong style="color: #667eea; font-size: 1.1em;">الأستاذ نواف الصبحي</strong><br>
+                        <span style="color: #666;">📍 مكتب الإشراف - المبنى الرئيسي</span>
+                    </div>
+                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                        ⏰ أوقات الدوام: الأحد - الخميس (8:00 ص - 3:00 م)
+                    </p>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="loginName">البحث بالاسم الرباعي</label>
-                <input type="text" id="loginName" placeholder="أدخل اسمك للبحث">
-            </div>
-            <button class="btn secondary" onclick="searchByName()">البحث</button>
-            <div id="searchResults" style="margin-top: 15px;"></div>
-
-            <div style="text-align: center; margin-top: 15px;">
+            <div style="text-align: center; margin-top: 25px;">
                 <span style="color: #666;">ليس لديك حساب؟</span>
                 <button class="btn warning" onclick="switchToRegister()" style="margin-top: 10px;">إنشاء حساب جديد</button>
             </div>
@@ -1369,13 +1374,28 @@
 
                 if (querySnapshot.empty) {
                     showNotification('رقم الطالب غير صحيح', 'error');
+                    
+                    // ✅ رسالة توضيحية احترافية
+                    setTimeout(() => {
+                        const helpMsg = confirm(
+                            '❌ رقم الطالب غير موجود\n\n' +
+                            'إذا نسيت رقمك، يمكنك الحصول عليه من:\n\n' +
+                            '👨‍🏫 الأستاذ نواف الصبحي\n' +
+                            '📍 مكتب الإشراف - المبنى الرئيسي\n' +
+                            '⏰ الأحد - الخميس (8 ص - 3 م)\n\n' +
+                            'هل تريد الانتقال لصفحة التسجيل لإنشاء حساب جديد؟'
+                        );
+                        
+                        if (helpMsg) {
+                            switchToRegister();
+                        }
+                    }, 500);
                     return;
                 }
 
                 const studentDoc = querySnapshot.docs[0];
                 currentStudent = { id: studentDoc.id, ...studentDoc.data() };
 
-                // ✅ التحقق من الاستبعاد
                 if (currentStudent.disqualified === true) {
                     alert('🚫 تم استبعادك من المسابقة!\n\nالسبب: ' + (currentStudent.disqualificationReason || 'مخالفة القواعد') + '\n\nلا يمكنك المشاركة.');
                     currentStudent = null;
@@ -1402,76 +1422,21 @@
         };
 
         window.searchByName = async function() {
-            const searchName = document.getElementById('loginName').value.trim();
-            const searchResults = document.getElementById('searchResults');
-
-            if (!searchName || searchName.length < 3) {
-                showNotification('يرجى إدخال اسم للبحث (3 أحرف على الأقل)', 'error');
-                return;
-            }
-
-            try {
-                const studentsSnapshot = await getDocs(collection(db, 'students'));
-                const matchingStudents = [];
-
-                studentsSnapshot.forEach(doc => {
-                    const studentData = doc.data();
-                    const studentName = studentData.name.toLowerCase();
-                    const searchQuery = searchName.toLowerCase();
-                    
-                    if (studentName.includes(searchQuery)) {
-                        matchingStudents.push({ id: doc.id, ...studentData });
-                    }
-                });
-
-                if (matchingStudents.length === 0) {
-                    searchResults.innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: #666;">
-                            <p>لم يتم العثور على طلاب بهذا الاسم</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                searchResults.innerHTML = `
-                    <div style="margin-bottom: 15px;">
-                        <h4 style="color: #333; margin-bottom: 10px;">نتائج البحث (${matchingStudents.length}):</h4>
-                        ${matchingStudents.map(student => `
-                            <div class="search-result" onclick="selectStudentFromSearch('${student.code}', '${student.name}')">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <h4>${student.name}</h4>
-                                        <p style="font-size: 0.9em; color: #666;">الصف ${student.grade} - النقاط: ${student.score || 0}</p>
-                                    </div>
-                                    <div style="background: rgba(102, 126, 234, 0.1); padding: 5px 10px; border-radius: 10px; font-weight: bold;">
-                                        ${student.code}
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-
-                showNotification(`تم العثور على ${matchingStudents.length} نتيجة`, 'success');
-
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('حدث خطأ أثناء البحث', 'error');
-            }
+            // ✅ تم حذف هذه الدالة نهائياً لأسباب أمنية
+            // الطلاب يمكنهم الحصول على أرقامهم من مكتب الإدارة
+            return;
         };
 
         window.selectStudentFromSearch = function(studentCode, studentName) {
-            const confirmLogin = confirm(`هل تريد تسجيل الدخول كـ ${studentName}؟\nرقم الطالب: ${studentCode}`);
-            
-            if (confirmLogin) {
-                document.getElementById('loginCode').value = studentCode;
-                loginStudent();
-            }
+            // ✅ تم حذف هذه الدالة نهائياً لأسباب أمنية
+            return;
         };
 
         window.switchToLogin = function() {
             showSection('login');
-            showNotification('قم بتسجيل الدخول برقم الطالب أو البحث بالاسم', 'info');
+            // ✅ مسح أي بيانات قديمة
+            document.getElementById('loginCode').value = '';
+            showNotification('أدخل رقم الطالب المكون من 6 أرقام', 'info');
         };
 
         window.switchToRegister = function() {
@@ -1935,11 +1900,10 @@
             currentQuestion = 0;
             studentAnswers = [];
             
+            // ✅ مسح جميع الحقول
             document.getElementById('studentName').value = '';
             document.getElementById('studentGrade').value = '';
             document.getElementById('loginCode').value = '';
-            document.getElementById('loginName').value = '';
-            document.getElementById('searchResults').innerHTML = '';
             
             showNotification('تم تسجيل الخروج بنجاح', 'info');
             showSection('registration');
@@ -1997,10 +1961,9 @@
         document.addEventListener('keydown', (event) => {
             if (!document.getElementById('login').classList.contains('hidden')) {
                 if (event.key === 'Enter') {
-                    if (document.getElementById('loginCode').value) {
+                    const loginCode = document.getElementById('loginCode').value;
+                    if (loginCode) {
                         loginStudent();
-                    } else if (document.getElementById('loginName').value) {
-                        searchByName();
                     }
                 }
             }
