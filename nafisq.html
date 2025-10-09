@@ -1238,7 +1238,21 @@
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
+        // ✅ نظام Cache ذكي لتقليل القراءات من Firebase
+        const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
+        let cachedQuestions = null;
+        let cacheTimestamp = null;
+
         async function loadQuestions() {
+            // ✅ استخدام Cache إذا كان متاحاً وحديثاً
+            const now = Date.now();
+            if (cachedQuestions && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION)) {
+                console.log('📦 استخدام الأسئلة من Cache (توفير القراءات)');
+                questions = [...cachedQuestions];
+                showNotification(`تم تحميل ${questions.length} سؤال من الذاكرة المؤقتة`, 'success');
+                return true;
+            }
+
             try {
                 console.log('🔄 جاري تحميل الأسئلة من Firebase...');
                 const questionsQuery = query(collection(db, 'questions'), where('active', '==', true));
@@ -1249,12 +1263,19 @@
                     questionsSnapshot.forEach((doc) => {
                         questions.push({ id: doc.id, ...doc.data() });
                     });
-                    console.log(`✅ تم تحميل ${questions.length} سؤال من Firebase`);
+                    
+                    // ✅ حفظ في Cache
+                    cachedQuestions = [...questions];
+                    cacheTimestamp = now;
+                    
+                    console.log(`✅ تم تحميل ${questions.length} سؤال من Firebase وحفظه في Cache`);
                     showNotification(`تم تحميل ${questions.length} سؤال من قاعدة البيانات`, 'success');
                     return true;
                 } else {
                     console.log('⚠️ لا توجد أسئلة في Firebase، استخدام الأسئلة الافتراضية');
                     questions = [...defaultQuestions];
+                    cachedQuestions = [...defaultQuestions];
+                    cacheTimestamp = now;
                     showNotification('يتم استخدام الأسئلة الافتراضية (5 أسئلة)', 'info');
                     return false;
                 }
@@ -1725,12 +1746,8 @@
                 return;
             }
 
-            // ✅ زيادة عداد الأسئلة المجابة
             questionsAnsweredInSession++;
-            
-            // ✅ كشف الإجابات السريعة
             await detectCheating('submit_answer');
-
             stopQuestionTimer();
 
             const question = questions[currentQuestion];
@@ -1750,24 +1767,15 @@
                 showNotification('إجابة خاطئة!', 'error');
             }
 
-            try {
-                const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
-                const querySnapshot = await getDocs(studentQuery);
-                if (!querySnapshot.empty) {
-                    const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
-                    
-                    await updateDoc(studentDocRef, {
-                        score: currentStudent.score,
-                        questionsAnswered: (currentStudent.questionsAnswered || 0) + 1,
-                        lastActive: new Date(),
-                        lastScoreUpdate: new Date(),
-                        tabSwitchCount: tabSwitchCount,
-                        suspiciousActivityCount: suspiciousActivityCount
-                    });
-                }
-            } catch (error) {
-                console.error('Error updating score:', error);
-            }
+            // ✅ استخدام Batch Update بدلاً من الحفظ الفوري
+            scheduleScoreUpdate({
+                score: currentStudent.score,
+                questionsAnswered: (currentStudent.questionsAnswered || 0) + 1,
+                lastActive: new Date(),
+                lastScoreUpdate: new Date(),
+                tabSwitchCount: tabSwitchCount,
+                suspiciousActivityCount: suspiciousActivityCount
+            });
 
             document.getElementById('currentScore').textContent = currentStudent.score;
 
@@ -1814,10 +1822,40 @@
             }
         };
 
-        async function clearSavedProgress() {
-            // ✅ هذه الدالة تم استبدالها بـ markTestAsCompleted
-            // تم إلغاؤها لمنع إعادة الاختبار
-            return;
+        // ✅ نظام Batch للكتابات المتعددة (تقليل التكلفة)
+        let pendingUpdates = [];
+        let updateTimeout = null;
+
+        async function batchUpdateScore(updates) {
+            if (!currentStudent) return;
+            
+            try {
+                const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
+                const querySnapshot = await getDocs(studentQuery);
+                
+                if (!querySnapshot.empty) {
+                    const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+                    
+                    // ✅ دمج جميع التحديثات في عملية واحدة
+                    await updateDoc(studentDocRef, updates);
+                    console.log('💾 تم حفظ التحديثات بنجاح (Batch)');
+                }
+            } catch (error) {
+                console.error('Error in batch update:', error);
+            }
+        }
+
+        function scheduleScoreUpdate(newUpdates) {
+            // ✅ تجميع التحديثات لمدة 3 ثواني قبل الحفظ
+            pendingUpdates = { ...pendingUpdates, ...newUpdates };
+            
+            clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => {
+                if (Object.keys(pendingUpdates).length > 0) {
+                    batchUpdateScore(pendingUpdates);
+                    pendingUpdates = [];
+                }
+            }, 3000);
         }
 
         window.showResults = async function() {
@@ -1907,9 +1945,16 @@
             showSection('registration');
         }
 
+        // ✅ Auto-save محسّن: كل 5 دقائق بدلاً من دقيقتين
         setInterval(async () => {
             if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
                 try {
+                    // ✅ حفظ التحديثات المعلقة أولاً
+                    if (Object.keys(pendingUpdates).length > 0) {
+                        await batchUpdateScore(pendingUpdates);
+                        pendingUpdates = [];
+                    }
+
                     const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
                     const querySnapshot = await getDocs(studentQuery);
                     if (!querySnapshot.empty) {
@@ -1947,7 +1992,7 @@
                     console.error('Auto-save error:', error);
                 }
             }
-        }, 120000);
+        }, 300000); // ✅ 5 دقائق (300000 ms) بدلاً من دقيقتين
 
         document.addEventListener('keydown', (event) => {
             if (!document.getElementById('login').classList.contains('hidden')) {
@@ -1997,8 +2042,22 @@
 
         async function updateHeaderStats() {
             try {
+                // ✅ استخدام Cache للأسئلة
                 await loadQuestions();
                 document.getElementById('headerTotalQuestions').textContent = questions.length;
+
+                // ✅ Cache للإحصائيات (تحديث كل 30 ثانية فقط)
+                const cachedStats = sessionStorage.getItem('headerStats');
+                const cachedStatsTime = sessionStorage.getItem('headerStatsTime');
+                const now = Date.now();
+                
+                if (cachedStats && cachedStatsTime && (now - parseInt(cachedStatsTime) < 30000)) {
+                    const stats = JSON.parse(cachedStats);
+                    document.getElementById('headerActiveStudents').textContent = stats.students;
+                    document.getElementById('headerTotalPoints').textContent = stats.points;
+                    console.log('📦 استخدام الإحصائيات من Cache');
+                    return;
+                }
 
                 const studentsSnapshot = await getDocs(collection(db, 'students'));
                 let totalPoints = 0;
@@ -2009,6 +2068,13 @@
                 
                 document.getElementById('headerActiveStudents').textContent = studentsSnapshot.size;
                 document.getElementById('headerTotalPoints').textContent = totalPoints;
+
+                // ✅ حفظ في Cache
+                sessionStorage.setItem('headerStats', JSON.stringify({
+                    students: studentsSnapshot.size,
+                    points: totalPoints
+                }));
+                sessionStorage.setItem('headerStatsTime', now.toString());
 
             } catch (error) {
                 console.error('Error updating header stats:', error);
