@@ -272,6 +272,10 @@
             background: linear-gradient(135deg, #3498db, #2980b9);
         }
 
+        .notification.warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
         .student-code {
             background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
@@ -294,6 +298,70 @@
             padding: 25px;
             margin: 20px 0;
             background: #f8f9fa;
+        }
+
+        .timer-container {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+            animation: timerPulse 1s infinite;
+        }
+
+        .timer-container.warning {
+            animation: timerWarning 0.5s infinite;
+        }
+
+        @keyframes timerPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        @keyframes timerWarning {
+            0%, 100% { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+            50% { background: linear-gradient(135deg, #c0392b, #e74c3c); }
+        }
+
+        .timer-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .timer-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .competition-status {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .competition-status.closed {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        }
+
+        .countdown-display {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 15px 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .motivational-message {
+            font-size: 1.2em;
+            margin: 15px 0;
+            line-height: 1.6;
         }
 
         .question-text {
@@ -577,13 +645,14 @@
                 <div class="icon test">🎯</div>
                 لوحة الطالب
             </h2>
+            <div id="competitionStatusDashboard"></div>
             <div id="studentInfo"></div>
             <div class="score-display">
                 <h3>نقاطك الحالية</h3>
                 <div class="score-number" id="currentScore">0</div>
             </div>
             <div class="action-buttons">
-                <button class="btn success" onclick="startTest()">بدء الاختبار</button>
+                <button class="btn success" onclick="startTest()" id="startTestBtn">بدء الاختبار</button>
                 <button class="btn warning" onclick="showResults()">عرض النتائج</button>
                 <button class="btn secondary" onclick="logout()">تسجيل الخروج</button>
             </div>
@@ -595,6 +664,11 @@
                 <div class="icon test">📝</div>
                 بنك الأسئلة
             </h2>
+            <div id="questionTimer" class="timer-container">
+                <div class="timer-label">⏱️ الوقت المتبقي</div>
+                <div class="timer-number" id="timerDisplay">2:00</div>
+                <div class="timer-label" id="timerMessage">أجب قبل انتهاء الوقت!</div>
+            </div>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
@@ -661,8 +735,10 @@
         let currentQuestion = 0;
         let questions = [];
         let studentAnswers = [];
+        let questionTimer = null;
+        let timeRemaining = 120;
+        let competitionStatusInterval = null;
 
-        // الأسئلة الافتراضية (في حالة عدم وجود أسئلة في Firebase)
         const defaultQuestions = [
             {
                 id: 1,
@@ -710,6 +786,234 @@
             return Math.floor(100000 + Math.random() * 900000).toString();
         }
 
+        function checkCompetitionStatus() {
+            const now = new Date();
+            const riyadhTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
+            const dayOfWeek = riyadhTime.getDay();
+            const hours = riyadhTime.getHours();
+
+            let isOpen = false;
+            let nextEventDate = null;
+            let eventType = '';
+
+            if (dayOfWeek === 0) {
+                if (hours >= 10) {
+                    isOpen = true;
+                } else {
+                    nextEventDate = new Date(riyadhTime);
+                    nextEventDate.setHours(10, 0, 0, 0);
+                    eventType = 'start';
+                }
+            } else if (dayOfWeek >= 1 && dayOfWeek <= 2) {
+                isOpen = true;
+            } else if (dayOfWeek === 3) {
+                if (hours < 22) {
+                    isOpen = true;
+                } else {
+                    isOpen = false;
+                    nextEventDate = getNextSunday(riyadhTime);
+                    nextEventDate.setHours(10, 0, 0, 0);
+                    eventType = 'start';
+                }
+            } else {
+                isOpen = false;
+                nextEventDate = getNextSunday(riyadhTime);
+                nextEventDate.setHours(10, 0, 0, 0);
+                eventType = 'start';
+            }
+
+            if (isOpen && !nextEventDate) {
+                nextEventDate = getNextWednesday(riyadhTime);
+                nextEventDate.setHours(22, 0, 0, 0);
+                eventType = 'end';
+            }
+
+            return { isOpen, nextEventDate, eventType, riyadhTime };
+        }
+
+        function getNextSunday(currentDate) {
+            const result = new Date(currentDate);
+            const dayOfWeek = result.getDay();
+            const daysUntilSunday = dayOfWeek === 0 ? 7 : (7 - dayOfWeek);
+            result.setDate(result.getDate() + daysUntilSunday);
+            return result;
+        }
+
+        function getNextWednesday(currentDate) {
+            const result = new Date(currentDate);
+            const dayOfWeek = result.getDay();
+            let daysUntilWednesday;
+            
+            if (dayOfWeek <= 3) {
+                daysUntilWednesday = 3 - dayOfWeek;
+            } else {
+                daysUntilWednesday = 7 - dayOfWeek + 3;
+            }
+            
+            result.setDate(result.getDate() + daysUntilWednesday);
+            return result;
+        }
+
+        function formatTimeRemaining(nextEventDate, currentTime) {
+            const diff = nextEventDate - currentTime;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            if (days > 0) {
+                return `${days} يوم و ${hours} ساعة`;
+            } else if (hours > 0) {
+                return `${hours} ساعة و ${minutes} دقيقة`;
+            } else if (minutes > 0) {
+                return `${minutes} دقيقة و ${seconds} ثانية`;
+            } else {
+                return `${seconds} ثانية`;
+            }
+        }
+
+        function getMotivationalMessage(eventType, timeLeft) {
+            const diff = timeLeft;
+            const hours = diff / (1000 * 60 * 60);
+
+            if (eventType === 'end') {
+                if (hours <= 1) {
+                    const messages = [
+                        '⚡ الوقت ينفد! اللحظات الأخيرة لتحقيق أعلى النقاط!',
+                        '🔥 أقل من ساعة متبقية! أثبت تفوقك الآن!',
+                        '💪 الفرصة الأخيرة لكسر الأرقام القياسية!',
+                        '⏰ دقائق معدودة! كل سؤال يحسب!',
+                        '🏆 السباق الأخير نحو القمة!'
+                    ];
+                    return messages[Math.floor(Math.random() * messages.length)];
+                } else if (hours <= 6) {
+                    return '⏱️ ساعات قليلة متبقية! استغل الوقت وحقق أكبر عدد من النقاط!';
+                } else if (hours <= 24) {
+                    return '🎯 يوم واحد متبقي! لا تفوت فرصة التفوق هذا الأسبوع!';
+                } else {
+                    return '📚 المسابقة مستمرة! واصل التقدم واكسب المزيد من النقاط!';
+                }
+            } else {
+                if (hours <= 24) {
+                    const messages = [
+                        '🎉 غداً ينطلق التحدي الأسبوعي! هل أنت مستعد؟',
+                        '⭐ أقل من يوم على انطلاق المسابقة! جهز نفسك!',
+                        '🚀 العد التنازلي بدأ! استعد لتحدي جديد!',
+                        '💫 ساعات قليلة وينطلق السباق نحو القمة!'
+                    ];
+                    return messages[Math.floor(Math.random() * messages.length)];
+                } else if (hours <= 48) {
+                    return '🌟 يومان فقط! استعد لأسبوع مليء بالتحديات والإنجازات!';
+                } else {
+                    const messages = [
+                        '🏖️ استمتع بوقتك! المسابقة تعود يوم الأحد مع تحديات جديدة!',
+                        '💪 فترة راحة مستحقة! عُد أقوى يوم الأحد!',
+                        '🎯 المسابقة مؤجلة مؤقتاً - نلتقي بتحديات أقوى يوم الأحد!',
+                        '⚡ اشحن طاقتك! موعدنا الأحد الساعة 10 صباحاً لتحديات جديدة!'
+                    ];
+                    return messages[Math.floor(Math.random() * messages.length)];
+                }
+            }
+        }
+
+        function updateCompetitionStatusDisplay(containerId) {
+            const status = checkCompetitionStatus();
+            const container = document.getElementById(containerId);
+            
+            if (!container) return;
+
+            const timeLeft = status.nextEventDate - status.riyadhTime;
+            const formattedTime = formatTimeRemaining(status.nextEventDate, status.riyadhTime);
+            const message = getMotivationalMessage(status.eventType, timeLeft);
+
+            if (status.isOpen) {
+                container.innerHTML = `
+                    <div class="competition-status">
+                        <h3>✅ المسابقة الأسبوعية مفتوحة الآن!</h3>
+                        <div class="motivational-message">${message}</div>
+                        <div class="countdown-display">⏰ ${formattedTime}</div>
+                        <p style="font-size: 0.9em; opacity: 0.9; margin-top: 10px;">
+                            تنتهي يوم الأربعاء الساعة 10:00 مساءً
+                        </p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="competition-status closed">
+                        <h3>⏸️ المسابقة مغلقة مؤقتاً</h3>
+                        <div class="motivational-message">${message}</div>
+                        <div class="countdown-display">🚀 ${formattedTime}</div>
+                        <p style="font-size: 0.9em; opacity: 0.9; margin-top: 10px;">
+                            المسابقة تفتح يوم الأحد الساعة 10:00 صباحاً
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        function startQuestionTimer() {
+            clearInterval(questionTimer);
+            timeRemaining = 120;
+            updateTimerDisplay();
+
+            questionTimer = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+
+                if (timeRemaining <= 0) {
+                    clearInterval(questionTimer);
+                    handleTimeOut();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            const timerElement = document.getElementById('timerDisplay');
+            const timerContainer = document.getElementById('questionTimer');
+            const timerMessage = document.getElementById('timerMessage');
+            
+            if (timerElement) {
+                timerElement.textContent = display;
+            }
+
+            if (timerContainer && timerMessage) {
+                if (timeRemaining <= 30) {
+                    timerContainer.classList.add('warning');
+                    if (timeRemaining <= 10) {
+                        timerMessage.textContent = '⚠️ الوقت ينفد! أسرع!';
+                    } else {
+                        timerMessage.textContent = '⏰ أقل من 30 ثانية!';
+                    }
+                } else if (timeRemaining <= 60) {
+                    timerMessage.textContent = '🏃 دقيقة واحدة متبقية!';
+                } else {
+                    timerContainer.classList.remove('warning');
+                    timerMessage.textContent = 'أجب قبل انتهاء الوقت!';
+                }
+            }
+        }
+
+        function stopQuestionTimer() {
+            clearInterval(questionTimer);
+        }
+
+        async function handleTimeOut() {
+            showNotification('⏰ انتهى الوقت! الانتقال للسؤال التالي', 'warning');
+            
+            if (studentAnswers[currentQuestion] === undefined) {
+                studentAnswers[currentQuestion] = -1;
+            }
+
+            setTimeout(() => {
+                currentQuestion++;
+                displayQuestion();
+            }, 2000);
+        }
+
         function showNotification(message, type = 'info') {
             const notification = document.getElementById('notification');
             const notificationText = document.getElementById('notificationText');
@@ -731,7 +1035,6 @@
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
-        // ✅ دالة تحميل الأسئلة من Firebase أو استخدام الافتراضية
         async function loadQuestions() {
             try {
                 console.log('🔄 جاري تحميل الأسئلة من Firebase...');
@@ -820,6 +1123,7 @@
                 document.getElementById('currentScore').textContent = '0';
                 showNotification('تم التسجيل بنجاح!', 'success');
                 showSection('dashboard');
+                updateDashboardInfo();
 
             } catch (error) {
                 console.error('Error:', error);
@@ -947,6 +1251,22 @@
         function updateDashboardInfo() {
             if (!currentStudent) return;
             
+            updateCompetitionStatusDisplay('competitionStatusDashboard');
+            
+            const status = checkCompetitionStatus();
+            const startTestBtn = document.getElementById('startTestBtn');
+            if (startTestBtn) {
+                if (!status.isOpen) {
+                    startTestBtn.disabled = true;
+                    startTestBtn.textContent = '🔒 المسابقة مغلقة';
+                    startTestBtn.style.opacity = '0.6';
+                } else {
+                    startTestBtn.disabled = false;
+                    startTestBtn.textContent = 'بدء الاختبار';
+                    startTestBtn.style.opacity = '1';
+                }
+            }
+            
             const studentInfo = document.getElementById('studentInfo');
             let progressInfo = '';
             
@@ -979,7 +1299,13 @@
                 return;
             }
 
-            // ✅ تحميل الأسئلة من Firebase أو استخدام الافتراضية
+            const status = checkCompetitionStatus();
+            if (!status.isOpen) {
+                const timeLeft = formatTimeRemaining(status.nextEventDate, status.riyadhTime);
+                showNotification(`❌ المسابقة مغلقة حالياً. تفتح بعد: ${timeLeft}`, 'error');
+                return;
+            }
+
             await loadQuestions();
 
             if (questions.length === 0) {
@@ -1014,11 +1340,14 @@
 
         function displayQuestion() {
             if (currentQuestion >= questions.length) {
+                stopQuestionTimer();
                 showNotification('تم الانتهاء من جميع الأسئلة!', 'success');
                 clearSavedProgress();
                 showSection('dashboard');
                 return;
             }
+
+            startQuestionTimer();
 
             const question = questions[currentQuestion];
             const container = document.getElementById('questionContainer');
@@ -1037,7 +1366,7 @@
                     <div class="question-text">
                         <strong>السؤال ${currentQuestion + 1}:</strong> ${question.question}
                     </div>
-                    ${previousAnswer !== undefined ? 
+                    ${previousAnswer !== undefined && previousAnswer !== -1 ? 
                         '<div style="background: #e3f2fd; padding: 10px; border-radius: 8px; margin: 10px 0; color: #1565c0; font-size: 0.9em;">✓ تمت الإجابة على هذا السؤال مسبقاً</div>' : 
                         ''
                     }
@@ -1080,13 +1409,15 @@
                 return;
             }
 
+            stopQuestionTimer();
+
             const question = questions[currentQuestion];
             const selectedAnswer = studentAnswers[currentQuestion];
             const isCorrect = selectedAnswer === question.correct;
 
             const options = document.querySelectorAll('.option');
             options[question.correct].classList.add('correct');
-            if (!isCorrect) {
+            if (!isCorrect && selectedAnswer !== -1) {
                 options[selectedAnswer].classList.add('wrong');
             }
 
@@ -1125,6 +1456,8 @@
                 showNotification('خطأ: لم يتم العثور على بيانات الطالب', 'error');
                 return;
             }
+
+            stopQuestionTimer();
 
             try {
                 const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
@@ -1234,6 +1567,8 @@
         };
 
         window.logout = function() {
+            stopQuestionTimer();
+            
             if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
                 const saveBeforeLogout = confirm('هل تريد حفظ التقدم قبل تسجيل الخروج؟');
                 if (saveBeforeLogout) {
@@ -1248,6 +1583,8 @@
         };
 
         function performLogout() {
+            stopQuestionTimer();
+            
             currentStudent = null;
             currentQuestion = 0;
             studentAnswers = [];
@@ -1262,7 +1599,6 @@
             showSection('registration');
         }
 
-        // Auto-save كل دقيقتين
         setInterval(async () => {
             if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
                 try {
@@ -1305,7 +1641,6 @@
             }
         }, 120000);
 
-        // Keyboard shortcuts
         document.addEventListener('keydown', (event) => {
             if (!document.getElementById('login').classList.contains('hidden')) {
                 if (event.key === 'Enter') {
@@ -1372,10 +1707,15 @@
             }
         }
 
-        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             showSection('registration');
             updateHeaderStats();
+            
+            competitionStatusInterval = setInterval(() => {
+                if (!document.getElementById('dashboard').classList.contains('hidden')) {
+                    updateCompetitionStatusDisplay('competitionStatusDashboard');
+                }
+            }, 10000);
         });
 
     </script>
