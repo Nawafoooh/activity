@@ -630,10 +630,10 @@
                     </p>
                     <div style="background: white; padding: 15px; border-radius: 10px; margin: 10px 0;">
                         <strong style="color: #667eea; font-size: 1.1em;">الأستاذ نواف الصبحي</strong><br>
-                        <span style="color: #666;">📍 مكتب الأستاذ نواف الصبحي - المبنى الرئيسي</span>
+                        <span style="color: #666;">📍 مكتب الإشراف - المبنى الرئيسي</span>
                     </div>
                     <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-                        ⏰ أوقات الدوام: الأحد - الخميس (7:00 ص - 2:00 م)
+                        ⏰ أوقات الدوام: الأحد - الخميس (8:00 ص - 3:00 م)
                     </p>
                 </div>
             </div>
@@ -929,6 +929,179 @@
                 }
             }
         }
+
+        // ✅ نظام كشف الغش المتقدم
+        async function detectCheating(actionType) {
+            const now = Date.now();
+            
+            // 1. كشف الإجابات السريعة جداً (أقل من ثانية واحدة)
+            if (actionType === 'answer' && lastAnswerTime) {
+                const timeDiff = now - lastAnswerTime;
+                if (timeDiff < 1000) {
+                    rapidClickCount++;
+                    if (rapidClickCount > 3) {
+                        suspiciousActivityCount++;
+                        await logSuspiciousActivity('rapid_clicking', `إجابات سريعة جداً: ${rapidClickCount} مرات`);
+                    }
+                } else {
+                    rapidClickCount = 0;
+                }
+            }
+            lastAnswerTime = now;
+
+            // 2. كشف الإجابة على أسئلة كثيرة في وقت قصير (أكثر من 20 سؤال في دقيقة)
+            if (sessionStartTime) {
+                const sessionDuration = (now - sessionStartTime) / 1000 / 60; // بالدقائق
+                const questionsPerMinute = questionsAnsweredInSession / sessionDuration;
+                
+                if (questionsPerMinute > 20 && questionsAnsweredInSession > 10) {
+                    suspiciousActivityCount++;
+                    await logSuspiciousActivity('too_fast', `سرعة غير طبيعية: ${Math.round(questionsPerMinute)} سؤال/دقيقة`);
+                }
+            }
+
+            // 3. كشف فتح Console (أدوات المطور)
+            if (consoleOpenDetected) {
+                suspiciousActivityCount++;
+                await logSuspiciousActivity('console_open', 'فتح أدوات المطور');
+            }
+
+            // 4. كشف تبديل التبويبات المتكرر
+            if (tabSwitchCount > 5) {
+                suspiciousActivityCount++;
+                await logSuspiciousActivity('tab_switching', `تبديل التبويبات: ${tabSwitchCount} مرات`);
+            }
+
+            // 5. إجراء عقوبات عند تجاوز الحد
+            if (suspiciousActivityCount >= 3) {
+                await punishCheater();
+            }
+        }
+
+        async function logSuspiciousActivity(type, details) {
+            if (!currentStudent) return;
+            
+            try {
+                await addDoc(collection(db, 'suspicious_activities'), {
+                    studentCode: currentStudent.code,
+                    studentName: currentStudent.name,
+                    activityType: type,
+                    details: details,
+                    timestamp: new Date(),
+                    suspiciousCount: suspiciousActivityCount
+                });
+                
+                console.warn(`⚠️ نشاط مشبوه: ${type} - ${details}`);
+            } catch (error) {
+                console.error('Error logging suspicious activity:', error);
+            }
+        }
+
+        async function punishCheater() {
+            stopQuestionTimer();
+            
+            try {
+                const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
+                const querySnapshot = await getDocs(studentQuery);
+                
+                if (!querySnapshot.empty) {
+                    const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
+                    
+                    // ✅ تطبيق العقوبات
+                    await updateDoc(studentDocRef, {
+                        cheatingDetected: true,
+                        cheatingCount: (currentStudent.cheatingCount || 0) + 1,
+                        testCompleted: true,
+                        score: Math.floor((currentStudent.score || 0) * 0.5), // تقليل النقاط 50%
+                        disqualified: true,
+                        disqualificationReason: 'محاولات غش متكررة',
+                        disqualifiedAt: new Date()
+                    });
+                    
+                    alert(
+                        '🚫 تحذير نهائي!\n\n' +
+                        'تم رصد محاولات غش متعددة!\n\n' +
+                        '⚠️ العقوبات:\n' +
+                        '• تم تقليل نقاطك بنسبة 50%\n' +
+                        '• تم إنهاء الاختبار\n' +
+                        '• تم استبعادك من المنافسة\n' +
+                        '• تم إبلاغ المشرف\n\n' +
+                        'الأمانة أساس التفوق!'
+                    );
+                    
+                    performLogout();
+                }
+            } catch (error) {
+                console.error('Error punishing cheater:', error);
+            }
+        }
+
+        // ✅ كشف فتح Console
+        const devToolsDetector = () => {
+            const threshold = 160;
+            if (window.outerWidth - window.innerWidth > threshold || 
+                window.outerHeight - window.innerHeight > threshold) {
+                if (!consoleOpenDetected) {
+                    consoleOpenDetected = true;
+                    showNotification('⚠️ تحذير: تم رصد فتح أدوات المطور!', 'warning');
+                }
+            }
+        };
+
+        // ✅ كشف تبديل التبويبات
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && !document.getElementById('testSection').classList.contains('hidden')) {
+                tabSwitchCount++;
+                showNotification(`⚠️ تحذير: تبديل التبويبات (${tabSwitchCount})`, 'warning');
+                
+                if (tabSwitchCount > 3) {
+                    detectCheating('tab_switch');
+                }
+            }
+        });
+
+        // ✅ منع النسخ واللصق
+        document.addEventListener('copy', (e) => {
+            if (!document.getElementById('testSection').classList.contains('hidden')) {
+                e.preventDefault();
+                showNotification('❌ النسخ ممنوع أثناء الاختبار!', 'error');
+                detectCheating('copy_attempt');
+            }
+        });
+
+        document.addEventListener('paste', (e) => {
+            if (!document.getElementById('testSection').classList.contains('hidden')) {
+                e.preventDefault();
+                showNotification('❌ اللصق ممنوع أثناء الاختبار!', 'error');
+                detectCheating('paste_attempt');
+            }
+        });
+
+        // ✅ منع الضغط على F12 وأدوات المطور
+        document.addEventListener('keydown', (e) => {
+            // منع F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+                (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+                showNotification('⚠️ هذا الإجراء محظور!', 'warning');
+                consoleOpenDetected = true;
+                detectCheating('devtools_attempt');
+                return false;
+            }
+        });
+
+        // ✅ منع الضغط بالزر الأيمن
+        document.addEventListener('contextmenu', (e) => {
+            if (!document.getElementById('testSection').classList.contains('hidden')) {
+                e.preventDefault();
+                showNotification('⚠️ القائمة السياقية معطلة أثناء الاختبار', 'warning');
+                return false;
+            }
+        });
+
+        // ✅ كشف استخدام أدوات خارجية أو تلاعب
+        setInterval(devToolsDetector, 1000);
 
         // ✅ تسجيل بداية الجلسة
         function startSession() {
