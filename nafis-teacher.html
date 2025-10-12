@@ -215,6 +215,7 @@
         .btn.danger { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .btn.success { background: linear-gradient(135deg, #27ae60, #2ecc71); }
         .btn.warning { background: linear-gradient(135deg, #f39c12, #e67e22); }
+        .btn.info { background: linear-gradient(135deg, #3498db, #2980b9); }
 
         .question-item {
             background: #f8f9fa;
@@ -335,6 +336,12 @@
             color: #27ae60;
         }
 
+        .student-actions {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
         .form-group {
             margin-bottom: 20px;
         }
@@ -416,12 +423,33 @@
             border-color: transparent;
         }
 
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .badge.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.in-progress {
+            background: #fff3cd;
+            color: #856404;
+        }
+
         @media (max-width: 768px) {
             .container { padding: 10px; }
             .tabs { flex-direction: column; }
             .tab { min-width: auto; }
             .stats-grid { grid-template-columns: 1fr; }
             .question-options { grid-template-columns: 1fr; }
+            .student-actions { flex-direction: column; width: 100%; }
+            .student-actions .btn { width: 100%; margin: 2px 0; }
         }
     </style>
 </head>
@@ -586,8 +614,8 @@
     <div id="notification" class="notification"><span id="notificationText"></span></div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js ";
-        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js ";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD28cfba2NmXlsfBci9jgbne21U9rZLJ2M",
@@ -682,6 +710,72 @@
             } catch (e) {
                 console.error(e);
                 showNotification('خطأ أثناء إعادة الطالب', 'error');
+            }
+        };
+
+        // ✅ دالة إعادة تعيين الاختبار للطالب (العودة للسؤال الأول)
+        window.resetStudentTest = async function (id, name) {
+            const confirmed = confirm(
+                `هل أنت متأكد من إعادة تعيين اختبار الطالب: ${name}؟\n\n` +
+                `هذا سيقوم بـ:\n` +
+                `✅ إعادة الطالب للسؤال الأول\n` +
+                `✅ السماح له بإعادة الاختبار\n` +
+                `✅ الاحتفاظ بنقاطه الحالية\n\n` +
+                `هل تريد المتابعة؟`
+            );
+            
+            if (!confirmed) return;
+            
+            try {
+                await updateDoc(doc(db, 'students', id), {
+                    testCompleted: false,
+                    lastQuestion: 0,
+                    lastAnswers: [],
+                    completedAt: null,
+                    resetBy: 'teacher',
+                    resetAt: new Date(),
+                    lastActive: new Date()
+                });
+                
+                showNotification(`تم إعادة تعيين اختبار الطالب ${name} بنجاح`, 'success');
+                loadStudents();
+            } catch (e) {
+                console.error(e);
+                showNotification('خطأ أثناء إعادة تعيين الاختبار', 'error');
+            }
+        };
+
+        // ✅ دالة إعادة تعيين النقاط والاختبار معاً
+        window.fullResetStudent = async function (id, name) {
+            const confirmed = confirm(
+                `⚠️ إعادة تعيين كاملة للطالب: ${name}\n\n` +
+                `هذا سيقوم بـ:\n` +
+                `🔄 إعادة النقاط إلى صفر\n` +
+                `🔄 إعادة الطالب للسؤال الأول\n` +
+                `🔄 السماح بإعادة الاختبار كاملاً\n\n` +
+                `هل أنت متأكد؟`
+            );
+            
+            if (!confirmed) return;
+            
+            try {
+                await updateDoc(doc(db, 'students', id), {
+                    score: 0,
+                    questionsAnswered: 0,
+                    testCompleted: false,
+                    lastQuestion: 0,
+                    lastAnswers: [],
+                    completedAt: null,
+                    resetBy: 'teacher',
+                    resetAt: new Date(),
+                    lastActive: new Date()
+                });
+                
+                showNotification(`تم إعادة التعيين الكاملة للطالب ${name}`, 'success');
+                loadStudents();
+            } catch (e) {
+                console.error(e);
+                showNotification('خطأ أثناء الإعادة الكاملة', 'error');
             }
         };
         /*========= نهاية إدارة المستبعدين =========*/
@@ -852,18 +946,32 @@
             filtered.sort((a, b) => (b.score || 0) - (a.score || 0));
             const box = document.getElementById('studentsList');
             if (!filtered.length) { box.innerHTML = `<div style="text-align:center;padding:40px;color:#7f8c8d"><p>لا توجد طلاب مسجلون</p></div>`; return; }
-            box.innerHTML = filtered.map(st => `
+            box.innerHTML = filtered.map(st => {
+                const isCompleted = st.testCompleted === true;
+                const statusBadge = isCompleted 
+                    ? '<span class="badge completed">✅ أتم الاختبار</span>' 
+                    : (st.lastQuestion !== undefined && st.lastQuestion > 0 
+                        ? '<span class="badge in-progress">⏳ قيد التقدم</span>' 
+                        : '');
+                
+                return `
                 <div class="student-item">
                     <div class="student-info">
-                        <h4>${st.name}</h4>
+                        <h4>${st.name} ${statusBadge}</h4>
                         <p>الصف ${st.grade} • رقم الطالب: ${st.code}</p>
-                        <p>آخر نشاط: ${st.lastActive ? new Date(st.lastActive.toDate()).toLocaleDateString('ar-SA') : 'غير متوفر'}</p>
+                        <p style="font-size:12px;color:#7f8c8d">آخر نشاط: ${st.lastActive ? new Date(st.lastActive.toDate()).toLocaleDateString('ar-SA') : 'غير متوفر'}</p>
+                        ${st.lastQuestion !== undefined && st.lastQuestion > 0 ? `<p style="font-size:12px;color:#3498db">📝 السؤال الحالي: ${st.lastQuestion + 1}</p>` : ''}
                     </div>
-                    <div style="display:flex;gap:8px">
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                         <div class="student-score">${st.score || 0} نقطة</div>
-                        <button class="btn danger" onclick="deleteStudent('${st.id}','${st.name}')">حذف</button>
+                        <div class="student-actions">
+                            ${isCompleted ? `<button class="btn info" onclick="resetStudentTest('${st.id}','${st.name}')" title="إعادة للسؤال الأول">🔄 إعادة الاختبار</button>` : ''}
+                            <button class="btn warning" onclick="fullResetStudent('${st.id}','${st.name}')" title="إعادة كاملة">⚡ إعادة كاملة</button>
+                            <button class="btn danger" onclick="deleteStudent('${st.id}','${st.name}')">حذف</button>
+                        </div>
                     </div>
-                </div>`).join('');
+                </div>`;
+            }).join('');
         }
 
         window.filterByGrade = function (grade) {
@@ -887,13 +995,23 @@
 
         window.exportStudents = () => {
             if (!allStudents.length) return showNotification('لا توجد بيانات للتصدير', 'error');
-            const csv = 'الاسم,الصف,رقم الطالب,النقاط,تاريخ التسجيل\n' + allStudents.map(s => `"${s.name}","${s.grade}","${s.code}","${s.score || 0}","${s.createdAt ? new Date(s.createdAt.toDate()).toLocaleDateString('ar-SA') : 'غير متاح'}"`).join('\n');
+            const csv = 'الاسم,الصف,رقم الطالب,النقاط,حالة الاختبار,تاريخ التسجيل\n' + allStudents.map(s => `"${s.name}","${s.grade}","${s.code}","${s.score || 0}","${s.testCompleted ? 'مكتمل' : 'غير مكتمل'}","${s.createdAt ? new Date(s.createdAt.toDate()).toLocaleDateString('ar-SA') : 'غير متاح'}"`).join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `طلاب_نافس_${new Date().toLocaleDateString('ar-SA')}.csv`; link.click(); showNotification('تم تصدير قائمة الطلاب', 'success');
         };
 
         window.resetWeeklyScores = async () => {
-            if (!confirm('هل أنت متأكد من إعادة تعيين نقاط جميع الطلاب؟')) return;
-            try { const batch = writeBatch(db); allStudents.forEach(s => batch.update(doc(db, 'students', s.id), { score: 0, questionsAnswered: 0, weeklyReset: new Date() })); await batch.commit(); showNotification('تم إعادة تعيين النقاط بنجاح', 'success'); loadStudents(); }
+            if (!confirm('هل أنت متأكد من إعادة تعيين نقاط جميع الطلاب؟\n\n⚠️ ملاحظة: هذا سيعيد النقاط فقط ولن يسمح بإعادة الاختبار')) return;
+            try { 
+                const batch = writeBatch(db); 
+                allStudents.forEach(s => batch.update(doc(db, 'students', s.id), { 
+                    score: 0, 
+                    questionsAnswered: 0, 
+                    weeklyReset: new Date() 
+                })); 
+                await batch.commit(); 
+                showNotification('تم إعادة تعيين النقاط بنجاح', 'success'); 
+                loadStudents(); 
+            }
             catch (e) { console.error(e); showNotification('حدث خطأ أثناء إعادة التعيين', 'error'); }
         };
 
