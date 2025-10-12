@@ -586,7 +586,7 @@
         <div id="registration" class="card">
             <h2 class="card-title">
                 <div class="icon register">👤</div>
-                مشكلة استبعاد الطالب من الموقع أمنيه ، سنحل المشكله قريباً ، انتظرونا
+                التسجيل في المسابقة
             </h2>
             <div class="form-group">
                 <label for="studentName">الاسم الرباعي</label>
@@ -744,14 +744,8 @@
         let timeRemaining = 120;
         let competitionStatusInterval = null;
         
-        // ✅ متغيرات الحماية من الغش
         let sessionStartTime = null;
         let questionsAnsweredInSession = 0;
-        let rapidClickCount = 0;
-        let lastAnswerTime = null;
-        let suspiciousActivityCount = 0;
-        let tabSwitchCount = 0;
-        let consoleOpenDetected = false;
 
         const defaultQuestions = [
             {
@@ -930,190 +924,6 @@
             }
         }
 
-        // ✅ نظام كشف الغش المتقدم
-        async function detectCheating(actionType) {
-            const now = Date.now();
-            
-            // 1. كشف الإجابات السريعة جداً (أقل من ثانية واحدة)
-            if (actionType === 'answer' && lastAnswerTime) {
-                const timeDiff = now - lastAnswerTime;
-                if (timeDiff < 1000) {
-                    rapidClickCount++;
-                    if (rapidClickCount > 3) {
-                        suspiciousActivityCount++;
-                        await logSuspiciousActivity('rapid_clicking', `إجابات سريعة جداً: ${rapidClickCount} مرات`);
-                    }
-                } else {
-                    rapidClickCount = 0;
-                }
-            }
-            lastAnswerTime = now;
-
-            // 2. كشف الإجابة على أسئلة كثيرة في وقت قصير (أكثر من 20 سؤال في دقيقة)
-            if (sessionStartTime) {
-                const sessionDuration = (now - sessionStartTime) / 1000 / 60; // بالدقائق
-                const questionsPerMinute = questionsAnsweredInSession / sessionDuration;
-                
-                if (questionsPerMinute > 20 && questionsAnsweredInSession > 10) {
-                    suspiciousActivityCount++;
-                    await logSuspiciousActivity('too_fast', `سرعة غير طبيعية: ${Math.round(questionsPerMinute)} سؤال/دقيقة`);
-                }
-            }
-
-            // 3. كشف فتح Console (أدوات المطور)
-            if (consoleOpenDetected) {
-                suspiciousActivityCount++;
-                await logSuspiciousActivity('console_open', 'فتح أدوات المطور');
-            }
-
-            // 4. كشف تبديل التبويبات المتكرر
-            if (tabSwitchCount > 5) {
-                suspiciousActivityCount++;
-                await logSuspiciousActivity('tab_switching', `تبديل التبويبات: ${tabSwitchCount} مرات`);
-            }
-
-            // 5. إجراء عقوبات عند تجاوز الحد
-            if (suspiciousActivityCount >= 3) {
-                await punishCheater();
-            }
-        }
-
-        async function logSuspiciousActivity(type, details) {
-            if (!currentStudent) return;
-            
-            try {
-                await addDoc(collection(db, 'suspicious_activities'), {
-                    studentCode: currentStudent.code,
-                    studentName: currentStudent.name,
-                    activityType: type,
-                    details: details,
-                    timestamp: new Date(),
-                    suspiciousCount: suspiciousActivityCount
-                });
-                
-                console.warn(`⚠️ نشاط مشبوه: ${type} - ${details}`);
-            } catch (error) {
-                console.error('Error logging suspicious activity:', error);
-            }
-        }
-
-        async function punishCheater() {
-            stopQuestionTimer();
-            
-            try {
-                const studentQuery = query(collection(db, 'students'), where('code', '==', currentStudent.code));
-                const querySnapshot = await getDocs(studentQuery);
-                
-                if (!querySnapshot.empty) {
-                    const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
-                    
-                    // ✅ تطبيق العقوبات
-                    await updateDoc(studentDocRef, {
-                        cheatingDetected: true,
-                        cheatingCount: (currentStudent.cheatingCount || 0) + 1,
-                        testCompleted: true,
-                        score: Math.floor((currentStudent.score || 0) * 0.5), // تقليل النقاط 50%
-                        disqualified: true,
-                        disqualificationReason: 'محاولات غش متكررة',
-                        disqualifiedAt: new Date()
-                    });
-                    
-                    alert(
-                        '🚫 تحذير نهائي!\n\n' +
-                        'تم رصد محاولات غش متعددة!\n\n' +
-                        '⚠️ العقوبات:\n' +
-                        '• تم تقليل نقاطك بنسبة 50%\n' +
-                        '• تم إنهاء الاختبار\n' +
-                        '• تم استبعادك من المنافسة\n' +
-                        '• تم إبلاغ المشرف\n\n' +
-                        'الأمانة أساس التفوق!'
-                    );
-                    
-                    performLogout();
-                }
-            } catch (error) {
-                console.error('Error punishing cheater:', error);
-            }
-        }
-
-        // ✅ كشف فتح Console
-        const devToolsDetector = () => {
-            const threshold = 160;
-            if (window.outerWidth - window.innerWidth > threshold || 
-                window.outerHeight - window.innerHeight > threshold) {
-                if (!consoleOpenDetected) {
-                    consoleOpenDetected = true;
-                    showNotification('⚠️ تحذير: تم رصد فتح أدوات المطور!', 'warning');
-                }
-            }
-        };
-
-        // ✅ كشف تبديل التبويبات
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden && !document.getElementById('testSection').classList.contains('hidden')) {
-                tabSwitchCount++;
-                showNotification(`⚠️ تحذير: تبديل التبويبات (${tabSwitchCount})`, 'warning');
-                
-                if (tabSwitchCount > 3) {
-                    detectCheating('tab_switch');
-                }
-            }
-        });
-
-        // ✅ منع النسخ واللصق
-        document.addEventListener('copy', (e) => {
-            if (!document.getElementById('testSection').classList.contains('hidden')) {
-                e.preventDefault();
-                showNotification('❌ النسخ ممنوع أثناء الاختبار!', 'error');
-                detectCheating('copy_attempt');
-            }
-        });
-
-        document.addEventListener('paste', (e) => {
-            if (!document.getElementById('testSection').classList.contains('hidden')) {
-                e.preventDefault();
-                showNotification('❌ اللصق ممنوع أثناء الاختبار!', 'error');
-                detectCheating('paste_attempt');
-            }
-        });
-
-        // ✅ منع الضغط على F12 وأدوات المطور
-        document.addEventListener('keydown', (e) => {
-            // منع F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
-            if (e.key === 'F12' || 
-                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
-                (e.ctrlKey && e.key === 'U')) {
-                e.preventDefault();
-                showNotification('⚠️ هذا الإجراء محظور!', 'warning');
-                consoleOpenDetected = true;
-                detectCheating('devtools_attempt');
-                return false;
-            }
-        });
-
-        // ✅ منع الضغط بالزر الأيمن
-        document.addEventListener('contextmenu', (e) => {
-            if (!document.getElementById('testSection').classList.contains('hidden')) {
-                e.preventDefault();
-                showNotification('⚠️ القائمة السياقية معطلة أثناء الاختبار', 'warning');
-                return false;
-            }
-        });
-
-        // ✅ كشف استخدام أدوات خارجية أو تلاعب
-        setInterval(devToolsDetector, 1000);
-
-        // ✅ تسجيل بداية الجلسة
-        function startSession() {
-            sessionStartTime = Date.now();
-            questionsAnsweredInSession = 0;
-            rapidClickCount = 0;
-            lastAnswerTime = null;
-            suspiciousActivityCount = 0;
-            tabSwitchCount = 0;
-            consoleOpenDetected = false;
-        }
-
         function updateCompetitionStatusDisplay(containerId) {
             const status = checkCompetitionStatus();
             const container = document.getElementById(containerId);
@@ -1200,7 +1010,6 @@
         }
 
         async function handleTimeOut() {
-            // ✅ فحص: التحقق من أن المسابقة لا تزال مفتوحة
             const status = checkCompetitionStatus();
             if (!status.isOpen) {
                 stopQuestionTimer();
@@ -1243,13 +1052,11 @@
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
-        // ✅ نظام Cache ذكي لتقليل القراءات من Firebase
-        const CACHE_DURATION = 5 * 60 * 1000; // 5 دقائق
+        const CACHE_DURATION = 5 * 60 * 1000;
         let cachedQuestions = null;
         let cacheTimestamp = null;
 
         async function loadQuestions() {
-            // ✅ استخدام Cache إذا كان متاحاً وحديثاً
             const now = Date.now();
             if (cachedQuestions && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION)) {
                 console.log('📦 استخدام الأسئلة من Cache (توفير القراءات)');
@@ -1269,7 +1076,6 @@
                         questions.push({ id: doc.id, ...doc.data() });
                     });
                     
-                    // ✅ حفظ في Cache
                     cachedQuestions = [...questions];
                     cacheTimestamp = now;
                     
@@ -1380,13 +1186,6 @@
                 const studentDoc = querySnapshot.docs[0];
                 currentStudent = { id: studentDoc.id, ...studentDoc.data() };
 
-                // ✅ التحقق من الاستبعاد
-                if (currentStudent.disqualified === true) {
-                    alert('🚫 تم استبعادك من المسابقة!\n\nالسبب: ' + (currentStudent.disqualificationReason || 'مخالفة القواعد') + '\n\nلا يمكنك المشاركة.');
-                    currentStudent = null;
-                    return;
-                }
-
                 if (currentStudent.lastQuestion !== undefined) {
                     currentQuestion = currentStudent.lastQuestion;
                     studentAnswers = currentStudent.lastAnswers || [];
@@ -1406,77 +1205,9 @@
             }
         };
 
-        window.searchByName = async function() {
-            const searchName = document.getElementById('loginName').value.trim();
-            const searchResults = document.getElementById('searchResults');
-
-            if (!searchName || searchName.length < 3) {
-                showNotification('يرجى إدخال اسم للبحث (3 أحرف على الأقل)', 'error');
-                return;
-            }
-
-            try {
-                const studentsSnapshot = await getDocs(collection(db, 'students'));
-                const matchingStudents = [];
-
-                studentsSnapshot.forEach(doc => {
-                    const studentData = doc.data();
-                    const studentName = studentData.name.toLowerCase();
-                    const searchQuery = searchName.toLowerCase();
-                    
-                    if (studentName.includes(searchQuery)) {
-                        matchingStudents.push({ id: doc.id, ...studentData });
-                    }
-                });
-
-                if (matchingStudents.length === 0) {
-                    searchResults.innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: #666;">
-                            <p>لم يتم العثور على طلاب بهذا الاسم</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                searchResults.innerHTML = `
-                    <div style="margin-bottom: 15px;">
-                        <h4 style="color: #333; margin-bottom: 10px;">نتائج البحث (${matchingStudents.length}):</h4>
-                        ${matchingStudents.map(student => `
-                            <div class="search-result" onclick="selectStudentFromSearch('${student.code}', '${student.name}')">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <h4>${student.name}</h4>
-                                        <p style="font-size: 0.9em; color: #666;">الصف ${student.grade} - النقاط: ${student.score || 0}</p>
-                                    </div>
-                                    <div style="background: rgba(102, 126, 234, 0.1); padding: 5px 10px; border-radius: 10px; font-weight: bold;">
-                                        ${student.code}
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-
-                showNotification(`تم العثور على ${matchingStudents.length} نتيجة`, 'success');
-
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('حدث خطأ أثناء البحث', 'error');
-            }
-        };
-
-        window.selectStudentFromSearch = function(studentCode, studentName) {
-            const confirmLogin = confirm(`هل تريد تسجيل الدخول كـ ${studentName}؟\nرقم الطالب: ${studentCode}`);
-            
-            if (confirmLogin) {
-                document.getElementById('loginCode').value = studentCode;
-                loginStudent();
-            }
-        };
-
         window.switchToLogin = function() {
             showSection('login');
-            showNotification('قم بتسجيل الدخول برقم الطالب أو البحث بالاسم', 'info');
+            showNotification('قم بتسجيل الدخول برقم الطالب', 'info');
         };
 
         window.switchToRegister = function() {
@@ -1492,7 +1223,6 @@
             const status = checkCompetitionStatus();
             const startTestBtn = document.getElementById('startTestBtn');
             if (startTestBtn) {
-                // ✅ إخفاء زر البدء إذا أتم الطالب الاختبار
                 if (currentStudent.testCompleted === true) {
                     startTestBtn.disabled = true;
                     startTestBtn.textContent = '✅ تم إتمام الاختبار';
@@ -1513,7 +1243,6 @@
             const studentInfo = document.getElementById('studentInfo');
             let progressInfo = '';
             
-            // ✅ عرض رسالة إتمام الاختبار
             if (currentStudent.testCompleted === true) {
                 progressInfo = `
                     <div style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 20px; border-radius: 15px; margin: 15px 0; text-align: center;">
@@ -1546,16 +1275,14 @@
             document.getElementById('currentScore').textContent = currentStudent.score || 0;
         }
 
+        function startSession() {
+            sessionStartTime = Date.now();
+            questionsAnsweredInSession = 0;
+        }
+
         window.startTest = async function() {
             if (!currentStudent) {
                 showNotification('يرجى تسجيل الدخول أولاً', 'error');
-                return;
-            }
-
-            // ✅ التحقق من الاستبعاد السابق
-            if (currentStudent.disqualified === true) {
-                showNotification('❌ تم استبعادك من المسابقة بسبب الغش!', 'error');
-                alert('🚫 تم استبعادك من المسابقة!\n\nالسبب: ' + (currentStudent.disqualificationReason || 'مخالفة قواعد المسابقة') + '\n\nلا يمكنك المشاركة مرة أخرى.');
                 return;
             }
 
@@ -1579,7 +1306,6 @@
                 return;
             }
 
-            // ✅ بدء جلسة جديدة مع نظام مكافحة الغش
             startSession();
 
             if (currentStudent.lastQuestion !== undefined && currentStudent.lastQuestion < questions.length && !currentStudent.testCompleted) {
@@ -1608,7 +1334,6 @@
         };
 
         function displayQuestion() {
-            // ✅ فحص مستمر: التحقق من حالة المسابقة قبل عرض أي سؤال
             const status = checkCompetitionStatus();
             if (!status.isOpen) {
                 stopQuestionTimer();
@@ -1678,7 +1403,6 @@
             }
         }
 
-        // ✅ دالة تسجيل إتمام الاختبار نهائياً
         async function markTestAsCompleted() {
             if (!currentStudent) return;
             
@@ -1697,12 +1421,10 @@
                         lastActive: new Date()
                     });
                     
-                    // ✅ تحديث البيانات المحلية
                     currentStudent.testCompleted = true;
                     currentStudent.lastQuestion = questions.length;
                     currentStudent.lastAnswers = [];
                     
-                    // ✅ رسالة تأكيد نهائية
                     setTimeout(() => {
                         alert(
                             '🎊 تهانينا!\n\n' +
@@ -1725,9 +1447,6 @@
             options[index].classList.add('selected');
             
             studentAnswers[currentQuestion] = index;
-            
-            // ✅ كشف محاولات الغش عند الإجابة
-            detectCheating('answer');
         };
 
         window.nextQuestion = async function() {
@@ -1752,7 +1471,6 @@
             }
 
             questionsAnsweredInSession++;
-            await detectCheating('submit_answer');
             stopQuestionTimer();
 
             const question = questions[currentQuestion];
@@ -1772,14 +1490,11 @@
                 showNotification('إجابة خاطئة!', 'error');
             }
 
-            // ✅ استخدام Batch Update بدلاً من الحفظ الفوري
             scheduleScoreUpdate({
                 score: currentStudent.score,
                 questionsAnswered: (currentStudent.questionsAnswered || 0) + 1,
                 lastActive: new Date(),
-                lastScoreUpdate: new Date(),
-                tabSwitchCount: tabSwitchCount,
-                suspiciousActivityCount: suspiciousActivityCount
+                lastScoreUpdate: new Date()
             });
 
             document.getElementById('currentScore').textContent = currentStudent.score;
@@ -1827,7 +1542,6 @@
             }
         };
 
-        // ✅ نظام Batch للكتابات المتعددة (تقليل التكلفة)
         let pendingUpdates = [];
         let updateTimeout = null;
 
@@ -1840,8 +1554,6 @@
                 
                 if (!querySnapshot.empty) {
                     const studentDocRef = doc(db, 'students', querySnapshot.docs[0].id);
-                    
-                    // ✅ دمج جميع التحديثات في عملية واحدة
                     await updateDoc(studentDocRef, updates);
                     console.log('💾 تم حفظ التحديثات بنجاح (Batch)');
                 }
@@ -1851,7 +1563,6 @@
         }
 
         function scheduleScoreUpdate(newUpdates) {
-            // ✅ تجميع التحديثات لمدة 3 ثواني قبل الحفظ
             pendingUpdates = { ...pendingUpdates, ...newUpdates };
             
             clearTimeout(updateTimeout);
@@ -1943,18 +1654,14 @@
             document.getElementById('studentName').value = '';
             document.getElementById('studentGrade').value = '';
             document.getElementById('loginCode').value = '';
-            document.getElementById('loginName').value = '';
-            document.getElementById('searchResults').innerHTML = '';
             
             showNotification('تم تسجيل الخروج بنجاح', 'info');
             showSection('registration');
         }
 
-        // ✅ Auto-save محسّن: كل 5 دقائق بدلاً من دقيقتين
         setInterval(async () => {
             if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
                 try {
-                    // ✅ حفظ التحديثات المعلقة أولاً
                     if (Object.keys(pendingUpdates).length > 0) {
                         await batchUpdateScore(pendingUpdates);
                         pendingUpdates = [];
@@ -1997,15 +1704,13 @@
                     console.error('Auto-save error:', error);
                 }
             }
-        }, 300000); // ✅ 5 دقائق (300000 ms) بدلاً من دقيقتين
+        }, 300000);
 
         document.addEventListener('keydown', (event) => {
             if (!document.getElementById('login').classList.contains('hidden')) {
                 if (event.key === 'Enter') {
                     if (document.getElementById('loginCode').value) {
                         loginStudent();
-                    } else if (document.getElementById('loginName').value) {
-                        searchByName();
                     }
                 }
             }
@@ -2047,11 +1752,9 @@
 
         async function updateHeaderStats() {
             try {
-                // ✅ استخدام Cache للأسئلة
                 await loadQuestions();
                 document.getElementById('headerTotalQuestions').textContent = questions.length;
 
-                // ✅ Cache للإحصائيات (تحديث كل 30 ثانية فقط)
                 const cachedStats = sessionStorage.getItem('headerStats');
                 const cachedStatsTime = sessionStorage.getItem('headerStatsTime');
                 const now = Date.now();
@@ -2074,7 +1777,6 @@
                 document.getElementById('headerActiveStudents').textContent = studentsSnapshot.size;
                 document.getElementById('headerTotalPoints').textContent = totalPoints;
 
-                // ✅ حفظ في Cache
                 sessionStorage.setItem('headerStats', JSON.stringify({
                     students: studentsSnapshot.size,
                     points: totalPoints
