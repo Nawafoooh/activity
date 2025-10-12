@@ -436,12 +436,35 @@
             text-align: center;
         }
 
+        /* تحذير التلاعب في صفحة النتائج فقط */
+        .cheating-warning-results {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(231, 76, 60, 0.3);
+            animation: warningPulse 2s infinite;
+        }
+
+        @keyframes warningPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .cheating-warning-results h3 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+
         .leaderboard-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 15px 20px;
             border-bottom: 1px solid #e1e8ed;
+            transition: all 0.3s ease;
         }
 
         .leaderboard-item:last-child {
@@ -463,6 +486,38 @@
             color: white;
         }
 
+        /* تنسيق الطلاب المستبعدين - يظهر فقط في صفحة النتائج */
+        .leaderboard-item.disqualified {
+            background: linear-gradient(135deg, #ffebee, #ffcdd2);
+            border: 2px solid #e74c3c;
+            border-right: 5px solid #c0392b;
+        }
+
+        .disqualified-badge {
+            display: inline-block;
+            background: #e74c3c;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            font-weight: bold;
+            margin-left: 8px;
+            animation: blinkBadge 1.5s infinite;
+        }
+
+        @keyframes blinkBadge {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .cheating-indicator {
+            color: #c0392b;
+            font-weight: bold;
+            font-size: 0.85em;
+            display: block;
+            margin-top: 3px;
+        }
+
         .rank {
             font-size: 1.2em;
             font-weight: bold;
@@ -477,6 +532,11 @@
         .student-score {
             font-weight: bold;
             font-size: 1.1em;
+        }
+
+        .student-score.invalid {
+            color: #e74c3c;
+            text-decoration: line-through;
         }
 
         .progress-bar {
@@ -505,27 +565,6 @@
         .action-buttons .btn {
             flex: 1;
             min-width: 150px;
-        }
-
-        .search-result {
-            background: #f8f9fa;
-            border: 2px solid #e1e8ed;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .search-result:hover {
-            border-color: #667eea;
-            background: #f0f4ff;
-        }
-
-        .search-result.selected {
-            border-color: #667eea;
-            background: #667eea;
-            color: white;
         }
 
         .alert-info {
@@ -690,6 +729,17 @@
                 <div class="icon results">🏆</div>
                 النتائج والترتيب
             </h2>
+
+            <!-- تحذير التلاعب - يظهر فقط في صفحة النتائج -->
+            <div class="cheating-warning-results">
+                <h3>⚠️ تحذير هام لجميع الطلاب</h3>
+                <p style="font-size: 1.1em; line-height: 1.6; margin-top: 10px;">
+                    أي محاولة للتلاعب بالدرجات أو الحصول على درجات أعلى من 107 ستؤدي إلى:<br>
+                    🚫 الاستبعاد الفوري من المسابقة<br>
+                    ⛔ إلغاء جميع النقاط المكتسبة<br>
+                    📝 تسجيل المخالفة في ملفك الدراسي
+                </p>
+            </div>
             
             <div class="leaderboard">
                 <div class="leaderboard-header">
@@ -735,6 +785,9 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // ثابت الحد الأقصى للدرجات
+        const MAX_SCORE = 107;
 
         let currentStudent = null;
         let currentQuestion = 0;
@@ -1122,7 +1175,6 @@
                     setTimeout(() => {
                         const switchConfirm = confirm('هل تريد الانتقال لتسجيل الدخول؟');
                         if (switchConfirm) {
-                            document.getElementById('loginName').value = name;
                             switchToLogin();
                         }
                     }, 1000);
@@ -1574,27 +1626,38 @@
             }, 3000);
         }
 
+        // ✅ دالة عرض النتائج مع كشف التلاعب
         window.showResults = async function() {
             try {
                 const studentsSnapshot = await getDocs(collection(db, 'students'));
                 const allStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+                // فرز الطلاب حسب النقاط (الأعلى أولاً)
                 allStudents.sort((a, b) => (b.score || 0) - (a.score || 0));
 
+                // تصفية طلاب نفس الصف
                 const classStudents = allStudents.filter(student => student.grade === currentStudent.grade);
                 
                 const classLeaderboard = document.getElementById('classLeaderboard');
                 classLeaderboard.innerHTML = classStudents.slice(0, 10).map((student, index) => {
                     const isCurrentStudent = student.code === currentStudent.code;
-                    const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+                    const score = student.score || 0;
+                    const isCheating = score > MAX_SCORE || student.disqualified === true;
+                    
+                    let rankClass = '';
+                    if (!isCheating) {
+                        rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+                    }
                     
                     return `
-                        <div class="leaderboard-item ${rankClass}" style="${isCurrentStudent ? 'border: 3px solid #667eea;' : ''}">
-                            <div class="rank">${index + 1}</div>
+                        <div class="leaderboard-item ${rankClass} ${isCheating ? 'disqualified' : ''}" style="${isCurrentStudent ? 'border: 3px solid #667eea;' : ''}">
+                            <div class="rank">${isCheating ? '🚫' : index + 1}</div>
                             <div class="student-name">
                                 ${student.name} ${isCurrentStudent ? '(أنت) 🌟' : ''}
+                                ${isCheating ? '<span class="disqualified-badge">⚠️ مستبعد - تلاعب</span>' : ''}
+                                ${isCheating ? `<span class="cheating-indicator">درجة غير صحيحة: ${score}/${MAX_SCORE}</span>` : ''}
                             </div>
-                            <div class="student-score">${student.score || 0} نقطة</div>
+                            <div class="student-score ${isCheating ? 'invalid' : ''}">${score} نقطة</div>
                         </div>
                     `;
                 }).join('');
@@ -1602,15 +1665,23 @@
                 const schoolLeaderboard = document.getElementById('schoolLeaderboard');
                 schoolLeaderboard.innerHTML = allStudents.slice(0, 10).map((student, index) => {
                     const isCurrentStudent = student.code === currentStudent.code;
-                    const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+                    const score = student.score || 0;
+                    const isCheating = score > MAX_SCORE || student.disqualified === true;
+                    
+                    let rankClass = '';
+                    if (!isCheating) {
+                        rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+                    }
                     
                     return `
-                        <div class="leaderboard-item ${rankClass}" style="${isCurrentStudent ? 'border: 3px solid #667eea;' : ''}">
-                            <div class="rank">${index + 1}</div>
+                        <div class="leaderboard-item ${rankClass} ${isCheating ? 'disqualified' : ''}" style="${isCurrentStudent ? 'border: 3px solid #667eea;' : ''}">
+                            <div class="rank">${isCheating ? '🚫' : index + 1}</div>
                             <div class="student-name">
                                 ${student.name} - الصف ${student.grade} ${isCurrentStudent ? '(أنت) 🌟' : ''}
+                                ${isCheating ? '<span class="disqualified-badge">⚠️ مستبعد - تلاعب</span>' : ''}
+                                ${isCheating ? `<span class="cheating-indicator">درجة غير صحيحة: ${score}/${MAX_SCORE}</span>` : ''}
                             </div>
-                            <div class="student-score">${student.score || 0} نقطة</div>
+                            <div class="student-score ${isCheating ? 'invalid' : ''}">${score} نقطة</div>
                         </div>
                     `;
                 }).join('');
@@ -1659,6 +1730,7 @@
             showSection('registration');
         }
 
+        // حفظ تلقائي كل 5 دقائق
         setInterval(async () => {
             if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
                 try {
@@ -1706,6 +1778,7 @@
             }
         }, 300000);
 
+        // اختصارات لوحة المفاتيح
         document.addEventListener('keydown', (event) => {
             if (!document.getElementById('login').classList.contains('hidden')) {
                 if (event.key === 'Enter') {
@@ -1742,6 +1815,7 @@
             }
         });
 
+        // تحذير قبل الخروج
         window.addEventListener('beforeunload', (event) => {
             if (currentStudent && !document.getElementById('testSection').classList.contains('hidden')) {
                 event.preventDefault();
@@ -1750,6 +1824,7 @@
             }
         });
 
+        // تحديث إحصائيات الرأسية
         async function updateHeaderStats() {
             try {
                 await loadQuestions();
@@ -1788,6 +1863,7 @@
             }
         }
 
+        // تهيئة التطبيق
         document.addEventListener('DOMContentLoaded', () => {
             showSection('registration');
             updateHeaderStats();
