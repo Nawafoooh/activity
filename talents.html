@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل ميول الطلاب ومواهبهم - 1447هـ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCyHUe9NllVNz46LXNV5YdNmqA94VVLOBE",
+      authDomain: "student-talents-1447.firebaseapp.com",
+      projectId: "student-talents-1447",
+      storageBucket: "student-talents-1447.firebasestorage.app",
+      messagingSenderId: "377382667271",
+      appId: "1:377382667271:web:2b52b19cc68fa0724bd6a2",
+      measurementId: "G-PBG0BFJYGB"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.firebaseDB = db;
+    window.addDoc = addDoc;
+    window.collection = collection;
+    window.getDocs = getDocs;
+    window.query = query;
+    window.orderBy = orderBy;
+  </script>
+  <style>
+    * { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen">
+  <div id="app"></div>
+
+  <script>
+    const ADMIN_PASSWORD = 'A2030A';
+    
+    const fields = [
+      { 
+        id: 'citizenship', 
+        name: 'مجال المواطنة والحياة',
+        activities: 'التطوع / المشاركة بالمناسبات الوطنية / الإذاعة المدرسية (المشاركة بإذاعة المدرسة لتعزيز القيم والحملات التوعوية / المواطنة الرقمية) عمل فيديوهات ومقاطع توعوية تعزز من قيمة الانتماء الوطني'
+      },
+      { 
+        id: 'culture', 
+        name: 'مجال الثقافة والفنون',
+        activities: 'المسرح / الشعر / الإلقاء / الإنشاد / القصة / الرواية / الخط العربي / الرسم / النحت / الفنون / الزخرفة / الحرف اليدوية'
+      },
+      { 
+        id: 'science', 
+        name: 'مجال العلوم والتقنية',
+        activities: 'استكشاف الفضاء / الذكاء الاصطناعي / الإلمام بالحاسب الآلي / الأمن السيبراني / الاختراعات العلمية / التجارب'
+      },
+      { 
+        id: 'health', 
+        name: 'مجال الصحة والرياضة',
+        activities: 'الرياضات الفردية (السباحة / الجري / ركوب الدراجات / ألعاب القوى) والجماعية (كرة القدم / طائرة / سلة / تنس) ورياضات الكترونية'
+      },
+      { 
+        id: 'scouting', 
+        name: 'مجال النشاط الكشفي',
+        activities: 'الرحلات الميدانية (زيارة معالم تاريخية او طبيعية / الخدمة الكشفية لأعمال التوعوية / التخييم الكشفي / المشاركة بالمناسبات الوطنية'
+      }
+    ];
+
+    let state = {
+      isAdmin: false,
+      showLogin: false,
+      password: '',
+      showLoginError: false,
+      formData: { name: '', grade: '', section: '', field: '', activity: '' },
+      submitted: false,
+      students: [],
+      filterGrade: 'all',
+      filterField: 'all',
+      loading: false
+    };
+
+    async function saveStudent(data) {
+      try {
+        state.loading = true;
+        render();
+        
+        const studentData = {
+          ...data,
+          timestamp: new Date().toISOString(),
+          createdAt: new Date().toLocaleString('ar-SA')
+        };
+        
+        await window.addDoc(window.collection(window.firebaseDB, 'students'), studentData);
+        
+        state.submitted = true;
+        state.loading = false;
+        render();
+        
+        setTimeout(() => {
+          state.submitted = false;
+          state.formData = { name: '', grade: '', section: '', field: '', activity: '' };
+          render();
+        }, 3000);
+      } catch (error) {
+        console.error('Error saving student:', error);
+        alert('حدث خطأ في حفظ البيانات. يرجى المحاولة مرة أخرى.');
+        state.loading = false;
+        render();
+      }
+    }
+
+    async function loadStudents() {
+      try {
+        state.loading = true;
+        render();
+        
+        const q = window.query(window.collection(window.firebaseDB, 'students'), window.orderBy('timestamp', 'desc'));
+        const querySnapshot = await window.getDocs(q);
+        
+        state.students = [];
+        querySnapshot.forEach((doc) => {
+          state.students.push({ id: doc.id, ...doc.data() });
+        });
+        
+        state.loading = false;
+        render();
+      } catch (error) {
+        console.error('Error loading students:', error);
+        state.loading = false;
+        render();
+      }
+    }
+
+    function handleLogin() {
+      if (state.password === ADMIN_PASSWORD) {
+        state.isAdmin = true;
+        state.showLogin = false;
+        state.showLoginError = false;
+        state.password = '';
+        loadStudents();
+      } else {
+        state.showLoginError = true;
+        setTimeout(() => {
+          state.showLoginError = false;
+          render();
+        }, 3000);
+      }
+      render();
+    }
+
+    function handleSubmit() {
+      const { name, grade, section, field, activity } = state.formData;
+      if (!name || !grade || !section || !field || !activity) {
+        alert('يرجى تعبئة جميع الحقول المطلوبة');
+        return;
+      }
+      saveStudent(state.formData);
+    }
+
+    function exportData() {
+      const filtered = getFilteredStudents();
+      const data = filtered.map(s => 
+        `${s.name}\t${getGradeName(s.grade)}\t${s.section}\t${fields.find(f => f.id === s.field)?.name}\t${s.activity}`
+      ).join('\n');
+      const header = 'الاسم\tالصف\tالشعبة\tالمجال\tالنشاط\n';
+      const blob = new Blob([header + data], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `تسجيل_الطلاب_${new Date().toLocaleDateString('ar-SA')}.txt`;
+      a.click();
+    }
+
+    function getFilteredStudents() {
+      return state.students.filter(student => {
+        const gradeMatch = state.filterGrade === 'all' || student.grade === state.filterGrade;
+        const fieldMatch = state.filterField === 'all' || student.field === state.filterField;
+        return gradeMatch && fieldMatch;
+      });
+    }
+
+    function getGradeName(grade) {
+      const grades = { first: 'الأول', second: 'الثاني', third: 'الثالث' };
+      return grades[grade] ? grades[grade] + ' متوسط' : grade;
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      
+      if (state.isAdmin) {
+        app.innerHTML = renderAdminPanel();
+      } else {
+        app.innerHTML = renderStudentForm();
+      }
+    }
+
+    function renderAdminPanel() {
+      const filtered = getFilteredStudents();
+      
+      return `
+        <div class="py-8 px-4">
+          <div class="max-w-6xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-xl p-8">
+              <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+                <div>
+                  <h1 class="text-3xl font-bold text-gray-800 mb-2">لوحة التحكم - رائد النشاط</h1>
+                  <p class="text-gray-600">عرض وفرز تسجيلات الطلاب</p>
+                </div>
+                <button onclick="logout()" class="flex items-center gap-2 bg-red-500 text-white px-6 py-3 rounded-xl hover:bg-red-600 transition-all">
+                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  تسجيل الخروج
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-gradient-to-br from-blue-100 to-blue-50 p-6 rounded-xl">
+                  <div class="flex items-center gap-3">
+                    <svg width="32" height="32" fill="none" stroke="currentColor" class="text-blue-600" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <div>
+                      <p class="text-gray-600 text-sm">إجمالي الطلاب</p>
+                      <p class="text-3xl font-bold text-gray-800">${state.students.length}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="bg-gradient-to-br from-purple-100 to-purple-50 p-6 rounded-xl">
+                  <div class="flex items-center gap-3">
+                    <svg width="32" height="32" fill="none" stroke="currentColor" class="text-purple-600" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    <div>
+                      <p class="text-gray-600 text-sm">النتائج المفلترة</p>
+                      <p class="text-3xl font-bold text-gray-800">${filtered.length}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <button onclick="exportData()" ${filtered.length === 0 ? 'disabled' : ''} class="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl hover:from-green-600 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3">
+                  <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span class="font-bold">تصدير البيانات</span>
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div>
+                  <label class="block text-gray-700 font-semibold mb-2">فلترة حسب الصف</label>
+                  <select onchange="updateFilter('grade', this.value)" class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none">
+                    <option value="all">جميع الصفوف</option>
+                    <option value="first">الأول متوسط</option>
+                    <option value="second">الثاني متوسط</option>
+                    <option value="third">الثالث متوسط</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-gray-700 font-semibold mb-2">فلترة حسب المجال</label>
+                  <select onchange="updateFilter('field', this.value)" class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none">
+                    <option value="all">جميع المجالات</option>
+                    ${fields.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+
+              <div class="bg-gray-50 rounded-xl p-6 max-h-96 overflow-y-auto">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">قائمة الطلاب المسجلين</h3>
+                ${state.loading ? '<p class="text-center py-8 text-gray-500">جاري التحميل...</p>' : 
+                  filtered.length === 0 ? '<p class="text-gray-500 text-center py-8">لا توجد تسجيلات بعد</p>' : 
+                  `<div class="space-y-3">
+                    ${filtered.map(student => `
+                      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          <div>
+                            <p class="text-xs text-gray-500 mb-1">اسم الطالب</p>
+                            <p class="font-semibold text-gray-800">${student.name}</p>
+                          </div>
+                          <div>
+                            <p class="text-xs text-gray-500 mb-1">الصف</p>
+                            <p class="font-semibold text-gray-800">${getGradeName(student.grade)}</p>
+                          </div>
+                          <div>
+                            <p class="text-xs text-gray-500 mb-1">الشعبة</p>
+                            <p class="font-semibold text-gray-800">${student.section}</p>
+                          </div>
+                          <div>
+                            <p class="text-xs text-gray-500 mb-1">المجال</p>
+                            <p class="font-semibold text-gray-800 text-sm">${fields.find(f => f.id === student.field)?.name}</p>
+                          </div>
+                          <div>
+                            <p class="text-xs text-gray-500 mb-1">النشاط</p>
+                            <p class="font-semibold text-gray-800 text-sm">${student.activity}</p>
+                          </div>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>`
+                }
+              </div>
+
+              <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                <p class="text-gray-600 text-sm">تنفيذ وتصميم: نواف الصبحي</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStudentForm() {
+      return `
+        <div class="py-8 px-4">
+          <div class="max-w-4xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+              <div class="bg-gradient-to-l from-blue-600 to-purple-600 p-8 text-white text-center">
+                <div class="mb-4">
+                  <h1 class="text-3xl font-bold mb-2">وزارة التعليم</h1>
+                  <p class="text-lg opacity-90">الإدارة العامة للتعليم بالمدينة المنورة</p>
+                  <p class="text-xl font-semibold mt-2">متوسطة المنذر بن عمرو الأنصاري</p>
+                </div>
+                <div class="bg-white/20 backdrop-blur-sm rounded-xl p-4 inline-block mb-4">
+                  <h2 class="text-2xl font-bold">استمارة كشف ميول الطلاب ومواهبهم</h2>
+                  <p class="text-lg mt-1">للعام الدراسي ١٤٤٧هـ</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 max-w-2xl mx-auto">
+                  <div class="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                    <p class="text-sm opacity-80 mb-1">مدير المدرسة</p>
+                    <p class="font-bold text-lg">خالد المطيري</p>
+                  </div>
+                  <div class="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                    <p class="text-sm opacity-80 mb-1">رائد النشاط</p>
+                    <p class="font-bold text-lg">عبدالله الحربي</p>
+                  </div>
+                </div>
+              </div>
+
+              ${state.submitted ? `
+                <div class="p-12 text-center">
+                  <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
+                    <svg width="48" height="48" fill="none" stroke="currentColor" class="text-green-600" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 class="text-2xl font-bold text-gray-800 mb-3">تم التسجيل بنجاح!</h3>
+                  <p class="text-gray-600 mb-6">شكراً لتسجيل ميولك ومواهبك</p>
+                </div>
+              ` : `
+                <div class="p-8">
+                  <div class="space-y-6">
+                    <div>
+                      <label class="block text-gray-700 font-semibold mb-2 text-lg">اسم الطالب الرباعي *</label>
+                      <input type="text" id="name" onchange="updateForm('name', this.value)" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none transition-all text-lg" placeholder="أدخل اسمك الرباعي" value="${state.formData.name}">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label class="block text-gray-700 font-semibold mb-2 text-lg">الصف *</label>
+                        <select id="grade" onchange="updateForm('grade', this.value)" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none transition-all text-lg">
+                          <option value="">اختر الصف</option>
+                          <option value="first" ${state.formData.grade === 'first' ? 'selected' : ''}>الأول متوسط</option>
+                          <option value="second" ${state.formData.grade === 'second' ? 'selected' : ''}>الثاني متوسط</option>
+                          <option value="third" ${state.formData.grade === 'third' ? 'selected' : ''}>الثالث متوسط</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label class="block text-gray-700 font-semibold mb-2 text-lg">الشعبة *</label>
+                        <select id="section" onchange="updateForm('section', this.value)" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none transition-all text-lg">
+                          <option value="">اختر الشعبة</option>
+                          ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${state.formData.section == n ? 'selected' : ''}>${n}</option>`).join('')}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="block text-gray-700 font-semibold mb-3 text-lg">اختر مجال النشاط *</label>
+                      <div class="space-y-3">
+                        ${fields.map(field => `
+                          <label class="block p-4 border-2 rounded-xl cursor-pointer transition-all ${state.formData.field === field.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}">
+                            <div class="flex items-start">
+                              <input type="radio" name="field" value="${field.id}" onchange="updateForm('field', this.value)" ${state.formData.field === field.id ? 'checked' : ''} class="ml-3 w-5 h-5 mt-1 flex-shrink-0">
+                              <div class="flex-1">
+                                <span class="text-gray-800 text-lg font-semibold block mb-2">${field.name}</span>
+                                <p class="text-gray-600 text-sm leading-relaxed">${field.activities}</p>
+                              </div>
+                            </div>
+                          </label>
+                        `).join('')}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="block text-gray-700 font-semibold mb-2 text-lg">النشاط أو الموهبة المحددة *</label>
+                      <textarea id="activity" onchange="updateForm('activity', this.value)" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none transition-all text-lg" rows="4" placeholder="اكتب تفاصيل النشاط أو الموهبة التي ترغب في ممارستها...">${state.formData.activity}</textarea>
+                    </div>
+
+                    <button onclick="handleSubmit()" ${state.loading ? 'disabled' : ''} class="w-full bg-gradient-to-l from-blue-600 to-purple-600 text-white py-4 rounded-xl font-bold text-xl hover:shadow-xl transition-all transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                      ${state.loading ? 'جاري الحفظ...' : 'تسجيل الاستمارة'}
+                    </button>
+                  </div>
+                </div>
+              `}
+
+              <div class="bg-gradient-to-l from-gray-50 to-gray-100 p-6 border-t border-gray-200">
+                <div class="text-center">
+                  <p class="text-gray-600 text-sm">تنفيذ وتصميم: نواف الصبحي</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-8 text-center">
+              <button onclick="showLoginModal()" class="inline-flex items-center gap-2 bg-white text-gray-700 px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+                دخول لوحة التحكم
+              </button>
+            </div>
+
+            ${state.showLogin ? `
+              <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onclick="if(event.target === this) hideLoginModal()">
+                <div class="bg-white rounded-2xl p-8 max-w-md w-full">
+                  <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">تسجيل الدخول - رائد النشاط</h3>
+                  <div class="space-y-4">
+                    <div>
+                      <label class="block text-gray-700 font-semibold mb-2">الرقم السري</label>
+                      <input type="password" id="password" onkeypress="if(event.key==='Enter') handleLogin()" class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-400 focus:outline-none" placeholder="أدخل الرقم السري" autofocus>
+                    </div>
+                    ${state.showLoginError ? '<p class="text-red-600 text-sm text-center">الرقم السري غير صحيح</p>' : ''}
+                    <div class="flex gap-3">
+                      <button onclick="handleLogin()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-all font-semibold">دخول</button>
+                      <button onclick="hideLoginModal()" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl hover:bg-gray-300 transition-all font-semibold">إلغاء</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    window.updateForm = (field, value) => {
+      state.formData[field] = value;
+    };
+
+    window.updateFilter = (type, value) => {
+      if (type === 'grade') state.filterGrade = value;
+      if (type === 'field') state.filterField = value;
+      render();
+    };
+
+    window.handleSubmit = handleSubmit;
+    window.exportData = exportData;
+    
+    window.showLoginModal = () => {
+      state.showLogin = true;
+      render();
+      setTimeout(() => document.getElementById('password')?.focus(), 100);
+    };
+    
+    window.hideLoginModal = () => {
+      state.showLogin = false;
+      state.password = '';
+      state.showLoginError = false;
+      render();
+    };
+    
+    window.handleLogin = () => {
+      state.password = document.getElementById('password').value;
+      handleLogin();
+    };
+    
+    window.logout = () => {
+      state.isAdmin = false;
+      state.students = [];
+      render();
+    };
+
+    // Initial render
+    render();
+  </script>
+</body>
+</html>
