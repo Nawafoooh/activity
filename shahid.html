@@ -363,7 +363,6 @@
 
         // Actions
         function setCurrentUser(role, name, id) {
-            // إذا كان المستخدم معلم، استخدم أول معلم من القائمة
             if (role === 'teacher' && !name) {
                 name = teachersList[0];
             }
@@ -411,27 +410,20 @@
 
         function updateNewViolation(key, value) {
             state.newViolation[key] = value;
-            // لا نحتاج render هنا لأن oninput يحدث بشكل مباشر
-            // فقط نحدث الحالة
         }
 
         function addViolation() {
-            // قراءة القيم مباشرة من النموذج
-            const studentName = document.getElementById('studentNameInput')?.value.trim() || '';
-            const grade = document.getElementById('gradeSelect')?.value || '';
-            const section = document.getElementById('sectionSelect')?.value || '';
-            const violationType = document.getElementById('violationTypeInput')?.value || 'first';
-            const violationDetails = document.getElementById('violationDetailsSelect')?.value || '';
-            const documentation = document.getElementById('documentationInput')?.value.trim() || '';
-            const date = document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
-            const time = document.getElementById('timeInput')?.value || new Date().toTimeString().slice(0, 5);
+            // قراءة القيم من state مباشرة
+            const studentName = state.newViolation.studentName.trim();
+            const grade = state.newViolation.grade;
+            const section = state.newViolation.section;
+            const violationType = state.newViolation.violationType;
+            const violationDetails = state.newViolation.violationDetails;
+            const documentation = state.newViolation.documentation.trim();
+            const date = state.newViolation.date;
+            const time = state.newViolation.time;
             
-            // طباعة للتأكد من القيم (للتشخيص)
-            console.log('بيانات المخالفة:', {
-                studentName, grade, section, violationType, violationDetails, documentation, date, time
-            });
-            
-            // التحقق من البيانات الأساسية فقط
+            // التحقق من البيانات الأساسية
             if (!studentName) {
                 alert('⚠️ يرجى إدخال اسم الطالب');
                 return false;
@@ -605,7 +597,7 @@
                                     📋 صفحة الوكيل
                                 </button>
                                 <button onclick="setCurrentUser('counselor', '${config.schoolInfo.counselor}', 3)" class="${btnClass('counselor')}">
-                                    🔔 الموجه الطلابي
+                                    📢 الموجه الطلابي
                                 </button>
                                 <button onclick="setCurrentUser('principal', '${config.schoolInfo.principal}', 4)" class="${btnClass('principal')}">
                                     🏛️ صفحة المدير
@@ -961,7 +953,7 @@
                                 <input type="text" 
                                        id="studentNameInput"
                                        value="${state.newViolation.studentName}" 
-                                       onkeyup="state.newViolation.studentName = this.value;"
+                                       oninput="state.newViolation.studentName = this.value; render();"
                                        class="w-full px-4 py-3 border-2 ${state.newViolation.studentName.trim() ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                        placeholder="أدخل اسم الطالب الثلاثي الكامل"
                                        required
@@ -974,7 +966,8 @@
                                     <label class="block text-sm font-bold text-gray-700 mb-2">
                                         الصف <span class="text-red-500">*</span>
                                     </label>
-                                    <select onchange="state.newViolation.grade = this.value;"
+                                    <select id="gradeSelect" 
+                                            onchange="state.newViolation.grade = this.value; render();"
                                             required
                                             class="w-full px-4 py-3 border-2 ${state.newViolation.grade ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                         <option value="">اختر الصف</option>
@@ -988,7 +981,8 @@
                                     <label class="block text-sm font-bold text-gray-700 mb-2">
                                         الشعبة <span class="text-red-500">*</span>
                                     </label>
-                                    <select onchange="state.newViolation.section = this.value;"
+                                    <select id="sectionSelect" 
+                                            onchange="state.newViolation.section = this.value; render();"
                                             required
                                             class="w-full px-4 py-3 border-2 ${state.newViolation.section ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                         <option value="">اختر الشعبة</option>
@@ -1043,7 +1037,8 @@
                                 <label class="block text-sm font-bold text-gray-700 mb-2">
                                     نوع المخالفة <span class="text-red-500">*</span>
                                 </label>
-                                <select onchange="state.newViolation.violationDetails = this.value;"
+                                <select id="violationDetailsSelect" 
+                                        onchange="state.newViolation.violationDetails = this.value; render();"
                                         required
                                         class="w-full px-4 py-3 border-2 ${state.newViolation.violationDetails ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                     <option value="">اختر نوع المخالفة</option>
@@ -1057,7 +1052,8 @@
                                 <label class="block text-sm font-bold text-gray-700 mb-2">
                                     توثيق المخالفة (اختياري)
                                 </label>
-                                <textarea oninput="state.newViolation.documentation = this.value;"
+                                <textarea id="documentationInput" 
+                                          oninput="state.newViolation.documentation = this.value;"
                                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
                                           rows="4"
                                           placeholder="أضف تفاصيل إضافية عن المخالفة، الظروف المحيطة، أو أي معلومات مهمة...">${state.newViolation.documentation}</textarea>
@@ -1066,14 +1062,18 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">التاريخ</label>
-                                    <input type="date" value="${state.newViolation.date}"
+                                    <input id="dateInput" 
+                                           type="date" 
+                                           value="${state.newViolation.date}"
                                            onchange="state.newViolation.date = this.value;"
                                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                                 
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">الوقت</label>
-                                    <input type="time" value="${state.newViolation.time}"
+                                    <input id="timeInput" 
+                                           type="time" 
+                                           value="${state.newViolation.time}"
                                            onchange="state.newViolation.time = this.value;"
                                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
