@@ -411,27 +411,40 @@
 
         function updateNewViolation(key, value) {
             state.newViolation[key] = value;
-            render();
+            // لا نحتاج render هنا لأن oninput يحدث بشكل مباشر
+            // فقط نحدث الحالة
         }
 
         function addViolation() {
-            if (state.newViolation.studentName.trim() && 
-                state.newViolation.grade && 
-                state.newViolation.section && 
-                state.newViolation.violationDetails) {
-                
-                const violation = {
-                    id: Math.max(...state.violations.map(v => v.id), 0) + 1,
-                    ...state.newViolation,
-                    teacherName: state.currentUser.name,
-                    teacherId: state.currentUser.id,
-                    status: 'active',
-                    createdAt: new Date().toISOString()
-                };
-                
-                state.violations = [violation, ...state.violations];
-                closeAddForm();
+            // التحقق من البيانات
+            const studentName = state.newViolation.studentName.trim();
+            const grade = state.newViolation.grade;
+            const section = state.newViolation.section;
+            const violationDetails = state.newViolation.violationDetails;
+            
+            if (!studentName || !grade || !section || !violationDetails) {
+                alert('يرجى ملء جميع الحقول المطلوبة:\n- اسم الطالب\n- الصف\n- الشعبة\n- نوع المخالفة');
+                return;
             }
+            
+            const violation = {
+                id: Math.max(...state.violations.map(v => v.id), 0) + 1,
+                studentName: studentName,
+                grade: grade,
+                section: section,
+                violationType: state.newViolation.violationType,
+                violationDetails: violationDetails,
+                documentation: state.newViolation.documentation,
+                date: state.newViolation.date,
+                time: state.newViolation.time,
+                teacherName: state.currentUser.name,
+                teacherId: state.currentUser.id,
+                status: 'active',
+                createdAt: new Date().toISOString()
+            };
+            
+            state.violations = [violation, ...state.violations];
+            closeAddForm();
         }
 
         function resolveViolation(violationId) {
@@ -887,14 +900,15 @@
         }
 
         function renderAddModal() {
-            const isDisabled = !state.newViolation.studentName.trim() || 
+            const studentName = state.newViolation.studentName.trim();
+            const isDisabled = !studentName || 
                               !state.newViolation.grade || 
                               !state.newViolation.section || 
                               !state.newViolation.violationDetails;
 
             return `
-                <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50">
-                    <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target === this) closeAddForm()">
+                    <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
                         <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
                             <h2 class="text-2xl font-bold flex items-center gap-2">
                                 ➕ إضافة مخالفة سلوكية جديدة
@@ -902,15 +916,20 @@
                             <p class="text-blue-100 text-sm mt-1">يرجى ملء جميع البيانات المطلوبة</p>
                         </div>
                         
-                        <div class="p-6 space-y-5">
+                        <form onsubmit="event.preventDefault(); addViolation();" class="p-6 space-y-5">
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">
                                     اسم الطالب <span class="text-red-500">*</span>
                                 </label>
-                                <input type="text" value="${state.newViolation.studentName}" 
-                                       oninput="updateNewViolation('studentName', this.value)"
-                                       class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                       placeholder="أدخل اسم الطالب الثلاثي الكامل">
+                                <input type="text" 
+                                       id="studentNameInput"
+                                       value="${state.newViolation.studentName}" 
+                                       oninput="state.newViolation.studentName = this.value; render();"
+                                       class="w-full px-4 py-3 border-2 ${studentName ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                       placeholder="أدخل اسم الطالب الثلاثي الكامل"
+                                       required
+                                       autocomplete="off">
+                                ${studentName ? '<p class="text-xs text-green-600 mt-1">✓ تم إدخال الاسم</p>' : ''}
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
@@ -918,8 +937,9 @@
                                     <label class="block text-sm font-bold text-gray-700 mb-2">
                                         الصف <span class="text-red-500">*</span>
                                     </label>
-                                    <select onchange="updateNewViolation('grade', this.value)"
-                                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <select onchange="state.newViolation.grade = this.value; render();"
+                                            required
+                                            class="w-full px-4 py-3 border-2 ${state.newViolation.grade ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                         <option value="">اختر الصف</option>
                                         ${config.grades.map(g => `
                                             <option value="${g}" ${state.newViolation.grade === g ? 'selected' : ''}>${g}</option>
@@ -931,8 +951,9 @@
                                     <label class="block text-sm font-bold text-gray-700 mb-2">
                                         الشعبة <span class="text-red-500">*</span>
                                     </label>
-                                    <select onchange="updateNewViolation('section', this.value)"
-                                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <select onchange="state.newViolation.section = this.value; render();"
+                                            required
+                                            class="w-full px-4 py-3 border-2 ${state.newViolation.section ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                         <option value="">اختر الشعبة</option>
                                         ${config.sections.map(s => `
                                             <option value="${s}" ${state.newViolation.section === s ? 'selected' : ''}>${s}</option>
@@ -947,7 +968,7 @@
                                 </label>
                                 <div class="grid grid-cols-3 gap-3">
                                     <button type="button" 
-                                            onclick="updateNewViolation('violationType', 'first'); updateNewViolation('violationDetails', '')"
+                                            onclick="state.newViolation.violationType = 'first'; state.newViolation.violationDetails = ''; render();"
                                             class="p-4 border-2 rounded-lg font-medium transition-all ${
                                                 state.newViolation.violationType === 'first'
                                                     ? 'border-green-500 bg-green-50 text-green-800'
@@ -958,7 +979,7 @@
                                     </button>
                                     
                                     <button type="button"
-                                            onclick="updateNewViolation('violationType', 'second'); updateNewViolation('violationDetails', '')"
+                                            onclick="state.newViolation.violationType = 'second'; state.newViolation.violationDetails = ''; render();"
                                             class="p-4 border-2 rounded-lg font-medium transition-all ${
                                                 state.newViolation.violationType === 'second'
                                                     ? 'border-yellow-500 bg-yellow-50 text-yellow-800'
@@ -969,7 +990,7 @@
                                     </button>
                                     
                                     <button type="button"
-                                            onclick="updateNewViolation('violationType', 'third'); updateNewViolation('violationDetails', '')"
+                                            onclick="state.newViolation.violationType = 'third'; state.newViolation.violationDetails = ''; render();"
                                             class="p-4 border-2 rounded-lg font-medium transition-all ${
                                                 state.newViolation.violationType === 'third'
                                                     ? 'border-red-500 bg-red-50 text-red-800'
@@ -985,8 +1006,9 @@
                                 <label class="block text-sm font-bold text-gray-700 mb-2">
                                     نوع المخالفة <span class="text-red-500">*</span>
                                 </label>
-                                <select onchange="updateNewViolation('violationDetails', this.value)"
-                                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <select onchange="state.newViolation.violationDetails = this.value; render();"
+                                        required
+                                        class="w-full px-4 py-3 border-2 ${state.newViolation.violationDetails ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                     <option value="">اختر نوع المخالفة</option>
                                     ${config.violationTypes[state.newViolation.violationType].items.map(item => `
                                         <option value="${item}" ${state.newViolation.violationDetails === item ? 'selected' : ''}>${item}</option>
@@ -998,7 +1020,7 @@
                                 <label class="block text-sm font-bold text-gray-700 mb-2">
                                     توثيق المخالفة (اختياري)
                                 </label>
-                                <textarea oninput="updateNewViolation('documentation', this.value)"
+                                <textarea oninput="state.newViolation.documentation = this.value;"
                                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
                                           rows="4"
                                           placeholder="أضف تفاصيل إضافية عن المخالفة، الظروف المحيطة، أو أي معلومات مهمة...">${state.newViolation.documentation}</textarea>
@@ -1008,30 +1030,32 @@
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">التاريخ</label>
                                     <input type="date" value="${state.newViolation.date}"
-                                           onchange="updateNewViolation('date', this.value)"
+                                           onchange="state.newViolation.date = this.value;"
                                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                                 
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">الوقت</label>
                                     <input type="time" value="${state.newViolation.time}"
-                                           onchange="updateNewViolation('time', this.value)"
+                                           onchange="state.newViolation.time = this.value;"
                                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                             </div>
-                        </div>
+                        </form>
 
                         <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl flex gap-3 justify-end">
-                            <button onclick="closeAddForm()"
+                            <button type="button"
+                                    onclick="closeAddForm()"
                                     class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
                                 إلغاء
                             </button>
-                            <button onclick="addViolation()"
-                                    ${isDisabled ? 'disabled' : ''}
+                            <button type="button"
+                                    onclick="addViolation()"
+                                    ${isDisabled ? 'disabled title="يرجى ملء جميع الحقول المطلوبة"' : ''}
                                     class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg ${
                                         isDisabled ? 'opacity-50 cursor-not-allowed' : ''
                                     }">
-                                حفظ المخالفة
+                                ${isDisabled ? '⚠️ يرجى ملء جميع البيانات' : '✓ حفظ المخالفة'}
                             </button>
                         </div>
                     </div>
