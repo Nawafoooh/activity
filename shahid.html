@@ -416,17 +416,20 @@
         }
 
         function addViolation() {
-            // التحقق من البيانات
-            const studentName = state.newViolation.studentName.trim();
+            // قراءة القيم مباشرة من الـ state
+            const studentNameInput = document.getElementById('studentNameInput');
+            const studentName = studentNameInput ? studentNameInput.value.trim() : state.newViolation.studentName.trim();
             const grade = state.newViolation.grade;
             const section = state.newViolation.section;
             const violationDetails = state.newViolation.violationDetails;
             
+            // التحقق من البيانات
             if (!studentName || !grade || !section || !violationDetails) {
-                alert('يرجى ملء جميع الحقول المطلوبة:\n- اسم الطالب\n- الصف\n- الشعبة\n- نوع المخالفة');
+                alert('⚠️ يرجى ملء جميع الحقول المطلوبة:\n\n• اسم الطالب\n• الصف\n• الشعبة\n• نوع المخالفة');
                 return;
             }
             
+            // إنشاء المخالفة
             const violation = {
                 id: Math.max(...state.violations.map(v => v.id), 0) + 1,
                 studentName: studentName,
@@ -443,7 +446,13 @@
                 createdAt: new Date().toISOString()
             };
             
+            // إضافة المخالفة
             state.violations = [violation, ...state.violations];
+            
+            // رسالة نجاح
+            alert('✅ تم إضافة المخالفة بنجاح!\n\nالطالب: ' + studentName + '\nالصف: ' + grade + '\nالمخالفة: ' + violationDetails);
+            
+            // إغلاق النموذج
             closeAddForm();
         }
 
@@ -924,12 +933,12 @@
                                 <input type="text" 
                                        id="studentNameInput"
                                        value="${state.newViolation.studentName}" 
-                                       oninput="state.newViolation.studentName = this.value; render();"
-                                       class="w-full px-4 py-3 border-2 ${studentName ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                       onkeyup="state.newViolation.studentName = this.value;"
+                                       class="w-full px-4 py-3 border-2 ${state.newViolation.studentName.trim() ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                        placeholder="أدخل اسم الطالب الثلاثي الكامل"
                                        required
                                        autocomplete="off">
-                                ${studentName ? '<p class="text-xs text-green-600 mt-1">✓ تم إدخال الاسم</p>' : ''}
+                                ${state.newViolation.studentName.trim() ? '<p class="text-xs text-green-600 mt-1">✓ تم إدخال الاسم</p>' : '<p class="text-xs text-gray-500 mt-1">مثال: أحمد محمد علي</p>'}
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
@@ -937,7 +946,7 @@
                                     <label class="block text-sm font-bold text-gray-700 mb-2">
                                         الصف <span class="text-red-500">*</span>
                                     </label>
-                                    <select onchange="state.newViolation.grade = this.value; render();"
+                                    <select onchange="state.newViolation.grade = this.value;"
                                             required
                                             class="w-full px-4 py-3 border-2 ${state.newViolation.grade ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                         <option value="">اختر الصف</option>
@@ -951,7 +960,7 @@
                                     <label class="block text-sm font-bold text-gray-700 mb-2">
                                         الشعبة <span class="text-red-500">*</span>
                                     </label>
-                                    <select onchange="state.newViolation.section = this.value; render();"
+                                    <select onchange="state.newViolation.section = this.value;"
                                             required
                                             class="w-full px-4 py-3 border-2 ${state.newViolation.section ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                         <option value="">اختر الشعبة</option>
@@ -1006,7 +1015,7 @@
                                 <label class="block text-sm font-bold text-gray-700 mb-2">
                                     نوع المخالفة <span class="text-red-500">*</span>
                                 </label>
-                                <select onchange="state.newViolation.violationDetails = this.value; render();"
+                                <select onchange="state.newViolation.violationDetails = this.value;"
                                         required
                                         class="w-full px-4 py-3 border-2 ${state.newViolation.violationDetails ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                     <option value="">اختر نوع المخالفة</option>
