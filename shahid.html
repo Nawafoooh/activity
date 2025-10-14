@@ -85,11 +85,8 @@
 
         // Application State
         let state = {
-            currentUser: { 
-                role: 'teacher', 
-                name: teachersList[0],
-                id: 1
-            },
+            currentUser: null, // سيتم تعيينه بعد تسجيل الدخول
+            isAuthenticated: false,
             violations: [
                 {
                     id: 1,
@@ -216,6 +213,56 @@
                 assistant: 'محمد الجابري',
                 counselor: 'محمد القحطاني',
                 type: 'بنين'
+            },
+            passwords: {
+                principal: 'A2030',
+                assistant: 'B2030',
+                counselor: 'C2030'
+            },
+            teacherPasswords: {
+                // آخر 4 أرقام من رقم الجوال لكل معلم
+                // مثال: 'اسم المعلم': '1234'
+                'عبدالله بن مطر بن مصلح العمري': '5001',
+                'محمد بن عماري راضي الزهراني': '5002',
+                'موفق مرزوق سويرح السحيمي': '5003',
+                'فواز زايد لافي المهيمزي الرشيدي': '5004',
+                'فيصل عطالله حويمد الصاعدي': '5005',
+                'ابراهيم عياد عيد العلوي': '5006',
+                'عبدالله حمود حامد الحربي': '5007',
+                'ساير فيصل سعد الله العضيله المطيري': '5008',
+                'نافع شعوي نافع المطيري': '5009',
+                'اسامه منور مشعل العوفي': '5010',
+                'محمد عياد عليثه العوفي': '5011',
+                'أحمد إبراهيم فخري التركي': '5012',
+                'أحمد حامد هلال الحربي': '5013',
+                'نميان علي نميان الحربي': '5014',
+                'عبدالله صلاح صالح الرحيلى': '5015',
+                'مشعل بن هليل بن غالب العمري الحربي': '5016',
+                'علي متعب ناصر العلوي الحربي': '5017',
+                'سيف عبدالمنعم حمدان العارضي': '5018',
+                'محمد بن ذعار بن صالح العوفي': '5019',
+                'فؤاد بن محمد بن حماد العتيبي': '5020',
+                'حمزة صدقة حمزة اسلام': '5021',
+                'سلمان صالح أحمد الحارثي': '5022',
+                'عبيد بن دخيل بن دويهيس العياضي الحربي': '5023',
+                'عبدالعزيز مفلح نويعم الرويثي': '5024',
+                'فيصل عواد محمد أبو سلمي': '5025',
+                'عبدالله بن محمد بن سعيد ال بحران القرني': '5026',
+                'كاتب مفلح سليمان الرشيدى': '5027',
+                'حبيب علي نعيس العمري الحربي': '5028',
+                'ابراهيم عايض عوض الجابري': '5029',
+                'سلطان عويض معيض السحيمي': '5030',
+                'عبدالهادي معيض معلا الشاماني': '5031',
+                'عبدالعزيز عبدالرحمن غلاب المخلفي': '5032',
+                'سعد طالع حمود الحربي': '5033',
+                'ناهر مشعل عويد المطيري': '5034',
+                'موسى غازي سفر الحربي': '5035',
+                'موسى مسعود عايض الحيسوني': '5036',
+                'نواف منصور عواد الصبحي': '5037',
+                'بدر عبدالعزيز شائد السحيمي': '5038',
+                'فهد عويض عوض الشاماني الحربي': '5039',
+                'عبدالمجيد عايد خضران الرشيدي': '5040',
+                'أحمد مطر سليمان الرشيدي': '5041'
             },
             grades: ['أول متوسط', 'ثاني متوسط', 'ثالث متوسط'],
             sections: ['1', '2', '3', '4', '5', '6'],
@@ -439,12 +486,61 @@
         }
 
         // Actions
-        function setCurrentUser(role, name, id) {
-            if (role === 'teacher' && !name) {
-                name = teachersList[0];
+        function login(role, name, password) {
+            let isValid = false;
+            let userId = null;
+            
+            if (role === 'principal') {
+                isValid = password === config.passwords.principal;
+                userId = 999; // ID خاص للمدير
+                name = config.schoolInfo.principal;
+            } else if (role === 'assistant') {
+                isValid = password === config.passwords.assistant;
+                userId = 998; // ID خاص للوكيل
+                name = config.schoolInfo.assistant;
+            } else if (role === 'counselor') {
+                isValid = password === config.passwords.counselor;
+                userId = 997; // ID خاص للمرشد
+                name = config.schoolInfo.counselor;
+            } else if (role === 'teacher') {
+                isValid = config.teacherPasswords[name] === password;
+                userId = teachersList.indexOf(name) + 1;
             }
-            state.currentUser = { role, name, id };
+            
+            if (isValid) {
+                state.currentUser = { role, name, id: userId };
+                state.isAuthenticated = true;
+                render();
+                return true;
+            } else {
+                alert('❌ الرقم السري غير صحيح!\nيرجى المحاولة مرة أخرى.');
+                return false;
+            }
+        }
+
+        function logout() {
+            state.currentUser = null;
+            state.isAuthenticated = false;
             render();
+        }
+
+        function setCurrentUser(role, name, id) {
+            // هذه الدالة تستخدم للمدير فقط للانتقال بين صفحات المعلمين
+            if (state.currentUser.role === 'principal') {
+                const tempUser = state.currentUser; // حفظ بيانات المدير
+                if (role === 'teacher' && !name) {
+                    name = teachersList[0];
+                }
+                state.currentUser = { role, name, id, isPrincipalView: true, principalData: tempUser };
+                render();
+            }
+        }
+
+        function returnToPrincipalView() {
+            if (state.currentUser.isPrincipalView && state.currentUser.principalData) {
+                state.currentUser = state.currentUser.principalData;
+                render();
+            }
         }
 
         function setFilter(key, value) {
@@ -840,6 +936,13 @@
         // Render Functions
         function render() {
             const app = document.getElementById('app');
+            
+            // إذا لم يسجل دخول، اعرض صفحة تسجيل الدخول
+            if (!state.isAuthenticated || !state.currentUser) {
+                app.innerHTML = renderLoginPage();
+                return;
+            }
+            
             app.innerHTML = `
                 ${renderHeader()}
                 ${renderUserTabs()}
@@ -849,6 +952,108 @@
                 ${state.modals.showActionModal ? renderActionModal() : ''}
             `;
             attachEventListeners();
+        }
+
+        function renderLoginPage() {
+            return `
+                <div class="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+                        <div class="text-center mb-8">
+                            <div class="text-6xl mb-4">🏫</div>
+                            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                                ${config.schoolInfo.name}
+                            </h1>
+                            <p class="text-gray-600">نظام إدارة المخالفات السلوكية</p>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                🔐 اختر الدور
+                            </label>
+                            <select id="roleSelect" 
+                                    onchange="document.getElementById('nameSelect').style.display = this.value === 'teacher' ? 'block' : 'none'; document.getElementById('passwordInput').value = '';"
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium">
+                                <option value="">-- اختر الدور --</option>
+                                <option value="teacher">👨‍🏫 معلم</option>
+                                <option value="assistant">📋 وكيل المدرسة</option>
+                                <option value="counselor">📢 المرشد الطلابي</option>
+                                <option value="principal">🏛️ مدير المدرسة</option>
+                            </select>
+                        </div>
+
+                        <div id="nameSelect" style="display: none;" class="mb-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                👤 اختر اسمك
+                            </label>
+                            <select id="teacherNameSelect" 
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium">
+                                <option value="">-- اختر اسمك --</option>
+                                ${teachersList.map(teacher => `
+                                    <option value="${teacher}">${teacher}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">
+                                🔑 الرقم السري
+                            </label>
+                            <input type="password" 
+                                   id="passwordInput"
+                                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-center text-2xl tracking-widest"
+                                   placeholder="****"
+                                   maxlength="10"
+                                   onkeypress="if(event.key === 'Enter') attemptLogin()">
+                            <p class="text-xs text-gray-500 mt-2 text-center">
+                                💡 المعلم: آخر 4 أرقام من رقم الجوال
+                            </p>
+                        </div>
+
+                        <button onclick="attemptLogin()" 
+                                class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-bold text-lg shadow-lg">
+                            🔓 تسجيل الدخول
+                        </button>
+
+                        <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p class="text-sm text-blue-900 font-medium mb-2">📌 الأرقام السرية:</p>
+                            <div class="text-xs text-blue-800 space-y-1">
+                                <div>• المدير: <code class="bg-blue-100 px-2 py-1 rounded">A2030</code></div>
+                                <div>• الوكيل: <code class="bg-blue-100 px-2 py-1 rounded">B2030</code></div>
+                                <div>• المرشد: <code class="bg-blue-100 px-2 py-1 rounded">C2030</code></div>
+                                <div>• المعلم: آخر 4 أرقام من رقم الجوال</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    function attemptLogin() {
+                        const role = document.getElementById('roleSelect').value;
+                        const password = document.getElementById('passwordInput').value.trim();
+                        let name = '';
+                        
+                        if (!role) {
+                            alert('⚠️ يرجى اختيار الدور');
+                            return;
+                        }
+                        
+                        if (role === 'teacher') {
+                            name = document.getElementById('teacherNameSelect').value;
+                            if (!name) {
+                                alert('⚠️ يرجى اختيار اسمك من القائمة');
+                                return;
+                            }
+                        }
+                        
+                        if (!password) {
+                            alert('⚠️ يرجى إدخال الرقم السري');
+                            return;
+                        }
+                        
+                        login(role, name, password);
+                    }
+                </script>
+            `;
         }
 
         function renderHeader() {
@@ -872,47 +1077,81 @@
         }
 
         function renderUserTabs() {
-            const isActive = (role) => state.currentUser.role === role;
+            const isActive = (role) => state.currentUser.role === role && !state.currentUser.isPrincipalView;
             const btnClass = (role) => `flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
                 isActive(role) 
                     ? 'bg-blue-600 text-white shadow-lg transform scale-105' 
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`;
 
+            // إذا كان المدير يشاهد صفحة معلم
+            if (state.currentUser.isPrincipalView) {
+                return `
+                    <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white border-b shadow-sm sticky top-0 z-40">
+                        <div class="max-w-7xl mx-auto px-6 py-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-4">
+                                    <button onclick="returnToPrincipalView()" 
+                                            class="bg-white text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-50 font-medium transition-colors">
+                                        ← العودة لصفحة المدير
+                                    </button>
+                                    <div class="text-lg">
+                                        🔍 تشاهد صفحة: <strong>${state.currentUser.name}</strong>
+                                    </div>
+                                </div>
+                                <button onclick="logout()" 
+                                        class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                                    🚪 تسجيل الخروج
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
             return `
                 <div class="bg-white border-b shadow-sm sticky top-0 z-40">
                     <div class="max-w-7xl mx-auto px-6 py-4">
                         <div class="flex items-center justify-between flex-wrap gap-4">
                             <div class="flex gap-2 flex-wrap items-center">
-                                ${state.currentUser.role === 'teacher' ? `
-                                    <select onchange="setCurrentUser('teacher', this.value, 1)" 
-                                            class="px-4 py-3 border-2 border-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-blue-900 bg-blue-50">
+                                ${state.currentUser.role === 'principal' ? `
+                                    <!-- المدير يستطيع مشاهدة جميع الصفحات -->
+                                    <button onclick="returnToPrincipalView()" class="${btnClass('principal')}">
+                                        🏛️ صفحة المدير
+                                    </button>
+                                    
+                                    <select onchange="if(this.value) setCurrentUser('teacher', this.value, 1)" 
+                                            class="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium">
+                                        <option value="">👨‍🏫 مشاهدة صفحة معلم</option>
                                         ${teachersList.map(teacher => `
-                                            <option value="${teacher}" ${state.currentUser.name === teacher ? 'selected' : ''}>
-                                                👨‍🏫 ${teacher}
-                                            </option>
+                                            <option value="${teacher}">${teacher}</option>
                                         `).join('')}
                                     </select>
-                                ` : `
-                                    <button onclick="setCurrentUser('teacher', '${teachersList[0]}', 1)" class="${btnClass('teacher')}">
-                                        👨‍🏫 صفحة المعلم
-                                    </button>
-                                `}
-                                
-                                <button onclick="setCurrentUser('assistant', '${config.schoolInfo.assistant}', 2)" class="${btnClass('assistant')}">
-                                    📋 صفحة الوكيل
-                                </button>
-                                <button onclick="setCurrentUser('counselor', '${config.schoolInfo.counselor}', 3)" class="${btnClass('counselor')}">
-                                    📢 الموجه الطلابي
-                                </button>
-                                <button onclick="setCurrentUser('principal', '${config.schoolInfo.principal}', 4)" class="${btnClass('principal')}">
-                                    🏛️ صفحة المدير
-                                </button>
+                                ` : state.currentUser.role === 'teacher' ? `
+                                    <div class="bg-blue-50 px-4 py-2 rounded-lg border-2 border-blue-300">
+                                        <span class="font-bold text-blue-900">👨‍🏫 ${state.currentUser.name}</span>
+                                    </div>
+                                ` : state.currentUser.role === 'assistant' ? `
+                                    <div class="bg-green-50 px-4 py-2 rounded-lg border-2 border-green-300">
+                                        <span class="font-bold text-green-900">📋 ${state.currentUser.name} - الوكيل</span>
+                                    </div>
+                                ` : state.currentUser.role === 'counselor' ? `
+                                    <div class="bg-orange-50 px-4 py-2 rounded-lg border-2 border-orange-300">
+                                        <span class="font-bold text-orange-900">📢 ${state.currentUser.name} - المرشد الطلابي</span>
+                                    </div>
+                                ` : ''}
                             </div>
-                            <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-                                <p class="text-sm text-blue-900">
-                                    <span class="font-bold">المستخدم الحالي:</span> ${state.currentUser.name} - ${getRoleLabel(state.currentUser.role)}
-                                </p>
+                            
+                            <div class="flex items-center gap-3">
+                                <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                                    <p class="text-sm text-blue-900">
+                                        <span class="font-bold">المستخدم:</span> ${state.currentUser.name} - ${getRoleLabel(state.currentUser.role)}
+                                    </p>
+                                </div>
+                                <button onclick="logout()" 
+                                        class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium">
+                                    🚪 خروج
+                                </button>
                             </div>
                         </div>
                     </div>
