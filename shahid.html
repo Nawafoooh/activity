@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
-import { UserCircle, FileText, Bell, LayoutDashboard, Plus, Search, Filter, Trash2, Award, AlertCircle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { UserCircle, FileText, Bell, LayoutDashboard, Plus, Search, Filter, Award, AlertCircle, Calendar, Clock, User, BookOpen, CheckCircle, XCircle, Eye, Download } from 'lucide-react';
 
 const BehaviorTrackingSystem = () => {
-  const [currentUser, setCurrentUser] = useState({ role: 'teacher', name: 'معلم تجريبي' });
+  // State Management
+  const [currentUser, setCurrentUser] = useState({ 
+    role: 'teacher', 
+    name: 'معلم تجريبي',
+    id: 1
+  });
+
   const [violations, setViolations] = useState([
     {
       id: 1,
@@ -12,10 +18,12 @@ const BehaviorTrackingSystem = () => {
       violationType: 'first',
       violationDetails: 'التأخر عن الدخول للحصة',
       teacherName: 'علي السعيد',
+      teacherId: 1,
       date: '2025-10-13',
       time: '08:30',
       documentation: 'تأخر 15 دقيقة عن الحصة الأولى',
-      status: 'active'
+      status: 'active',
+      createdAt: '2025-10-13T08:30:00'
     },
     {
       id: 2,
@@ -25,52 +33,120 @@ const BehaviorTrackingSystem = () => {
       violationType: 'first',
       violationDetails: 'النوم داخل الصف',
       teacherName: 'خالد الأحمد',
+      teacherId: 2,
       date: '2025-10-14',
       time: '10:15',
       documentation: 'نام أثناء الحصة الثالثة',
-      status: 'active'
+      status: 'active',
+      createdAt: '2025-10-14T10:15:00'
+    },
+    {
+      id: 3,
+      studentName: 'أحمد محمد علي',
+      grade: 'أول متوسط',
+      section: '1',
+      violationType: 'second',
+      violationDetails: 'عدم حضور الحصة أو الهروب منها',
+      teacherName: 'محمد السالم',
+      teacherId: 3,
+      date: '2025-10-14',
+      time: '11:30',
+      documentation: 'غاب عن حصة الرياضيات بدون عذر',
+      status: 'active',
+      createdAt: '2025-10-14T11:30:00'
+    },
+    {
+      id: 4,
+      studentName: 'خالد عبدالله سعيد',
+      grade: 'ثاني متوسط',
+      section: '3',
+      violationType: 'first',
+      violationDetails: 'إعاقة سير الحصص الدراسية',
+      teacherName: 'علي السعيد',
+      teacherId: 1,
+      date: '2025-10-14',
+      time: '09:00',
+      documentation: 'تحدث مع زميله أثناء الشرح',
+      status: 'active',
+      createdAt: '2025-10-14T09:00:00'
+    },
+    {
+      id: 5,
+      studentName: 'محمد سعد القحطاني',
+      grade: 'ثالث متوسط',
+      section: '2',
+      violationType: 'third',
+      violationDetails: 'عدم التقيد بالزي المدرسي',
+      teacherName: 'فهد الدوسري',
+      teacherId: 4,
+      date: '2025-10-12',
+      time: '07:45',
+      documentation: 'حضر بدون الزي المدرسي الرسمي',
+      status: 'resolved',
+      resolvedBy: 'محمد الجابري',
+      resolutionReason: 'التزم بالزي المدرسي لمدة أسبوع كامل',
+      resolvedAt: '2025-10-13T12:00:00',
+      createdAt: '2025-10-12T07:45:00'
     }
   ]);
-  
+
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedViolation, setSelectedViolation] = useState(null);
   const [filterGrade, setFilterGrade] = useState('');
   const [filterSection, setFilterSection] = useState('');
+  const [filterTeacher, setFilterTeacher] = useState('');
   const [searchStudent, setSearchStudent] = useState('');
   const [selectedTab, setSelectedTab] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
+  // School Information
   const schoolInfo = {
     name: 'متوسطة المنذر بن عمرو الأنصاري',
     principal: 'خالد المطيري',
     assistant: 'محمد الجابري',
-    counselor: 'محمد القحطاني'
+    counselor: 'محمد القحطاني',
+    type: 'بنين'
   };
 
+  // Configuration
   const grades = ['أول متوسط', 'ثاني متوسط', 'ثالث متوسط'];
   const sections = ['1', '2', '3', '4', '5', '6'];
-
+  
   const violationTypes = {
-    first: [
-      'التأخر عن الدخول للحصة',
-      'إعاقة سير الحصص الدراسية',
-      'المشروبات أثناء الدرس',
-      'النوم داخل الصف',
-      'تكرار خروج ودخول الطلابة من البوابة قبل وقت الحضور والانصراف',
-      'التجهز أمام بوابة المدرسة'
-    ],
-    second: [
-      'عدم حضور الحصة أو الهروب منها',
-      'الدخول أو الخروج من الفصل دون استئذان',
-      'دخول فصل آخر دون استئذان',
-      'إثارة الفوضى داخل الصف'
-    ],
-    third: [
-      'عدم التقيد بالزي المدرسي',
-      'إلحاق الضرر المتعمد بممتلكات الطالبات',
-      'العبث بتجهيزات المدرسة',
-      'امتهان الكتب الدراسية'
-    ]
+    first: {
+      label: 'مخالفات الدرجة الأولى (درجة واحدة)',
+      items: [
+        'التأخر عن الدخول للحصة',
+        'إعاقة سير الحصص الدراسية (تناول الأطعمة والمشروبات)',
+        'المشروبات أثناء الدرس - المقاطعة المستمرة لشرح المعلمة',
+        'النوم داخل الصف',
+        'تكرار خروج ودخول الطلابة من البوابة قبل وقت الحضور والانصراف',
+        'التجهز أمام بوابة المدرسة'
+      ]
+    },
+    second: {
+      label: 'مخالفات الدرجة الثانية (درجتين)',
+      items: [
+        'عدم حضور الحصة أو الهروب منها',
+        'الدخول أو الخروج من الفصل دون استئذان',
+        'دخول فصل آخر دون استئذان',
+        'إثارة الفوضى داخل الصف'
+      ]
+    },
+    third: {
+      label: 'مخالفات الدرجة الثالثة (ثلاث درجات)',
+      items: [
+        'عدم التقيد بالزي المدرسي',
+        'إلحاق الضرر المتعمد بممتلكات الطالبات',
+        'العبث بتجهيزات المدرسة (المعمل - أجهزة الحاسب)',
+        'امتهان الكتب الدراسية'
+      ]
+    }
   };
 
+  // New Violation Form State
   const [newViolation, setNewViolation] = useState({
     studentName: '',
     grade: '',
@@ -82,15 +158,49 @@ const BehaviorTrackingSystem = () => {
     time: new Date().toTimeString().slice(0, 5)
   });
 
+  // Functions
+  const getStudentViolationCount = (studentName, status = 'active') => {
+    return violations.filter(v => 
+      v.studentName === studentName && 
+      (status === 'all' || v.status === status)
+    ).length;
+  };
+
+  const getStudentsByViolationCount = () => {
+    const studentMap = {};
+    violations.filter(v => v.status === 'active').forEach(v => {
+      if (!studentMap[v.studentName]) {
+        studentMap[v.studentName] = {
+          name: v.studentName,
+          grade: v.grade,
+          section: v.section,
+          count: 0,
+          violations: []
+        };
+      }
+      studentMap[v.studentName].count++;
+      studentMap[v.studentName].violations.push(v);
+    });
+    return Object.values(studentMap).sort((a, b) => b.count - a.count);
+  };
+
   const handleAddViolation = () => {
-    if (newViolation.studentName && newViolation.grade && newViolation.section && newViolation.violationDetails) {
+    if (newViolation.studentName.trim() && 
+        newViolation.grade && 
+        newViolation.section && 
+        newViolation.violationDetails) {
+      
       const violation = {
-        id: violations.length + 1,
+        id: Math.max(...violations.map(v => v.id), 0) + 1,
         ...newViolation,
         teacherName: currentUser.name,
-        status: 'active'
+        teacherId: currentUser.id,
+        status: 'active',
+        createdAt: new Date().toISOString()
       };
-      setViolations([...violations, violation]);
+      
+      setViolations([violation, ...violations]);
+      
       setNewViolation({
         studentName: '',
         grade: '',
@@ -101,409 +211,937 @@ const BehaviorTrackingSystem = () => {
         date: new Date().toISOString().split('T')[0],
         time: new Date().toTimeString().slice(0, 5)
       });
+      
       setShowAddForm(false);
     }
   };
 
-  const handleDeleteViolation = (id, reason) => {
+  const handleResolveViolation = (violationId) => {
+    const reason = prompt('أدخل سبب حل المخالفة (السلوك الإيجابي الذي قام به الطالب):');
+    
     if (reason && reason.trim()) {
       setViolations(violations.map(v => 
-        v.id === id ? { ...v, status: 'resolved', resolutionReason: reason, resolvedBy: currentUser.name } : v
+        v.id === violationId ? {
+          ...v,
+          status: 'resolved',
+          resolutionReason: reason.trim(),
+          resolvedBy: currentUser.name,
+          resolvedAt: new Date().toISOString()
+        } : v
       ));
     }
   };
 
-  const getStudentViolationCount = (studentName) => {
-    return violations.filter(v => v.studentName === studentName && v.status === 'active').length;
+  const canResolveViolation = (violation) => {
+    if (currentUser.role === 'principal') return true;
+    if (currentUser.role === 'assistant' || currentUser.role === 'counselor') {
+      return getStudentViolationCount(violation.studentName) >= 3;
+    }
+    if (currentUser.role === 'teacher') {
+      return violation.teacherId === currentUser.id;
+    }
+    return false;
   };
 
-  const filteredViolations = violations.filter(v => {
-    if (currentUser.role === 'teacher') return v.status === 'active';
+  // Filtered Violations
+  const filteredViolations = useMemo(() => {
+    let filtered = [...violations];
+
+    // Role-based filtering
     if (currentUser.role === 'assistant' || currentUser.role === 'counselor') {
-      return getStudentViolationCount(v.studentName) >= 3;
+      const studentsWithThreePlus = getStudentsByViolationCount()
+        .filter(s => s.count >= 3)
+        .map(s => s.name);
+      
+      filtered = filtered.filter(v => studentsWithThreePlus.includes(v.studentName));
     }
-    return true;
-  }).filter(v => {
-    if (filterGrade && v.grade !== filterGrade) return false;
-    if (filterSection && v.section !== filterSection) return false;
-    if (searchStudent && !v.studentName.includes(searchStudent)) return false;
-    if (selectedTab === 'active' && v.status !== 'active') return false;
-    if (selectedTab === 'resolved' && v.status !== 'resolved') return false;
-    return true;
-  });
+
+    // Status filter
+    if (selectedTab === 'active') {
+      filtered = filtered.filter(v => v.status === 'active');
+    } else if (selectedTab === 'resolved') {
+      filtered = filtered.filter(v => v.status === 'resolved');
+    }
+
+    // Search and filters
+    if (searchStudent.trim()) {
+      filtered = filtered.filter(v => 
+        v.studentName.includes(searchStudent.trim())
+      );
+    }
+
+    if (filterGrade) {
+      filtered = filtered.filter(v => v.grade === filterGrade);
+    }
+
+    if (filterSection) {
+      filtered = filtered.filter(v => v.section === filterSection);
+    }
+
+    if (filterTeacher) {
+      filtered = filtered.filter(v => v.teacherName === filterTeacher);
+    }
+
+    if (dateFrom) {
+      filtered = filtered.filter(v => v.date >= dateFrom);
+    }
+
+    if (dateTo) {
+      filtered = filtered.filter(v => v.date <= dateTo);
+    }
+
+    return filtered;
+  }, [violations, currentUser, selectedTab, searchStudent, filterGrade, filterSection, filterTeacher, dateFrom, dateTo]);
+
+  // Statistics
+  const stats = useMemo(() => {
+    const active = violations.filter(v => v.status === 'active').length;
+    const resolved = violations.filter(v => v.status === 'resolved').length;
+    const studentsUnderWatch = getStudentsByViolationCount()
+      .filter(s => s.count >= 3).length;
+    const today = violations.filter(v => 
+      v.date === new Date().toISOString().split('T')[0]
+    ).length;
+
+    return { active, resolved, studentsUnderWatch, today };
+  }, [violations]);
 
   const getDegreeLabel = (type) => {
-    if (type === 'first') return 'درجة أولى';
-    if (type === 'second') return 'درجة ثانية';
-    return 'درجة ثالثة';
+    const labels = {
+      first: 'درجة أولى',
+      second: 'درجة ثانية',
+      third: 'درجة ثالثة'
+    };
+    return labels[type] || type;
   };
 
   const getDegreeColor = (type) => {
-    if (type === 'first') return 'bg-green-100 text-green-800';
-    if (type === 'second') return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
+    const colors = {
+      first: 'bg-green-100 text-green-800 border-green-200',
+      second: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      third: 'bg-red-100 text-red-800 border-red-200'
+    };
+    return colors[type] || 'bg-gray-100 text-gray-800';
   };
+
+  const getRoleLabel = (role) => {
+    const labels = {
+      teacher: 'المعلم',
+      assistant: 'الوكيل',
+      counselor: 'الموجه الطلابي',
+      principal: 'المدير'
+    };
+    return labels[role];
+  };
+
+  const exportToCSV = () => {
+    const headers = ['#', 'الطالب', 'الصف', 'الشعبة', 'الدرجة', 'المخالفة', 'المعلم', 'التاريخ', 'الوقت', 'الحالة'];
+    const rows = filteredViolations.map((v, i) => [
+      i + 1,
+      v.studentName,
+      v.grade,
+      v.section,
+      getDegreeLabel(v.violationType),
+      v.violationDetails,
+      v.teacherName,
+      v.date,
+      v.time,
+      v.status === 'active' ? 'نشط' : 'محلول'
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.join(','))
+      .join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `مخالفات_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const uniqueTeachers = [...new Set(violations.map(v => v.teacherName))];
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
+      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white shadow-2xl">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{schoolInfo.name}</h1>
-              <p className="text-blue-100">نظام إدارة المخالفات السلوكية</p>
+              <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+                <BookOpen size={40} />
+                {schoolInfo.name}
+              </h1>
+              <p className="text-blue-100 text-lg">نظام إدارة المخالفات السلوكية - {schoolInfo.type}</p>
             </div>
-            <div className="text-left">
-              <p className="text-sm text-blue-100">مدير المدرسة: {schoolInfo.principal}</p>
-              <p className="text-sm text-blue-100">الوكيل: {schoolInfo.assistant}</p>
-              <p className="text-sm text-blue-100">الموجه الطلابي: {schoolInfo.counselor}</p>
+            <div className="text-left bg-blue-800 bg-opacity-50 rounded-lg p-4 backdrop-blur-sm">
+              <p className="text-sm text-blue-100 mb-1">
+                <User className="inline ml-1" size={14} />
+                مدير المدرسة: {schoolInfo.principal}
+              </p>
+              <p className="text-sm text-blue-100 mb-1">
+                <User className="inline ml-1" size={14} />
+                الوكيل: {schoolInfo.assistant}
+              </p>
+              <p className="text-sm text-blue-100">
+                <User className="inline ml-1" size={14} />
+                الموجه الطلابي: {schoolInfo.counselor}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* User Selection */}
-      <div className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto p-4">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentUser({ role: 'teacher', name: 'معلم تجريبي' })}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition ${
-                currentUser.role === 'teacher' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <UserCircle size={20} />
-              صفحة المعلم
-            </button>
-            <button
-              onClick={() => setCurrentUser({ role: 'assistant', name: schoolInfo.assistant })}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition ${
-                currentUser.role === 'assistant' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <FileText size={20} />
-              صفحة الوكيل
-            </button>
-            <button
-              onClick={() => setCurrentUser({ role: 'counselor', name: schoolInfo.counselor })}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition ${
-                currentUser.role === 'counselor' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Bell size={20} />
-              الموجه الطلابي
-            </button>
-            <button
-              onClick={() => setCurrentUser({ role: 'principal', name: schoolInfo.principal })}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition ${
-                currentUser.role === 'principal' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <LayoutDashboard size={20} />
-              صفحة المدير
-            </button>
+      {/* User Selection Tabs */}
+      <div className="bg-white border-b shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentUser({ role: 'teacher', name: 'معلم تجريبي', id: 1 })}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  currentUser.role === 'teacher' 
+                    ? 'bg-blue-600 text-white shadow-lg transform scale-105' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <UserCircle size={20} />
+                صفحة المعلم
+              </button>
+              <button
+                onClick={() => setCurrentUser({ role: 'assistant', name: schoolInfo.assistant, id: 2 })}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  currentUser.role === 'assistant' 
+                    ? 'bg-blue-600 text-white shadow-lg transform scale-105' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <FileText size={20} />
+                صفحة الوكيل
+              </button>
+              <button
+                onClick={() => setCurrentUser({ role: 'counselor', name: schoolInfo.counselor, id: 3 })}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  currentUser.role === 'counselor' 
+                    ? 'bg-blue-600 text-white shadow-lg transform scale-105' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Bell size={20} />
+                الموجه الطلابي
+              </button>
+              <button
+                onClick={() => setCurrentUser({ role: 'principal', name: schoolInfo.principal, id: 4 })}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  currentUser.role === 'principal' 
+                    ? 'bg-blue-600 text-white shadow-lg transform scale-105' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <LayoutDashboard size={20} />
+                صفحة المدير
+              </button>
+            </div>
+            <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-900">
+                <span className="font-bold">المستخدم الحالي:</span> {currentUser.name} - {getRoleLabel(currentUser.role)}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 mb-2">إجمالي المخالفات النشطة</div>
-            <div className="text-3xl font-bold text-blue-600">
-              {violations.filter(v => v.status === 'active').length}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-blue-500">
+            <div className="flex items-center justify-between mb-3">
+              <AlertCircle size={32} className="text-blue-600" />
+              <div className="text-3xl font-bold text-blue-600">{stats.active}</div>
             </div>
+            <div className="text-gray-600 font-medium">المخالفات النشطة</div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 mb-2">المخالفات المحلولة</div>
-            <div className="text-3xl font-bold text-green-600">
-              {violations.filter(v => v.status === 'resolved').length}
+          
+          <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-green-500">
+            <div className="flex items-center justify-between mb-3">
+              <CheckCircle size={32} className="text-green-600" />
+              <div className="text-3xl font-bold text-green-600">{stats.resolved}</div>
             </div>
+            <div className="text-gray-600 font-medium">المخالفات المحلولة</div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 mb-2">طلاب تحت المراقبة</div>
-            <div className="text-3xl font-bold text-orange-600">
-              {new Set(violations.filter(v => v.status === 'active' && getStudentViolationCount(v.studentName) >= 3).map(v => v.studentName)).size}
+          
+          <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-orange-500">
+            <div className="flex items-center justify-between mb-3">
+              <Eye size={32} className="text-orange-600" />
+              <div className="text-3xl font-bold text-orange-600">{stats.studentsUnderWatch}</div>
             </div>
+            <div className="text-gray-600 font-medium">طلاب تحت المراقبة</div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="text-gray-600 mb-2">اليوم</div>
-            <div className="text-3xl font-bold text-gray-700">
-              {violations.filter(v => v.date === new Date().toISOString().split('T')[0]).length}
+          
+          <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-purple-500">
+            <div className="flex items-center justify-between mb-3">
+              <Calendar size={32} className="text-purple-600" />
+              <div className="text-3xl font-bold text-purple-600">{stats.today}</div>
             </div>
+            <div className="text-gray-600 font-medium">مخالفات اليوم</div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="border-b">
-            <div className="flex gap-4 p-4">
-              <button
-                onClick={() => setSelectedTab('all')}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  selectedTab === 'all' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                جميع المخالفات
-              </button>
-              <button
-                onClick={() => setSelectedTab('active')}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  selectedTab === 'active' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                المخالفات النشطة
-              </button>
-              <button
-                onClick={() => setSelectedTab('resolved')}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  selectedTab === 'resolved' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                المخالفات المحلولة
-              </button>
+        {/* Tabs and Actions */}
+        <div className="bg-white rounded-xl shadow-lg mb-6">
+          <div className="border-b px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSelectedTab('all')}
+                  className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                    selectedTab === 'all' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  جميع المخالفات ({violations.length})
+                </button>
+                <button
+                  onClick={() => setSelectedTab('active')}
+                  className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                    selectedTab === 'active' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  النشطة ({stats.active})
+                </button>
+                <button
+                  onClick={() => setSelectedTab('resolved')}
+                  className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                    selectedTab === 'resolved' 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  المحلولة ({stats.resolved})
+                </button>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={exportToCSV}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md"
+                >
+                  <Download size={18} />
+                  تصدير Excel
+                </button>
+                
+                {currentUser.role === 'teacher' && (
+                  <button
+                    onClick={() => setShowAddForm(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+                  >
+                    <Plus size={20} />
+                    إضافة مخالفة جديدة
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="p-4 bg-gray-50 border-b">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="p-6 bg-gray-50 border-b">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Search size={16} className="inline ml-1" />
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                  <Search size={14} />
                   بحث بالاسم
                 </label>
                 <input
                   type="text"
                   value={searchStudent}
                   onChange={(e) => setSearchStudent(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="ابحث عن طالب..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="اسم الطالب..."
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Filter size={16} className="inline ml-1" />
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                  <Filter size={14} />
                   الصف
                 </label>
                 <select
                   value={filterGrade}
                   onChange={(e) => setFilterGrade(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="">جميع الصفوف</option>
+                  <option value="">الكل</option>
                   {grades.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">الشعبة</label>
                 <select
                   value={filterSection}
                   onChange={(e) => setFilterSection(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="">جميع الشعب</option>
+                  <option value="">الكل</option>
                   {sections.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              {currentUser.role === 'teacher' && (
-                <div className="flex items-end">
-                  <button
-                    onClick={() => setShowAddForm(true)}
-                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
-                  >
-                    <Plus size={20} />
-                    إضافة مخالفة
-                  </button>
-                </div>
-              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">المعلم</label>
+                <select
+                  value={filterTeacher}
+                  onChange={(e) => setFilterTeacher(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">الكل</option>
+                  {uniqueTeachers.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">من تاريخ</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">إلى تاريخ</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
+            
+            {(searchStudent || filterGrade || filterSection || filterTeacher || dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setSearchStudent('');
+                  setFilterGrade('');
+                  setFilterSection('');
+                  setFilterTeacher('');
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+                className="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                مسح جميع الفلاتر
+              </button>
+            )}
           </div>
 
           {/* Violations List */}
           <div className="divide-y">
-            {filteredViolations.map(v => {
-              const count = getStudentViolationCount(v.studentName);
-              return (
-                <div key={v.id} className={`p-4 hover:bg-gray-50 transition ${count >= 3 ? 'bg-red-50' : ''}`}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-gray-900">{v.studentName}</h3>
-                        <span className="text-sm text-gray-600">{v.grade} - الشعبة {v.section}</span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDegreeColor(v.violationType)}`}>
-                          {getDegreeLabel(v.violationType)}
-                        </span>
-                        {count >= 3 && (
-                          <span className="flex items-center gap-1 bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-medium">
-                            <AlertCircle size={14} />
-                            تحت المراقبة ({count} مخالفات)
-                          </span>
-                        )}
-                        {v.status === 'resolved' && (
-                          <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
-                            تم الحل
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-gray-700 mb-2 font-medium">{v.violationDetails}</p>
-                      {v.documentation && (
-                        <p className="text-sm text-gray-600 mb-2">
-                          <strong>التوثيق:</strong> {v.documentation}
-                        </p>
-                      )}
-                      <div className="flex gap-4 text-sm text-gray-500">
-                        <span>المعلم: {v.teacherName}</span>
-                        <span>التاريخ: {v.date}</span>
-                        <span>الوقت: {v.time}</span>
-                      </div>
-                      {v.status === 'resolved' && v.resolutionReason && (
-                        <div className="mt-2 p-3 bg-green-50 rounded-lg">
-                          <p className="text-sm text-green-800">
-                            <strong>سبب الحل:</strong> {v.resolutionReason}
-                          </p>
-                          <p className="text-xs text-green-600 mt-1">تم الحل بواسطة: {v.resolvedBy}</p>
-                        </div>
-                      )}
-                    </div>
-                    {v.status === 'active' && (currentUser.role === 'teacher' || currentUser.role === 'assistant' || currentUser.role === 'counselor') && (
-                      <button
-                        onClick={() => {
-                          const reason = prompt('أدخل سبب حذف المخالفة (السلوك الإيجابي):');
-                          if (reason) handleDeleteViolation(v.id, reason);
-                        }}
-                        className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-                      >
-                        <Award size={16} />
-                        حل المخالفة
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {filteredViolations.length === 0 && (
-              <div className="p-12 text-center text-gray-500">
-                <p className="text-lg">لا توجد مخالفات للعرض</p>
+            {filteredViolations.length === 0 ? (
+              <div className="p-16 text-center">
+                <AlertCircle size={64} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-xl text-gray-500 mb-2">لا توجد مخالفات للعرض</p>
+                <p className="text-sm text-gray-400">جرب تغيير الفلاتر أو إضافة مخالفة جديدة</p>
               </div>
+            ) : (
+              filteredViolations.map((v) => {
+                const violationCount = getStudentViolationCount(v.studentName);
+                const isHighPriority = violationCount >= 3;
+                
+                return (
+                  <div 
+                    key={v.id} 
+                    className={`p-6 hover:bg-gray-50 transition-all duration-200 ${
+                      isHighPriority && v.status === 'active' ? 'bg-red-50 border-r-4 border-red-500' : ''
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-6">
+                      <div className="flex-1">
+                        {/* Student Info Header */}
+                        <div className="flex items-center gap-3 mb-3 flex-wrap">
+                          <h3 className="text-xl font-bold text-gray-900">{v.studentName}</h3>
+                          
+                          <span className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">
+                            {v.grade}
+                          </span>
+                          
+                          <span className="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">
+                            الشعبة {v.section}
+                          </span>
+                          
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getDegreeColor(v.violationType)}`}>
+                            {getDegreeLabel(v.violationType)}
+                          </span>
+                          
+                          {isHighPriority && v.status === 'active' && (
+                            <span className="flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md animate-pulse">
+                              <AlertCircle size={14} />
+                              تحت المراقبة ({violationCount} مخالفات)
+                            </span>
+                          )}
+                          
+                          {v.status === 'resolved' && (
+                            <span className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                              <CheckCircle size={14} />
+                              تم الحل
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Violation Details */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
+                          <p className="text-gray-800 mb-2 font-semibold text-lg">
+                            {v.violationDetails}
+                          </p>
+                          
+                          {v.documentation && (
+                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <p className="text-sm text-blue-900">
+                                <span className="font-bold">📝 توثيق المخالفة:</span>
+                                <br />
+                                {v.documentation}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Meta Information */}
+                        <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                          <span className="flex items-center gap-1.5">
+                            <User size={16} className="text-blue-600" />
+                            <strong>المعلم:</strong> {v.teacherName}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <Calendar size={16} className="text-blue-600" />
+                            <strong>التاريخ:</strong> {v.date}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <Clock size={16} className="text-blue-600" />
+                            <strong>الوقت:</strong> {v.time}
+                          </span>
+                        </div>
+
+                        {/* Resolution Info */}
+                        {v.status === 'resolved' && v.resolutionReason && (
+                          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-start gap-2 mb-2">
+                              <Award size={20} className="text-green-600 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="text-sm font-bold text-green-900 mb-1">
+                                  سبب حل المخالفة (السلوك الإيجابي):
+                                </p>
+                                <p className="text-sm text-green-800 mb-2">
+                                  {v.resolutionReason}
+                                </p>
+                                <div className="flex gap-4 text-xs text-green-700">
+                                  <span>تم الحل بواسطة: {v.resolvedBy}</span>
+                                  <span>في: {new Date(v.resolvedAt).toLocaleString('ar-SA')}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedViolation(v);
+                            setShowDetailsModal(true);
+                          }}
+                          className="flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors whitespace-nowrap"
+                        >
+                          <Eye size={16} />
+                          التفاصيل
+                        </button>
+                        
+                        {v.status === 'active' && canResolveViolation(v) && (
+                          <button
+                            onClick={() => handleResolveViolation(v.id)}
+                            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-md whitespace-nowrap"
+                          >
+                            <Award size={16} />
+                            حل المخالفة
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
+
+          {/* Pagination Info */}
+          {filteredViolations.length > 0 && (
+            <div className="p-4 bg-gray-50 border-t text-center text-sm text-gray-600">
+              عرض {filteredViolations.length} من أصل {violations.length} مخالفة
+            </div>
+          )}
         </div>
+
+        {/* Students Under Watch Section */}
+        {(currentUser.role === 'assistant' || currentUser.role === 'counselor' || currentUser.role === 'principal') && (
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-red-700">
+              <AlertCircle size={28} />
+              الطلاب تحت المراقبة (3 مخالفات فأكثر)
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {getStudentsByViolationCount()
+                .filter(s => s.count >= 3)
+                .map((student, index) => (
+                  <div 
+                    key={index}
+                    className="bg-red-50 border-2 border-red-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-bold text-gray-900">{student.name}</h3>
+                      <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                        {student.count} مخالفات
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">
+                      {student.grade} - الشعبة {student.section}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      آخر مخالفة: {student.violations[student.violations.length - 1].date}
+                    </div>
+                  </div>
+                ))}
+              
+              {getStudentsByViolationCount().filter(s => s.count >= 3).length === 0 && (
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  <CheckCircle size={48} className="mx-auto text-green-500 mb-2" />
+                  <p>لا يوجد طلاب تحت المراقبة حالياً</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Violation Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold">إضافة مخالفة سلوكية</h2>
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Plus size={28} />
+                إضافة مخالفة سلوكية جديدة
+              </h2>
+              <p className="text-blue-100 text-sm mt-1">يرجى ملء جميع البيانات المطلوبة</p>
             </div>
-            <div className="p-6 space-y-4">
+            
+            <div className="p-6 space-y-5">
+              {/* Student Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">اسم الطالب *</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  اسم الطالب <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={newViolation.studentName}
                   onChange={(e) => setNewViolation({ ...newViolation, studentName: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="أدخل اسم الطالب الثلاثي"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  placeholder="أدخل اسم الطالب الثلاثي الكامل"
                 />
               </div>
+
+              {/* Grade and Section */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">الصف *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    الصف <span className="text-red-500">*</span>
+                  </label>
                   <select
                     value={newViolation.grade}
                     onChange={(e) => setNewViolation({ ...newViolation, grade: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   >
                     <option value="">اختر الصف</option>
                     {grades.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">الشعبة *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    الشعبة <span className="text-red-500">*</span>
+                  </label>
                   <select
                     value={newViolation.section}
                     onChange={(e) => setNewViolation({ ...newViolation, section: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   >
                     <option value="">اختر الشعبة</option>
                     {sections.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
+
+              {/* Violation Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">درجة المخالفة *</label>
-                <select
-                  value={newViolation.violationType}
-                  onChange={(e) => setNewViolation({ ...newViolation, violationType: e.target.value, violationDetails: '' })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="first">درجة أولى</option>
-                  <option value="second">درجة ثانية</option>
-                  <option value="third">درجة ثالثة</option>
-                </select>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  درجة المخالفة <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewViolation({ ...newViolation, violationType: 'first', violationDetails: '' })}
+                    className={`p-4 border-2 rounded-lg font-medium transition-all ${
+                      newViolation.violationType === 'first'
+                        ? 'border-green-500 bg-green-50 text-green-800'
+                        : 'border-gray-300 hover:border-green-300'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">درجة أولى</div>
+                    <div className="text-xs text-gray-600">(درجة واحدة)</div>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setNewViolation({ ...newViolation, violationType: 'second', violationDetails: '' })}
+                    className={`p-4 border-2 rounded-lg font-medium transition-all ${
+                      newViolation.violationType === 'second'
+                        ? 'border-yellow-500 bg-yellow-50 text-yellow-800'
+                        : 'border-gray-300 hover:border-yellow-300'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">درجة ثانية</div>
+                    <div className="text-xs text-gray-600">(درجتين)</div>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setNewViolation({ ...newViolation, violationType: 'third', violationDetails: '' })}
+                    className={`p-4 border-2 rounded-lg font-medium transition-all ${
+                      newViolation.violationType === 'third'
+                        ? 'border-red-500 bg-red-50 text-red-800'
+                        : 'border-gray-300 hover:border-red-300'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">درجة ثالثة</div>
+                    <div className="text-xs text-gray-600">(ثلاث درجات)</div>
+                  </button>
+                </div>
               </div>
+
+              {/* Violation Details */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">نوع المخالفة *</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  نوع المخالفة <span className="text-red-500">*</span>
+                </label>
                 <select
                   value={newViolation.violationDetails}
                   onChange={(e) => setNewViolation({ ...newViolation, violationDetails: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 >
-                  <option value="">اختر المخالفة</option>
-                  {violationTypes[newViolation.violationType].map(v => (
-                    <option key={v} value={v}>{v}</option>
+                  <option value="">اختر نوع المخالفة</option>
+                  {violationTypes[newViolation.violationType].items.map(item => (
+                    <option key={item} value={item}>{item}</option>
                   ))}
                 </select>
               </div>
+
+              {/* Documentation */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">توثيق المخالفة</label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  توثيق المخالفة (اختياري)
+                </label>
                 <textarea
                   value={newViolation.documentation}
                   onChange={(e) => setNewViolation({ ...newViolation, documentation: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows="3"
-                  placeholder="أدخل تفاصيل إضافية عن المخالفة..."
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                  rows="4"
+                  placeholder="أضف تفاصيل إضافية عن المخالفة، الظروف المحيطة، أو أي معلومات مهمة..."
                 />
               </div>
+
+              {/* Date and Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">التاريخ</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    التاريخ
+                  </label>
                   <input
                     type="date"
                     value={newViolation.date}
                     onChange={(e) => setNewViolation({ ...newViolation, date: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   />
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">الوقت</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    الوقت
+                  </label>
                   <input
                     type="time"
                     value={newViolation.time}
                     onChange={(e) => setNewViolation({ ...newViolation, time: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   />
                 </div>
               </div>
             </div>
-            <div className="p-6 border-t flex gap-3 justify-end">
+
+            {/* Modal Actions */}
+            <div className="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl flex gap-3 justify-end">
               <button
-                onClick={() => setShowAddForm(false)}
-                className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewViolation({
+                    studentName: '',
+                    grade: '',
+                    section: '',
+                    violationType: 'first',
+                    violationDetails: '',
+                    documentation: '',
+                    date: new Date().toISOString().split('T')[0],
+                    time: new Date().toTimeString().slice(0, 5)
+                  });
+                }}
+                className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
               >
                 إلغاء
               </button>
               <button
                 onClick={handleAddViolation}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                disabled={!newViolation.studentName.trim() || !newViolation.grade || !newViolation.section || !newViolation.violationDetails}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                إضافة المخالفة
+                حفظ المخالفة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedViolation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Eye size={28} />
+                تفاصيل المخالفة
+              </h2>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 className="font-bold text-lg text-gray-900 mb-3">معلومات الطالب</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">الاسم:</span>
+                    <span className="font-bold mr-2">{selectedViolation.studentName}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">الصف:</span>
+                    <span className="font-bold mr-2">{selectedViolation.grade}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">الشعبة:</span>
+                    <span className="font-bold mr-2">{selectedViolation.section}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">عدد المخالفات:</span>
+                    <span className="font-bold mr-2">{getStudentViolationCount(selectedViolation.studentName)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 className="font-bold text-lg text-gray-900 mb-3">تفاصيل المخالفة</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(selectedViolation.violationType)}`}>
+                      {getDegreeLabel(selectedViolation.violationType)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">نوع المخالفة:</span>
+                    <p className="font-bold mt-1">{selectedViolation.violationDetails}</p>
+                  </div>
+                  {selectedViolation.documentation && (
+                    <div>
+                      <span className="text-gray-600">التوثيق:</span>
+                      <p className="mt-1 text-gray-800">{selectedViolation.documentation}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 className="font-bold text-lg text-gray-900 mb-3">معلومات التسجيل</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">المعلم:</span>
+                    <span className="font-bold mr-2">{selectedViolation.teacherName}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">التاريخ:</span>
+                    <span className="font-bold mr-2">{selectedViolation.date}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">الوقت:</span>
+                    <span className="font-bold mr-2">{selectedViolation.time}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">الحالة:</span>
+                    <span className={`font-bold mr-2 ${selectedViolation.status === 'active' ? 'text-orange-600' : 'text-green-600'}`}>
+                      {selectedViolation.status === 'active' ? 'نشطة' : 'محلولة'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {selectedViolation.status === 'resolved' && selectedViolation.resolutionReason && (
+                <div className="bg-green-50 rounded-lg p-4 border-2 border-green-200">
+                  <h3 className="font-bold text-lg text-green-900 mb-3 flex items-center gap-2">
+                    <Award size={20} />
+                    معلومات الحل
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="text-green-700">السلوك الإيجابي:</span>
+                      <p className="font-bold mt-1 text-green-900">{selectedViolation.resolutionReason}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <span className="text-green-700">تم الحل بواسطة:</span>
+                        <span className="font-bold mr-2 text-green-900">{selectedViolation.resolvedBy}</span>
+                      </div>
+                      <div>
+                        <span className="text-green-700">تاريخ الحل:</span>
+                        <span className="font-bold mr-2 text-green-900">
+                          {new Date(selectedViolation.resolvedAt).toLocaleDateString('ar-SA')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl">
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setSelectedViolation(null);
+                }}
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                إغلاق
               </button>
             </div>
           </div>
@@ -513,4 +1151,4 @@ const BehaviorTrackingSystem = () => {
   );
 };
 
-export default BehaviorTrackingSystem;     
+export default BehaviorTrackingSystem;    
