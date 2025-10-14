@@ -253,29 +253,65 @@
         };
 
         // Helper Functions
-        function getStudentViolationCount(studentName, status = 'active') {
+        function getStudentViolationCount(studentName, teacherId = null, status = 'active') {
             return state.violations.filter(v => 
                 v.studentName === studentName && 
+                (teacherId === null || v.teacherId === teacherId) &&
                 (status === 'all' || v.status === status)
             ).length;
         }
 
         function getStudentsByViolationCount() {
+            // للوكيل والمرشد: الطلاب الذين لديهم 3 مخالفات من نفس المعلم
             const studentMap = {};
+            
             state.violations.filter(v => v.status === 'active').forEach(v => {
-                if (!studentMap[v.studentName]) {
-                    studentMap[v.studentName] = {
+                const key = `${v.studentName}_${v.teacherId}`;
+                
+                if (!studentMap[key]) {
+                    studentMap[key] = {
                         name: v.studentName,
                         grade: v.grade,
                         section: v.section,
+                        teacherId: v.teacherId,
+                        teacherName: v.teacherName,
                         count: 0,
                         violations: []
                     };
                 }
-                studentMap[v.studentName].count++;
-                studentMap[v.studentName].violations.push(v);
+                studentMap[key].count++;
+                studentMap[key].violations.push(v);
             });
-            return Object.values(studentMap).sort((a, b) => b.count - a.count);
+            
+            // فقط الطلاب الذين لديهم 3+ مخالفات من نفس المعلم
+            return Object.values(studentMap)
+                .filter(s => s.count >= 3)
+                .sort((a, b) => b.count - a.count);
+        }
+
+        function getMyStudentsUnderWatch() {
+            // للمعلم: الطلاب الذين سجلت عليهم 3 مخالفات
+            const studentMap = {};
+            
+            state.violations
+                .filter(v => v.status === 'active' && v.teacherId === state.currentUser.id)
+                .forEach(v => {
+                    if (!studentMap[v.studentName]) {
+                        studentMap[v.studentName] = {
+                            name: v.studentName,
+                            grade: v.grade,
+                            section: v.section,
+                            count: 0,
+                            violations: []
+                        };
+                    }
+                    studentMap[v.studentName].count++;
+                    studentMap[v.studentName].violations.push(v);
+                });
+            
+            return Object.values(studentMap)
+                .filter(s => s.count >= 3)
+                .sort((a, b) => b.count - a.count);
         }
 
         function getDegreeLabel(type) {
@@ -309,14 +345,20 @@
         function getFilteredViolations() {
             let filtered = [...state.violations];
 
-            // Role-based filtering
-            if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
-                const studentsWithThreePlus = getStudentsByViolationCount()
-                    .filter(s => s.count >= 3)
-                    .map(s => s.name);
+            // عزل البيانات حسب الدور
+            if (state.currentUser.role === 'teacher') {
+                // المعلم يرى مخالفاته فقط
+                filtered = filtered.filter(v => v.teacherId === state.currentUser.id);
+            } else if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
+                // الوكيل والمرشد يرون فقط الطلاب الذين لديهم 3+ مخالفات من نفس المعلم
+                const studentsUnderWatch = getStudentsByViolationCount();
+                const studentTeacherPairs = studentsUnderWatch.map(s => `${s.name}_${s.teacherId}`);
                 
-                filtered = filtered.filter(v => studentsWithThreePlus.includes(v.studentName));
+                filtered = filtered.filter(v => 
+                    studentTeacherPairs.includes(`${v.studentName}_${v.teacherId}`)
+                );
             }
+            // المدير يرى كل شيء (لا تصفية)
 
             // Status filter
             if (state.filters.selectedTab === 'active') {
@@ -352,11 +394,32 @@
         }
 
         function getStats() {
-            const active = state.violations.filter(v => v.status === 'active').length;
-            const resolved = state.violations.filter(v => v.status === 'resolved').length;
-            const studentsUnderWatch = getStudentsByViolationCount()
-                .filter(s => s.count >= 3).length;
-            const today = state.violations.filter(v => 
+            let violations = [...state.violations];
+            
+            // تصفية حسب الدور
+            if (state.currentUser.role === 'teacher') {
+                violations = violations.filter(v => v.teacherId === state.currentUser.id);
+            } else if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
+                const studentsUnderWatch = getStudentsByViolationCount();
+                const studentTeacherPairs = studentsUnderWatch.map(s => `${s.name}_${s.teacherId}`);
+                violations = violations.filter(v => 
+                    studentTeacherPairs.includes(`${v.studentName}_${v.teacherId}`)
+                );
+            }
+            
+            const active = violations.filter(v => v.status === 'active').length;
+            const resolved = violations.filter(v => v.status === 'resolved').length;
+            
+            let studentsUnderWatch = 0;
+            if (state.currentUser.role === 'teacher') {
+                studentsUnderWatch = getMyStudentsUnderWatch().length;
+            } else if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
+                studentsUnderWatch = getStudentsByViolationCount().length;
+            } else {
+                studentsUnderWatch = getStudentsByViolationCount().length;
+            }
+            
+            const today = violations.filter(v => 
                 v.date === new Date().toISOString().split('T')[0]
             ).length;
 
@@ -366,7 +429,8 @@
         function canResolveViolation(violation) {
             if (state.currentUser.role === 'principal') return true;
             if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
-                return getStudentViolationCount(violation.studentName) >= 3;
+                // يمكن حل المخالفات للطلاب الذين لديهم 3+ من نفس المعلم
+                return getStudentViolationCount(violation.studentName, violation.teacherId) >= 3;
             }
             if (state.currentUser.role === 'teacher') {
                 return violation.teacherId === state.currentUser.id;
@@ -457,6 +521,12 @@
                 return false;
             }
             
+            // التحقق من التوثيق (إلزامي)
+            if (!documentation) {
+                alert('⚠️ يرجى كتابة توثيق المخالفة (الإجراء المتبع)\n\nهذا الحقل إلزامي لتوثيق الإجراء الذي اتخذته مع الطالب');
+                return false;
+            }
+            
             // إنشاء المخالفة
             const violation = {
                 id: Math.max(...state.violations.map(v => v.id), 0) + 1,
@@ -477,11 +547,21 @@
             // إضافة المخالفة للقائمة
             state.violations.unshift(violation);
             
-            // رسالة نجاح
-            alert('✅ تم إضافة المخالفة بنجاح!\n\n' +
+            // التحقق من عدد المخالفات للطالب من نفس المعلم
+            const studentViolationsCount = getStudentViolationCount(studentName, state.currentUser.id);
+            
+            let alertMessage = '✅ تم إضافة المخالفة بنجاح!\n\n' +
                   '👤 الطالب: ' + studentName + '\n' +
                   '📚 الصف: ' + grade + ' - الشعبة ' + section + '\n' +
-                  '⚠️ المخالفة: ' + violationDetails);
+                  '⚠️ المخالفة: ' + violationDetails + '\n' +
+                  '📝 الإجراء المتبع: ' + documentation;
+            
+            if (studentViolationsCount >= 3) {
+                alertMessage += '\n\n🚨 تنبيه: هذا الطالب لديه ' + studentViolationsCount + ' مخالفات منك!\n' +
+                               'سيتم إحالته للوكيل/المرشد الطلابي للمتابعة.';
+            }
+            
+            alert(alertMessage);
             
             // إغلاق النموذج
             closeAddForm();
@@ -1014,7 +1094,7 @@
         }
 
         function renderViolationItem(v) {
-            const violationCount = getStudentViolationCount(v.studentName);
+            const violationCount = getStudentViolationCount(v.studentName, v.teacherId);
             const isHighPriority = violationCount >= 3;
             
             return `
@@ -1040,7 +1120,7 @@
                                 
                                 ${isHighPriority && v.status === 'active' ? `
                                     <span class="flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md animate-pulse">
-                                        ⚠️ تحت المراقبة (${violationCount} مخالفات)
+                                        ⚠️ تحت المراقبة (${violationCount} مخالفات من ${v.teacherName})
                                     </span>
                                 ` : ''}
                                 
@@ -1059,7 +1139,7 @@
                                 ${v.documentation ? `
                                     <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                         <p class="text-sm text-blue-900">
-                                            <span class="font-bold">📝 توثيق المخالفة:</span>
+                                            <span class="font-bold">📝 الإجراء المتبع:</span>
                                             <br>
                                             ${v.documentation}
                                         </p>
@@ -1182,7 +1262,8 @@
             const isDisabled = !state.newViolation.studentName.trim() || 
                               !state.newViolation.grade || 
                               !state.newViolation.section || 
-                              !state.newViolation.violationDetails;
+                              !state.newViolation.violationDetails ||
+                              !state.newViolation.documentation.trim(); // التوثيق إلزامي
 
             return `
                 <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target === this) closeAddForm()">
@@ -1299,13 +1380,17 @@
 
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">
-                                    توثيق المخالفة (اختياري)
+                                    توثيق المخالفة - الإجراء المتبع <span class="text-red-500">* إلزامي</span>
                                 </label>
                                 <textarea id="documentationInput" 
                                           oninput="state.newViolation.documentation = this.value;"
-                                          class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                                          class="w-full px-4 py-3 border-2 ${state.newViolation.documentation.trim() ? 'border-green-500' : 'border-red-300'} rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
                                           rows="4"
-                                          placeholder="أضف تفاصيل إضافية عن المخالفة، الظروف المحيطة، أو أي معلومات مهمة...">${state.newViolation.documentation}</textarea>
+                                          required
+                                          placeholder="⚠️ يرجى كتابة الإجراء المتبع مع الطالب (إلزامي)&#10;&#10;أمثلة:&#10;• تم توجيه الطالب وتنبيهه شفهياً&#10;• تم إبلاغ ولي الأمر هاتفياً&#10;• تم استدعاء الطالب وتوقيع تعهد&#10;• تم حرمانه من الفسحة&#10;• تم تحويله للإرشاد الطلابي">${state.newViolation.documentation}</textarea>
+                                <p class="text-xs ${state.newViolation.documentation.trim() ? 'text-green-600' : 'text-red-600'} mt-1 font-medium">
+                                    ${state.newViolation.documentation.trim() ? '✓ تم كتابة الإجراء المتبع' : '⚠️ هذا الحقل إلزامي - يجب توثيق الإجراء الذي اتخذته مع الطالب'}
+                                </p>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
@@ -1380,7 +1465,7 @@
                                     </div>
                                     <div>
                                         <span class="text-gray-600">عدد المخالفات:</span>
-                                        <span class="font-bold mr-2">${getStudentViolationCount(v.studentName)}</span>
+                                        <span class="font-bold mr-2">${getStudentViolationCount(v.studentName, v.teacherId)}</span>
                                     </div>
                                 </div>
                             </div>
