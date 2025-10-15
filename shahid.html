@@ -66,6 +66,18 @@
     </div>
 </div>
 
+<!-- ========== شاشة تسجيل دخول الوكيل/المرشد/المدير ========== -->
+<div id="roleLoginScreen" class="hidden fixed inset-0 bg-gradient-to-br from-blue-800 to-blue-900 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+        <h2 id="roleLoginTitle" class="text-2xl font-bold text-center mb-6 text-gray-800">🔐 تسجيل دخول</h2>
+        <label class="block text-sm font-medium text-gray-700 mb-2">الرقم السري</label>
+        <input id="rolePassword" type="password" placeholder="أدخل الرقم السري" class="w-full mb-4 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+        <button onclick="checkRoleLogin()" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold shadow-md">دخول</button>
+        <p id="roleLoginError" class="text-red-600 text-sm mt-3 text-center hidden">⚠️ الرقم السري غير صحيح</p>
+    </div>
+    
+</div>
+
 <!-- ========== التطبيق الرئيسي ========== -->
 <div id="app" class="hidden"></div>
 
@@ -114,6 +126,14 @@ const teachersList = [
     { name: 'عبدالمجيد عايد خضران الرشيدي',           password: '4141' },
     { name: 'أحمد مطر سليمان الرشيدي',                password: '4242' }
 ];
+
+// -------------------- كلمات السر للأدوار الإدارية --------------------
+const rolePasswords = {
+    assistant: '2468',   // الوكيل
+    counselor: '1357',   // المرشد الطلابي
+    principal: '0000'    // المدير
+};
+let pendingRole = '';
 
 // -------------------- الحالة العامة --------------------
 let state = {
@@ -189,12 +209,12 @@ function enterRole(role) {
         document.getElementById('loginScreen').classList.remove('hidden');
         fillTeacherOptions();
     } else {
-        state.currentUser = {
-            role: role,
-            name: role === 'assistant' ? config.schoolInfo.assistant : role === 'counselor' ? config.schoolInfo.counselor : config.schoolInfo.principal,
-            id: role === 'assistant' ? 2 : role === 'counselor' ? 3 : 4
-        };
-        render();
+        pendingRole = role;
+        const title = role === 'assistant' ? 'الوكيل' : role === 'counselor' ? 'المرشد الطلابي' : 'المدير';
+        document.getElementById('roleLoginTitle').textContent = '🔐 تسجيل دخول ' + title;
+        document.getElementById('rolePassword').value = '';
+        document.getElementById('roleLoginError').classList.add('hidden');
+        document.getElementById('roleLoginScreen').classList.remove('hidden');
     }
 }
 
@@ -218,6 +238,23 @@ function checkTeacherLogin() {
     if (teacher.password === pass) {
         document.getElementById('loginScreen').style.display = 'none';
         state.currentUser = { role: 'teacher', name: teacher.name, id: parseInt(idx) + 1 };
+        render();
+    } else {
+        err.classList.remove('hidden');
+    }
+}
+
+function checkRoleLogin() {
+    const pass = document.getElementById('rolePassword').value.trim();
+    const err  = document.getElementById('roleLoginError');
+    if (pass === '') { alert('يرجى إدخال الرقم السري'); return; }
+    if (!pendingRole) { alert('حدث خطأ، أعد المحاولة.'); return; }
+    if (rolePasswords[pendingRole] && rolePasswords[pendingRole] === pass) {
+        document.getElementById('roleLoginScreen').classList.add('hidden');
+        const name = pendingRole === 'assistant' ? config.schoolInfo.assistant : pendingRole === 'counselor' ? config.schoolInfo.counselor : config.schoolInfo.principal;
+        const id   = pendingRole === 'assistant' ? 2 : pendingRole === 'counselor' ? 3 : 4;
+        state.currentUser = { role: pendingRole, name, id };
+        pendingRole = '';
         render();
     } else {
         err.classList.remove('hidden');
@@ -918,14 +955,26 @@ function renderActionModal() {
 // -------------------- Actions --------------------
 function setCurrentUser(role, name, id) {
     if (role === 'teacher') {
+        // إذا كان المستخدم الحالي معلمًا بالفعل، بدّل المعلم مباشرةً من القائمة
+        if (state.currentUser.role === 'teacher' && name && id) {
+            state.currentUser = { role: 'teacher', name, id };
+            render();
+            return;
+        }
+        // وإلا افتح شاشة تسجيل دخول المعلم
         document.getElementById('loginScreen').classList.remove('hidden');
         document.getElementById('app').classList.add('hidden');
         fillTeacherOptions();
         return;
     }
 
-    state.currentUser = { role, name, id };
-    render();
+    // الأدوار الإدارية تتطلب كلمة سر
+    pendingRole = role;
+    const title = role === 'assistant' ? 'الوكيل' : role === 'counselor' ? 'المرشد الطلابي' : 'المدير';
+    document.getElementById('roleLoginTitle').textContent = '🔐 تسجيل دخول ' + title;
+    document.getElementById('rolePassword').value = '';
+    document.getElementById('roleLoginError').classList.add('hidden');
+    document.getElementById('roleLoginScreen').classList.remove('hidden');
 }
 function setFilter(key, value) {
     state.filters[key] = value;
