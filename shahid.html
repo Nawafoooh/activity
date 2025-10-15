@@ -66,6 +66,25 @@
     </div>
 </div>
 
+<!-- ========== نافذة كلمة مرور للأدوار المحمية (الوكيل/المرشد/المدير) ========== -->
+<div id="roleLoginModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md" onclick="event.stopPropagation()">
+        <h2 id="roleLoginTitle" class="text-2xl font-bold text-center mb-6 text-gray-800">🔐 دخول</h2>
+
+        <label class="block text-sm font-medium text-gray-700 mb-2">الرقم السري</label>
+        <input id="rolePasswordInput" type="password" placeholder="أدخل الرقم السري" 
+               class="w-full mb-4 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+               onkeydown="if(event.key==='Enter'){ submitRolePassword(); }">
+
+        <p id="roleLoginError" class="text-red-600 text-sm mb-4 text-center hidden">⚠️ الرقم السري غير صحيح</p>
+
+        <div class="flex gap-3">
+            <button onclick="closeRoleLoginModal()" class="flex-1 border-2 border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-100 font-bold">إلغاء</button>
+            <button onclick="submitRolePassword()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold shadow-md">دخول</button>
+        </div>
+    </div>
+</div>
+
 <!-- ========== التطبيق الرئيسي ========== -->
 <div id="app" class="hidden"></div>
 
@@ -115,9 +134,45 @@ const teachersList = [
     { name: 'أحمد مطر سليمان الرشيدي',                password: '4242' }
 ];
 
+// -------------------- حماية الأدوار وكلمات المرور --------------------
+const protectedRoles = ['assistant', 'counselor', 'principal'];
+const rolePasswords = {
+    assistant: '2468',   // كلمة سر الوكيل
+    counselor: '1357',   // كلمة سر الموجه الطلابي
+    principal: '9090'    // كلمة سر المدير
+};
+const ROLE_SESSIONS_KEY = 'violations_role_sessions_v1';
+function loadRoleSessions() {
+    try {
+        const raw = localStorage.getItem(ROLE_SESSIONS_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return {
+            assistant: !!parsed.assistant,
+            counselor: !!parsed.counselor,
+            principal: !!parsed.principal
+        };
+    } catch (e) {
+        return { assistant: false, counselor: false, principal: false };
+    }
+}
+function saveRoleSessions() {
+    try { localStorage.setItem(ROLE_SESSIONS_KEY, JSON.stringify(state.authSessions)); } catch (e) {}
+}
+function isProtectedRole(role) { return protectedRoles.includes(role); }
+function isRoleAuthenticated(role) { return !!state.authSessions?.[role]; }
+function getRoleLabel(role) {
+    if (role === 'assistant') return 'الوكيل';
+    if (role === 'counselor') return 'المرشد الطلابي';
+    if (role === 'principal') return 'المدير';
+    if (role === 'teacher') return 'المعلم';
+    return role || '';
+}
+
 // -------------------- الحالة العامة --------------------
 let state = {
     currentUser: { role: '', name: '', id: 0 },
+    authSessions: loadRoleSessions(),
+    pendingRoleForAuth: '',
     violations: [
         {
             id: 1,
@@ -182,20 +237,25 @@ const config = {
 
 // -------------------- التنقل بين الصفحات --------------------
 function enterRole(role) {
-    document.getElementById('homePage').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-
     if (role === 'teacher') {
         document.getElementById('loginScreen').classList.remove('hidden');
         fillTeacherOptions();
-    } else {
-        state.currentUser = {
-            role: role,
-            name: role === 'assistant' ? config.schoolInfo.assistant : role === 'counselor' ? config.schoolInfo.counselor : config.schoolInfo.principal,
-            id: role === 'assistant' ? 2 : role === 'counselor' ? 3 : 4
-        };
-        render();
+        return;
     }
+
+    if (isProtectedRole(role) && !isRoleAuthenticated(role)) {
+        openRoleLoginModal(role);
+        return;
+    }
+
+    document.getElementById('homePage').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    state.currentUser = {
+        role: role,
+        name: role === 'assistant' ? config.schoolInfo.assistant : role === 'counselor' ? config.schoolInfo.counselor : config.schoolInfo.principal,
+        id: role === 'assistant' ? 2 : role === 'counselor' ? 3 : 4
+    };
+    render();
 }
 
 function fillTeacherOptions() {
@@ -217,6 +277,8 @@ function checkTeacherLogin() {
     const teacher = teachersList[idx];
     if (teacher.password === pass) {
         document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('homePage').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
         state.currentUser = { role: 'teacher', name: teacher.name, id: parseInt(idx) + 1 };
         render();
     } else {
@@ -291,10 +353,17 @@ function renderUserTabs() {
                         🏛️ صفحة المدير
                     </button>
                 </div>
-                <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-                    <p class="text-sm text-blue-900">
-                        <span class="font-bold">المستخدم الحالي:</span> ${state.currentUser.name} – ${state.currentUser.role === 'teacher' ? 'المعلم' : state.currentUser.role === 'assistant' ? 'الوكيل' : state.currentUser.role === 'counselor' ? 'المرشد الطلابي' : 'المدير'}
-                    </p>
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                        <p class="text-sm text-blue-900">
+                            <span class="font-bold">المستخدم الحالي:</span> ${state.currentUser.name} – ${getRoleLabel(state.currentUser.role)}
+                        </p>
+                    </div>
+                    ${['assistant','counselor','principal'].includes(state.currentUser.role) ? `
+                        <button onclick="logoutCurrentRole()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-bold">
+                            🚪 تسجيل خروج
+                        </button>
+                    ` : ''}
                 </div>
             </div>
         </div>
@@ -924,7 +993,14 @@ function setCurrentUser(role, name, id) {
         return;
     }
 
+    if (isProtectedRole(role) && !isRoleAuthenticated(role)) {
+        openRoleLoginModal(role);
+        return;
+    }
+
     state.currentUser = { role, name, id };
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('homePage').classList.add('hidden');
     render();
 }
 function setFilter(key, value) {
@@ -1143,6 +1219,55 @@ function exportToCSV() {
     link.href = URL.createObjectURL(blob);
     link.download = `مخالفات_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+}
+// -------------------- نافذة كلمة سر: فتح/إغلاق/تحقق --------------------
+function openRoleLoginModal(role) {
+    state.pendingRoleForAuth = role;
+    const title = document.getElementById('roleLoginTitle');
+    if (title) title.textContent = `🔐 دخول – ${getRoleLabel(role)}`;
+    const err = document.getElementById('roleLoginError');
+    if (err) err.classList.add('hidden');
+    const input = document.getElementById('rolePasswordInput');
+    if (input) { input.value = ''; setTimeout(() => input.focus(), 0); }
+    document.getElementById('roleLoginModal').classList.remove('hidden');
+}
+function closeRoleLoginModal() {
+    document.getElementById('roleLoginModal').classList.add('hidden');
+    state.pendingRoleForAuth = '';
+}
+function submitRolePassword() {
+    const role = state.pendingRoleForAuth;
+    const input = document.getElementById('rolePasswordInput');
+    const err = document.getElementById('roleLoginError');
+    if (!role || !input) return;
+    const pass = input.value.trim();
+    if (rolePasswords[role] && pass === rolePasswords[role]) {
+        state.authSessions[role] = true;
+        saveRoleSessions();
+        closeRoleLoginModal();
+
+        // متابعة الدخول بعد نجاح كلمة السر
+        document.getElementById('homePage').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        state.currentUser = {
+            role,
+            name: role === 'assistant' ? config.schoolInfo.assistant : role === 'counselor' ? config.schoolInfo.counselor : config.schoolInfo.principal,
+            id: role === 'assistant' ? 2 : role === 'counselor' ? 3 : 4
+        };
+        render();
+    } else {
+        if (err) err.classList.remove('hidden');
+    }
+}
+function logoutCurrentRole() {
+    const role = state.currentUser.role;
+    if (isProtectedRole(role)) {
+        state.authSessions[role] = false;
+        saveRoleSessions();
+        state.currentUser = { role: '', name: '', id: 0 };
+        document.getElementById('app').classList.add('hidden');
+        document.getElementById('homePage').classList.remove('hidden');
+    }
 }
 function canResolveViolation(violation) {
     if (state.currentUser.role === 'principal') return true;
