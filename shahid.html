@@ -1026,6 +1026,19 @@
 
         function closeAbsenceModal() {
             state.modals.showAbsenceModal = false;
+            // إعادة تعيين الحقول
+            const form = document.getElementById('absenceGrade');
+            if (form) {
+                document.getElementById('absenceGrade').value = '';
+                document.getElementById('absenceSection').value = '';
+                document.getElementById('absencePeriod').value = '';
+                document.getElementById('absentCount').value = '';
+                document.getElementById('absentNames').value = '';
+                const display = document.getElementById('capacityDisplay');
+                if (display) {
+                    display.classList.add('hidden');
+                }
+            }
             render();
         }
 
@@ -1041,8 +1054,24 @@
                 return;
             }
 
-            const classKey = grade.charAt(0) + '-' + section;
+            if (absentCount === 0) {
+                alert('⚠️ يرجى إدخال عدد الطلاب الغائبين');
+                return;
+            }
+
+            const gradeNum = grade.charAt(0);
+            const classKey = gradeNum + '-' + section;
             const totalStudents = config.classCapacity[classKey] || 0;
+
+            if (totalStudents === 0) {
+                alert('⚠️ لم يتم العثور على بيانات عدد الطلاب لهذا الفصل');
+                return;
+            }
+
+            if (absentCount > totalStudents) {
+                alert('⚠️ عدد الطلاب الغائبين أكبر من عدد الطلاب الكلي في الفصل!');
+                return;
+            }
 
             const today = new Date().toISOString().split('T')[0];
             
@@ -1103,7 +1132,14 @@
                 });
             }
 
-            alert('✅ تم تسجيل الغياب بنجاح!');
+            alert('✅ تم تسجيل الغياب بنجاح!\n\n' +
+                  '📚 الفصل: ' + grade + ' - الشعبة ' + section + '\n' +
+                  '📋 الحصة: ' + period + '\n' +
+                  '👥 عدد الطلاب: ' + totalStudents + '\n' +
+                  '❌ الغائبون: ' + absentCount + '\n' +
+                  '✅ الحاضرون: ' + (totalStudents - absentCount) +
+                  (period === 'الأولى' ? '\n\n📋 تم نسخ الغياب لجميع الحصص الأخرى تلقائياً' : ''));
+            
             closeAbsenceModal();
         }
 
@@ -1122,6 +1158,11 @@
                     });
                     absence.absentCount++;
                     absence.presentCount--;
+                    
+                    alert('✅ تم إضافة الطالب الغائب بنجاح!\n\n' +
+                          '👤 اسم الطالب: ' + studentName.trim() + '\n' +
+                          '⏰ الوقت: ' + new Date().toTimeString().slice(0, 5));
+                    
                     render();
                 }
             }
@@ -1135,6 +1176,15 @@
 
         function closeLateArrivalModal() {
             state.modals.showLateArrivalModal = false;
+            // إعادة تعيين الحقول
+            const form = document.getElementById('lateStudentName');
+            if (form) {
+                document.getElementById('lateStudentName').value = '';
+                document.getElementById('lateGrade').value = '';
+                document.getElementById('lateSection').value = '';
+                document.getElementById('latePeriod').value = '';
+                document.getElementById('lateTime').value = new Date().toTimeString().slice(0, 5);
+            }
             render();
         }
 
@@ -1145,8 +1195,28 @@
             const period = document.getElementById('latePeriod')?.value;
             const lateTime = document.getElementById('lateTime')?.value;
             
-            if (!studentName || !grade || !section || !period || !lateTime) {
-                alert('⚠️ يرجى ملء جميع الحقول المطلوبة');
+            if (!studentName) {
+                alert('⚠️ يرجى إدخال اسم الطالب');
+                return;
+            }
+            
+            if (!grade) {
+                alert('⚠️ يرجى اختيار الصف');
+                return;
+            }
+            
+            if (!section) {
+                alert('⚠️ يرجى اختيار الشعبة');
+                return;
+            }
+            
+            if (!period) {
+                alert('⚠️ يرجى اختيار الحصة');
+                return;
+            }
+            
+            if (!lateTime) {
+                alert('⚠️ يرجى إدخال وقت التأخير');
                 return;
             }
 
@@ -1165,7 +1235,12 @@
 
             state.lateArrivals.push(lateArrival);
 
-            alert('✅ تم تسجيل التأخير بنجاح!');
+            alert('✅ تم تسجيل التأخير بنجاح!\n\n' +
+                  '👤 الطالب: ' + studentName + '\n' +
+                  '📚 الفصل: ' + grade + ' - الشعبة ' + section + '\n' +
+                  '📋 الحصة: ' + period + '\n' +
+                  '⏰ وقت التأخير: ' + lateTime);
+
             closeLateArrivalModal();
         }
 
@@ -2106,4 +2181,4 @@
         render();
     </script>
 </body>
-</html>                                                                  
+</html>                                                                
