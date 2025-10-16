@@ -90,6 +90,11 @@
                 name: teachersList[0],
                 id: 1
             },
+            authenticated: {
+                principal: false,
+                assistant: false,
+                counselor: false
+            },
             violations: [
                 {
                     id: 1,
@@ -170,17 +175,7 @@
                     createdAt: '2025-10-12T07:45:00'
                 }
             ],
-            studentActions: [
-                // سجل الإجراءات المتخذة من الوكيل/المرشد
-                // {
-                //     studentName: 'أحمد محمد علي',
-                //     actionBy: 'assistant', // or 'counselor'
-                //     actionByName: 'محمد الجابري',
-                //     actionDate: '2025-10-15T10:00:00',
-                //     actionDetails: 'تم استدعاء ولي الأمر وتوقيع تعهد',
-                //     violationsIncluded: [1, 2, 3] // IDs of violations
-                // }
-            ],
+            studentActions: [],
             filters: {
                 selectedTab: 'all',
                 searchStudent: '',
@@ -210,6 +205,11 @@
 
         // Configuration
         const config = {
+            passwords: {
+                principal: 'A2030',
+                assistant: 'B2030',
+                counselor: 'C2030'
+            },
             schoolInfo: {
                 name: 'متوسطة المنذر بن عمرو الأنصاري',
                 principal: 'خالد المطيري',
@@ -262,7 +262,6 @@
         }
 
         function getStudentsByViolationCount() {
-            // للوكيل والمرشد: الطلاب الذين لديهم 3 مخالفات من نفس المعلم
             const studentMap = {};
             
             state.violations.filter(v => v.status === 'active').forEach(v => {
@@ -283,14 +282,12 @@
                 studentMap[key].violations.push(v);
             });
             
-            // فقط الطلاب الذين لديهم 3+ مخالفات من نفس المعلم
             return Object.values(studentMap)
                 .filter(s => s.count >= 3)
                 .sort((a, b) => b.count - a.count);
         }
 
         function getMyStudentsUnderWatch() {
-            // للمعلم: الطلاب الذين سجلت عليهم 3 مخالفات
             const studentMap = {};
             
             state.violations
@@ -345,12 +342,9 @@
         function getFilteredViolations() {
             let filtered = [...state.violations];
 
-            // عزل البيانات حسب الدور
             if (state.currentUser.role === 'teacher') {
-                // المعلم يرى مخالفاته فقط
                 filtered = filtered.filter(v => v.teacherId === state.currentUser.id);
             } else if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
-                // الوكيل والمرشد يرون فقط الطلاب الذين لديهم 3+ مخالفات من نفس المعلم
                 const studentsUnderWatch = getStudentsByViolationCount();
                 const studentTeacherPairs = studentsUnderWatch.map(s => `${s.name}_${s.teacherId}`);
                 
@@ -358,16 +352,13 @@
                     studentTeacherPairs.includes(`${v.studentName}_${v.teacherId}`)
                 );
             }
-            // المدير يرى كل شيء (لا تصفية)
 
-            // Status filter
             if (state.filters.selectedTab === 'active') {
                 filtered = filtered.filter(v => v.status === 'active');
             } else if (state.filters.selectedTab === 'resolved') {
                 filtered = filtered.filter(v => v.status === 'resolved');
             }
 
-            // Search and filters
             if (state.filters.searchStudent.trim()) {
                 filtered = filtered.filter(v => 
                     v.studentName.includes(state.filters.searchStudent.trim())
@@ -396,7 +387,6 @@
         function getStats() {
             let violations = [...state.violations];
             
-            // تصفية حسب الدور
             if (state.currentUser.role === 'teacher') {
                 violations = violations.filter(v => v.teacherId === state.currentUser.id);
             } else if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
@@ -429,7 +419,6 @@
         function canResolveViolation(violation) {
             if (state.currentUser.role === 'principal') return true;
             if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
-                // يمكن حل المخالفات للطلاب الذين لديهم 3+ من نفس المعلم
                 return getStudentViolationCount(violation.studentName, violation.teacherId) >= 3;
             }
             if (state.currentUser.role === 'teacher') {
@@ -440,6 +429,21 @@
 
         // Actions
         function setCurrentUser(role, name, id) {
+            // التحقق من كلمة السر للأدوار المحمية
+            if (role === 'principal' || role === 'assistant' || role === 'counselor') {
+                if (!state.authenticated[role]) {
+                    const password = prompt(`🔒 يرجى إدخال كلمة السر لصفحة ${getRoleLabel(role)}:`);
+                    
+                    if (password !== config.passwords[role]) {
+                        alert('❌ كلمة السر غير صحيحة!');
+                        return;
+                    }
+                    
+                    state.authenticated[role] = true;
+                    alert(`✅ تم تسجيل الدخول بنجاح إلى صفحة ${getRoleLabel(role)}`);
+                }
+            }
+            
             if (role === 'teacher' && !name) {
                 name = teachersList[0];
             }
@@ -490,7 +494,6 @@
         }
 
         function addViolation() {
-            // قراءة القيم من state مباشرة
             const studentName = state.newViolation.studentName.trim();
             const grade = state.newViolation.grade;
             const section = state.newViolation.section;
@@ -500,7 +503,6 @@
             const date = state.newViolation.date;
             const time = state.newViolation.time;
             
-            // التحقق من البيانات الأساسية
             if (!studentName) {
                 alert('⚠️ يرجى إدخال اسم الطالب');
                 return false;
@@ -521,13 +523,11 @@
                 return false;
             }
             
-            // التحقق من التوثيق (إلزامي)
             if (!documentation) {
                 alert('⚠️ يرجى كتابة توثيق المخالفة (الإجراء المتبع)\n\nهذا الحقل إلزامي لتوثيق الإجراء الذي اتخذته مع الطالب');
                 return false;
             }
             
-            // إنشاء المخالفة
             const violation = {
                 id: Math.max(...state.violations.map(v => v.id), 0) + 1,
                 studentName: studentName,
@@ -544,10 +544,8 @@
                 createdAt: new Date().toISOString()
             };
             
-            // إضافة المخالفة للقائمة
             state.violations.unshift(violation);
             
-            // التحقق من عدد المخالفات للطالب من نفس المعلم
             const studentViolationsCount = getStudentViolationCount(studentName, state.currentUser.id);
             
             let alertMessage = '✅ تم إضافة المخالفة بنجاح!\n\n' +
@@ -563,7 +561,6 @@
             
             alert(alertMessage);
             
-            // إغلاق النموذج
             closeAddForm();
             
             return true;
@@ -878,6 +875,11 @@
                     ? 'bg-blue-600 text-white shadow-lg transform scale-105' 
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`;
+            
+            const isLocked = (role) => {
+                return (role === 'principal' || role === 'assistant' || role === 'counselor') && 
+                       !state.authenticated[role];
+            };
 
             return `
                 <div class="bg-white border-b shadow-sm sticky top-0 z-40">
@@ -900,13 +902,13 @@
                                 `}
                                 
                                 <button onclick="setCurrentUser('assistant', '${config.schoolInfo.assistant}', 2)" class="${btnClass('assistant')}">
-                                    📋 صفحة الوكيل
+                                    ${isLocked('assistant') ? '🔒' : '📋'} صفحة الوكيل
                                 </button>
                                 <button onclick="setCurrentUser('counselor', '${config.schoolInfo.counselor}', 3)" class="${btnClass('counselor')}">
-                                    📢 الموجه الطلابي
+                                    ${isLocked('counselor') ? '🔒' : '📢'} الموجه الطلابي
                                 </button>
                                 <button onclick="setCurrentUser('principal', '${config.schoolInfo.principal}', 4)" class="${btnClass('principal')}">
-                                    🏛️ صفحة المدير
+                                    ${isLocked('principal') ? '🔒' : '🏛️'} صفحة المدير
                                 </button>
                             </div>
                             <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
@@ -1568,7 +1570,6 @@
                         </div>
                         
                         <div class="p-6">
-                            <!-- معلومات الطالب -->
                             <div class="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-6">
                                 <h3 class="font-bold text-lg text-red-900 mb-3">معلومات الطالب</h3>
                                 <div class="grid grid-cols-2 gap-3 text-sm mb-4">
@@ -1591,7 +1592,6 @@
                                 </div>
                             </div>
 
-                            <!-- قائمة المخالفات -->
                             <div class="mb-6">
                                 <h3 class="font-bold text-lg text-gray-900 mb-3">📝 قائمة المخالفات:</h3>
                                 <div class="space-y-3">
@@ -1620,7 +1620,6 @@
                                 </div>
                             </div>
 
-                            <!-- حقل الإجراء المتخذ -->
                             <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
                                 <h3 class="font-bold text-lg text-blue-900 mb-3">
                                     📋 الإجراء المتخذ من قبل ${getRoleLabel(state.currentUser.role)}
@@ -1667,5 +1666,4 @@
         render();
     </script>
 </body>
-</html>                                                                   
-                                                                              
+</html>                                                                    
