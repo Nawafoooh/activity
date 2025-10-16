@@ -213,9 +213,12 @@ html += '</div><div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl 
             render();
         }
 
-        function openEditModal(attendance) {
+        function openEditModal(attendanceData) {
             state.modals.showEditModal = true;
-            state.modals.editingAttendance = attendance;
+            state.modals.editingAttendance = JSON.parse(JSON.stringify(attendanceData));
+            if (!state.modals.editingAttendance.absentStudents) {
+                state.modals.editingAttendance.absentStudents = [];
+            }
             render();
         }
 
@@ -264,11 +267,18 @@ html += '</div><div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl 
         }
 
         function saveEditedAttendance() {
-            const index = state.attendance.findIndex(a => a.id === state.modals.editingAttendance.id);
+            const index = state.attendance.findIndex(att => att.id === state.modals.editingAttendance.id);
             if (index !== -1) {
                 state.attendance[index] = state.modals.editingAttendance;
                 alert('✅ تم تحديث السجل بنجاح!');
                 closeEditModal();
+            }
+        }
+
+        function openEditModalSafe(attendanceId) {
+            const attendance = state.attendance.find(a => a.id === attendanceId);
+            if (attendance) {
+                openEditModal(attendance);
             }
         }
 
@@ -491,21 +501,42 @@ html += '</div><div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl 
                 let studentsNames = '';
                 if (a.absentStudents && a.absentStudents.length > 0) {
                     if (a.absentStudents.length <= 3) {
-                        studentsNames = '<div class="text-sm">' + a.absentStudents.map((s, i) => (i + 1) + '. ' + s).join('<br>') + '</div>';
+                        studentsNames = '<div class="text-sm">';
+                        a.absentStudents.forEach((s, i) => {
+                            studentsNames += (i + 1) + '. ' + s + '<br>';
+                        });
+                        studentsNames += '</div>';
                     } else {
-                        studentsNames = '<div class="text-sm">' + a.absentStudents.slice(0, 3).map((s, i) => (i + 1) + '. ' + s).join('<br>') + '<div class="text-blue-600 font-bold mt-1">... و ' + (a.absentStudents.length - 3) + ' طالب آخر</div></div>';
+                        studentsNames = '<div class="text-sm">';
+                        for (let i = 0; i < 3; i++) {
+                            studentsNames += (i + 1) + '. ' + a.absentStudents[i] + '<br>';
+                        }
+                        studentsNames += '<div class="text-blue-600 font-bold mt-1">... و ' + (a.absentStudents.length - 3) + ' طالب آخر</div></div>';
                     }
                 } else {
                     studentsNames = '<span class="text-gray-400 text-sm">لا توجد أسماء</span>';
                 }
                 
-                html += '<tr class="hover:bg-gray-50 ' + (isAdditional ? 'bg-red-50' : '') + '"><td class="px-4 py-3 text-sm">' + (index + 1) + '</td><td class="px-4 py-3 text-sm font-medium">' + a.grade + '</td><td class="px-4 py-3 text-sm">' + a.section + '</td><td class="px-4 py-3 text-sm"><span class="px-3 py-1 rounded-full text-xs font-bold ' + (a.period === '1' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') + '">الحصة ' + a.period + '</span>';
+                html += '<tr class="hover:bg-gray-50 ' + (isAdditional ? 'bg-red-50' : '') + '">';
+                html += '<td class="px-4 py-3 text-sm">' + (index + 1) + '</td>';
+                html += '<td class="px-4 py-3 text-sm font-medium">' + a.grade + '</td>';
+                html += '<td class="px-4 py-3 text-sm">' + a.section + '</td>';
+                html += '<td class="px-4 py-3 text-sm">';
+                html += '<span class="px-3 py-1 rounded-full text-xs font-bold ' + (a.period === '1' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') + '">الحصة ' + a.period + '</span>';
                 
                 if (isAdditional) {
                     html += '<span class="mr-2 px-2 py-1 rounded-full text-xs font-bold bg-red-600 text-white">+' + a.additionalAbsent + ' جديد</span>';
                 }
                 
-                html += '</td><td class="px-4 py-3 text-sm">' + a.date + '</td><td class="px-4 py-3 text-sm font-bold ' + (a.absentCount > 0 ? 'text-red-600' : 'text-green-600') + '">' + a.absentCount + '</td><td class="px-4 py-3 text-sm max-w-xs"><div class="bg-yellow-50 border border-yellow-200 rounded p-2">' + studentsNames + '</div></td><td class="px-4 py-3 text-sm">' + a.totalStudents + '</td><td class="px-4 py-3 text-sm"><span class="px-3 py-1 rounded-full text-xs font-bold ' + (attendanceRate >= 90 ? 'bg-green-100 text-green-800' : attendanceRate >= 75 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') + '">' + attendanceRate + '%</span></td><td class="px-4 py-3 text-sm">' + a.teacherName + '</td><td class="px-4 py-3 text-sm"><button onclick=\'openEditModal(' + JSON.stringify(a).replace(/'/g, "\\'") + ')\' class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium whitespace-nowrap">✏️ عرض وتعديل</button></td></tr>';
+                html += '</td>';
+                html += '<td class="px-4 py-3 text-sm">' + a.date + '</td>';
+                html += '<td class="px-4 py-3 text-sm font-bold ' + (a.absentCount > 0 ? 'text-red-600' : 'text-green-600') + '">' + a.absentCount + '</td>';
+                html += '<td class="px-4 py-3 text-sm max-w-xs"><div class="bg-yellow-50 border border-yellow-200 rounded p-2">' + studentsNames + '</div></td>';
+                html += '<td class="px-4 py-3 text-sm">' + a.totalStudents + '</td>';
+                html += '<td class="px-4 py-3 text-sm"><span class="px-3 py-1 rounded-full text-xs font-bold ' + (attendanceRate >= 90 ? 'bg-green-100 text-green-800' : attendanceRate >= 75 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') + '">' + attendanceRate + '%</span></td>';
+                html += '<td class="px-4 py-3 text-sm">' + a.teacherName + '</td>';
+                html += '<td class="px-4 py-3 text-sm"><button onclick="openEditModalSafe(' + a.id + ')" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium whitespace-nowrap">✏️ عرض وتعديل</button></td>';
+                html += '</tr>';
             });
             });
             
