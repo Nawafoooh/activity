@@ -482,11 +482,22 @@ html += '</div><div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl 
                 return '<div class="p-16 text-center"><div class="text-6xl mb-4">📋</div><p class="text-xl text-gray-500 mb-2">لم يتم تسجيل أي غياب بعد</p><p class="text-sm text-gray-400">ابدأ بتسجيل الغياب للحصة الأولى</p></div>';
             }
             
-            let html = '<div class="overflow-x-auto"><table class="w-full"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">#</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">الصف</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">الشعبة</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">الحصة</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">التاريخ</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">عدد الغياب</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">إجمالي</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">نسبة الحضور</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">المعلم</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">إجراءات</th></tr></thead><tbody class="divide-y">';
+            let html = '<div class="overflow-x-auto"><table class="w-full"><thead class="bg-gray-50"><tr><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">#</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">الصف</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">الشعبة</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">الحصة</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">التاريخ</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">عدد الغياب</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">أسماء الطلاب الغائبين</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">إجمالي</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">نسبة الحضور</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">المعلم</th><th class="px-4 py-3 text-right text-sm font-bold text-gray-700">إجراءات</th></tr></thead><tbody class="divide-y">';
             
             filtered.forEach((a, index) => {
                 const attendanceRate = ((a.totalStudents - a.absentCount) / a.totalStudents * 100).toFixed(1);
                 const isAdditional = a.additionalAbsent && a.additionalAbsent > 0;
+                
+                let studentsNames = '';
+                if (a.absentStudents && a.absentStudents.length > 0) {
+                    if (a.absentStudents.length <= 3) {
+                        studentsNames = '<div class="text-sm">' + a.absentStudents.map((s, i) => (i + 1) + '. ' + s).join('<br>') + '</div>';
+                    } else {
+                        studentsNames = '<div class="text-sm">' + a.absentStudents.slice(0, 3).map((s, i) => (i + 1) + '. ' + s).join('<br>') + '<div class="text-blue-600 font-bold mt-1">... و ' + (a.absentStudents.length - 3) + ' طالب آخر</div></div>';
+                    }
+                } else {
+                    studentsNames = '<span class="text-gray-400 text-sm">لا توجد أسماء</span>';
+                }
                 
                 html += '<tr class="hover:bg-gray-50 ' + (isAdditional ? 'bg-red-50' : '') + '"><td class="px-4 py-3 text-sm">' + (index + 1) + '</td><td class="px-4 py-3 text-sm font-medium">' + a.grade + '</td><td class="px-4 py-3 text-sm">' + a.section + '</td><td class="px-4 py-3 text-sm"><span class="px-3 py-1 rounded-full text-xs font-bold ' + (a.period === '1' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800') + '">الحصة ' + a.period + '</span>';
                 
@@ -494,7 +505,8 @@ html += '</div><div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl 
                     html += '<span class="mr-2 px-2 py-1 rounded-full text-xs font-bold bg-red-600 text-white">+' + a.additionalAbsent + ' جديد</span>';
                 }
                 
-                html += '</td><td class="px-4 py-3 text-sm">' + a.date + '</td><td class="px-4 py-3 text-sm font-bold ' + (a.absentCount > 0 ? 'text-red-600' : 'text-green-600') + '">' + a.absentCount + '</td><td class="px-4 py-3 text-sm">' + a.totalStudents + '</td><td class="px-4 py-3 text-sm"><span class="px-3 py-1 rounded-full text-xs font-bold ' + (attendanceRate >= 90 ? 'bg-green-100 text-green-800' : attendanceRate >= 75 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') + '">' + attendanceRate + '%</span></td><td class="px-4 py-3 text-sm">' + a.teacherName + '</td><td class="px-4 py-3 text-sm"><button onclick=\'openEditModal(' + JSON.stringify(a).replace(/'/g, "\\'") + ')\' class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs">✏️ تعديل</button></td></tr>';
+                html += '</td><td class="px-4 py-3 text-sm">' + a.date + '</td><td class="px-4 py-3 text-sm font-bold ' + (a.absentCount > 0 ? 'text-red-600' : 'text-green-600') + '">' + a.absentCount + '</td><td class="px-4 py-3 text-sm max-w-xs"><div class="bg-yellow-50 border border-yellow-200 rounded p-2">' + studentsNames + '</div></td><td class="px-4 py-3 text-sm">' + a.totalStudents + '</td><td class="px-4 py-3 text-sm"><span class="px-3 py-1 rounded-full text-xs font-bold ' + (attendanceRate >= 90 ? 'bg-green-100 text-green-800' : attendanceRate >= 75 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') + '">' + attendanceRate + '%</span></td><td class="px-4 py-3 text-sm">' + a.teacherName + '</td><td class="px-4 py-3 text-sm"><button onclick=\'openEditModal(' + JSON.stringify(a).replace(/'/g, "\\'") + ')\' class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium whitespace-nowrap">✏️ عرض وتعديل</button></td></tr>';
+            });
             });
             
             html += '</tbody></table></div><div class="p-4 bg-gray-50 border-t text-center text-sm text-gray-600">عرض ' + filtered.length + ' سجل</div>';
