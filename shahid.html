@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -118,8 +118,8 @@
                     section: '1',
                     violationType: 'first',
                     violationDetails: 'النوم داخل الصف',
-                    teacherName: teachersList[1],
-                    teacherId: 2,
+                    teacherName: teachersList[0],
+                    teacherId: 1,
                     date: '2025-10-14',
                     time: '10:15',
                     documentation: 'نام أثناء الحصة الثالثة',
@@ -133,8 +133,8 @@
                     section: '1',
                     violationType: 'second',
                     violationDetails: 'عدم حضور الحصة أو الهروب منها',
-                    teacherName: teachersList[2],
-                    teacherId: 3,
+                    teacherName: teachersList[0],
+                    teacherId: 1,
                     date: '2025-10-14',
                     time: '11:30',
                     documentation: 'غاب عن حصة الرياضيات بدون عذر',
@@ -148,8 +148,8 @@
                     section: '3',
                     violationType: 'first',
                     violationDetails: 'إعاقة سير الحصص الدراسية',
-                    teacherName: teachersList[3],
-                    teacherId: 1,
+                    teacherName: teachersList[1],
+                    teacherId: 2,
                     date: '2025-10-14',
                     time: '09:00',
                     documentation: 'تحدث مع زميله أثناء الشرح',
@@ -163,8 +163,8 @@
                     section: '2',
                     violationType: 'third',
                     violationDetails: 'عدم التقيد بالزي المدرسي',
-                    teacherName: teachersList[4],
-                    teacherId: 4,
+                    teacherName: teachersList[2],
+                    teacherId: 3,
                     date: '2025-10-12',
                     time: '07:45',
                     documentation: 'حضر بدون الزي المدرسي الرسمي',
@@ -429,7 +429,6 @@
 
         // Actions
         function setCurrentUser(role, name, id) {
-            // التحقق من كلمة السر للأدوار المحمية
             if (role === 'principal' || role === 'assistant' || role === 'counselor') {
                 if (!state.authenticated[role]) {
                     const password = prompt(`🔒 يرجى إدخال كلمة السر لصفحة ${getRoleLabel(role)}:`);
@@ -621,6 +620,8 @@
             const action = {
                 id: Math.max(...state.studentActions.map(a => a.id || 0), 0) + 1,
                 studentName: student.name,
+                teacherId: student.teacherId,
+                teacherName: student.teacherName,
                 actionBy: state.currentUser.role,
                 actionByName: state.currentUser.name,
                 actionDate: new Date().toISOString(),
@@ -632,6 +633,7 @@
 
             alert('✅ تم حفظ الإجراء بنجاح!\n\n' +
                   '👤 الطالب: ' + student.name + '\n' +
+                  '👨‍🏫 المعلم: ' + student.teacherName + '\n' +
                   '📋 الإجراء: ' + actionDetails);
 
             closeActionModal();
@@ -641,6 +643,7 @@
             const student = studentData;
             const action = state.studentActions.find(a => 
                 a.studentName === student.name && 
+                a.teacherId === student.teacherId &&
                 a.actionBy === state.currentUser.role
             );
 
@@ -706,6 +709,13 @@
                             margin-top: 60px;
                             padding-top: 10px;
                         }
+                        .teacher-highlight {
+                            background: #fef3c7;
+                            padding: 15px;
+                            border-radius: 8px;
+                            border: 2px solid #f59e0b;
+                            margin-bottom: 20px;
+                        }
                         @media print {
                             body { padding: 20px; }
                             .no-print { display: none; }
@@ -717,6 +727,18 @@
                         <h1>📚 ${config.schoolInfo.name}</h1>
                         <h2>تقرير المخالفات السلوكية</h2>
                         <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
+                    </div>
+
+                    <div class="teacher-highlight">
+                        <h3 style="color: #92400e; margin-bottom: 10px; font-size: 18px;">
+                            👨‍🏫 المعلم المسجل للمخالفات
+                        </h3>
+                        <div style="font-size: 20px; font-weight: bold; color: #78350f;">
+                            ${student.teacherName}
+                        </div>
+                        <div style="margin-top: 5px; font-size: 14px; color: #92400e;">
+                            جميع المخالفات المذكورة أدناه مسجلة من قبل هذا المعلم فقط
+                        </div>
                     </div>
 
                     <div class="info-box">
@@ -734,7 +756,7 @@
                             <span>${student.section}</span>
                         </div>
                         <div class="info-row">
-                            <strong>عدد المخالفات:</strong>
+                            <strong>عدد المخالفات من المعلم ${student.teacherName}:</strong>
                             <span style="color: #dc2626; font-weight: bold;">${student.count} مخالفات</span>
                         </div>
                     </div>
@@ -751,7 +773,6 @@
                             </div>
                             <div style="color: #6b7280; font-size: 14px;">
                                 <div>📅 التاريخ: ${v.date} | 🕐 الوقت: ${v.time}</div>
-                                <div>👨‍🏫 المعلم: ${v.teacherName}</div>
                                 ${v.documentation ? `<div style="margin-top: 8px;">📝 ${v.documentation}</div>` : ''}
                             </div>
                         </div>
@@ -776,6 +797,11 @@
                     ` : ''}
 
                     <div class="signature-area">
+                        <div class="signature-box">
+                            <div class="signature-line">
+                                المعلم<br>${student.teacherName}
+                            </div>
+                        </div>
                         <div class="signature-box">
                             <div class="signature-line">
                                 ${state.currentUser.role === 'assistant' ? 'الوكيل' : 'المرشد الطلابي'}
@@ -887,7 +913,7 @@
                         <div class="flex items-center justify-between flex-wrap gap-4">
                             <div class="flex gap-2 flex-wrap items-center">
                                 ${state.currentUser.role === 'teacher' ? `
-                                    <select onchange="setCurrentUser('teacher', this.value, 1)" 
+                                    <select onchange="setCurrentUser('teacher', this.value, teachersList.indexOf(this.value) + 1)" 
                                             class="px-4 py-3 border-2 border-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-blue-900 bg-blue-50">
                                         ${teachersList.map(teacher => `
                                             <option value="${teacher}" ${state.currentUser.name === teacher ? 'selected' : ''}>
@@ -901,13 +927,13 @@
                                     </button>
                                 `}
                                 
-                                <button onclick="setCurrentUser('assistant', '${config.schoolInfo.assistant}', 2)" class="${btnClass('assistant')}">
+                                <button onclick="setCurrentUser('assistant', '${config.schoolInfo.assistant}', 999)" class="${btnClass('assistant')}">
                                     ${isLocked('assistant') ? '🔒' : '📋'} صفحة الوكيل
                                 </button>
-                                <button onclick="setCurrentUser('counselor', '${config.schoolInfo.counselor}', 3)" class="${btnClass('counselor')}">
+                                <button onclick="setCurrentUser('counselor', '${config.schoolInfo.counselor}', 998)" class="${btnClass('counselor')}">
                                     ${isLocked('counselor') ? '🔒' : '📢'} الموجه الطلابي
                                 </button>
-                                <button onclick="setCurrentUser('principal', '${config.schoolInfo.principal}', 4)" class="${btnClass('principal')}">
+                                <button onclick="setCurrentUser('principal', '${config.schoolInfo.principal}', 997)" class="${btnClass('principal')}">
                                     ${isLocked('principal') ? '🔒' : '🏛️'} صفحة المدير
                                 </button>
                             </div>
@@ -1206,13 +1232,20 @@
             return `
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <h2 class="text-2xl font-bold mb-4 flex items-center gap-2 text-red-700">
-                        ⚠️ الطلاب تحت المراقبة (3 مخالفات فأكثر)
+                        ⚠️ الطلاب تحت المراقبة (3 مخالفات فأكثر من نفس المعلم)
                     </h2>
+                    
+                    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
+                        <p class="text-sm text-yellow-900">
+                            <strong>📌 ملاحظة هامة:</strong> يتم احتساب المخالفات لكل معلم بشكل مستقل. الطالب يُحال للوكيل/المرشد فقط عندما يسجل <strong>نفس المعلم</strong> 3 مخالفات أو أكثر عليه.
+                        </p>
+                    </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         ${studentsUnderWatch.length > 0 ? studentsUnderWatch.map((student, index) => {
                             const hasAction = state.studentActions.find(a => 
                                 a.studentName === student.name && 
+                                a.teacherId === student.teacherId &&
                                 a.actionBy === state.currentUser.role
                             );
                             
@@ -1227,6 +1260,9 @@
                                 <div class="text-sm text-gray-600 mb-2">
                                     ${student.grade} - الشعبة ${student.section}
                                 </div>
+                                <div class="text-xs bg-yellow-100 border border-yellow-300 rounded p-2 mb-2">
+                                    <strong>👨‍🏫 المعلم:</strong> ${student.teacherName}
+                                </div>
                                 <div class="text-xs text-gray-500 mb-3">
                                     آخر مخالفة: ${student.violations[student.violations.length - 1].date}
                                 </div>
@@ -1239,11 +1275,11 @@
                                 ` : ''}
                                 
                                 <div class="flex gap-2 mt-3">
-                                    <button onclick='openActionModal(${JSON.stringify(student).replace(/'/g, "\\'")})' 
+                                    <button onclick='openActionModal(${JSON.stringify(student).replace(/'/g, "\\'")})'  
                                             class="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
                                         ${hasAction ? '📝 تعديل الإجراء' : '📋 اتخاذ إجراء'}
                                     </button>
-                                    <button onclick='printStudentReport(${JSON.stringify(student).replace(/'/g, "\\'")})' 
+                                    <button onclick='printStudentReport(${JSON.stringify(student).replace(/'/g, "\\'")})'  
                                             class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors">
                                         🖨️ طباعة
                                     </button>
@@ -1381,13 +1417,15 @@
 
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">
-                                    توثيق المخالفة (اختياري)
+                                    توثيق المخالفة (الإجراء المتبع) <span class="text-red-500">*</span>
                                 </label>
                                 <textarea id="documentationInput" 
                                           oninput="state.newViolation.documentation = this.value;"
                                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
                                           rows="4"
-                                          placeholder="أضف تفاصيل إضافية عن المخالفة، الظروف المحيطة، أو أي معلومات مهمة...">${state.newViolation.documentation}</textarea>
+                                          placeholder="اكتب الإجراء الذي اتخذته مع الطالب (مثال: تم توجيهه شفوياً - تم حرمانه من الفسحة - تم إحالته لوكيل الطلاب...)"
+                                          required>${state.newViolation.documentation}</textarea>
+                                <p class="text-xs text-red-600 mt-1">⚠️ هذا الحقل إلزامي لتوثيق الإجراء المتخذ</p>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
@@ -1423,7 +1461,7 @@
                                     class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg ${
                                         isDisabled ? 'opacity-50 cursor-not-allowed' : ''
                                     }">
-                                ${isDisabled ? '⚠️ يرجى ملء جميع البيانات' : '✓ حفظ المخالفة'}
+                                ${isDisabled ? '⚠️ يرجى ملء جميع البيانات' : '✔ حفظ المخالفة'}
                             </button>
                         </div>
                     </div>
@@ -1461,8 +1499,8 @@
                                         <span class="font-bold mr-2">${v.section}</span>
                                     </div>
                                     <div>
-                                        <span class="text-gray-600">عدد المخالفات:</span>
-                                        <span class="font-bold mr-2">${getStudentViolationCount(v.studentName)}</span>
+                                        <span class="text-gray-600">عدد المخالفات من هذا المعلم:</span>
+                                        <span class="font-bold mr-2">${getStudentViolationCount(v.studentName, v.teacherId)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1556,6 +1594,7 @@
 
             const existingAction = state.studentActions.find(a => 
                 a.studentName === student.name && 
+                a.teacherId === student.teacherId &&
                 a.actionBy === state.currentUser.role
             );
 
@@ -1566,7 +1605,7 @@
                             <h2 class="text-2xl font-bold flex items-center gap-2">
                                 📋 ${existingAction ? 'تعديل' : 'اتخاذ'} الإجراء - ${getRoleLabel(state.currentUser.role)}
                             </h2>
-                            <p class="text-blue-100 text-sm mt-1">الطالب: ${student.name}</p>
+                            <p class="text-blue-100 text-sm mt-1">الطالب: ${student.name} | المعلم: ${student.teacherName}</p>
                         </div>
                         
                         <div class="p-6">
@@ -1590,6 +1629,9 @@
                                         <span class="font-bold mr-2 text-red-600">${student.count} مخالفات</span>
                                     </div>
                                 </div>
+                                <div class="bg-yellow-100 border border-yellow-300 rounded p-2 text-sm">
+                                    <strong>👨‍🏫 المعلم المسجل:</strong> ${student.teacherName}
+                                </div>
                             </div>
 
                             <div class="mb-6">
@@ -1603,7 +1645,7 @@
                                                         ${index + 1}. ${v.violationDetails}
                                                     </div>
                                                     <div class="text-sm text-gray-600">
-                                                        📅 ${v.date} | 🕐 ${v.time} | 👨‍🏫 ${v.teacherName}
+                                                        📅 ${v.date} | 🕐 ${v.time}
                                                     </div>
                                                     ${v.documentation ? `
                                                         <div class="text-sm text-gray-700 mt-2 bg-white p-2 rounded border border-gray-200">
@@ -1667,4 +1709,3 @@
     </script>
 </body>
 </html>
-
