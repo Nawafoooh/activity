@@ -53,40 +53,131 @@
         // ✅ متغير مؤقت لحفظ نص الإجراء
         let tempActionText = '';
 
-        /* ========== ✅ Absence Data with LocalStorage ========== */
-        let absenceRecords = [];
+        /* -------------------------------------------------
+   NEW ABSENCE BLOCK – lightweight, same-day only
+-------------------------------------------------- */
+function renderAbsenceBlock() {
+  if (state.currentUser.role !== 'assistant') return '';
 
-        function loadAbsenceFromStorage() {
-            try {
-                const saved = localStorage.getItem('absenceRecords');
-                if (saved) {
-                    absenceRecords = JSON.parse(saved);
-                    console.log('✅ تم تحميل', absenceRecords.length, 'سجل غياب من LocalStorage');
-                    return true;
-                }
-            } catch (e) {
-                console.error('❌ خطأ في تحميل الغياب:', e);
-            }
-            return false;
-        }
+  /* 1. keep only TODAY records */
+  const today = new Date().toISOString().split('T')[0];
+  let todayRecords = absenceRecords.filter(r => r.date === today);
 
-        loadAbsenceFromStorage();
+  /* 2. apply the same filters the user already set (grade / section / date range) */
+  if (state.filters.filterGrade)
+    todayRecords = todayRecords.filter(r => r.grade === state.filters.filterGrade);
+  if (state.filters.filterSection)
+    todayRecords = todayRecords.filter(r => r.section === state.filters.filterSection);
 
-        setInterval(() => {
-            if (state.currentUser.role === 'assistant') {
-                const updated = loadAbsenceFromStorage();
-                if (updated) {
-                    render();
-                }
-            }
-        }, 3000);
+  /* 3. build a tiny summary per class :  grade + section → count */
+  const summaryMap = {};
+  todayRecords.forEach(r => {
+    const key = `${r.grade}_${r.section}`;
+    if (!summaryMap[key]) summaryMap[key] = { grade: r.grade, section: r.section, count: 0, rows: [] };
+    summaryMap[key].count += r.absentCount;
+    summaryMap[key].rows.push(r);          // keep full rows for the pop-up
+  });
+  const summaryArr = Object.values(summaryMap);
 
-        window.addEventListener('message', e => {
-            if (e.data && e.data.type === 'absenceData') {
-                absenceRecords = e.data.payload || [];
-                if (state.currentUser.role === 'assistant') render();
-            }
-        });
+  /* 4. helper : open a pop-up window that contains the detail table ready to print */
+  const openDetailPopup = (grp) => {
+      const pw = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+      pw.document.write(buildAbsenceDetailPage(grp));
+      pw.document.close();
+      pw.focus();
+  };
+
+  /* 5. helper : last sync hint */
+  const lastUpdate = localStorage.getItem('lastUpdate');
+  const syncHint = lastUpdate
+        ? `<span class="text-green-700 text-sm">✅ متزامن - آخر تحديث: ${new Date(lastUpdate).toLocaleTimeString('ar-SA')}</span>`
+        : '<span class="text-gray-500 text-sm">لا توجد بيانات محفوظة</span>';
+
+  /* 6. render */
+  return `
+  <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
+      <div class="flex items-center justify-between mb-4">
+          <div>
+              <h2 class="text-2xl font-bold text-gray-900">📋 ملخص الغياب - اليوم (${today})</h2>
+              ${syncHint}
+          </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      ${summaryArr.length
+          ? summaryArr.map((g, i) => `
+              <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                      <div class="font-bold text-gray-800">${g.grade} - شعبة ${g.section}</div>
+                      <div class="text-2xl text-red-600 font-extrabold">${g.count}</div>
+                  </div>
+                  <button onclick="(${openDetailPopup})(${JSON.stringify(g).replace(/"/g,'&quot;')})"
+                          class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                      عرض
+                  </button>
+              </div>`).join('')
+          : '<div class="col-span-full text-center py-8 text-gray-500">لا يوجد غياب اليوم</div>'
+      }
+      </div>
+  </div>`;
+}
+
+/* -------------------------------------------------
+   POP-UP DETAIL PAGE (ready to print)
+-------------------------------------------------- */
+function buildAbsenceDetailPage(grp) {
+  const today = new Date().toLocaleDateString('ar-SA');
+  return `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>تفاصيل الغياب - ${grp.grade} شعبة ${grp.section}</title>
+  <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+      body{font-family:'Cairo',sans-serif;padding:30px;direction:rtl}
+      h1{text-align:center;color:#1e40af;margin-bottom:20px}
+      table{width:100%;border-collapse-collapse:collapse;margin-top:15px}
+      th,td{padding:8px 12px;border:1px solid #bbb;text-align:right}
+      th{background:#f3f4f6}
+      .sign-area{display:flex;justify-content:space-between;margin-top:50px}
+      .sign-box{width:220px;text-align:center;border-top:2px solid #000;padding-top:8px}
+      @media print{button.no-print{display:none}}
+  </style>
+</head>
+<body>
+  <h1>📋 تفاصيل الغياب<br>${config.schoolInfo.name} - ${today}</h1>
+  <h2 class="text-center mb-4">الصف: ${grp.grade}  -  الشعبة: ${grp.section}</h2>
+
+  <table>
+      <thead>
+          <tr>
+              <th>#</th>
+              <th>الحصة</th>
+              <th>عدد الغائبين</th>
+              <th>الأسماء</th>
+          </tr>
+      </thead>
+      <tbody>
+          ${grp.rows.map((r, i) => `
+              <tr>
+                  <td>${i + 1}</td>
+                  <td>الحصة ${r.period}</td>
+                  <td class="text-red-600 font-bold">${r.absentCount}</td>
+                  <td>${r.absentStudents && r.absentStudents.length ? r.absentStudents.join(' ، ') : 'لا يوجد'}</td>
+              </tr>`).join('')}
+      </tbody>
+  </table>
+
+  <div class="sign-area">
+      <div class="sign-box">الوكيل</div>
+      <div class="sign-box">مدير المدرسة</div>
+  </div>
+
+  <button class="no-print" onclick="window.print()" style="margin:30px auto;display:block;padding:10px 30px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer">🖨️ طباعة</button>
+</body>
+</html>`;
+}
 
         /* ---------- Utility ---------- */
         function getStudentViolationCount(studentName, teacherId = null, status = 'active') {
