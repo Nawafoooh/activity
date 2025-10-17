@@ -704,83 +704,6 @@
             `;
         }
         
-        function renderDetailsModal() {
-            const v = state.modals.selectedViolation;
-            if (!v) return '';
-            
-            return `
-                <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeDetailsModal()">
-                    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-                        <div class="sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-t-xl">
-                            <h2 class="text-2xl font-bold">👁️ تفاصيل المخالفة</h2>
-                        </div>
-                        
-                        <div class="p-6 space-y-4">
-                            <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                                <h3 class="font-bold text-xl text-gray-900 mb-2">${v.studentName}</h3>
-                                <div class="flex gap-2 flex-wrap">
-                                    <span class="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm font-medium">${v.grade}</span>
-                                    <span class="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm font-medium">الشعبة ${v.section}</span>
-                                    <span class="px-3 py-1 ${getDegreeColor(v.violationType)} rounded-full text-sm font-bold">${getDegreeLabel(v.violationType)}</span>
-                                </div>
-                            </div>
-                            
-                            <div class="bg-white border-2 border-gray-200 rounded-lg p-4">
-                                <p class="text-sm text-gray-600 mb-1">نوع المخالفة:</p>
-                                <p class="text-lg font-bold text-gray-900">${v.violationDetails}</p>
-                            </div>
-                            
-                            ${v.documentation ? `
-                                <div class="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
-                                    <p class="text-sm font-bold text-yellow-900 mb-2">📝 الإجراء المتبع:</p>
-                                    <p class="text-gray-800">${v.documentation}</p>
-                                </div>
-                            ` : ''}
-                            
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="bg-gray-50 rounded-lg p-3">
-                                    <p class="text-xs text-gray-600 mb-1">👨‍🏫 المعلم</p>
-                                    <p class="font-bold text-gray-900">${v.teacherName}</p>
-                                </div>
-                                <div class="bg-gray-50 rounded-lg p-3">
-                                    <p class="text-xs text-gray-600 mb-1">📅 التاريخ</p>
-                                    <p class="font-bold text-gray-900">${v.date}</p>
-                                </div>
-                                <div class="bg-gray-50 rounded-lg p-3">
-                                    <p class="text-xs text-gray-600 mb-1">🕐 الوقت</p>
-                                    <p class="font-bold text-gray-900">${v.time}</p>
-                                </div>
-                                <div class="bg-gray-50 rounded-lg p-3">
-                                    <p class="text-xs text-gray-600 mb-1">📊 الحالة</p>
-                                    <p class="font-bold ${v.status === 'active' ? 'text-orange-600' : 'text-green-600'}">
-                                        ${v.status === 'active' ? 'نشط' : 'محلول'}
-                                    </p>
-                                </div>
-                            </div>
-                            
-                            ${v.status === 'resolved' && v.resolutionReason ? `
-                                <div class="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-                                    <p class="text-sm font-bold text-green-900 mb-2">🏆 سبب حل المخالفة:</p>
-                                    <p class="text-gray-800 mb-3">${v.resolutionReason}</p>
-                                    <div class="flex gap-4 text-xs text-green-700">
-                                        <span>تم الحل بواسطة: ${v.resolvedBy}</span>
-                                        <span>في: ${new Date(v.resolvedAt).toLocaleString('ar-SA')}</span>
-                                    </div>
-                                </div>
-                            ` : ''}
-                        </div>
-                        
-                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t flex gap-3 justify-end">
-                            <button onclick="closeDetailsModal()" 
-                                class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium">
-                                إغلاق
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
         function renderActionModal() {
             const student = state.modals.selectedStudent;
             if (!student) return '';
@@ -789,12 +712,14 @@
                 a => a.studentName === student.name && a.actionBy === state.currentUser.role
             );
             
+            // ✅ استعادة القيمة بعد الرندر
             setTimeout(() => {
                 const textarea = document.getElementById('actionDetailsInput');
-                if (textarea && tempActionText !== textarea.value) {
+                if (textarea) {
                     textarea.value = tempActionText;
+                    textarea.focus(); // تركيز تلقائي
                 }
-            }, 0);
+            }, 10);
             
             return `
                 <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeActionModal()">
@@ -827,7 +752,7 @@
                                 <textarea id="actionDetailsInput" 
                                     oninput="tempActionText=this.value"
                                     class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 min-h-[150px]" 
-                                    placeholder="اكتب الإجراء المتخذ تجاه الطالب (مثال: تم استدعاء ولي الأمر، إحالة للمرشد الطلابي، الخ...)">${tempActionText}</textarea>
+                                    placeholder="اكتب الإجراء المتخذ تجاه الطالب (مثال: تم استدعاء ولي الأمر، إحالة للمرشد الطلابي، الخ...)"></textarea>
                             </div>
                             
                             <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
