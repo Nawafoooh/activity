@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام إدارة المخالفات السلوكية - متوسطة المنذر بن عمرو الأنصاري</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
         
@@ -32,13 +37,96 @@
         .modal-backdrop {
             backdrop-filter: blur(4px);
         }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
+    <div id="loading" class="loading-overlay hidden">
+        <div class="text-center">
+            <div class="spinner mx-auto mb-4"></div>
+            <p class="text-white text-lg">جاري التحميل...</p>
+        </div>
+    </div>
+
     <div id="app"></div>
 
     <script>
+        // ========================================
+        // Firebase Configuration
+        // ========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5pU4C0OamFsZ_bSo649zhKV36Wycpn_g",
+            authDomain: "shahid-b3b9d.firebaseapp.com",
+            projectId: "shahid-b3b9d",
+            storageBucket: "shahid-b3b9d.firebasestorage.app",
+            messagingSenderId: "28532023353",
+            appId: "1:28532023353:web:37e380f875a4482cf3ede8",
+            measurementId: "G-32145C7GYW"
+        };
+
+        // Initialize Firebase
+        let db;
+        let isFirebaseInitialized = false;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            isFirebaseInitialized = true;
+            console.log('✅ Firebase initialized successfully');
+        } catch (error) {
+            console.error('❌ Firebase initialization error:', error);
+            alert('⚠️ خطأ في الاتصال بقاعدة البيانات. يرجى التحقق من إعدادات Firebase.');
+        }
+
+        // ========================================
+        // Data Collections References
+        // ========================================
+        const collections = {
+            violations: 'violations',
+            studentActions: 'studentActions',
+            teachers: 'teachers'
+        };
+
+        // ========================================
+        // Loading State Management
+        // ========================================
+        function showLoading() {
+            document.getElementById('loading').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        // ========================================
         // Teachers List
+        // ========================================
         const teachersList = [
             'عبدالله بن مطر بن مصلح العمري',
             'محمد بن عماري راضي الزهراني',
@@ -83,7 +171,9 @@
             'أحمد مطر سليمان الرشيدي'
         ];
 
+        // ========================================
         // Application State
+        // ========================================
         let state = {
             currentUser: { 
                 role: 'teacher', 
@@ -95,86 +185,7 @@
                 assistant: false,
                 counselor: false
             },
-            violations: [
-                {
-                    id: 1,
-                    studentName: 'أحمد محمد علي',
-                    grade: 'أول متوسط',
-                    section: '1',
-                    violationType: 'first',
-                    violationDetails: 'التأخر عن الدخول للحصة',
-                    teacherName: teachersList[0],
-                    teacherId: 1,
-                    date: '2025-10-13',
-                    time: '08:30',
-                    documentation: 'تأخر 15 دقيقة عن الحصة الأولى',
-                    status: 'active',
-                    createdAt: '2025-10-13T08:30:00'
-                },
-                {
-                    id: 2,
-                    studentName: 'أحمد محمد علي',
-                    grade: 'أول متوسط',
-                    section: '1',
-                    violationType: 'first',
-                    violationDetails: 'النوم داخل الصف',
-                    teacherName: teachersList[0],
-                    teacherId: 1,
-                    date: '2025-10-14',
-                    time: '10:15',
-                    documentation: 'نام أثناء الحصة الثالثة',
-                    status: 'active',
-                    createdAt: '2025-10-14T10:15:00'
-                },
-                {
-                    id: 3,
-                    studentName: 'أحمد محمد علي',
-                    grade: 'أول متوسط',
-                    section: '1',
-                    violationType: 'second',
-                    violationDetails: 'عدم حضور الحصة أو الهروب منها',
-                    teacherName: teachersList[0],
-                    teacherId: 1,
-                    date: '2025-10-14',
-                    time: '11:30',
-                    documentation: 'غاب عن حصة الرياضيات بدون عذر',
-                    status: 'active',
-                    createdAt: '2025-10-14T11:30:00'
-                },
-                {
-                    id: 4,
-                    studentName: 'خالد عبدالله سعيد',
-                    grade: 'ثاني متوسط',
-                    section: '3',
-                    violationType: 'first',
-                    violationDetails: 'إعاقة سير الحصص الدراسية',
-                    teacherName: teachersList[1],
-                    teacherId: 2,
-                    date: '2025-10-14',
-                    time: '09:00',
-                    documentation: 'تحدث مع زميله أثناء الشرح',
-                    status: 'active',
-                    createdAt: '2025-10-14T09:00:00'
-                },
-                {
-                    id: 5,
-                    studentName: 'محمد سعد القحطاني',
-                    grade: 'ثالث متوسط',
-                    section: '2',
-                    violationType: 'third',
-                    violationDetails: 'عدم التقيد بالزي المدرسي',
-                    teacherName: teachersList[2],
-                    teacherId: 3,
-                    date: '2025-10-12',
-                    time: '07:45',
-                    documentation: 'حضر بدون الزي المدرسي الرسمي',
-                    status: 'resolved',
-                    resolvedBy: 'محمد الجابري',
-                    resolutionReason: 'التزم بالزي المدرسي لمدة أسبوع كامل',
-                    resolvedAt: '2025-10-13T12:00:00',
-                    createdAt: '2025-10-12T07:45:00'
-                }
-            ],
+            violations: [],
             studentActions: [],
             filters: {
                 selectedTab: 'all',
@@ -203,7 +214,9 @@
             }
         };
 
+        // ========================================
         // Configuration
+        // ========================================
         const config = {
             passwords: {
                 principal: 'A2030',
@@ -252,7 +265,130 @@
             }
         };
 
+        // ========================================
+        // Firebase CRUD Operations
+        // ========================================
+
+        // Load all violations from Firebase
+        async function loadViolations() {
+            if (!isFirebaseInitialized) return;
+            
+            try {
+                showLoading();
+                const snapshot = await db.collection(collections.violations)
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                state.violations = [];
+                snapshot.forEach(doc => {
+                    state.violations.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                console.log(`✅ تم تحميل ${state.violations.length} مخالفة`);
+                hideLoading();
+                render();
+            } catch (error) {
+                console.error('Error loading violations:', error);
+                hideLoading();
+                alert('خطأ في تحميل المخالفات: ' + error.message);
+            }
+        }
+
+        // Load all student actions from Firebase
+        async function loadStudentActions() {
+            if (!isFirebaseInitialized) return;
+            
+            try {
+                const snapshot = await db.collection(collections.studentActions)
+                    .orderBy('actionDate', 'desc')
+                    .get();
+                
+                state.studentActions = [];
+                snapshot.forEach(doc => {
+                    state.studentActions.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                console.log(`✅ تم تحميل ${state.studentActions.length} إجراء`);
+            } catch (error) {
+                console.error('Error loading student actions:', error);
+            }
+        }
+
+        // Add violation to Firebase
+        async function addViolationToFirebase(violation) {
+            if (!isFirebaseInitialized) return null;
+            
+            try {
+                showLoading();
+                const docRef = await db.collection(collections.violations).add(violation);
+                console.log('✅ تم إضافة المخالفة بنجاح:', docRef.id);
+                hideLoading();
+                return docRef.id;
+            } catch (error) {
+                console.error('Error adding violation:', error);
+                hideLoading();
+                throw error;
+            }
+        }
+
+        // Update violation in Firebase
+        async function updateViolationInFirebase(violationId, updates) {
+            if (!isFirebaseInitialized) return;
+            
+            try {
+                showLoading();
+                await db.collection(collections.violations).doc(violationId).update(updates);
+                console.log('✅ تم تحديث المخالفة بنجاح');
+                hideLoading();
+            } catch (error) {
+                console.error('Error updating violation:', error);
+                hideLoading();
+                throw error;
+            }
+        }
+
+        // Delete violation from Firebase
+        async function deleteViolationFromFirebase(violationId) {
+            if (!isFirebaseInitialized) return;
+            
+            try {
+                showLoading();
+                await db.collection(collections.violations).doc(violationId).delete();
+                console.log('✅ تم حذف المخالفة بنجاح');
+                hideLoading();
+            } catch (error) {
+                console.error('Error deleting violation:', error);
+                hideLoading();
+                throw error;
+            }
+        }
+
+        // Add student action to Firebase
+        async function addStudentActionToFirebase(action) {
+            if (!isFirebaseInitialized) return null;
+            
+            try {
+                showLoading();
+                const docRef = await db.collection(collections.studentActions).add(action);
+                console.log('✅ تم إضافة الإجراء بنجاح:', docRef.id);
+                hideLoading();
+                return docRef.id;
+            } catch (error) {
+                console.error('Error adding student action:', error);
+                hideLoading();
+                throw error;
+            }
+        }
+
+        // ========================================
         // Helper Functions
+        // ========================================
         function getStudentViolationCount(studentName, teacherId = null, status = 'active') {
             return state.violations.filter(v => 
                 v.studentName === studentName && 
@@ -427,7 +563,9 @@
             return false;
         }
 
+        // ========================================
         // Actions
+        // ========================================
         function setCurrentUser(role, name, id) {
             if (role === 'principal' || role === 'assistant' || role === 'counselor') {
                 if (!state.authenticated[role]) {
@@ -447,7 +585,8 @@
                 name = teachersList[0];
             }
             state.currentUser = { role, name, id };
-            render();
+            loadViolations();
+            loadStudentActions();
         }
 
         function setFilter(key, value) {
@@ -492,7 +631,7 @@
             state.newViolation[key] = value;
         }
 
-        function addViolation() {
+        async function addViolation() {
             const studentName = state.newViolation.studentName.trim();
             const grade = state.newViolation.grade;
             const section = state.newViolation.section;
@@ -528,7 +667,6 @@
             }
             
             const violation = {
-                id: Math.max(...state.violations.map(v => v.id), 0) + 1,
                 studentName: studentName,
                 grade: grade,
                 section: section,
@@ -543,42 +681,56 @@
                 createdAt: new Date().toISOString()
             };
             
-            state.violations.unshift(violation);
-            
-            const studentViolationsCount = getStudentViolationCount(studentName, state.currentUser.id);
-            
-            let alertMessage = '✅ تم إضافة المخالفة بنجاح!\n\n' +
-                  '👤 الطالب: ' + studentName + '\n' +
-                  '📚 الصف: ' + grade + ' - الشعبة ' + section + '\n' +
-                  '⚠️ المخالفة: ' + violationDetails + '\n' +
-                  '📝 الإجراء المتبع: ' + documentation;
-            
-            if (studentViolationsCount >= 3) {
-                alertMessage += '\n\n🚨 تنبيه: هذا الطالب لديه ' + studentViolationsCount + ' مخالفات منك!\n' +
-                               'سيتم إحالته للوكيل/المرشد الطلابي للمتابعة.';
+            try {
+                const docId = await addViolationToFirebase(violation);
+                violation.id = docId;
+                state.violations.unshift(violation);
+                
+                const studentViolationsCount = getStudentViolationCount(studentName, state.currentUser.id);
+                
+                let alertMessage = '✅ تم إضافة المخالفة بنجاح!\n\n' +
+                      '👤 الطالب: ' + studentName + '\n' +
+                      '📚 الصف: ' + grade + ' - الشعبة ' + section + '\n' +
+                      '⚠️ المخالفة: ' + violationDetails + '\n' +
+                      '📝 الإجراء المتبع: ' + documentation;
+                
+                if (studentViolationsCount >= 3) {
+                    alertMessage += '\n\n🚨 تنبيه: هذا الطالب لديه ' + studentViolationsCount + ' مخالفات منك!\n' +
+                                   'سيتم إحالته للوكيل/المرشد الطلابي للمتابعة.';
+                }
+                
+                alert(alertMessage);
+                closeAddForm();
+                
+                return true;
+            } catch (error) {
+                alert('❌ خطأ في إضافة المخالفة: ' + error.message);
+                return false;
             }
-            
-            alert(alertMessage);
-            
-            closeAddForm();
-            
-            return true;
         }
 
-        function resolveViolation(violationId) {
+        async function resolveViolation(violationId) {
             const reason = prompt('أدخل سبب حل المخالفة (السلوك الإيجابي الذي قام به الطالب):');
             
             if (reason && reason.trim()) {
-                state.violations = state.violations.map(v => 
-                    v.id === violationId ? {
-                        ...v,
+                try {
+                    const updates = {
                         status: 'resolved',
                         resolutionReason: reason.trim(),
                         resolvedBy: state.currentUser.name,
                         resolvedAt: new Date().toISOString()
-                    } : v
-                );
-                render();
+                    };
+                    
+                    await updateViolationInFirebase(violationId, updates);
+                    
+                    state.violations = state.violations.map(v => 
+                        v.id === violationId ? { ...v, ...updates } : v
+                    );
+                    
+                    render();
+                } catch (error) {
+                    alert('❌ خطأ في حل المخالفة: ' + error.message);
+                }
             }
         }
 
@@ -606,7 +758,7 @@
             render();
         }
 
-        function saveStudentAction() {
+        async function saveStudentAction() {
             const actionDetails = document.getElementById('actionDetailsInput')?.value.trim();
             
             if (!actionDetails) {
@@ -618,7 +770,6 @@
             const violationIds = student.violations.map(v => v.id);
 
             const action = {
-                id: Math.max(...state.studentActions.map(a => a.id || 0), 0) + 1,
                 studentName: student.name,
                 teacherId: student.teacherId,
                 teacherName: student.teacherName,
@@ -629,14 +780,20 @@
                 violationsIncluded: violationIds
             };
 
-            state.studentActions.push(action);
+            try {
+                const docId = await addStudentActionToFirebase(action);
+                action.id = docId;
+                state.studentActions.push(action);
 
-            alert('✅ تم حفظ الإجراء بنجاح!\n\n' +
-                  '👤 الطالب: ' + student.name + '\n' +
-                  '👨‍🏫 المعلم: ' + student.teacherName + '\n' +
-                  '📋 الإجراء: ' + actionDetails);
+                alert('✅ تم حفظ الإجراء بنجاح!\n\n' +
+                      '👤 الطالب: ' + student.name + '\n' +
+                      '👨‍🏫 المعلم: ' + student.teacherName + '\n' +
+                      '📋 الإجراء: ' + actionDetails);
 
-            closeActionModal();
+                closeActionModal();
+            } catch (error) {
+                alert('❌ خطأ في حفظ الإجراء: ' + error.message);
+            }
         }
 
         function printStudentReport(studentData) {
@@ -860,7 +1017,9 @@
             link.click();
         }
 
+        // ========================================
         // Render Functions
+        // ========================================
         function render() {
             const app = document.getElementById('app');
             app.innerHTML = `
@@ -882,6 +1041,11 @@
                             <div>
                                 <h1 class="text-4xl font-bold mb-2">📚 ${config.schoolInfo.name}</h1>
                                 <p class="text-blue-100 text-lg">نظام إدارة المخالفات السلوكية - ${config.schoolInfo.type}</p>
+                                ${isFirebaseInitialized ? `
+                                    <p class="text-green-300 text-sm mt-2">🟢 متصل بقاعدة البيانات</p>
+                                ` : `
+                                    <p class="text-red-300 text-sm mt-2">🔴 غير متصل بقاعدة البيانات</p>
+                                `}
                             </div>
                             <div class="text-left bg-blue-800 bg-opacity-50 rounded-lg p-4 backdrop-blur-sm">
                                 <p class="text-sm text-blue-100 mb-1">👤 مدير المدرسة: ${config.schoolInfo.principal}</p>
@@ -920,6 +1084,78 @@
                                                 👨‍🏫 ${teacher}
                                             </option>
                                         `).join('')}
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
+                                <h3 class="font-bold text-lg text-blue-900 mb-3">
+                                    📋 الإجراء المتخذ من قبل ${getRoleLabel(state.currentUser.role)}
+                                </h3>
+                                <textarea id="actionDetailsInput"
+                                          class="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                                          rows="6"
+                                          placeholder="أدخل تفاصيل الإجراء المتخذ (مثال: تم استدعاء ولي الأمر - توقيع تعهد - توجيه وإرشاد - إحالة للمرشد الطلابي...)">${existingAction ? existingAction.actionDetails : ''}</textarea>
+                                <p class="text-sm text-blue-700 mt-2">
+                                    💡 يرجى كتابة الإجراء المتخذ بشكل واضح ومفصل
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl flex gap-3 justify-end">
+                            <button type="button"
+                                    onclick="closeActionModal()"
+                                    class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+                                إلغاء
+                            </button>
+                            <button type="button"
+                                    onclick="saveStudentAction()"
+                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg">
+                                💾 حفظ الإجراء
+                            </button>
+                            ${existingAction ? `
+                                <button type="button"
+                                        onclick="printStudentReport(state.modals.selectedStudent)"
+                                        class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg">
+                                    🖨️ طباعة التقرير
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function attachEventListeners() {
+            // Event listeners are handled through inline onclick attributes
+        }
+
+        // ========================================
+        // Initialize Application
+        // ========================================
+        async function initApp() {
+            if (!isFirebaseInitialized) {
+                alert('⚠️ تحذير: Firebase غير متصل!\n\nيرجى التحقق من:\n1. إعدادات Firebase Config في الكود\n2. الاتصال بالإنترنت\n\nالنظام سيعمل بدون قاعدة بيانات (البيانات ستفقد عند إعادة التحميل)');
+                render();
+                return;
+            }
+
+            try {
+                showLoading();
+                await loadViolations();
+                await loadStudentActions();
+                hideLoading();
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                hideLoading();
+                alert('خطأ في تحميل البيانات: ' + error.message);
+            }
+        }
+
+        // Start the application
+        initApp();
+    </script>
+</body>
+</html>('')}
                                     </select>
                                 ` : `
                                     <button onclick="setCurrentUser('teacher', '${teachersList[0]}', 1)" class="${btnClass('teacher')}">
@@ -1209,7 +1445,7 @@
                             </button>
                             
                             ${v.status === 'active' && canResolveViolation(v) ? `
-                                <button onclick="resolveViolation(${v.id})"
+                                <button onclick="resolveViolation('${v.id}')"
                                         class="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-md whitespace-nowrap">
                                     🏆 حل المخالفة
                                 </button>
@@ -1300,7 +1536,8 @@
             const isDisabled = !state.newViolation.studentName.trim() || 
                               !state.newViolation.grade || 
                               !state.newViolation.section || 
-                              !state.newViolation.violationDetails;
+                              !state.newViolation.violationDetails ||
+                              !state.newViolation.documentation.trim();
 
             return `
                 <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target === this) closeAddForm()">
@@ -1658,54 +1895,4 @@
                                                 </span>
                                             </div>
                                         </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-
-                            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
-                                <h3 class="font-bold text-lg text-blue-900 mb-3">
-                                    📋 الإجراء المتخذ من قبل ${getRoleLabel(state.currentUser.role)}
-                                </h3>
-                                <textarea id="actionDetailsInput"
-                                          class="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                                          rows="6"
-                                          placeholder="أدخل تفاصيل الإجراء المتخذ (مثال: تم استدعاء ولي الأمر - توقيع تعهد - توجيه وإرشاد - إحالة للمرشد الطلابي...)">${existingAction ? existingAction.actionDetails : ''}</textarea>
-                                <p class="text-sm text-blue-700 mt-2">
-                                    💡 يرجى كتابة الإجراء المتخذ بشكل واضح ومفصل
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl flex gap-3 justify-end">
-                            <button type="button"
-                                    onclick="closeActionModal()"
-                                    class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
-                                إلغاء
-                            </button>
-                            <button type="button"
-                                    onclick="saveStudentAction()"
-                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg">
-                                💾 حفظ الإجراء
-                            </button>
-                            ${existingAction ? `
-                                <button type="button"
-                                        onclick="printStudentReport(state.modals.selectedStudent)"
-                                        class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg">
-                                    🖨️ طباعة التقرير
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function attachEventListeners() {
-            // Event listeners are handled through inline onclick attributes
-        }
-
-        // Initial render
-        render();
-    </script>
-</body>
-</html>
+                                    `).join
