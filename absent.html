@@ -45,6 +45,33 @@
             newAttendance: {grade: '', section: '', period: '1', date: new Date().toISOString().split('T')[0], absentStudents: []}
         };
 
+        /* ========== ✅ دوال LocalStorage ========== */
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('absenceRecords', JSON.stringify(state.attendance));
+                localStorage.setItem('lastUpdate', new Date().toISOString());
+                console.log('✅ تم حفظ', state.attendance.length, 'سجل في LocalStorage');
+            } catch (e) {
+                console.error('❌ خطأ في الحفظ:', e);
+                alert('⚠️ حدث خطأ في حفظ البيانات');
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('absenceRecords');
+                if (saved) {
+                    state.attendance = JSON.parse(saved);
+                    console.log('✅ تم تحميل', state.attendance.length, 'سجل من LocalStorage');
+                }
+            } catch (e) {
+                console.error('❌ خطأ في التحميل:', e);
+            }
+        }
+
+        // ✅ تحميل البيانات عند بدء الصفحة
+        loadFromLocalStorage();
+
         function getFirstPeriodAttendance(grade, section, date) {
             return state.attendance.find(a => a.grade === grade && a.section === section && a.date === date && a.period === '1');
         }
@@ -135,7 +162,10 @@
                     isFirstPeriod: true
                 });
 
-                alert('✅ تم تسجيل الغياب للحصة الأولى بنجاح!');
+                // ✅ حفظ في LocalStorage
+                saveToLocalStorage();
+
+                alert('✅ تم تسجيل الغياب للحصة الأولى بنجاح!\n\n📊 تم حفظ البيانات وستظهر في صفحة الوكيل تلقائياً');
                 closeAttendanceModal();
             } else {
                 const firstPeriod = getFirstPeriodAttendance(grade, section, date);
@@ -165,7 +195,10 @@
                     additionalAbsent
                 });
 
-                alert('✅ تم تسجيل الغياب للحصة ' + period + ' بنجاح!' + (additionalAbsent > 0 ? '\n\nمنسوخ من الحصة الأولى: ' + firstPeriod.absentStudents.length + '\nإضافات جديدة: ' + additionalAbsent : ''));
+                // ✅ حفظ في LocalStorage
+                saveToLocalStorage();
+
+                alert('✅ تم تسجيل الغياب للحصة ' + period + ' بنجاح!' + (additionalAbsent > 0 ? '\n\nمنسوخ من الحصة الأولى: ' + firstPeriod.absentStudents.length + '\nإضافات جديدة: ' + additionalAbsent : '') + '\n\n📊 تم حفظ البيانات وستظهر في صفحة الوكيل تلقائياً');
                 closeAttendanceModal();
             }
         }
@@ -217,7 +250,11 @@
             const index = state.attendance.findIndex(att => att.id === state.modals.editingAttendance.id);
             if (index !== -1) {
                 state.attendance[index] = state.modals.editingAttendance;
-                alert('✅ تم تحديث السجل بنجاح!');
+                
+                // ✅ حفظ في LocalStorage
+                saveToLocalStorage();
+                
+                alert('✅ تم تحديث السجل بنجاح!\n\n📊 تم حفظ التعديلات');
                 closeEditModal();
             }
         }
@@ -278,6 +315,19 @@
             html += '</div></div></div></div>';
 
             html += '<div class="max-w-7xl mx-auto px-6 py-6">';
+            
+            // إضافة مؤشر المزامنة
+            const lastUpdate = localStorage.getItem('lastUpdate');
+            if (lastUpdate) {
+                const updateTime = new Date(lastUpdate).toLocaleString('ar-SA');
+                html += '<div class="bg-green-50 border-2 border-green-300 rounded-lg p-4 mb-6">';
+                html += '<div class="flex items-center gap-3">';
+                html += '<span class="text-3xl">✅</span>';
+                html += '<div>';
+                html += '<p class="font-bold text-green-900">المزامنة نشطة</p>';
+                html += '<p class="text-sm text-green-700">آخر تحديث: ' + updateTime + '</p>';
+                html += '</div></div></div>';
+            }
             
             html += '<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">';
             html += '<div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-blue-500">';
