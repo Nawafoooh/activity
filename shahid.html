@@ -567,10 +567,250 @@
             `;
         }
 
-        /* ---------- Modals ---------- */
-        function renderAddModal() { return ''; }
-        function renderDetailsModal() { return ''; }
-        function renderActionModal() { return ''; }
+        /* ========== Modals - Complete Implementation ========== */
+        
+        function renderAddModal() {
+            const {studentName, grade, section, violationType, violationDetails, documentation, date, time} = state.newViolation;
+            
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeAddForm()">
+                    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                        <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+                            <h2 class="text-2xl font-bold">➕ إضافة مخالفة جديدة</h2>
+                            <p class="text-blue-100 text-sm mt-1">يرجى ملء البيانات المطلوبة</p>
+                        </div>
+                        
+                        <div class="p-6 space-y-5">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">اسم الطالب <span class="text-red-500">*</span></label>
+                                <input type="text" value="${studentName}" 
+                                    onchange="state.newViolation.studentName=this.value" 
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                                    placeholder="أدخل اسم الطالب...">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">الصف <span class="text-red-500">*</span></label>
+                                    <select onchange="state.newViolation.grade=this.value" 
+                                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        <option value="">اختر الصف</option>
+                                        ${config.grades.map(g => `<option value="${g}" ${grade === g ? 'selected' : ''}>${g}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">الشعبة <span class="text-red-500">*</span></label>
+                                    <select onchange="state.newViolation.section=this.value" 
+                                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        <option value="">اختر الشعبة</option>
+                                        ${config.sections.map(s => `<option value="${s}" ${section === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">درجة المخالفة <span class="text-red-500">*</span></label>
+                                <select onchange="state.newViolation.violationType=this.value;state.newViolation.violationDetails='';render()" 
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="first" ${violationType === 'first' ? 'selected' : ''}>مخالفات الدرجة الأولى (درجة واحدة)</option>
+                                    <option value="second" ${violationType === 'second' ? 'selected' : ''}>مخالفات الدرجة الثانية (درجتين)</option>
+                                    <option value="third" ${violationType === 'third' ? 'selected' : ''}>مخالفات الدرجة الثالثة (ثلاث درجات)</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">نوع المخالفة <span class="text-red-500">*</span></label>
+                                <select onchange="state.newViolation.violationDetails=this.value" 
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="">اختر المخالفة</option>
+                                    ${config.violationTypes[violationType].items.map(item => `
+                                        <option value="${item}" ${violationDetails === item ? 'selected' : ''}>${item}</option>
+                                    `).join('')}
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">الإجراء المتبع <span class="text-red-500">*</span></label>
+                                <textarea onchange="state.newViolation.documentation=this.value" 
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-h-[100px]" 
+                                    placeholder="اكتب الإجراء المتخذ...">${documentation}</textarea>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">التاريخ</label>
+                                    <input type="date" value="${date}" 
+                                        onchange="state.newViolation.date=this.value" 
+                                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">الوقت</label>
+                                    <input type="time" value="${time}" 
+                                        onchange="state.newViolation.time=this.value" 
+                                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t flex gap-3 justify-end">
+                            <button onclick="closeAddForm()" 
+                                class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium">
+                                إلغاء
+                            </button>
+                            <button onclick="if(addViolation())render()" 
+                                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                                ✓ حفظ المخالفة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderDetailsModal() {
+            const v = state.modals.selectedViolation;
+            if (!v) return '';
+            
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeDetailsModal()">
+                    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                        <div class="sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-t-xl">
+                            <h2 class="text-2xl font-bold">👁️ تفاصيل المخالفة</h2>
+                        </div>
+                        
+                        <div class="p-6 space-y-4">
+                            <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                                <h3 class="font-bold text-xl text-gray-900 mb-2">${v.studentName}</h3>
+                                <div class="flex gap-2 flex-wrap">
+                                    <span class="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm font-medium">${v.grade}</span>
+                                    <span class="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-sm font-medium">الشعبة ${v.section}</span>
+                                    <span class="px-3 py-1 ${getDegreeColor(v.violationType)} rounded-full text-sm font-bold">${getDegreeLabel(v.violationType)}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white border-2 border-gray-200 rounded-lg p-4">
+                                <p class="text-sm text-gray-600 mb-1">نوع المخالفة:</p>
+                                <p class="text-lg font-bold text-gray-900">${v.violationDetails}</p>
+                            </div>
+                            
+                            ${v.documentation ? `
+                                <div class="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                                    <p class="text-sm font-bold text-yellow-900 mb-2">📝 الإجراء المتبع:</p>
+                                    <p class="text-gray-800">${v.documentation}</p>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">👨‍🏫 المعلم</p>
+                                    <p class="font-bold text-gray-900">${v.teacherName}</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">📅 التاريخ</p>
+                                    <p class="font-bold text-gray-900">${v.date}</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">🕐 الوقت</p>
+                                    <p class="font-bold text-gray-900">${v.time}</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-xs text-gray-600 mb-1">📊 الحالة</p>
+                                    <p class="font-bold ${v.status === 'active' ? 'text-orange-600' : 'text-green-600'}">
+                                        ${v.status === 'active' ? 'نشط' : 'محلول'}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            ${v.status === 'resolved' && v.resolutionReason ? `
+                                <div class="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+                                    <p class="text-sm font-bold text-green-900 mb-2">🏆 سبب حل المخالفة:</p>
+                                    <p class="text-gray-800 mb-3">${v.resolutionReason}</p>
+                                    <div class="flex gap-4 text-xs text-green-700">
+                                        <span>تم الحل بواسطة: ${v.resolvedBy}</span>
+                                        <span>في: ${new Date(v.resolvedAt).toLocaleString('ar-SA')}</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t flex gap-3 justify-end">
+                            <button onclick="closeDetailsModal()" 
+                                class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium">
+                                إغلاق
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderActionModal() {
+            const student = state.modals.selectedStudent;
+            if (!student) return '';
+            
+            const existingAction = state.studentActions.find(
+                a => a.studentName === student.name && a.actionBy === state.currentUser.role
+            );
+            
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeActionModal()">
+                    <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                        <div class="sticky top-0 bg-gradient-to-r from-orange-600 to-red-600 text-white p-6 rounded-t-xl">
+                            <h2 class="text-2xl font-bold">📋 ${existingAction ? 'تعديل' : 'اتخاذ'} إجراء تجاه الطالب</h2>
+                            <p class="text-orange-100 text-sm mt-1">${student.name} - ${student.grade} الشعبة ${student.section}</p>
+                        </div>
+                        
+                        <div class="p-6 space-y-5">
+                            <div class="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                                <h3 class="font-bold text-red-900 mb-3">⚠️ ملخص المخالفات (${student.count} مخالفة)</h3>
+                                <div class="space-y-2 max-h-48 overflow-y-auto">
+                                    ${student.violations.map((v, i) => `
+                                        <div class="bg-white border border-red-300 rounded-lg p-3">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-sm font-bold text-gray-900">${i + 1}. ${v.violationDetails}</span>
+                                                <span class="px-2 py-1 ${getDegreeColor(v.violationType)} rounded-full text-xs font-bold">
+                                                    ${getDegreeLabel(v.violationType)}
+                                                </span>
+                                            </div>
+                                            <p class="text-xs text-gray-600">📅 ${v.date} | 🕐 ${v.time}</p>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">الإجراء المتخذ <span class="text-red-500">*</span></label>
+                                <textarea id="actionDetailsInput" 
+                                    class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 min-h-[150px]" 
+                                    placeholder="اكتب الإجراء المتخذ تجاه الطالب (مثال: تم استدعاء ولي الأمر، إحالة للمرشد الطلابي، الخ...)">${existingAction ? existingAction.actionDetails : ''}</textarea>
+                            </div>
+                            
+                            <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                                <h4 class="font-bold text-blue-900 mb-2">💡 اقتراحات للإجراءات:</h4>
+                                <ul class="text-sm text-blue-800 space-y-1">
+                                    <li>• استدعاء ولي الأمر للمناقشة</li>
+                                    <li>• إحالة الطالب للمرشد الطلابي</li>
+                                    <li>• وضع خطة متابعة سلوكية</li>
+                                    <li>• عقد جلسة إرشادية فردية</li>
+                                    <li>• التواصل مع المعلمين لمتابعة السلوك</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t flex gap-3 justify-end">
+                            <button onclick="closeActionModal()" 
+                                class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium">
+                                إلغاء
+                            </button>
+                            <button onclick="saveStudentAction()" 
+                                class="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium">
+                                ✓ حفظ الإجراء
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
         /* ---------- Initial ---------- */
         render();
