@@ -9,10 +9,6 @@
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
         body { font-family: 'Cairo', sans-serif; }
         .modal-backdrop { backdrop-filter: blur(4px); }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbbf24; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f59e0b; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -54,10 +50,12 @@
             newViolation: { studentName:'', grade:'', section:'', violationType:'first', violationDetails:'', documentation:'', date:new Date().toISOString().split('T')[0], time:new Date().toTimeString().slice(0,5) }
         };
 
+        // ✅ متغير مؤقت لحفظ نص الإجراء
+        let tempActionText = '';
+
         /* ========== ✅ Absence Data with LocalStorage ========== */
         let absenceRecords = [];
 
-        // ✅ تحميل بيانات الغياب من LocalStorage
         function loadAbsenceFromStorage() {
             try {
                 const saved = localStorage.getItem('absenceRecords');
@@ -72,10 +70,8 @@
             return false;
         }
 
-        // ✅ تحميل البيانات عند فتح الصفحة
         loadAbsenceFromStorage();
 
-        // ✅ تحديث تلقائي كل 3 ثواني للوكيل فقط
         setInterval(() => {
             if (state.currentUser.role === 'assistant') {
                 const updated = loadAbsenceFromStorage();
@@ -166,9 +162,8 @@
                 }
             }
             if (role === 'teacher' && !name) name = teachersList[0];
-            state.currentUser = { role, name, id }; 
+            state.currentUser = { role, name, id };
             
-            // ✅ تحديث بيانات الغياب عند تغيير المستخدم
             if (role === 'assistant') {
                 loadAbsenceFromStorage();
             }
@@ -203,16 +198,59 @@
         }
         function openDetailsModal(v) { state.modals.selectedViolation = v; state.modals.showDetailsModal = true; render(); }
         function closeDetailsModal() { state.modals.showDetailsModal = false; state.modals.selectedViolation = null; render(); }
-        function openActionModal(studentData) { state.modals.showActionModal = true; state.modals.selectedStudent = studentData; render(); }
-        function closeActionModal() { state.modals.showActionModal = false; state.modals.selectedStudent = null; render(); }
+        
+        function openActionModal(studentData) {
+            state.modals.showActionModal = true;
+            state.modals.selectedStudent = studentData;
+            
+            const existingAction = state.studentActions.find(
+                a => a.studentName === studentData.name && a.actionBy === state.currentUser.role
+            );
+            tempActionText = existingAction ? existingAction.actionDetails : '';
+            
+            render();
+        }
+        
+        function closeActionModal() {
+            state.modals.showActionModal = false;
+            state.modals.selectedStudent = null;
+            tempActionText = '';
+            render();
+        }
+        
         function saveStudentAction() {
             const details = document.getElementById('actionDetailsInput')?.value.trim();
-            if (!details) { alert('⚠️ يرجى إدخال تفاصيل الإجراء المتخذ'); return; }
+            if (!details) {
+                alert('⚠️ يرجى إدخال تفاصيل الإجراء المتخذ');
+                return;
+            }
+            
             const student = state.modals.selectedStudent;
-            state.studentActions.push({ id:Math.max(0, ...state.studentActions.map(a=>a.id||0)) + 1, studentName:student.name, actionBy:state.currentUser.role, actionByName:state.currentUser.name, actionDate:new Date().toISOString(), actionDetails:details, violationsIncluded:student.violations.map(v=>v.id) });
-            alert('✅ تم حفظ الإجراء بنجاح!'); closeActionModal();
+            
+            const existingIndex = state.studentActions.findIndex(
+                a => a.studentName === student.name && a.actionBy === state.currentUser.role
+            );
+            
+            if (existingIndex !== -1) {
+                state.studentActions[existingIndex].actionDetails = details;
+                state.studentActions[existingIndex].actionDate = new Date().toISOString();
+                alert('✅ تم تحديث الإجراء بنجاح!');
+            } else {
+                state.studentActions.push({
+                    id: Math.max(0, ...state.studentActions.map(a => a.id || 0)) + 1,
+                    studentName: student.name,
+                    actionBy: state.currentUser.role,
+                    actionByName: state.currentUser.name,
+                    actionDate: new Date().toISOString(),
+                    actionDetails: details,
+                    violationsIncluded: student.violations.map(v => v.id)
+                });
+                alert('✅ تم حفظ الإجراء بنجاح!');
+            }
+            
+            closeActionModal();
         }
-
+        
         function printStudentReport(studentData) {
             const student = studentData; const action = state.studentActions.find(a => a.studentName === student.name && a.actionBy === state.currentUser.role);
             const pw = window.open('', '_blank');
@@ -429,7 +467,6 @@
                 </div>`;
         }
 
-        /* ========== ✅ Absence Block with LocalStorage Sync ========== */
         function renderAbsenceBlock() {
             if (state.currentUser.role !== 'assistant') return '';
             
@@ -752,8 +789,12 @@
                 a => a.studentName === student.name && a.actionBy === state.currentUser.role
             );
             
-            // ✅ حفظ النص الحالي في المتغير بدلاً من render
-            const currentText = existingAction ? existingAction.actionDetails : '';
+            setTimeout(() => {
+                const textarea = document.getElementById('actionDetailsInput');
+                if (textarea && tempActionText !== textarea.value) {
+                    textarea.value = tempActionText;
+                }
+            }, 0);
             
             return `
                 <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target===this)closeActionModal()">
@@ -784,8 +825,9 @@
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">الإجراء المتخذ <span class="text-red-500">*</span></label>
                                 <textarea id="actionDetailsInput" 
+                                    oninput="tempActionText=this.value"
                                     class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 min-h-[150px]" 
-                                    placeholder="اكتب الإجراء المتخذ تجاه الطالب (مثال: تم استدعاء ولي الأمر، إحالة للمرشد الطلابي، الخ...)">${currentText}</textarea>
+                                    placeholder="اكتب الإجراء المتخذ تجاه الطالب (مثال: تم استدعاء ولي الأمر، إحالة للمرشد الطلابي، الخ...)">${tempActionText}</textarea>
                             </div>
                             
                             <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
@@ -819,5 +861,4 @@
         render();
     </script>
 </body>
-</html>
-                
+</html>   
