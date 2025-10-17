@@ -53,40 +53,66 @@
         // ✅ متغير مؤقت لحفظ نص الإجراء
         let tempActionText = '';
 
-        /* ========== ✅ Absence Data with LocalStorage ========== */
-        let absenceRecords = [];
+        /* ========== ✅ Absence Data with LocalStorage (مُحدَّث) ========== */
+let absenceRecords = [];
 
-        function loadAbsenceFromStorage() {
-            try {
-                const saved = localStorage.getItem('absenceRecords');
-                if (saved) {
-                    absenceRecords = JSON.parse(saved);
-                    console.log('✅ تم تحميل', absenceRecords.length, 'سجل غياب من LocalStorage');
-                    return true;
-                }
-            } catch (e) {
-                console.error('❌ خطأ في تحميل الغياب:', e);
-            }
-            return false;
+function loadAbsenceFromStorage() {
+    try {
+        const saved = localStorage.getItem('absenceRecords');
+        if (saved) {
+            absenceRecords = JSON.parse(saved);
+            console.log('✅ تم تحميل', absenceRecords.length, 'سجل غياب من LocalStorage');
+            return true;
         }
+    } catch (e) {
+        console.error('❌ خطأ في تحميل الغياب:', e);
+    }
+    return false;
+}
 
-        loadAbsenceFromStorage();
-
-        setInterval(() => {
-            if (state.currentUser.role === 'assistant') {
-                const updated = loadAbsenceFromStorage();
-                if (updated) {
-                    render();
-                }
-            }
-        }, 3000);
-
-        window.addEventListener('message', e => {
-            if (e.data && e.data.type === 'absenceData') {
-                absenceRecords = e.data.payload || [];
-                if (state.currentUser.role === 'assistant') render();
-            }
-        });
+/* ---------- helper: بناء صفحة الطباعة لصف واحد ---------- */
+function buildAbsencePrintPageSingle(filtered, grade, section) {
+    const today = new Date().toLocaleDateString('ar-SA');
+    return `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>تقرير الغياب - ${grade} شعبة ${section}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+    body{font-family:'Cairo',sans-serif;padding:40px;direction:rtl}
+    h1{text-align:center;margin-bottom:30px;color:#1e40af}
+    table{width:100%;border-collapse:collapse;margin-top:20px}
+    th,td{padding:8px 12px;border:1px solid #ccc;text-align:right}
+    th{background:#f3f4f6}
+    .foot{display:flex;justify-content:space-between;margin-top:50px}
+    .sign{width:200px;text-align:center;border-top:2px solid #000;padding-top:10px}
+    @media print{button.no-print{display:none}}
+  </style>
+</head>
+<body>
+  <h1>📋 تقرير الغياب اليومي<br><small>${config.schoolInfo.name} - ${today}</small></h1>
+  <h2 style="text-align:center;margin-bottom:20px">${grade} - شعبة ${section}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>الحصة</th><th>التاريخ</th>
+        <th>عدد الغياب</th><th>أسماء الغائبين</th><th>المعلم</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filtered.map((a,i)=>`
+      <tr>
+        <td>${i+1}</td>
+        <td>الحصة ${a.period}</
+        <td>${a.date}</td>
+        <td style="color:red;font-weight:bold">${a.absentCount}</td>
+        <td>${a.absentStudents?.join(' ، ')||'لا يوجد'}</td>
+        <td>${a.teacherName}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
 
         /* ---------- Utility ---------- */
         function getStudentViolationCount(studentName, teacherId = null, status = 'active') {
