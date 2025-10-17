@@ -6,15 +6,16 @@
     <title>نظام إدارة المخالفات السلوكية - متوسطة المنذر بن عمرو الأنصاري</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
         
+        * {
+            font-family: 'Cairo', sans-serif;
+        }
+        
         body {
             font-family: 'Cairo', sans-serif;
+            background-color: #f9fafb;
         }
         
         .animate-pulse {
@@ -22,16 +23,8 @@
         }
         
         @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: .5;
-            }
-        }
-        
-        .hidden {
-            display: none;
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
         }
         
         .modal-backdrop {
@@ -67,19 +60,24 @@
     </style>
 </head>
 <body class="bg-gray-50">
-    <div id="loading" class="loading-overlay hidden">
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay" style="display: none;">
         <div class="text-center">
             <div class="spinner mx-auto mb-4"></div>
             <p class="text-white text-lg">جاري التحميل...</p>
         </div>
     </div>
 
+    <!-- Main App -->
     <div id="app"></div>
 
-    <script>
-        // ========================================
+    <!-- Firebase SDK v9 (Modular) -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, doc, orderBy, query } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
         // Firebase Configuration
-        // ========================================
         const firebaseConfig = {
             apiKey: "AIzaSyB5pU4C0OamFsZ_bSo649zhKV36Wycpn_g",
             authDomain: "shahid-b3b9d.firebaseapp.com",
@@ -91,42 +89,53 @@
         };
 
         // Initialize Firebase
+        let app;
         let db;
         let isFirebaseInitialized = false;
 
         try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
             isFirebaseInitialized = true;
             console.log('✅ Firebase initialized successfully');
+            window.db = db;
+            window.isFirebaseInitialized = true;
+            window.firestoreModules = { collection, getDocs, addDoc, updateDoc, doc, orderBy, query };
         } catch (error) {
             console.error('❌ Firebase initialization error:', error);
-            alert('⚠️ خطأ في الاتصال بقاعدة البيانات. يرجى التحقق من إعدادات Firebase.');
+            window.isFirebaseInitialized = false;
         }
+    </script>
 
-        // ========================================
-        // Data Collections References
-        // ========================================
-        const collections = {
+    <script>
+        'use strict';
+
+        // ==========================================
+        // Firebase Configuration (loaded from module script)
+        // ==========================================
+        let db;
+        let isFirebaseInitialized = false;
+        
+        // Wait for Firebase to initialize
+        setTimeout(() => {
+            if (window.isFirebaseInitialized) {
+                db = window.db;
+                isFirebaseInitialized = true;
+                initApp();
+            } else {
+                console.error('Firebase failed to initialize');
+                initApp(); // Continue without Firebase
+            }
+        }, 1000);
+
+        // ==========================================
+        // Constants & Configuration
+        // ==========================================
+        const COLLECTIONS = {
             violations: 'violations',
-            studentActions: 'studentActions',
-            teachers: 'teachers'
+            studentActions: 'studentActions'
         };
 
-        // ========================================
-        // Loading State Management
-        // ========================================
-        function showLoading() {
-            document.getElementById('loading').classList.remove('hidden');
-        }
-
-        function hideLoading() {
-            document.getElementById('loading').classList.add('hidden');
-        }
-
-        // ========================================
-        // Teachers List
-        // ========================================
         const teachersList = [
             'عبدالله بن مطر بن مصلح العمري',
             'محمد بن عماري راضي الزهراني',
@@ -171,9 +180,57 @@
             'أحمد مطر سليمان الرشيدي'
         ];
 
-        // ========================================
+        const config = {
+            passwords: {
+                principal: 'A2030',
+                assistant: 'B2030',
+                counselor: 'C2030'
+            },
+            schoolInfo: {
+                name: 'متوسطة المنذر بن عمرو الأنصاري',
+                principal: 'خالد المطيري',
+                assistant: 'محمد الجابري',
+                counselor: 'محمد القحطاني',
+                type: 'بنين'
+            },
+            grades: ['أول متوسط', 'ثاني متوسط', 'ثالث متوسط'],
+            sections: ['1', '2', '3', '4', '5', '6'],
+            violationTypes: {
+                first: {
+                    label: 'مخالفات الدرجة الأولى (درجة واحدة)',
+                    items: [
+                        'التأخر عن الدخول للحصة',
+                        'إعاقة سير الحصص الدراسية',
+                        'المقاطعة المستمرة لشرح المعلم',
+                        'النوم داخل الصف',
+                        'تكرار الخروج والدخول من البوابة',
+                        'التجهز أمام بوابة المدرسة'
+                    ]
+                },
+                second: {
+                    label: 'مخالفات الدرجة الثانية (درجتين)',
+                    items: [
+                        'عدم حضور الحصة أو الهروب منها',
+                        'الدخول أو الخروج من الفصل دون استئذان',
+                        'دخول فصل آخر دون استئذان',
+                        'إثارة الفوضى داخل الصف'
+                    ]
+                },
+                third: {
+                    label: 'مخالفات الدرجة الثالثة (ثلاث درجات)',
+                    items: [
+                        'عدم التقيد بالزي المدرسي',
+                        'إلحاق الضرر المتعمد بممتلكات الطلاب',
+                        'العبث بتجهيزات المدرسة',
+                        'امتهان الكتب الدراسية'
+                    ]
+                }
+            }
+        };
+
+        // ==========================================
         // Application State
-        // ========================================
+        // ==========================================
         let state = {
             currentUser: { 
                 role: 'teacher', 
@@ -214,77 +271,45 @@
             }
         };
 
-        // ========================================
-        // Configuration
-        // ========================================
-        const config = {
-            passwords: {
-                principal: 'A2030',
-                assistant: 'B2030',
-                counselor: 'C2030'
-            },
-            schoolInfo: {
-                name: 'متوسطة المنذر بن عمرو الأنصاري',
-                principal: 'خالد المطيري',
-                assistant: 'محمد الجابري',
-                counselor: 'محمد القحطاني',
-                type: 'بنين'
-            },
-            grades: ['أول متوسط', 'ثاني متوسط', 'ثالث متوسط'],
-            sections: ['1', '2', '3', '4', '5', '6'],
-            violationTypes: {
-                first: {
-                    label: 'مخالفات الدرجة الأولى (درجة واحدة)',
-                    items: [
-                        'التأخر عن الدخول للحصة',
-                        'إعاقة سير الحصص الدراسية (تناول الأطعمة والمشروبات)',
-                        'المشروبات أثناء الدرس - المقاطعة المستمرة لشرح المعلمة',
-                        'النوم داخل الصف',
-                        'تكرار خروج ودخول الطلابة من البوابة قبل وقت الحضور والانصراف',
-                        'التجهز أمام بوابة المدرسة'
-                    ]
-                },
-                second: {
-                    label: 'مخالفات الدرجة الثانية (درجتين)',
-                    items: [
-                        'عدم حضور الحصة أو الهروب منها',
-                        'الدخول أو الخروج من الفصل دون استئذان',
-                        'دخول فصل آخر دون استئذان',
-                        'إثارة الفوضى داخل الصف'
-                    ]
-                },
-                third: {
-                    label: 'مخالفات الدرجة الثالثة (ثلاث درجات)',
-                    items: [
-                        'عدم التقيد بالزي المدرسي',
-                        'إلحاق الضرر المتعمد بممتلكات الطالبات',
-                        'العبث بتجهيزات المدرسة (المعمل - أجهزة الحاسب)',
-                        'امتهان الكتب الدراسية'
-                    ]
-                }
-            }
-        };
+        // ==========================================
+        // Utility Functions
+        // ==========================================
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+        }
 
-        // ========================================
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function sanitizeForJson(obj) {
+            return JSON.parse(JSON.stringify(obj));
+        }
+
+        // ==========================================
         // Firebase CRUD Operations
-        // ========================================
-
-        // Load all violations from Firebase
+        // ==========================================
         async function loadViolations() {
-            if (!isFirebaseInitialized) return;
+            if (!isFirebaseInitialized) {
+                render();
+                return;
+            }
             
             try {
                 showLoading();
-                const snapshot = await db.collection(collections.violations)
-                    .orderBy('createdAt', 'desc')
-                    .get();
+                const { collection, getDocs, query, orderBy } = window.firestoreModules;
+                const q = query(collection(db, COLLECTIONS.violations), orderBy('createdAt', 'desc'));
+                const snapshot = await getDocs(q);
                 
                 state.violations = [];
                 snapshot.forEach(doc => {
-                    state.violations.push({
-                        id: doc.id,
-                        ...doc.data()
-                    });
+                    state.violations.push({ id: doc.id, ...doc.data() });
                 });
                 
                 console.log(`✅ تم تحميل ${state.violations.length} مخالفة`);
@@ -294,24 +319,21 @@
                 console.error('Error loading violations:', error);
                 hideLoading();
                 alert('خطأ في تحميل المخالفات: ' + error.message);
+                render();
             }
         }
 
-        // Load all student actions from Firebase
         async function loadStudentActions() {
             if (!isFirebaseInitialized) return;
             
             try {
-                const snapshot = await db.collection(collections.studentActions)
-                    .orderBy('actionDate', 'desc')
-                    .get();
+                const { collection, getDocs, query, orderBy } = window.firestoreModules;
+                const q = query(collection(db, COLLECTIONS.studentActions), orderBy('actionDate', 'desc'));
+                const snapshot = await getDocs(q);
                 
                 state.studentActions = [];
                 snapshot.forEach(doc => {
-                    state.studentActions.push({
-                        id: doc.id,
-                        ...doc.data()
-                    });
+                    state.studentActions.push({ id: doc.id, ...doc.data() });
                 });
                 
                 console.log(`✅ تم تحميل ${state.studentActions.length} إجراء`);
@@ -320,75 +342,53 @@
             }
         }
 
-        // Add violation to Firebase
         async function addViolationToFirebase(violation) {
             if (!isFirebaseInitialized) return null;
             
             try {
                 showLoading();
-                const docRef = await db.collection(collections.violations).add(violation);
-                console.log('✅ تم إضافة المخالفة بنجاح:', docRef.id);
+                const { collection, addDoc } = window.firestoreModules;
+                const docRef = await addDoc(collection(db, COLLECTIONS.violations), violation);
                 hideLoading();
                 return docRef.id;
             } catch (error) {
-                console.error('Error adding violation:', error);
                 hideLoading();
                 throw error;
             }
         }
 
-        // Update violation in Firebase
         async function updateViolationInFirebase(violationId, updates) {
             if (!isFirebaseInitialized) return;
             
             try {
                 showLoading();
-                await db.collection(collections.violations).doc(violationId).update(updates);
-                console.log('✅ تم تحديث المخالفة بنجاح');
+                const { doc, updateDoc } = window.firestoreModules;
+                await updateDoc(doc(db, COLLECTIONS.violations, violationId), updates);
                 hideLoading();
             } catch (error) {
-                console.error('Error updating violation:', error);
                 hideLoading();
                 throw error;
             }
         }
 
-        // Delete violation from Firebase
-        async function deleteViolationFromFirebase(violationId) {
-            if (!isFirebaseInitialized) return;
-            
-            try {
-                showLoading();
-                await db.collection(collections.violations).doc(violationId).delete();
-                console.log('✅ تم حذف المخالفة بنجاح');
-                hideLoading();
-            } catch (error) {
-                console.error('Error deleting violation:', error);
-                hideLoading();
-                throw error;
-            }
-        }
-
-        // Add student action to Firebase
         async function addStudentActionToFirebase(action) {
             if (!isFirebaseInitialized) return null;
             
             try {
                 showLoading();
-                const docRef = await db.collection(collections.studentActions).add(action);
-                console.log('✅ تم إضافة الإجراء بنجاح:', docRef.id);
+                const { collection, addDoc } = window.firestoreModules;
+                const docRef = await addDoc(collection(db, COLLECTIONS.studentActions), action);
                 hideLoading();
                 return docRef.id;
             } catch (error) {
-                console.error('Error adding student action:', error);
                 hideLoading();
                 throw error;
             }
         }
 
-        // ========================================
-        // Helper Functions
-        // ========================================
+        // ==========================================
+        // Business Logic Functions
+        // ==========================================
         function getStudentViolationCount(studentName, teacherId = null, status = 'active') {
             return state.violations.filter(v => 
                 v.studentName === studentName && 
@@ -417,30 +417,6 @@
                 studentMap[key].count++;
                 studentMap[key].violations.push(v);
             });
-            
-            return Object.values(studentMap)
-                .filter(s => s.count >= 3)
-                .sort((a, b) => b.count - a.count);
-        }
-
-        function getMyStudentsUnderWatch() {
-            const studentMap = {};
-            
-            state.violations
-                .filter(v => v.status === 'active' && v.teacherId === state.currentUser.id)
-                .forEach(v => {
-                    if (!studentMap[v.studentName]) {
-                        studentMap[v.studentName] = {
-                            name: v.studentName,
-                            grade: v.grade,
-                            section: v.section,
-                            count: 0,
-                            violations: []
-                        };
-                    }
-                    studentMap[v.studentName].count++;
-                    studentMap[v.studentName].violations.push(v);
-                });
             
             return Object.values(studentMap)
                 .filter(s => s.count >= 3)
@@ -483,7 +459,6 @@
             } else if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
                 const studentsUnderWatch = getStudentsByViolationCount();
                 const studentTeacherPairs = studentsUnderWatch.map(s => `${s.name}_${s.teacherId}`);
-                
                 filtered = filtered.filter(v => 
                     studentTeacherPairs.includes(`${v.studentName}_${v.teacherId}`)
                 );
@@ -535,16 +510,7 @@
             
             const active = violations.filter(v => v.status === 'active').length;
             const resolved = violations.filter(v => v.status === 'resolved').length;
-            
-            let studentsUnderWatch = 0;
-            if (state.currentUser.role === 'teacher') {
-                studentsUnderWatch = getMyStudentsUnderWatch().length;
-            } else if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
-                studentsUnderWatch = getStudentsByViolationCount().length;
-            } else {
-                studentsUnderWatch = getStudentsByViolationCount().length;
-            }
-            
+            const studentsUnderWatch = getStudentsByViolationCount().length;
             const today = violations.filter(v => 
                 v.date === new Date().toISOString().split('T')[0]
             ).length;
@@ -563,10 +529,10 @@
             return false;
         }
 
-        // ========================================
-        // Actions
-        // ========================================
-        function setCurrentUser(role, name, id) {
+        // ==========================================
+        // Action Handlers
+        // ==========================================
+        window.setCurrentUser = function(role, name, id) {
             if (role === 'principal' || role === 'assistant' || role === 'counselor') {
                 if (!state.authenticated[role]) {
                     const password = prompt(`🔒 يرجى إدخال كلمة السر لصفحة ${getRoleLabel(role)}:`);
@@ -577,42 +543,45 @@
                     }
                     
                     state.authenticated[role] = true;
-                    alert(`✅ تم تسجيل الدخول بنجاح إلى صفحة ${getRoleLabel(role)}`);
                 }
             }
             
             if (role === 'teacher' && !name) {
                 name = teachersList[0];
             }
+            
+            if (role === 'teacher') {
+                id = teachersList.indexOf(name) + 1;
+            }
+            
             state.currentUser = { role, name, id };
             loadViolations();
             loadStudentActions();
-        }
+        };
 
-        function setFilter(key, value) {
+        window.setFilter = function(key, value) {
             state.filters[key] = value;
             render();
-        }
+        };
 
-        function clearFilters() {
+        window.clearFilters = function() {
             state.filters = {
                 selectedTab: state.filters.selectedTab,
                 searchStudent: '',
                 filterGrade: '',
                 filterSection: '',
-                filterTeacher: '',
                 dateFrom: '',
                 dateTo: ''
             };
             render();
-        }
+        };
 
-        function openAddForm() {
+        window.openAddForm = function() {
             state.modals.showAddForm = true;
             render();
-        }
+        };
 
-        function closeAddForm() {
+        window.closeAddForm = function() {
             state.modals.showAddForm = false;
             state.newViolation = {
                 studentName: '',
@@ -625,56 +594,41 @@
                 time: new Date().toTimeString().slice(0, 5)
             };
             render();
-        }
+        };
 
-        function updateNewViolation(key, value) {
-            state.newViolation[key] = value;
-        }
-
-        async function addViolation() {
-            const studentName = state.newViolation.studentName.trim();
-            const grade = state.newViolation.grade;
-            const section = state.newViolation.section;
-            const violationType = state.newViolation.violationType;
-            const violationDetails = state.newViolation.violationDetails;
-            const documentation = state.newViolation.documentation.trim();
-            const date = state.newViolation.date;
-            const time = state.newViolation.time;
+        window.addViolation = async function() {
+            const v = state.newViolation;
             
-            if (!studentName) {
+            if (!v.studentName.trim()) {
                 alert('⚠️ يرجى إدخال اسم الطالب');
-                return false;
+                return;
             }
-            
-            if (!grade) {
+            if (!v.grade) {
                 alert('⚠️ يرجى اختيار الصف');
-                return false;
+                return;
             }
-            
-            if (!section) {
+            if (!v.section) {
                 alert('⚠️ يرجى اختيار الشعبة');
-                return false;
+                return;
             }
-            
-            if (!violationDetails) {
+            if (!v.violationDetails) {
                 alert('⚠️ يرجى اختيار نوع المخالفة');
-                return false;
+                return;
             }
-            
-            if (!documentation) {
-                alert('⚠️ يرجى كتابة توثيق المخالفة (الإجراء المتبع)\n\nهذا الحقل إلزامي لتوثيق الإجراء الذي اتخذته مع الطالب');
-                return false;
+            if (!v.documentation.trim()) {
+                alert('⚠️ يرجى كتابة توثيق المخالفة (الإجراء المتبع)');
+                return;
             }
             
             const violation = {
-                studentName: studentName,
-                grade: grade,
-                section: section,
-                violationType: violationType,
-                violationDetails: violationDetails,
-                documentation: documentation,
-                date: date,
-                time: time,
+                studentName: v.studentName.trim(),
+                grade: v.grade,
+                section: v.section,
+                violationType: v.violationType,
+                violationDetails: v.violationDetails,
+                documentation: v.documentation.trim(),
+                date: v.date,
+                time: v.time,
                 teacherName: state.currentUser.name,
                 teacherId: state.currentUser.id,
                 status: 'active',
@@ -686,31 +640,27 @@
                 violation.id = docId;
                 state.violations.unshift(violation);
                 
-                const studentViolationsCount = getStudentViolationCount(studentName, state.currentUser.id);
+                const count = getStudentViolationCount(violation.studentName, state.currentUser.id);
                 
-                let alertMessage = '✅ تم إضافة المخالفة بنجاح!\n\n' +
-                      '👤 الطالب: ' + studentName + '\n' +
-                      '📚 الصف: ' + grade + ' - الشعبة ' + section + '\n' +
-                      '⚠️ المخالفة: ' + violationDetails + '\n' +
-                      '📝 الإجراء المتبع: ' + documentation;
+                let msg = '✅ تم إضافة المخالفة بنجاح!\n\n';
+                msg += `👤 الطالب: ${violation.studentName}\n`;
+                msg += `📚 الصف: ${violation.grade} - الشعبة ${violation.section}\n`;
+                msg += `⚠️ المخالفة: ${violation.violationDetails}`;
                 
-                if (studentViolationsCount >= 3) {
-                    alertMessage += '\n\n🚨 تنبيه: هذا الطالب لديه ' + studentViolationsCount + ' مخالفات منك!\n' +
-                                   'سيتم إحالته للوكيل/المرشد الطلابي للمتابعة.';
+                if (count >= 3) {
+                    msg += `\n\n🚨 تنبيه: هذا الطالب لديه ${count} مخالفات منك!\n`;
+                    msg += 'سيتم إحالته للوكيل/المرشد الطلابي للمتابعة.';
                 }
                 
-                alert(alertMessage);
+                alert(msg);
                 closeAddForm();
-                
-                return true;
             } catch (error) {
                 alert('❌ خطأ في إضافة المخالفة: ' + error.message);
-                return false;
             }
-        }
+        };
 
-        async function resolveViolation(violationId) {
-            const reason = prompt('أدخل سبب حل المخالفة (السلوك الإيجابي الذي قام به الطالب):');
+        window.resolveViolation = async function(violationId) {
+            const reason = prompt('أدخل سبب حل المخالفة (السلوك الإيجابي):');
             
             if (reason && reason.trim()) {
                 try {
@@ -728,78 +678,45 @@
                     );
                     
                     render();
+                    alert('✅ تم حل المخالفة بنجاح');
                 } catch (error) {
                     alert('❌ خطأ في حل المخالفة: ' + error.message);
                 }
             }
-        }
+        };
 
-        function openDetailsModal(violation) {
-            // حفظ نسخة آمنة من بيانات المخالفة
-            state.modals.selectedViolation = {
-                id: violation.id,
-                studentName: violation.studentName,
-                grade: violation.grade,
-                section: violation.section,
-                violationType: violation.violationType,
-                violationDetails: violation.violationDetails,
-                documentation: violation.documentation,
-                teacherName: violation.teacherName,
-                teacherId: violation.teacherId,
-                date: violation.date,
-                time: violation.time,
-                status: violation.status,
-                createdAt: violation.createdAt,
-                resolvedBy: violation.resolvedBy,
-                resolutionReason: violation.resolutionReason,
-                resolvedAt: violation.resolvedAt
-            };
-            state.modals.showDetailsModal = true;
-            render();
-        }
+        window.openDetailsModal = function(violationId) {
+            const violation = state.violations.find(v => v.id === violationId);
+            if (violation) {
+                state.modals.selectedViolation = sanitizeForJson(violation);
+                state.modals.showDetailsModal = true;
+                render();
+            }
+        };
 
-        function closeDetailsModal() {
+        window.closeDetailsModal = function() {
             state.modals.showDetailsModal = false;
             state.modals.selectedViolation = null;
             render();
-        }
+        };
 
-        function openActionModal(studentData) {
-            state.modals.showActionModal = true;
-            // حفظ نسخة آمنة من بيانات الطالب بدون دوال
-            state.modals.selectedStudent = {
-                name: studentData.name,
-                grade: studentData.grade,
-                section: studentData.section,
-                teacherId: studentData.teacherId,
-                teacherName: studentData.teacherName,
-                count: studentData.count,
-                violations: studentData.violations.map(v => ({
-                    id: v.id,
-                    studentName: v.studentName,
-                    grade: v.grade,
-                    section: v.section,
-                    violationType: v.violationType,
-                    violationDetails: v.violationDetails,
-                    documentation: v.documentation,
-                    teacherName: v.teacherName,
-                    teacherId: v.teacherId,
-                    date: v.date,
-                    time: v.time,
-                    status: v.status,
-                    createdAt: v.createdAt
-                }))
-            };
-            render();
-        }
+        window.openActionModal = function(studentIndex) {
+            const students = getStudentsByViolationCount();
+            const student = students[studentIndex];
+            if (student) {
+                state.modals.selectedStudent = sanitizeForJson(student);
+                state.modals.showActionModal = true;
+                render();
+            }
+        };
 
-        function closeActionModal() {
+        window.closeActionModal = function() {
             state.modals.showActionModal = false;
             state.modals.selectedStudent = null;
             render();
-        }
+        };
 
-        async function saveStudentAction() {
+        window.saveStudentAction = async function() {
             const actionDetails = document.getElementById('actionDetailsInput')?.value.trim();
             
             if (!actionDetails) {
@@ -808,8 +725,7 @@
             }
 
             const student = state.modals.selectedStudent;
-            const violationIds = student.violations.map(v => v.id);
-
+            
             const action = {
                 studentName: student.name,
                 teacherId: student.teacherId,
@@ -818,7 +734,7 @@
                 actionByName: state.currentUser.name,
                 actionDate: new Date().toISOString(),
                 actionDetails: actionDetails,
-                violationsIncluded: violationIds
+                violationsIncluded: student.violations.map(v => v.id)
             };
 
             try {
@@ -826,27 +742,18 @@
                 action.id = docId;
                 state.studentActions.push(action);
 
-                alert('✅ تم حفظ الإجراء بنجاح!\n\n' +
-                      '👤 الطالب: ' + student.name + '\n' +
-                      '👨‍🏫 المعلم: ' + student.teacherName + '\n' +
-                      '📋 الإجراء: ' + actionDetails);
-
+                alert('✅ تم حفظ الإجراء بنجاح!');
                 closeActionModal();
             } catch (error) {
                 alert('❌ خطأ في حفظ الإجراء: ' + error.message);
             }
-        }
+        };
 
-        function printStudentReport(studentData) {
-            const student = {
-                name: studentData.name,
-                grade: studentData.grade,
-                section: studentData.section,
-                teacherId: studentData.teacherId,
-                teacherName: studentData.teacherName,
-                count: studentData.count,
-                violations: studentData.violations
-            };
+        window.printStudentReport = function(studentIndex) {
+            const students = getStudentsByViolationCount();
+            const student = students[studentIndex];
+            
+            if (!student) return;
             
             const action = state.studentActions.find(a => 
                 a.studentName === student.name && 
@@ -855,7 +762,12 @@
             );
 
             const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
+            printWindow.document.write(generatePrintContent(student, action));
+            printWindow.document.close();
+        };
+
+        function generatePrintContent(student, action) {
+            return `
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
                 <head>
@@ -863,70 +775,18 @@
                     <title>تقرير مخالفات - ${student.name}</title>
                     <style>
                         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-                        body {
-                            font-family: 'Cairo', sans-serif;
-                            padding: 40px;
-                            direction: rtl;
-                        }
-                        .header {
-                            text-align: center;
-                            border-bottom: 3px solid #2563eb;
-                            padding-bottom: 20px;
-                            margin-bottom: 30px;
-                        }
-                        .header h1 {
-                            color: #1e40af;
-                            margin: 10px 0;
-                        }
-                        .info-box {
-                            background: #f3f4f6;
-                            padding: 20px;
-                            border-radius: 8px;
-                            margin-bottom: 20px;
-                        }
-                        .info-row {
-                            display: flex;
-                            justify-content: space-between;
-                            margin-bottom: 10px;
-                        }
-                        .violation-item {
-                            border: 2px solid #e5e7eb;
-                            padding: 15px;
-                            margin-bottom: 15px;
-                            border-radius: 8px;
-                        }
-                        .action-box {
-                            background: #dbeafe;
-                            border: 2px solid #2563eb;
-                            padding: 20px;
-                            border-radius: 8px;
-                            margin-top: 30px;
-                        }
-                        .signature-area {
-                            margin-top: 50px;
-                            display: flex;
-                            justify-content: space-between;
-                        }
-                        .signature-box {
-                            text-align: center;
-                            width: 200px;
-                        }
-                        .signature-line {
-                            border-top: 2px solid #000;
-                            margin-top: 60px;
-                            padding-top: 10px;
-                        }
-                        .teacher-highlight {
-                            background: #fef3c7;
-                            padding: 15px;
-                            border-radius: 8px;
-                            border: 2px solid #f59e0b;
-                            margin-bottom: 20px;
-                        }
-                        @media print {
-                            body { padding: 20px; }
-                            .no-print { display: none; }
-                        }
+                        body { font-family: 'Cairo', sans-serif; padding: 40px; direction: rtl; }
+                        .header { text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
+                        .header h1 { color: #1e40af; margin: 10px 0; }
+                        .info-box { background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+                        .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+                        .violation-item { border: 2px solid #e5e7eb; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+                        .teacher-highlight { background: #fef3c7; padding: 15px; border-radius: 8px; border: 2px solid #f59e0b; margin-bottom: 20px; }
+                        .action-box { background: #dbeafe; border: 2px solid #2563eb; padding: 20px; border-radius: 8px; margin-top: 30px; }
+                        .signature-area { margin-top: 50px; display: flex; justify-content: space-between; }
+                        .signature-box { text-align: center; width: 200px; }
+                        .signature-line { border-top: 2px solid #000; margin-top: 60px; padding-top: 10px; }
+                        @media print { body { padding: 20px; } .no-print { display: none; } }
                     </style>
                 </head>
                 <body>
@@ -937,44 +797,25 @@
                     </div>
 
                     <div class="teacher-highlight">
-                        <h3 style="color: #92400e; margin-bottom: 10px; font-size: 18px;">
-                            👨‍🏫 المعلم المسجل للمخالفات
-                        </h3>
-                        <div style="font-size: 20px; font-weight: bold; color: #78350f;">
-                            ${student.teacherName}
-                        </div>
-                        <div style="margin-top: 5px; font-size: 14px; color: #92400e;">
-                            جميع المخالفات المذكورة أدناه مسجلة من قبل هذا المعلم فقط
-                        </div>
+                        <h3 style="color: #92400e; margin-bottom: 10px; font-size: 18px;">👨‍🏫 المعلم المسجل للمخالفات</h3>
+                        <div style="font-size: 20px; font-weight: bold; color: #78350f;">${student.teacherName}</div>
+                        <div style="margin-top: 5px; font-size: 14px; color: #92400e;">جميع المخالفات المذكورة أدناه مسجلة من قبل هذا المعلم فقط</div>
                     </div>
 
                     <div class="info-box">
                         <h3 style="color: #1e40af; margin-bottom: 15px;">معلومات الطالب</h3>
-                        <div class="info-row">
-                            <strong>الاسم:</strong>
-                            <span>${student.name}</span>
-                        </div>
-                        <div class="info-row">
-                            <strong>الصف:</strong>
-                            <span>${student.grade}</span>
-                        </div>
-                        <div class="info-row">
-                            <strong>الشعبة:</strong>
-                            <span>${student.section}</span>
-                        </div>
-                        <div class="info-row">
-                            <strong>عدد المخالفات من المعلم ${student.teacherName}:</strong>
-                            <span style="color: #dc2626; font-weight: bold;">${student.count} مخالفات</span>
-                        </div>
+                        <div class="info-row"><strong>الاسم:</strong><span>${student.name}</span></div>
+                        <div class="info-row"><strong>الصف:</strong><span>${student.grade}</span></div>
+                        <div class="info-row"><strong>الشعبة:</strong><span>${student.section}</span></div>
+                        <div class="info-row"><strong>عدد المخالفات:</strong><span style="color: #dc2626; font-weight: bold;">${student.count} مخالفات</span></div>
                     </div>
 
                     <h3 style="color: #1e40af; margin-top: 30px; margin-bottom: 15px;">تفاصيل المخالفات:</h3>
-                    ${student.violations.map((v, index) => `
+                    ${student.violations.map((v, i) => `
                         <div class="violation-item">
                             <div style="font-weight: bold; margin-bottom: 10px;">
-                                ${index + 1}. ${v.violationDetails}
-                                <span style="background: ${v.violationType === 'first' ? '#dcfce7' : v.violationType === 'second' ? '#fef3c7' : '#fee2e2'}; 
-                                      padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-right: 10px;">
+                                ${i + 1}. ${v.violationDetails}
+                                <span style="background: ${v.violationType === 'first' ? '#dcfce7' : v.violationType === 'second' ? '#fef3c7' : '#fee2e2'}; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-right: 10px;">
                                     ${getDegreeLabel(v.violationType)}
                                 </span>
                             </div>
@@ -987,15 +828,9 @@
 
                     ${action ? `
                         <div class="action-box">
-                            <h3 style="color: #1e40af; margin-bottom: 15px;">
-                                الإجراء المتخذ من قبل ${getRoleLabel(action.actionBy)}
-                            </h3>
-                            <div style="margin-bottom: 10px;">
-                                <strong>المسؤول:</strong> ${action.actionByName}
-                            </div>
-                            <div style="margin-bottom: 10px;">
-                                <strong>التاريخ:</strong> ${new Date(action.actionDate).toLocaleString('ar-SA')}
-                            </div>
+                            <h3 style="color: #1e40af; margin-bottom: 15px;">الإجراء المتخذ من قبل ${getRoleLabel(action.actionBy)}</h3>
+                            <div style="margin-bottom: 10px;"><strong>المسؤول:</strong> ${action.actionByName}</div>
+                            <div style="margin-bottom: 10px;"><strong>التاريخ:</strong> ${new Date(action.actionDate).toLocaleString('ar-SA')}</div>
                             <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 4px;">
                                 <strong>تفاصيل الإجراء:</strong>
                                 <p style="margin-top: 10px; line-height: 1.8;">${action.actionDetails}</p>
@@ -1004,43 +839,22 @@
                     ` : ''}
 
                     <div class="signature-area">
-                        <div class="signature-box">
-                            <div class="signature-line">
-                                المعلم<br>${student.teacherName}
-                            </div>
-                        </div>
-                        <div class="signature-box">
-                            <div class="signature-line">
-                                ${state.currentUser.role === 'assistant' ? 'الوكيل' : 'المرشد الطلابي'}
-                            </div>
-                        </div>
-                        <div class="signature-box">
-                            <div class="signature-line">
-                                ولي الأمر
-                            </div>
-                        </div>
-                        <div class="signature-box">
-                            <div class="signature-line">
-                                مدير المدرسة
-                            </div>
-                        </div>
+                        <div class="signature-box"><div class="signature-line">المعلم<br>${student.teacherName}</div></div>
+                        <div class="signature-box"><div class="signature-line">${state.currentUser.role === 'assistant' ? 'الوكيل' : 'المرشد الطلابي'}</div></div>
+                        <div class="signature-box"><div class="signature-line">ولي الأمر</div></div>
+                        <div class="signature-box"><div class="signature-line">مدير المدرسة</div></div>
                     </div>
 
                     <div class="no-print" style="text-align: center; margin-top: 30px;">
-                        <button onclick="window.print()" style="background: #2563eb; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-family: 'Cairo', sans-serif;">
-                            🖨️ طباعة التقرير
-                        </button>
-                        <button onclick="window.close()" style="background: #6b7280; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 10px; font-family: 'Cairo', sans-serif;">
-                            إغلاق
-                        </button>
+                        <button onclick="window.print()" style="background: #2563eb; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-family: 'Cairo', sans-serif;">🖨️ طباعة التقرير</button>
+                        <button onclick="window.close()" style="background: #6b7280; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 10px; font-family: 'Cairo', sans-serif;">إغلاق</button>
                     </div>
                 </body>
                 </html>
-            `);
-            printWindow.document.close();
+            `;
         }
 
-        function exportToCSV() {
+        window.exportToCSV = function() {
             const filtered = getFilteredViolations();
             const headers = ['#', 'الطالب', 'الصف', 'الشعبة', 'الدرجة', 'المخالفة', 'المعلم', 'التاريخ', 'الوقت', 'الحالة'];
             const rows = filtered.map((v, i) => [
@@ -1056,20 +870,17 @@
                 v.status === 'active' ? 'نشط' : 'محلول'
             ]);
 
-            const csvContent = [headers, ...rows]
-                .map(row => row.join(','))
-                .join('\n');
-
+            const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
             const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = `مخالفات_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
-        }
+        };
 
-        // ========================================
+        // ==========================================
         // Render Functions
-        // ========================================
+        // ==========================================
         function render() {
             const app = document.getElementById('app');
             app.innerHTML = `
@@ -1080,24 +891,22 @@
                 ${state.modals.showDetailsModal ? renderDetailsModal() : ''}
                 ${state.modals.showActionModal ? renderActionModal() : ''}
             `;
-            attachEventListeners();
         }
 
         function renderHeader() {
             return `
                 <div class="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white shadow-2xl">
                     <div class="max-w-7xl mx-auto px-6 py-8">
-                        <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
                             <div>
                                 <h1 class="text-4xl font-bold mb-2">📚 ${config.schoolInfo.name}</h1>
                                 <p class="text-blue-100 text-lg">نظام إدارة المخالفات السلوكية - ${config.schoolInfo.type}</p>
-                                ${isFirebaseInitialized ? `
-                                    <p class="text-green-300 text-sm mt-2">🟢 متصل بقاعدة البيانات</p>
-                                ` : `
-                                    <p class="text-red-300 text-sm mt-2">🔴 غير متصل بقاعدة البيانات</p>
-                                `}
+                                ${isFirebaseInitialized ? 
+                                    '<p class="text-green-300 text-sm mt-2">🟢 متصل بقاعدة البيانات</p>' : 
+                                    '<p class="text-red-300 text-sm mt-2">🔴 غير متصل بقاعدة البيانات</p>'
+                                }
                             </div>
-                            <div class="text-left bg-blue-800 bg-opacity-50 rounded-lg p-4 backdrop-blur-sm">
+                            <div class="text-left bg-blue-800 bg-opacity-50 rounded-lg p-4">
                                 <p class="text-sm text-blue-100 mb-1">👤 مدير المدرسة: ${config.schoolInfo.principal}</p>
                                 <p class="text-sm text-blue-100 mb-1">👤 الوكيل: ${config.schoolInfo.assistant}</p>
                                 <p class="text-sm text-blue-100">👤 الموجه الطلابي: ${config.schoolInfo.counselor}</p>
@@ -1111,15 +920,9 @@
         function renderUserTabs() {
             const isActive = (role) => state.currentUser.role === role;
             const btnClass = (role) => `flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                isActive(role) 
-                    ? 'bg-blue-600 text-white shadow-lg transform scale-105' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                isActive(role) ? 'bg-blue-600 text-white shadow-lg transform scale-105' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`;
-            
-            const isLocked = (role) => {
-                return (role === 'principal' || role === 'assistant' || role === 'counselor') && 
-                       !state.authenticated[role];
-            };
+            const isLocked = (role) => (role === 'principal' || role === 'assistant' || role === 'counselor') && !state.authenticated[role];
 
             return `
                 <div class="bg-white border-b shadow-sm sticky top-0 z-40">
@@ -1127,92 +930,12 @@
                         <div class="flex items-center justify-between flex-wrap gap-4">
                             <div class="flex gap-2 flex-wrap items-center">
                                 ${state.currentUser.role === 'teacher' ? `
-                                    <select onchange="setCurrentUser('teacher', this.value, teachersList.indexOf(this.value) + 1)" 
-                                            class="px-4 py-3 border-2 border-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-blue-900 bg-blue-50">
-                                        ${teachersList.map(teacher => `
-                                            <option value="${teacher}" ${state.currentUser.name === teacher ? 'selected' : ''}>
-                                                👨‍🏫 ${teacher}
-                                            </option>
-                                        `).join('')}
-                                </div>
-                            </div>
-
-                            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
-                                <h3 class="font-bold text-lg text-blue-900 mb-3">
-                                    📋 الإجراء المتخذ من قبل ${getRoleLabel(state.currentUser.role)}
-                                </h3>
-                                <textarea id="actionDetailsInput"
-                                          class="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                                          rows="6"
-                                          placeholder="أدخل تفاصيل الإجراء المتخذ (مثال: تم استدعاء ولي الأمر - توقيع تعهد - توجيه وإرشاد - إحالة للمرشد الطلابي...)">${existingAction ? existingAction.actionDetails : ''}</textarea>
-                                <p class="text-sm text-blue-700 mt-2">
-                                    💡 يرجى كتابة الإجراء المتخذ بشكل واضح ومفصل
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl flex gap-3 justify-end">
-                            <button type="button"
-                                    onclick="closeActionModal()"
-                                    class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
-                                إلغاء
-                            </button>
-                            <button type="button"
-                                    onclick="saveStudentAction()"
-                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg">
-                                💾 حفظ الإجراء
-                            </button>
-                            ${existingAction ? `
-                                <button type="button"
-                                        onclick="printStudentReport(state.modals.selectedStudent)"
-                                        class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg">
-                                    🖨️ طباعة التقرير
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function attachEventListeners() {
-            // Event listeners are handled through inline onclick attributes
-        }
-
-        // ========================================
-        // Initialize Application
-        // ========================================
-        async function initApp() {
-            if (!isFirebaseInitialized) {
-                alert('⚠️ تحذير: Firebase غير متصل!\n\nيرجى التحقق من:\n1. إعدادات Firebase Config في الكود\n2. الاتصال بالإنترنت\n\nالنظام سيعمل بدون قاعدة بيانات (البيانات ستفقد عند إعادة التحميل)');
-                render();
-                return;
-            }
-
-            try {
-                showLoading();
-                await loadViolations();
-                await loadStudentActions();
-                hideLoading();
-            } catch (error) {
-                console.error('Error initializing app:', error);
-                hideLoading();
-                alert('خطأ في تحميل البيانات: ' + error.message);
-            }
-        }
-
-        // Start the application
-        initApp();
-    </script>
-</body>
-</html>('')}
+                                    <select onchange="setCurrentUser('teacher', this.value)" class="px-4 py-3 border-2 border-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-blue-900 bg-blue-50">
+                                        ${teachersList.map(t => `<option value="${t}" ${state.currentUser.name === t ? 'selected' : ''}>👨‍🏫 ${t}</option>`).join('')}
                                     </select>
                                 ` : `
-                                    <button onclick="setCurrentUser('teacher', '${teachersList[0]}', 1)" class="${btnClass('teacher')}">
-                                        👨‍🏫 صفحة المعلم
-                                    </button>
+                                    <button onclick="setCurrentUser('teacher', '${teachersList[0]}', 1)" class="${btnClass('teacher')}">👨‍🏫 صفحة المعلم</button>
                                 `}
-                                
                                 <button onclick="setCurrentUser('assistant', '${config.schoolInfo.assistant}', 999)" class="${btnClass('assistant')}">
                                     ${isLocked('assistant') ? '🔒' : '📋'} صفحة الوكيل
                                 </button>
@@ -1224,9 +947,7 @@
                                 </button>
                             </div>
                             <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-                                <p class="text-sm text-blue-900">
-                                    <span class="font-bold">المستخدم الحالي:</span> ${state.currentUser.name} - ${getRoleLabel(state.currentUser.role)}
-                                </p>
+                                <p class="text-sm text-blue-900"><span class="font-bold">المستخدم الحالي:</span> ${state.currentUser.name} - ${getRoleLabel(state.currentUser.role)}</p>
                             </div>
                         </div>
                     </div>
@@ -1257,7 +978,6 @@
                         </div>
                         <div class="text-gray-600 font-medium">المخالفات النشطة</div>
                     </div>
-                    
                     <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-green-500">
                         <div class="flex items-center justify-between mb-3">
                             <span class="text-4xl">✅</span>
@@ -1265,7 +985,6 @@
                         </div>
                         <div class="text-gray-600 font-medium">المخالفات المحلولة</div>
                     </div>
-                    
                     <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-orange-500">
                         <div class="flex items-center justify-between mb-3">
                             <span class="text-4xl">👁️</span>
@@ -1273,7 +992,6 @@
                         </div>
                         <div class="text-gray-600 font-medium">طلاب تحت المراقبة</div>
                     </div>
-                    
                     <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-purple-500">
                         <div class="flex items-center justify-between mb-3">
                             <span class="text-4xl">📅</span>
@@ -1288,9 +1006,7 @@
         function renderViolationsSection(filtered) {
             const stats = getStats();
             const tabClass = (tab) => `px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-                state.filters.selectedTab === tab 
-                    ? 'bg-blue-600 text-white shadow-md' 
-                    : 'text-gray-600 hover:bg-gray-100'
+                state.filters.selectedTab === tab ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'
             }`;
 
             return `
@@ -1298,30 +1014,16 @@
                     <div class="border-b px-6 py-4">
                         <div class="flex items-center justify-between flex-wrap gap-4">
                             <div class="flex gap-3">
-                                <button onclick="setFilter('selectedTab', 'all')" class="${tabClass('all')}">
-                                    جميع المخالفات (${state.violations.length})
-                                </button>
-                                <button onclick="setFilter('selectedTab', 'active')" class="${tabClass('active')}">
-                                    النشطة (${stats.active})
-                                </button>
-                                <button onclick="setFilter('selectedTab', 'resolved')" class="${tabClass('resolved')}">
-                                    المحلولة (${stats.resolved})
-                                </button>
+                                <button onclick="setFilter('selectedTab', 'all')" class="${tabClass('all')}">جميع المخالفات (${state.violations.length})</button>
+                                <button onclick="setFilter('selectedTab', 'active')" class="${tabClass('active')}">النشطة (${stats.active})</button>
+                                <button onclick="setFilter('selectedTab', 'resolved')" class="${tabClass('resolved')}">المحلولة (${stats.resolved})</button>
                             </div>
-                            
                             <div class="flex gap-3">
-                                <button onclick="exportToCSV()" class="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md">
-                                    📥 تصدير Excel
-                                </button>
-                                ${state.currentUser.role === 'teacher' ? `
-                                    <button onclick="openAddForm()" class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">
-                                        ➕ إضافة مخالفة جديدة
-                                    </button>
-                                ` : ''}
+                                <button onclick="exportToCSV()" class="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md">📥 تصدير Excel</button>
+                                ${state.currentUser.role === 'teacher' ? '<button onclick="openAddForm()" class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">➕ إضافة مخالفة جديدة</button>' : ''}
                             </div>
                         </div>
                     </div>
-
                     ${renderFilters()}
                     ${renderViolationsList(filtered)}
                 </div>
@@ -1329,59 +1031,39 @@
         }
 
         function renderFilters() {
-            const hasFilters = state.filters.searchStudent || state.filters.filterGrade || 
-                              state.filters.filterSection || 
-                              state.filters.dateFrom || state.filters.dateTo;
+            const hasFilters = state.filters.searchStudent || state.filters.filterGrade || state.filters.filterSection || state.filters.dateFrom || state.filters.dateTo;
 
             return `
                 <div class="p-6 bg-gray-50 border-b">
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">🔍 بحث بالاسم</label>
-                            <input type="text" value="${state.filters.searchStudent}" 
-                                   onchange="setFilter('searchStudent', this.value)"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                   placeholder="اسم الطالب...">
+                            <input type="text" value="${state.filters.searchStudent}" onchange="setFilter('searchStudent', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="اسم الطالب...">
                         </div>
-                        
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">📊 الصف</label>
-                            <select onchange="setFilter('filterGrade', this.value)" 
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <select onchange="setFilter('filterGrade', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 <option value="">الكل</option>
                                 ${config.grades.map(g => `<option value="${g}" ${state.filters.filterGrade === g ? 'selected' : ''}>${g}</option>`).join('')}
                             </select>
                         </div>
-                        
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">الشعبة</label>
-                            <select onchange="setFilter('filterSection', this.value)"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <select onchange="setFilter('filterSection', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 <option value="">الكل</option>
                                 ${config.sections.map(s => `<option value="${s}" ${state.filters.filterSection === s ? 'selected' : ''}>${s}</option>`).join('')}
                             </select>
                         </div>
-                        
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">من تاريخ</label>
-                            <input type="date" value="${state.filters.dateFrom}"
-                                   onchange="setFilter('dateFrom', this.value)"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <input type="date" value="${state.filters.dateFrom}" onchange="setFilter('dateFrom', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
-                        
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">إلى تاريخ</label>
-                            <input type="date" value="${state.filters.dateTo}"
-                                   onchange="setFilter('dateTo', this.value)"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <input type="date" value="${state.filters.dateTo}" onchange="setFilter('dateTo', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
-                    
-                    ${hasFilters ? `
-                        <button onclick="clearFilters()" class="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium">
-                            مسح جميع الفلاتر
-                        </button>
-                    ` : ''}
+                    ${hasFilters ? '<button onclick="clearFilters()" class="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium">مسح جميع الفلاتر</button>' : ''}
                 </div>
             `;
         }
@@ -1412,72 +1094,33 @@
             const isHighPriority = violationCount >= 3;
             
             return `
-                <div class="p-6 hover:bg-gray-50 transition-all duration-200 ${
-                    isHighPriority && v.status === 'active' ? 'bg-red-50 border-r-4 border-red-500' : ''
-                }">
+                <div class="p-6 hover:bg-gray-50 transition-all duration-200 ${isHighPriority && v.status === 'active' ? 'bg-red-50 border-r-4 border-red-500' : ''}">
                     <div class="flex justify-between items-start gap-6">
                         <div class="flex-1">
                             <div class="flex items-center gap-3 mb-3 flex-wrap">
                                 <h3 class="text-xl font-bold text-gray-900">${v.studentName}</h3>
-                                
-                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">
-                                    ${v.grade}
-                                </span>
-                                
-                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">
-                                    الشعبة ${v.section}
-                                </span>
-                                
-                                <span class="px-3 py-1 rounded-full text-xs font-bold border-2 ${getDegreeColor(v.violationType)}">
-                                    ${getDegreeLabel(v.violationType)}
-                                </span>
-                                
-                                ${isHighPriority && v.status === 'active' ? `
-                                    <span class="flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md animate-pulse">
-                                        ⚠️ تحت المراقبة (${violationCount} مخالفات من ${v.teacherName})
-                                    </span>
-                                ` : ''}
-                                
-                                ${v.status === 'resolved' ? `
-                                    <span class="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                                        ✅ تم الحل
-                                    </span>
-                                ` : ''}
+                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">${v.grade}</span>
+                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">الشعبة ${v.section}</span>
+                                <span class="px-3 py-1 rounded-full text-xs font-bold border-2 ${getDegreeColor(v.violationType)}">${getDegreeLabel(v.violationType)}</span>
+                                ${isHighPriority && v.status === 'active' ? `<span class="flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md animate-pulse">⚠️ تحت المراقبة (${violationCount} مخالفات من ${v.teacherName})</span>` : ''}
+                                ${v.status === 'resolved' ? '<span class="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold">✅ تم الحل</span>' : ''}
                             </div>
-
                             <div class="bg-white border border-gray-200 rounded-lg p-4 mb-3">
-                                <p class="text-gray-800 mb-2 font-semibold text-lg">
-                                    ${v.violationDetails}
-                                </p>
-                                
-                                ${v.documentation ? `
-                                    <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                        <p class="text-sm text-blue-900">
-                                            <span class="font-bold">📝 الإجراء المتبع:</span>
-                                            <br>
-                                            ${v.documentation}
-                                        </p>
-                                    </div>
-                                ` : ''}
+                                <p class="text-gray-800 mb-2 font-semibold text-lg">${v.violationDetails}</p>
+                                ${v.documentation ? `<div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg"><p class="text-sm text-blue-900"><span class="font-bold">📝 الإجراء المتبع:</span><br>${v.documentation}</p></div>` : ''}
                             </div>
-
                             <div class="flex flex-wrap gap-4 text-sm text-gray-600">
                                 <span>👤 <strong>المعلم:</strong> ${v.teacherName}</span>
                                 <span>📅 <strong>التاريخ:</strong> ${v.date}</span>
                                 <span>🕐 <strong>الوقت:</strong> ${v.time}</span>
                             </div>
-
                             ${v.status === 'resolved' && v.resolutionReason ? `
                                 <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                                     <div class="flex items-start gap-2 mb-2">
                                         <span class="text-2xl">🏆</span>
                                         <div class="flex-1">
-                                            <p class="text-sm font-bold text-green-900 mb-1">
-                                                سبب حل المخالفة (السلوك الإيجابي):
-                                            </p>
-                                            <p class="text-sm text-green-800 mb-2">
-                                                ${v.resolutionReason}
-                                            </p>
+                                            <p class="text-sm font-bold text-green-900 mb-1">سبب حل المخالفة (السلوك الإيجابي):</p>
+                                            <p class="text-sm text-green-800 mb-2">${v.resolutionReason}</p>
                                             <div class="flex gap-4 text-xs text-green-700">
                                                 <span>تم الحل بواسطة: ${v.resolvedBy}</span>
                                                 <span>في: ${new Date(v.resolvedAt).toLocaleString('ar-SA')}</span>
@@ -1487,19 +1130,9 @@
                                 </div>
                             ` : ''}
                         </div>
-
                         <div class="flex flex-col gap-2">
-                            <button onclick='openDetailsModal({id:"${v.id}",studentName:"${v.studentName.replace(/"/g, '\\"')}",grade:"${v.grade}",section:"${v.section}",violationType:"${v.violationType}",violationDetails:"${v.violationDetails.replace(/"/g, '\\"')}",documentation:"${(v.documentation || '').replace(/"/g, '\\"')}",teacherName:"${v.teacherName.replace(/"/g, '\\"')}",teacherId:${v.teacherId},date:"${v.date}",time:"${v.time}",status:"${v.status}",createdAt:"${v.createdAt}",resolvedBy:"${v.resolvedBy || ''}",resolutionReason:"${(v.resolutionReason || '').replace(/"/g, '\\"')}",resolvedAt:"${v.resolvedAt || '"}"})'
-                                    class="flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors whitespace-nowrap">
-                                👁️ التفاصيل
-                            </button>
-                            
-                            ${v.status === 'active' && canResolveViolation(v) ? `
-                                <button onclick="resolveViolation('${v.id}')"
-                                        class="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-md whitespace-nowrap">
-                                    🏆 حل المخالفة
-                                </button>
-                            ` : ''}
+                            <button onclick="openDetailsModal('${v.id}')" class="flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors whitespace-nowrap">👁️ التفاصيل</button>
+                            ${v.status === 'active' && canResolveViolation(v) ? '<button onclick="resolveViolation(\'' + v.id + '\')" class="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-md whitespace-nowrap">🏆 حل المخالفة</button>' : ''}
                         </div>
                     </div>
                 </div>
@@ -1507,180 +1140,92 @@
         }
 
         function renderStudentsUnderWatch() {
-            if (state.currentUser.role !== 'assistant' && 
-                state.currentUser.role !== 'counselor' && 
-                state.currentUser.role !== 'principal') {
+            if (state.currentUser.role !== 'assistant' && state.currentUser.role !== 'counselor' && state.currentUser.role !== 'principal') {
                 return '';
             }
 
-            const studentsUnderWatch = getStudentsByViolationCount().filter(s => s.count >= 3);
+            const studentsUnderWatch = getStudentsByViolationCount();
 
             return `
                 <div class="bg-white rounded-xl shadow-lg p-6">
-                    <h2 class="text-2xl font-bold mb-4 flex items-center gap-2 text-red-700">
-                        ⚠️ الطلاب تحت المراقبة (3 مخالفات فأكثر من نفس المعلم)
-                    </h2>
-                    
+                    <h2 class="text-2xl font-bold mb-4 flex items-center gap-2 text-red-700">⚠️ الطلاب تحت المراقبة (3 مخالفات فأكثر من نفس المعلم)</h2>
                     <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
-                        <p class="text-sm text-yellow-900">
-                            <strong>📌 ملاحظة هامة:</strong> يتم احتساب المخالفات لكل معلم بشكل مستقل. الطالب يُحال للوكيل/المرشد فقط عندما يسجل <strong>نفس المعلم</strong> 3 مخالفات أو أكثر عليه.
-                        </p>
+                        <p class="text-sm text-yellow-900"><strong>📌 ملاحظة هامة:</strong> يتم احتساب المخالفات لكل معلم بشكل مستقل. الطالب يُحال للوكيل/المرشد فقط عندما يسجل <strong>نفس المعلم</strong> 3 مخالفات أو أكثر عليه.</p>
                     </div>
-                    
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         ${studentsUnderWatch.length > 0 ? studentsUnderWatch.map((student, index) => {
                             const hasAction = state.studentActions.find(a => 
-                                a.studentName === student.name && 
-                                a.teacherId === student.teacherId &&
-                                a.actionBy === state.currentUser.role
+                                a.studentName === student.name && a.teacherId === student.teacherId && a.actionBy === state.currentUser.role
                             );
-                            
                             return `
-                            <div class="bg-red-50 border-2 border-red-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
-                                <div class="flex items-center justify-between mb-3">
-                                    <h3 class="font-bold text-gray-900">${student.name}</h3>
-                                    <span class="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                                        ${student.count} مخالفات
-                                    </span>
-                                </div>
-                                <div class="text-sm text-gray-600 mb-2">
-                                    ${student.grade} - الشعبة ${student.section}
-                                </div>
-                                <div class="text-xs bg-yellow-100 border border-yellow-300 rounded p-2 mb-2">
-                                    <strong>👨‍🏫 المعلم:</strong> ${student.teacherName}
-                                </div>
-                                <div class="text-xs text-gray-500 mb-3">
-                                    آخر مخالفة: ${student.violations[student.violations.length - 1].date}
-                                </div>
-                                
-                                ${hasAction ? `
-                                    <div class="bg-blue-100 border border-blue-300 rounded p-2 mb-3 text-xs">
-                                        <div class="font-bold text-blue-900 mb-1">✅ تم اتخاذ إجراء</div>
-                                        <div class="text-blue-800">${new Date(hasAction.actionDate).toLocaleDateString('ar-SA')}</div>
+                                <div class="bg-red-50 border-2 border-red-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h3 class="font-bold text-gray-900">${student.name}</h3>
+                                        <span class="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold">${student.count} مخالفات</span>
                                     </div>
-                                ` : ''}
-                                
-                                <div class="flex gap-2 mt-3">
-                                    <button onclick='openActionModal({name:"${student.name.replace(/"/g, '\\"')}",grade:"${student.grade}",section:"${student.section}",teacherId:${student.teacherId},teacherName:"${student.teacherName.replace(/"/g, '\\"')}",count:${student.count},violations:${JSON.stringify(student.violations).replace(/"/g, '&quot;')}})'  
-                                            class="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
-                                        ${hasAction ? '📝 تعديل الإجراء' : '📋 اتخاذ إجراء'}
-                                    </button>
-                                    <button onclick='printStudentReport({name:"${student.name.replace(/"/g, '\\"')}",grade:"${student.grade}",section:"${student.section}",teacherId:${student.teacherId},teacherName:"${student.teacherName.replace(/"/g, '\\"')}",count:${student.count},violations:${JSON.stringify(student.violations).replace(/"/g, '&quot;')}})'  
-                                            class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors">
-                                        🖨️ طباعة
-                                    </button>
+                                    <div class="text-sm text-gray-600 mb-2">${student.grade} - الشعبة ${student.section}</div>
+                                    <div class="text-xs bg-yellow-100 border border-yellow-300 rounded p-2 mb-2"><strong>👨‍🏫 المعلم:</strong> ${student.teacherName}</div>
+                                    <div class="text-xs text-gray-500 mb-3">آخر مخالفة: ${student.violations[student.violations.length - 1].date}</div>
+                                    ${hasAction ? '<div class="bg-blue-100 border border-blue-300 rounded p-2 mb-3 text-xs"><div class="font-bold text-blue-900 mb-1">✅ تم اتخاذ إجراء</div><div class="text-blue-800">' + new Date(hasAction.actionDate).toLocaleDateString('ar-SA') + '</div></div>' : ''}
+                                    <div class="flex gap-2 mt-3">
+                                        <button onclick="openActionModal(${index})" class="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">${hasAction ? '📝 تعديل الإجراء' : '📋 اتخاذ إجراء'}</button>
+                                        <button onclick="printStudentReport(${index})" class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors">🖨️ طباعة</button>
+                                    </div>
                                 </div>
-                            </div>
-                        `}).join('') : `
-                            <div class="col-span-full text-center py-8 text-gray-500">
-                                <div class="text-5xl mb-2">✅</div>
-                                <p>لا يوجد طلاب تحت المراقبة حالياً</p>
-                            </div>
-                        `}
+                            `;
+                        }).join('') : '<div class="col-span-full text-center py-8 text-gray-500"><div class="text-5xl mb-2">✅</div><p>لا يوجد طلاب تحت المراقبة حالياً</p></div>'}
                     </div>
                 </div>
             `;
         }
 
         function renderAddModal() {
-            const isDisabled = !state.newViolation.studentName.trim() || 
-                              !state.newViolation.grade || 
-                              !state.newViolation.section || 
-                              !state.newViolation.violationDetails ||
-                              !state.newViolation.documentation.trim();
+            const isDisabled = !state.newViolation.studentName.trim() || !state.newViolation.grade || !state.newViolation.section || !state.newViolation.violationDetails || !state.newViolation.documentation.trim();
 
             return `
                 <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target === this) closeAddForm()">
                     <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
                         <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
-                            <h2 class="text-2xl font-bold flex items-center gap-2">
-                                ➕ إضافة مخالفة سلوكية جديدة
-                            </h2>
+                            <h2 class="text-2xl font-bold flex items-center gap-2">➕ إضافة مخالفة سلوكية جديدة</h2>
                             <p class="text-blue-100 text-sm mt-1">يرجى ملء جميع البيانات المطلوبة</p>
                         </div>
                         
                         <form onsubmit="event.preventDefault(); addViolation();" class="p-6 space-y-5">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">
-                                    اسم الطالب <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" 
-                                       id="studentNameInput"
-                                       value="${state.newViolation.studentName}" 
-                                       oninput="state.newViolation.studentName = this.value;"
-                                       class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                       placeholder="أدخل اسم الطالب الثلاثي الكامل"
-                                       required
-                                       autocomplete="off">
+                                <label class="block text-sm font-bold text-gray-700 mb-2">اسم الطالب <span class="text-red-500">*</span></label>
+                                <input type="text" value="${state.newViolation.studentName}" oninput="state.newViolation.studentName = this.value;" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="أدخل اسم الطالب الثلاثي الكامل" required autocomplete="off">
                                 <p class="text-xs text-gray-500 mt-1">مثال: أحمد محمد علي</p>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-bold text-gray-700 mb-2">
-                                        الصف <span class="text-red-500">*</span>
-                                    </label>
-                                    <select id="gradeSelect" 
-                                            onchange="state.newViolation.grade = this.value; render();"
-                                            required
-                                            class="w-full px-4 py-3 border-2 ${state.newViolation.grade ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">الصف <span class="text-red-500">*</span></label>
+                                    <select onchange="state.newViolation.grade = this.value; render();" required class="w-full px-4 py-3 border-2 ${state.newViolation.grade ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                         <option value="">اختر الصف</option>
-                                        ${config.grades.map(g => `
-                                            <option value="${g}" ${state.newViolation.grade === g ? 'selected' : ''}>${g}</option>
-                                        `).join('')}
+                                        ${config.grades.map(g => `<option value="${g}" ${state.newViolation.grade === g ? 'selected' : ''}>${g}</option>`).join('')}
                                     </select>
                                 </div>
-                                
                                 <div>
-                                    <label class="block text-sm font-bold text-gray-700 mb-2">
-                                        الشعبة <span class="text-red-500">*</span>
-                                    </label>
-                                    <select id="sectionSelect" 
-                                            onchange="state.newViolation.section = this.value; render();"
-                                            required
-                                            class="w-full px-4 py-3 border-2 ${state.newViolation.section ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">الشعبة <span class="text-red-500">*</span></label>
+                                    <select onchange="state.newViolation.section = this.value; render();" required class="w-full px-4 py-3 border-2 ${state.newViolation.section ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                         <option value="">اختر الشعبة</option>
-                                        ${config.sections.map(s => `
-                                            <option value="${s}" ${state.newViolation.section === s ? 'selected' : ''}>${s}</option>
-                                        `).join('')}
+                                        ${config.sections.map(s => `<option value="${s}" ${state.newViolation.section === s ? 'selected' : ''}>${s}</option>`).join('')}
                                     </select>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">
-                                    درجة المخالفة <span class="text-red-500">*</span>
-                                </label>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">درجة المخالفة <span class="text-red-500">*</span></label>
                                 <div class="grid grid-cols-3 gap-3">
-                                    <button type="button" 
-                                            onclick="state.newViolation.violationType = 'first'; state.newViolation.violationDetails = ''; render();"
-                                            class="p-4 border-2 rounded-lg font-medium transition-all ${
-                                                state.newViolation.violationType === 'first'
-                                                    ? 'border-green-500 bg-green-50 text-green-800'
-                                                    : 'border-gray-300 hover:border-green-300'
-                                            }">
+                                    <button type="button" onclick="state.newViolation.violationType = 'first'; state.newViolation.violationDetails = ''; render();" class="p-4 border-2 rounded-lg font-medium transition-all ${state.newViolation.violationType === 'first' ? 'border-green-500 bg-green-50 text-green-800' : 'border-gray-300 hover:border-green-300'}">
                                         <div class="text-lg mb-1">درجة أولى</div>
                                         <div class="text-xs text-gray-600">(درجة واحدة)</div>
                                     </button>
-                                    
-                                    <button type="button"
-                                            onclick="state.newViolation.violationType = 'second'; state.newViolation.violationDetails = ''; render();"
-                                            class="p-4 border-2 rounded-lg font-medium transition-all ${
-                                                state.newViolation.violationType === 'second'
-                                                    ? 'border-yellow-500 bg-yellow-50 text-yellow-800'
-                                                    : 'border-gray-300 hover:border-yellow-300'
-                                            }">
+                                    <button type="button" onclick="state.newViolation.violationType = 'second'; state.newViolation.violationDetails = ''; render();" class="p-4 border-2 rounded-lg font-medium transition-all ${state.newViolation.violationType === 'second' ? 'border-yellow-500 bg-yellow-50 text-yellow-800' : 'border-gray-300 hover:border-yellow-300'}">
                                         <div class="text-lg mb-1">درجة ثانية</div>
                                         <div class="text-xs text-gray-600">(درجتين)</div>
                                     </button>
-                                    
-                                    <button type="button"
-                                            onclick="state.newViolation.violationType = 'third'; state.newViolation.violationDetails = ''; render();"
-                                            class="p-4 border-2 rounded-lg font-medium transition-all ${
-                                                state.newViolation.violationType === 'third'
-                                                    ? 'border-red-500 bg-red-50 text-red-800'
-                                                    : 'border-gray-300 hover:border-red-300'
-                                            }">
+                                    <button type="button" onclick="state.newViolation.violationType = 'third'; state.newViolation.violationDetails = ''; render();" class="p-4 border-2 rounded-lg font-medium transition-all ${state.newViolation.violationType === 'third' ? 'border-red-500 bg-red-50 text-red-800' : 'border-gray-300 hover:border-red-300'}">
                                         <div class="text-lg mb-1">درجة ثالثة</div>
                                         <div class="text-xs text-gray-600">(ثلاث درجات)</div>
                                     </button>
@@ -1688,66 +1233,34 @@
                             </div>
 
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">
-                                    نوع المخالفة <span class="text-red-500">*</span>
-                                </label>
-                                <select id="violationDetailsSelect" 
-                                        onchange="state.newViolation.violationDetails = this.value; render();"
-                                        required
-                                        class="w-full px-4 py-3 border-2 ${state.newViolation.violationDetails ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <label class="block text-sm font-bold text-gray-700 mb-2">نوع المخالفة <span class="text-red-500">*</span></label>
+                                <select onchange="state.newViolation.violationDetails = this.value; render();" required class="w-full px-4 py-3 border-2 ${state.newViolation.violationDetails ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
                                     <option value="">اختر نوع المخالفة</option>
-                                    ${config.violationTypes[state.newViolation.violationType].items.map(item => `
-                                        <option value="${item}" ${state.newViolation.violationDetails === item ? 'selected' : ''}>${item}</option>
-                                    `).join('')}
+                                    ${config.violationTypes[state.newViolation.violationType].items.map(item => `<option value="${item}" ${state.newViolation.violationDetails === item ? 'selected' : ''}>${item}</option>`).join('')}
                                 </select>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">
-                                    توثيق المخالفة (الإجراء المتبع) <span class="text-red-500">*</span>
-                                </label>
-                                <textarea id="documentationInput" 
-                                          oninput="state.newViolation.documentation = this.value;"
-                                          class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                                          rows="4"
-                                          placeholder="اكتب الإجراء الذي اتخذته مع الطالب (مثال: تم توجيهه شفوياً - تم حرمانه من الفسحة - تم إحالته لوكيل الطلاب...)"
-                                          required>${state.newViolation.documentation}</textarea>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">توثيق المخالفة (الإجراء المتبع) <span class="text-red-500">*</span></label>
+                                <textarea oninput="state.newViolation.documentation = this.value;" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none" rows="4" placeholder="اكتب الإجراء الذي اتخذته مع الطالب (مثال: تم توجيهه شفوياً - تم حرمانه من الفسحة - تم إحالته لوكيل الطلاب...)" required>${state.newViolation.documentation}</textarea>
                                 <p class="text-xs text-red-600 mt-1">⚠️ هذا الحقل إلزامي لتوثيق الإجراء المتخذ</p>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">التاريخ</label>
-                                    <input id="dateInput" 
-                                           type="date" 
-                                           value="${state.newViolation.date}"
-                                           onchange="state.newViolation.date = this.value;"
-                                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <input type="date" value="${state.newViolation.date}" onchange="state.newViolation.date = this.value;" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
-                                
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">الوقت</label>
-                                    <input id="timeInput" 
-                                           type="time" 
-                                           value="${state.newViolation.time}"
-                                           onchange="state.newViolation.time = this.value;"
-                                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <input type="time" value="${state.newViolation.time}" onchange="state.newViolation.time = this.value;" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                             </div>
                         </form>
 
                         <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl flex gap-3 justify-end">
-                            <button type="button"
-                                    onclick="closeAddForm()"
-                                    class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">
-                                إلغاء
-                            </button>
-                            <button type="button"
-                                    onclick="addViolation()"
-                                    ${isDisabled ? 'disabled title="يرجى ملء جميع الحقول المطلوبة"' : ''}
-                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg ${
-                                        isDisabled ? 'opacity-50 cursor-not-allowed' : ''
-                                    }">
+                            <button type="button" onclick="closeAddForm()" class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">إلغاء</button>
+                            <button type="button" onclick="addViolation()" ${isDisabled ? 'disabled' : ''} class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}">
                                 ${isDisabled ? '⚠️ يرجى ملء جميع البيانات' : '✔ حفظ المخالفة'}
                             </button>
                         </div>
@@ -1764,31 +1277,17 @@
                 <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50">
                     <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
-                            <h2 class="text-2xl font-bold flex items-center gap-2">
-                                👁️ تفاصيل المخالفة
-                            </h2>
+                            <h2 class="text-2xl font-bold flex items-center gap-2">👁️ تفاصيل المخالفة</h2>
                         </div>
                         
                         <div class="p-6 space-y-4">
                             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                                 <h3 class="font-bold text-lg text-gray-900 mb-3">معلومات الطالب</h3>
                                 <div class="grid grid-cols-2 gap-3 text-sm">
-                                    <div>
-                                        <span class="text-gray-600">الاسم:</span>
-                                        <span class="font-bold mr-2">${v.studentName}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-600">الصف:</span>
-                                        <span class="font-bold mr-2">${v.grade}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-600">الشعبة:</span>
-                                        <span class="font-bold mr-2">${v.section}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-600">عدد المخالفات من هذا المعلم:</span>
-                                        <span class="font-bold mr-2">${getStudentViolationCount(v.studentName, v.teacherId)}</span>
-                                    </div>
+                                    <div><span class="text-gray-600">الاسم:</span><span class="font-bold mr-2">${v.studentName}</span></div>
+                                    <div><span class="text-gray-600">الصف:</span><span class="font-bold mr-2">${v.grade}</span></div>
+                                    <div><span class="text-gray-600">الشعبة:</span><span class="font-bold mr-2">${v.section}</span></div>
+                                    <div><span class="text-gray-600">عدد المخالفات من هذا المعلم:</span><span class="font-bold mr-2">${getStudentViolationCount(v.studentName, v.teacherId)}</span></div>
                                 </div>
                             </div>
 
@@ -1796,68 +1295,31 @@
                                 <h3 class="font-bold text-lg text-gray-900 mb-3">تفاصيل المخالفة</h3>
                                 <div class="space-y-2 text-sm">
                                     <div class="flex items-center gap-2">
-                                        <span class="px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(v.violationType)}">
-                                            ${getDegreeLabel(v.violationType)}
-                                        </span>
+                                        <span class="px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(v.violationType)}">${getDegreeLabel(v.violationType)}</span>
                                     </div>
-                                    <div>
-                                        <span class="text-gray-600">نوع المخالفة:</span>
-                                        <p class="font-bold mt-1">${v.violationDetails}</p>
-                                    </div>
-                                    ${v.documentation ? `
-                                        <div>
-                                            <span class="text-gray-600">التوثيق:</span>
-                                            <p class="mt-1 text-gray-800">${v.documentation}</p>
-                                        </div>
-                                    ` : ''}
+                                    <div><span class="text-gray-600">نوع المخالفة:</span><p class="font-bold mt-1">${v.violationDetails}</p></div>
+                                    ${v.documentation ? `<div><span class="text-gray-600">التوثيق:</span><p class="mt-1 text-gray-800">${v.documentation}</p></div>` : ''}
                                 </div>
                             </div>
 
                             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                                 <h3 class="font-bold text-lg text-gray-900 mb-3">معلومات التسجيل</h3>
                                 <div class="grid grid-cols-2 gap-3 text-sm">
-                                    <div>
-                                        <span class="text-gray-600">المعلم:</span>
-                                        <span class="font-bold mr-2">${v.teacherName}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-600">التاريخ:</span>
-                                        <span class="font-bold mr-2">${v.date}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-600">الوقت:</span>
-                                        <span class="font-bold mr-2">${v.time}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-600">الحالة:</span>
-                                        <span class="font-bold mr-2 ${v.status === 'active' ? 'text-orange-600' : 'text-green-600'}">
-                                            ${v.status === 'active' ? 'نشطة' : 'محلولة'}
-                                        </span>
-                                    </div>
+                                    <div><span class="text-gray-600">المعلم:</span><span class="font-bold mr-2">${v.teacherName}</span></div>
+                                    <div><span class="text-gray-600">التاريخ:</span><span class="font-bold mr-2">${v.date}</span></div>
+                                    <div><span class="text-gray-600">الوقت:</span><span class="font-bold mr-2">${v.time}</span></div>
+                                    <div><span class="text-gray-600">الحالة:</span><span class="font-bold mr-2 ${v.status === 'active' ? 'text-orange-600' : 'text-green-600'}">${v.status === 'active' ? 'نشطة' : 'محلولة'}</span></div>
                                 </div>
                             </div>
 
                             ${v.status === 'resolved' && v.resolutionReason ? `
                                 <div class="bg-green-50 rounded-lg p-4 border-2 border-green-200">
-                                    <h3 class="font-bold text-lg text-green-900 mb-3 flex items-center gap-2">
-                                        🏆 معلومات الحل
-                                    </h3>
+                                    <h3 class="font-bold text-lg text-green-900 mb-3 flex items-center gap-2">🏆 معلومات الحل</h3>
                                     <div class="space-y-2 text-sm">
-                                        <div>
-                                            <span class="text-green-700">السلوك الإيجابي:</span>
-                                            <p class="font-bold mt-1 text-green-900">${v.resolutionReason}</p>
-                                        </div>
+                                        <div><span class="text-green-700">السلوك الإيجابي:</span><p class="font-bold mt-1 text-green-900">${v.resolutionReason}</p></div>
                                         <div class="grid grid-cols-2 gap-3 mt-3">
-                                            <div>
-                                                <span class="text-green-700">تم الحل بواسطة:</span>
-                                                <span class="font-bold mr-2 text-green-900">${v.resolvedBy}</span>
-                                            </div>
-                                            <div>
-                                                <span class="text-green-700">تاريخ الحل:</span>
-                                                <span class="font-bold mr-2 text-green-900">
-                                                    ${new Date(v.resolvedAt).toLocaleDateString('ar-SA')}
-                                                </span>
-                                            </div>
+                                            <div><span class="text-green-700">تم الحل بواسطة:</span><span class="font-bold mr-2 text-green-900">${v.resolvedBy}</span></div>
+                                            <div><span class="text-green-700">تاريخ الحل:</span><span class="font-bold mr-2 text-green-900">${new Date(v.resolvedAt).toLocaleDateString('ar-SA')}</span></div>
                                         </div>
                                     </div>
                                 </div>
@@ -1865,10 +1327,7 @@
                         </div>
 
                         <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl">
-                            <button onclick="closeDetailsModal()"
-                                    class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                                إغلاق
-                            </button>
+                            <button onclick="closeDetailsModal()" class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">إغلاق</button>
                         </div>
                     </div>
                 </div>
@@ -1880,18 +1339,14 @@
             if (!student) return '';
 
             const existingAction = state.studentActions.find(a => 
-                a.studentName === student.name && 
-                a.teacherId === student.teacherId &&
-                a.actionBy === state.currentUser.role
+                a.studentName === student.name && a.teacherId === student.teacherId && a.actionBy === state.currentUser.role
             );
 
             return `
                 <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target === this) closeActionModal()">
                     <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
                         <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
-                            <h2 class="text-2xl font-bold flex items-center gap-2">
-                                📋 ${existingAction ? 'تعديل' : 'اتخاذ'} الإجراء - ${getRoleLabel(state.currentUser.role)}
-                            </h2>
+                            <h2 class="text-2xl font-bold flex items-center gap-2">📋 ${existingAction ? 'تعديل' : 'اتخاذ'} الإجراء - ${getRoleLabel(state.currentUser.role)}</h2>
                             <p class="text-blue-100 text-sm mt-1">الطالب: ${student.name} | المعلم: ${student.teacherName}</p>
                         </div>
                         
@@ -1899,26 +1354,12 @@
                             <div class="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-6">
                                 <h3 class="font-bold text-lg text-red-900 mb-3">معلومات الطالب</h3>
                                 <div class="grid grid-cols-2 gap-3 text-sm mb-4">
-                                    <div>
-                                        <span class="text-gray-600">الاسم:</span>
-                                        <span class="font-bold mr-2">${student.name}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-600">الصف:</span>
-                                        <span class="font-bold mr-2">${student.grade}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-600">الشعبة:</span>
-                                        <span class="font-bold mr-2">${student.section}</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-gray-600">عدد المخالفات:</span>
-                                        <span class="font-bold mr-2 text-red-600">${student.count} مخالفات</span>
-                                    </div>
+                                    <div><span class="text-gray-600">الاسم:</span><span class="font-bold mr-2">${student.name}</span></div>
+                                    <div><span class="text-gray-600">الصف:</span><span class="font-bold mr-2">${student.grade}</span></div>
+                                    <div><span class="text-gray-600">الشعبة:</span><span class="font-bold mr-2">${student.section}</span></div>
+                                    <div><span class="text-gray-600">عدد المخالفات:</span><span class="font-bold mr-2 text-red-600">${student.count} مخالفات</span></div>
                                 </div>
-                                <div class="bg-yellow-100 border border-yellow-300 rounded p-2 text-sm">
-                                    <strong>👨‍🏫 المعلم المسجل:</strong> ${student.teacherName}
-                                </div>
+                                <div class="bg-yellow-100 border border-yellow-300 rounded p-2 text-sm"><strong>👨‍🏫 المعلم المسجل:</strong> ${student.teacherName}</div>
                             </div>
 
                             <div class="mb-6">
@@ -1928,21 +1369,57 @@
                                         <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                             <div class="flex items-start justify-between mb-2">
                                                 <div class="flex-1">
-                                                    <div class="font-bold text-gray-900 mb-1">
-                                                        ${index + 1}. ${v.violationDetails}
-                                                    </div>
-                                                    <div class="text-sm text-gray-600">
-                                                        📅 ${v.date} | 🕐 ${v.time}
-                                                    </div>
-                                                    ${v.documentation ? `
-                                                        <div class="text-sm text-gray-700 mt-2 bg-white p-2 rounded border border-gray-200">
-                                                            ${v.documentation}
-                                                        </div>
-                                                    ` : ''}
+                                                    <div class="font-bold text-gray-900 mb-1">${index + 1}. ${v.violationDetails}</div>
+                                                    <div class="text-sm text-gray-600">📅 ${v.date} | 🕐 ${v.time}</div>
+                                                    ${v.documentation ? `<div class="text-sm text-gray-700 mt-2 bg-white p-2 rounded border border-gray-200">${v.documentation}</div>` : ''}
                                                 </div>
-                                                <span class="px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(v.violationType)} whitespace-nowrap mr-3">
-                                                    ${getDegreeLabel(v.violationType)}
-                                                </span>
+                                                <span class="px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(v.violationType)} whitespace-nowrap mr-3">${getDegreeLabel(v.violationType)}</span>
                                             </div>
                                         </div>
-                                    `).join
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
+                                <h3 class="font-bold text-lg text-blue-900 mb-3">📋 الإجراء المتخذ من قبل ${getRoleLabel(state.currentUser.role)}</h3>
+                                <textarea id="actionDetailsInput" class="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none" rows="6" placeholder="أدخل تفاصيل الإجراء المتخذ (مثال: تم استدعاء ولي الأمر - توقيع تعهد - توجيه وإرشاد...)">${existingAction ? existingAction.actionDetails : ''}</textarea>
+                                <p class="text-sm text-blue-700 mt-2">💡 يرجى كتابة الإجراء المتخذ بشكل واضح ومفصل</p>
+                            </div>
+                        </div>
+
+                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl flex gap-3 justify-end">
+                            <button type="button" onclick="closeActionModal()" class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">إلغاء</button>
+                            <button type="button" onclick="saveStudentAction()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg">💾 حفظ الإجراء</button>
+                            ${existingAction ? '<button type="button" onclick="printStudentReport(' + getStudentsByViolationCount().findIndex(s => s.name === student.name && s.teacherId === student.teacherId) + ')" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg">🖨️ طباعة التقرير</button>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // Initialize Application
+        // ==========================================
+        async function initApp() {
+            if (!isFirebaseInitialized) {
+                console.warn('⚠️ تحذير: Firebase غير متصل - يعمل النظام في وضع عدم الاتصال');
+                render();
+                return;
+            }
+
+            try {
+                await loadViolations();
+                await loadStudentActions();
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                hideLoading();
+                alert('خطأ في تحميل البيانات: ' + error.message);
+                render();
+            }
+        }
+
+        // Don't auto-start - wait for Firebase
+        // initApp() will be called from the setTimeout above
+    </script>
+</body>
+</html>
