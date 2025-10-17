@@ -54,12 +54,36 @@
             newViolation: { studentName:'', grade:'', section:'', violationType:'first', violationDetails:'', documentation:'', date:new Date().toISOString().split('T')[0], time:new Date().toTimeString().slice(0,5) }
         };
 
-        /* ---------- Absence Data ---------- */
-        let absenceRecords = [
-            {id:1, grade:'أول متوسط', section:'1', period:'1', date:'2025-01-17', absentCount:3, absentStudents:['أحمد محمد علي','خالد عبدالله سعيد','فيصل إبراهيم الحربي'], totalStudents:30, teacherName:teachersList[0], recordedAt:new Date().toISOString()},
-            {id:2, grade:'ثاني متوسط', section:'3', period:'1', date:'2025-01-17', absentCount:2, absentStudents:['محمد سعد القحطاني','عبدالرحمن الشمري'], totalStudents:27, teacherName:teachersList[1], recordedAt:new Date().toISOString()},
-            {id:3, grade:'ثالث متوسط', section:'2', period:'1', date:'2025-01-17', absentCount:4, absentStudents:['سعود العتيبي','ماجد الدوسري','طارق المطيري','ناصر الحارثي'], totalStudents:29, teacherName:teachersList[2], recordedAt:new Date().toISOString()}
-        ];
+        /* ========== ✅ Absence Data with LocalStorage ========== */
+        let absenceRecords = [];
+
+        // ✅ تحميل بيانات الغياب من LocalStorage
+        function loadAbsenceFromStorage() {
+            try {
+                const saved = localStorage.getItem('absenceRecords');
+                if (saved) {
+                    absenceRecords = JSON.parse(saved);
+                    console.log('✅ تم تحميل', absenceRecords.length, 'سجل غياب من LocalStorage');
+                    return true;
+                }
+            } catch (e) {
+                console.error('❌ خطأ في تحميل الغياب:', e);
+            }
+            return false;
+        }
+
+        // ✅ تحميل البيانات عند فتح الصفحة
+        loadAbsenceFromStorage();
+
+        // ✅ تحديث تلقائي كل 3 ثواني للوكيل فقط
+        setInterval(() => {
+            if (state.currentUser.role === 'assistant') {
+                const updated = loadAbsenceFromStorage();
+                if (updated) {
+                    render();
+                }
+            }
+        }, 3000);
 
         window.addEventListener('message', e => {
             if (e.data && e.data.type === 'absenceData') {
@@ -142,7 +166,14 @@
                 }
             }
             if (role === 'teacher' && !name) name = teachersList[0];
-            state.currentUser = { role, name, id }; render();
+            state.currentUser = { role, name, id }; 
+            
+            // ✅ تحديث بيانات الغياب عند تغيير المستخدم
+            if (role === 'assistant') {
+                loadAbsenceFromStorage();
+            }
+            
+            render();
         }
         function setFilter(k, v) { state.filters[k] = v; render(); }
         function clearFilters() {
@@ -181,6 +212,7 @@
             state.studentActions.push({ id:Math.max(0, ...state.studentActions.map(a=>a.id||0)) + 1, studentName:student.name, actionBy:state.currentUser.role, actionByName:state.currentUser.name, actionDate:new Date().toISOString(), actionDetails:details, violationsIncluded:student.violations.map(v=>v.id) });
             alert('✅ تم حفظ الإجراء بنجاح!'); closeActionModal();
         }
+
         function printStudentReport(studentData) {
             const student = studentData; const action = state.studentActions.find(a => a.studentName === student.name && a.actionBy === state.currentUser.role);
             const pw = window.open('', '_blank');
@@ -251,6 +283,7 @@
                 ${state.modals.showActionModal ? renderActionModal() : ''}
             `;
         }
+        
         function renderHeader() {
             return `<div class="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white shadow-2xl">
                 <div class="max-w-7xl mx-auto px-6 py-8">
@@ -265,6 +298,7 @@
                 </div>
             </div>`;
         }
+        
         function renderUserTabs() {
             const isActive = r => state.currentUser.role === r;
             const btn = (role, icon, label) => `<button onclick="setCurrentUser('${role}', '${config.schoolInfo[role]}', ${role==='teacher'?1:role==='assistant'?2:role==='counselor'?3:4})" class="flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${isActive(role)?'bg-blue-600 text-white shadow-lg scale-105':'bg-gray-100 text-gray-700 hover:bg-gray-200'}">${icon} ${label}</button>`;
@@ -285,6 +319,7 @@
                 </div>
             </div>`;
         }
+        
         function renderMainContent(stats, filtered) {
             return `<div class="max-w-7xl mx-auto px-6 py-6">
                 ${renderStats(stats)}
@@ -293,6 +328,7 @@
                 ${renderAbsenceBlock()}
             </div>`;
         }
+        
         function renderStats({active, resolved, studentsUnderWatch, today}) {
             return `<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                 <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-500"><div class="flex items-center justify-between mb-3"><span class="text-4xl">⚠️</span><div class="text-3xl font-bold text-blue-600">${active}</div></div><div class="text-gray-600 font-medium">المخالفات النشطة</div></div>
@@ -301,6 +337,7 @@
                 <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-purple-500"><div class="flex items-center justify-between mb-3"><span class="text-4xl">📅</span><div class="text-3xl font-bold text-purple-600">${today}</div></div><div class="text-gray-600 font-medium">مخالفات اليوم</div></div>
             </div>`;
         }
+        
         function renderViolationsSection(stats, filtered) {
             const tabClass = tab => `px-5 py-2.5 rounded-lg font-medium transition-all ${state.filters.selectedTab===tab?'bg-blue-600 text-white shadow-md':'text-gray-600 hover:bg-gray-100'}`;
             const hasFilters = state.filters.searchStudent||state.filters.filterGrade||state.filters.filterSection||state.filters.dateFrom||state.filters.dateTo;
@@ -332,6 +369,7 @@
                 <div class="p-4 bg-gray-50 border-t text-center text-sm text-gray-600">عرض ${filtered.length} من أصل ${state.violations.length} مخالفة</div>
             </div>`;
         }
+        
         function renderViolationItem(v) {
             const count = getStudentViolationCount(v.studentName, v.teacherId); const high = count >= 3;
             return `
@@ -365,6 +403,7 @@
                     </div>
                 </div>`;
         }
+        
         function renderStudentsUnderWatch() {
             if (!['assistant','counselor','principal'].includes(state.currentUser.role)) return '';
             const students = getStudentsByViolationCount().filter(s => s.count >= 3);
@@ -390,9 +429,10 @@
                 </div>`;
         }
 
-        /* ---------- ✅ Absence Block with Student Names ---------- */
+        /* ========== ✅ Absence Block with LocalStorage Sync ========== */
         function renderAbsenceBlock() {
             if (state.currentUser.role !== 'assistant') return '';
+            
             const filtered = absenceRecords.filter(a => {
                 if (state.filters.filterGrade && a.grade !== state.filters.filterGrade) return false;
                 if (state.filters.filterSection && a.section !== state.filters.filterSection) return false;
@@ -400,6 +440,14 @@
                 if (state.filters.dateTo && a.date > state.filters.dateTo) return false;
                 return true;
             });
+            
+            const lastUpdate = localStorage.getItem('lastUpdate');
+            const syncStatus = lastUpdate ? `
+                <div class="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-1 rounded-lg">
+                    <span class="text-lg">✅</span>
+                    <span>متزامن - آخر تحديث: ${new Date(lastUpdate).toLocaleTimeString('ar-SA')}</span>
+                </div>
+            ` : '<div class="text-sm text-gray-500">لا توجد بيانات محفوظة</div>';
             
             const printHandler = () => {
                 const pw = window.open('', '_blank');
@@ -412,7 +460,10 @@
             return `
                 <div class="bg-white rounded-xl shadow-lg p-6 mt-6">
                     <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">📋 سجل الغياب (${filtered.length} سجلات)</h2>
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2">📋 سجل الغياب (${filtered.length} سجلات)</h2>
+                            ${syncStatus}
+                        </div>
                         <button onclick="(${printHandler})()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow">🖨️ طباعة</button>
                     </div>
                     <div class="overflow-x-auto">
@@ -516,7 +567,7 @@
             `;
         }
 
-        /* ---------- Modals (kept simple) ---------- */
+        /* ---------- Modals ---------- */
         function renderAddModal() { return ''; }
         function renderDetailsModal() { return ''; }
         function renderActionModal() { return ''; }
@@ -525,6 +576,5 @@
         render();
     </script>
 </body>
-</html> 
-
+</html>
                 
