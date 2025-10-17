@@ -735,7 +735,25 @@
         }
 
         function openDetailsModal(violation) {
-            state.modals.selectedViolation = violation;
+            // حفظ نسخة آمنة من بيانات المخالفة
+            state.modals.selectedViolation = {
+                id: violation.id,
+                studentName: violation.studentName,
+                grade: violation.grade,
+                section: violation.section,
+                violationType: violation.violationType,
+                violationDetails: violation.violationDetails,
+                documentation: violation.documentation,
+                teacherName: violation.teacherName,
+                teacherId: violation.teacherId,
+                date: violation.date,
+                time: violation.time,
+                status: violation.status,
+                createdAt: violation.createdAt,
+                resolvedBy: violation.resolvedBy,
+                resolutionReason: violation.resolutionReason,
+                resolvedAt: violation.resolvedAt
+            };
             state.modals.showDetailsModal = true;
             render();
         }
@@ -748,7 +766,30 @@
 
         function openActionModal(studentData) {
             state.modals.showActionModal = true;
-            state.modals.selectedStudent = studentData;
+            // حفظ نسخة آمنة من بيانات الطالب بدون دوال
+            state.modals.selectedStudent = {
+                name: studentData.name,
+                grade: studentData.grade,
+                section: studentData.section,
+                teacherId: studentData.teacherId,
+                teacherName: studentData.teacherName,
+                count: studentData.count,
+                violations: studentData.violations.map(v => ({
+                    id: v.id,
+                    studentName: v.studentName,
+                    grade: v.grade,
+                    section: v.section,
+                    violationType: v.violationType,
+                    violationDetails: v.violationDetails,
+                    documentation: v.documentation,
+                    teacherName: v.teacherName,
+                    teacherId: v.teacherId,
+                    date: v.date,
+                    time: v.time,
+                    status: v.status,
+                    createdAt: v.createdAt
+                }))
+            };
             render();
         }
 
@@ -797,7 +838,16 @@
         }
 
         function printStudentReport(studentData) {
-            const student = studentData;
+            const student = {
+                name: studentData.name,
+                grade: studentData.grade,
+                section: studentData.section,
+                teacherId: studentData.teacherId,
+                teacherName: studentData.teacherName,
+                count: studentData.count,
+                violations: studentData.violations
+            };
+            
             const action = state.studentActions.find(a => 
                 a.studentName === student.name && 
                 a.teacherId === student.teacherId &&
@@ -1439,7 +1489,7 @@
                         </div>
 
                         <div class="flex flex-col gap-2">
-                            <button onclick='openDetailsModal(${JSON.stringify(v).replace(/'/g, "\\'")})'
+                            <button onclick='openDetailsModal({id:"${v.id}",studentName:"${v.studentName.replace(/"/g, '\\"')}",grade:"${v.grade}",section:"${v.section}",violationType:"${v.violationType}",violationDetails:"${v.violationDetails.replace(/"/g, '\\"')}",documentation:"${(v.documentation || '').replace(/"/g, '\\"')}",teacherName:"${v.teacherName.replace(/"/g, '\\"')}",teacherId:${v.teacherId},date:"${v.date}",time:"${v.time}",status:"${v.status}",createdAt:"${v.createdAt}",resolvedBy:"${v.resolvedBy || ''}",resolutionReason:"${(v.resolutionReason || '').replace(/"/g, '\\"')}",resolvedAt:"${v.resolvedAt || '"}"})'
                                     class="flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors whitespace-nowrap">
                                 👁️ التفاصيل
                             </button>
@@ -1511,11 +1561,11 @@
                                 ` : ''}
                                 
                                 <div class="flex gap-2 mt-3">
-                                    <button onclick='openActionModal(${JSON.stringify(student).replace(/'/g, "\\'")})'  
+                                    <button onclick='openActionModal({name:"${student.name.replace(/"/g, '\\"')}",grade:"${student.grade}",section:"${student.section}",teacherId:${student.teacherId},teacherName:"${student.teacherName.replace(/"/g, '\\"')}",count:${student.count},violations:${JSON.stringify(student.violations).replace(/"/g, '&quot;')}})'  
                                             class="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
                                         ${hasAction ? '📝 تعديل الإجراء' : '📋 اتخاذ إجراء'}
                                     </button>
-                                    <button onclick='printStudentReport(${JSON.stringify(student).replace(/'/g, "\\'")})'  
+                                    <button onclick='printStudentReport({name:"${student.name.replace(/"/g, '\\"')}",grade:"${student.grade}",section:"${student.section}",teacherId:${student.teacherId},teacherName:"${student.teacherName.replace(/"/g, '\\"')}",count:${student.count},violations:${JSON.stringify(student.violations).replace(/"/g, '&quot;')}})'  
                                             class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors">
                                         🖨️ طباعة
                                     </button>
