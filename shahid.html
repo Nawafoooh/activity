@@ -534,6 +534,82 @@
             return state.notificationsSent.find(n => n.violationId === violationId);
         }
 
+        // ==========================================
+        // Admin Assistant Functions - MUST BE BEFORE RENDER
+        // ==========================================
+        window.markAsSent = async function(violationId) {
+            console.log('🔘 تم الضغط على زر "تم الإرسال" للمخالفة:', violationId);
+            
+            // التأكيد أولاً
+            const confirmSend = confirm('⚠️ تأكيد الإرسال\n\nهل قمت فعلاً بإرسال الإشعار لولي الأمر عبر الواتساب؟\n\n✅ اضغط "موافق" فقط إذا تم إرسال الإشعار\n❌ اضغط "إلغاء" إذا لم ترسل بعد');
+            
+            if (!confirmSend) {
+                console.log('❌ المستخدم ألغى العملية');
+                return;
+            }
+            
+            console.log('✅ المستخدم أكد الإرسال');
+            
+            // طلب الملاحظات
+            const notes = prompt('📝 ملاحظات إضافية (اختياري):\n\nأمثلة:\n- تم الرد - ولي الأمر متعاون\n- لم يرد على الهاتف\n- وعد بالمتابعة\n\nاترك فارغاً إذا لم تكن هناك ملاحظات');
+            
+            if (notes === null) {
+                console.log('❌ المستخدم ألغى في مرحلة الملاحظات');
+                return;
+            }
+            
+            console.log('📝 الملاحظات:', notes || 'بدون ملاحظات');
+            
+            try {
+                showLoading();
+                
+                // حفظ في Firebase
+                if (isFirebaseInitialized) {
+                    try {
+                        const notifId = await markNotificationAsSent(violationId, notes || '');
+                        console.log('✅ تم الحفظ في Firebase بنجاح:', notifId);
+                    } catch (firebaseError) {
+                        console.error('⚠️ خطأ Firebase (سيتم الحفظ محلياً):', firebaseError);
+                    }
+                }
+                
+                // حفظ في الحالة المحلية
+                const notification = {
+                    id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    violationId: violationId,
+                    sentBy: state.currentUser.name,
+                    sentAt: new Date().toISOString(),
+                    notes: notes || ''
+                };
+                
+                state.notificationsSent.unshift(notification);
+                console.log('✅ تم الحفظ في الحالة المحلية');
+                console.log('📊 عدد الإشعارات المرسلة:', state.notificationsSent.length);
+                
+                hideLoading();
+                
+                // رسالة نجاح مفصلة
+                let successMsg = '✅ تم تسجيل إرسال الإشعار بنجاح!\n\n';
+                successMsg += `📅 التاريخ: ${new Date().toLocaleDateString('ar-SA')}\n`;
+                successMsg += `🕐 الوقت: ${new Date().toLocaleTimeString('ar-SA', {hour: '2-digit', minute: '2-digit'})}\n`;
+                successMsg += `👤 أرسل بواسطة: ${state.currentUser.name}`;
+                if (notes && notes.trim()) {
+                    successMsg += `\n📝 الملاحظات: ${notes}`;
+                }
+                
+                alert(successMsg);
+                
+                console.log('🔄 إعادة رسم الواجهة...');
+                render();
+                console.log('✅ تمت العملية بنجاح');
+                
+            } catch (error) {
+                hideLoading();
+                console.error('❌ خطأ في حفظ البيانات:', error);
+                alert('❌ خطأ في حفظ البيانات:\n\n' + error.message);
+            }
+        };
+
         function getStats() {
             let violations = [...state.violations];
             
@@ -943,6 +1019,11 @@
         // Render Functions
         // ==========================================
         function render() {
+            console.log('🎨 بدء رسم الواجهة...');
+            console.log('👤 المستخدم الحالي:', state.currentUser.role, state.currentUser.name);
+            console.log('📊 عدد المخالفات:', state.violations.length);
+            console.log('📢 عدد الإشعارات المرسلة:', state.notificationsSent.length);
+            
             const app = document.getElementById('app');
             app.innerHTML = `
                 ${renderHeader()}
@@ -952,6 +1033,8 @@
                 ${state.modals.showDetailsModal ? renderDetailsModal() : ''}
                 ${state.modals.showActionModal ? renderActionModal() : ''}
             `;
+            
+            console.log('✅ تم رسم الواجهة');
         }
 
         function renderHeader() {
