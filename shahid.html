@@ -133,7 +133,8 @@
         // ==========================================
         const COLLECTIONS = {
             violations: 'violations',
-            studentActions: 'studentActions'
+            studentActions: 'studentActions',
+            notificationsSent: 'notificationsSent'
         };
 
         const teachersList = [
@@ -184,13 +185,15 @@
             passwords: {
                 principal: 'A2030',
                 assistant: 'B2030',
-                counselor: 'C2030'
+                counselor: 'C2030',
+                admin_assistant: 'D2030'
             },
             schoolInfo: {
                 name: 'متوسطة المنذر بن عمرو الأنصاري',
                 principal: 'خالد المطيري',
                 assistant: 'محمد الجابري',
                 counselor: 'محمد القحطاني',
+                adminAssistant: 'المساعد الإداري',
                 type: 'بنين'
             },
             grades: ['أول متوسط', 'ثاني متوسط', 'ثالث متوسط'],
@@ -240,10 +243,12 @@
             authenticated: {
                 principal: false,
                 assistant: false,
-                counselor: false
+                counselor: false,
+                admin_assistant: false
             },
             violations: [],
             studentActions: [],
+            notificationsSent: [],
             filters: {
                 selectedTab: 'all',
                 searchStudent: '',
@@ -371,17 +376,39 @@
             }
         }
 
-        async function addStudentActionToFirebase(action) {
+        async function loadNotificationsSent() {
+            if (!isFirebaseInitialized) return;
+            
+            try {
+                const { collection, getDocs, query, orderBy } = window.firestoreModules;
+                const q = query(collection(db, COLLECTIONS.notificationsSent), orderBy('sentAt', 'desc'));
+                const snapshot = await getDocs(q);
+                
+                state.notificationsSent = [];
+                snapshot.forEach(doc => {
+                    state.notificationsSent.push({ id: doc.id, ...doc.data() });
+                });
+                
+                console.log(`✅ تم تحميل ${state.notificationsSent.length} إشعار`);
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+
+        async function markNotificationAsSent(violationId, notes = '') {
             if (!isFirebaseInitialized) return null;
             
             try {
-                showLoading();
                 const { collection, addDoc } = window.firestoreModules;
-                const docRef = await addDoc(collection(db, COLLECTIONS.studentActions), action);
-                hideLoading();
+                const notification = {
+                    violationId: violationId,
+                    sentBy: state.currentUser.name,
+                    sentAt: new Date().toISOString(),
+                    notes: notes
+                };
+                const docRef = await addDoc(collection(db, COLLECTIONS.notificationsSent), notification);
                 return docRef.id;
             } catch (error) {
-                hideLoading();
                 throw error;
             }
         }
@@ -446,7 +473,8 @@
                 teacher: 'المعلم',
                 assistant: 'الوكيل',
                 counselor: 'الموجه الطلابي',
-                principal: 'المدير'
+                principal: 'المدير',
+                admin_assistant: 'المساعد الإداري'
             };
             return labels[role];
         }
@@ -533,7 +561,7 @@
         // Action Handlers
         // ==========================================
         window.setCurrentUser = function(role, name, id) {
-            if (role === 'principal' || role === 'assistant' || role === 'counselor') {
+            if (role === 'principal' || role === 'assistant' || role === 'counselor' || role === 'admin_assistant') {
                 if (!state.authenticated[role]) {
                     const password = prompt(`🔒 يرجى إدخال كلمة السر لصفحة ${getRoleLabel(role)}:`);
                     
@@ -557,6 +585,9 @@
             state.currentUser = { role, name, id };
             loadViolations();
             loadStudentActions();
+            if (role === 'admin_assistant') {
+                loadNotificationsSent();
+            }
         };
 
         window.setFilter = function(key, value) {
@@ -964,6 +995,9 @@
                                 <button onclick="setCurrentUser('principal', '${config.schoolInfo.principal}', 997)" class="${btnClass('principal')}">
                                     ${isLocked('principal') ? '🔒' : '🏛️'} صفحة المدير
                                 </button>
+                                <button onclick="setCurrentUser('admin_assistant', '${config.schoolInfo.adminAssistant}', 996)" class="${btnClass('admin_assistant')}">
+                                    ${isLocked('admin_assistant') ? '🔒' : '📞'} المساعد الإداري
+                                </button>
                             </div>
                             <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
                                 <p class="text-sm text-blue-900"><span class="font-bold">المستخدم الحالي:</span> ${state.currentUser.name} - ${getRoleLabel(state.currentUser.role)}</p>
@@ -978,11 +1012,139 @@
             const stats = getStats();
             const filtered = getFilteredViolations();
 
+            // Show admin assistant dashboard
+            if (state.currentUser.role === 'admin_assistant') {
+                return renderAdminAssistantDashboard();
+            }
+
             return `
                 <div class="max-w-7xl mx-auto px-6 py-6">
                     ${renderStats(stats)}
                     ${renderViolationsSection(filtered)}
                     ${renderStudentsUnderWatch()}
+                </div>
+            `;
+        }
+
+        function renderAdminAssistantDashboard() {
+            const pendingNotifications = state.violations.filter(v => 
+                v.status === 'active' && !isNotificationSent(v.id)
+            );
+            
+            const sentNotifications = state.violations.filter(v => 
+                isNotificationSent(v.id)
+            );
+
+            return `
+                <div class="max-w-7xl mx-auto px-6 py-6">
+                    <!-- Statistics -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-red-500">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-4xl">📢</span>
+                                <div class="text-3xl font-bold text-red-600">${pendingNotifications.length}</div>
+                            </div>
+                            <div class="text-gray-600 font-medium">إشعارات قيد الانتظار</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-green-500">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-4xl">✅</span>
+                                <div class="text-3xl font-bold text-green-600">${state.notificationsSent.length}</div>
+                            </div>
+                            <div class="text-gray-600 font-medium">إشعارات تم إرسالها</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-500">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-4xl">📊</span>
+                                <div class="text-3xl font-bold text-blue-600">${state.violations.length}</div>
+                            </div>
+                            <div class="text-gray-600 font-medium">إجمالي المخالفات</div>
+                        </div>
+                    </div>
+
+                    <!-- Pending Notifications -->
+                    <div class="bg-white rounded-xl shadow-lg mb-6">
+                        <div class="border-b px-6 py-4 bg-red-50">
+                            <h2 class="text-2xl font-bold text-red-800 flex items-center gap-2">
+                                📢 إشعارات قيد الانتظار (${pendingNotifications.length})
+                            </h2>
+                            <p class="text-sm text-red-600 mt-1">المخالفات التي تحتاج لإرسال إشعار لولي الأمر</p>
+                        </div>
+                        <div class="divide-y max-h-96 overflow-y-auto">
+                            ${pendingNotifications.length > 0 ? pendingNotifications.map(v => `
+                                <div class="p-6 hover:bg-gray-50 transition-all">
+                                    <div class="flex justify-between items-start gap-4">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-3 mb-3 flex-wrap">
+                                                <h3 class="text-xl font-bold text-gray-900">${v.studentName}</h3>
+                                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">${v.grade}</span>
+                                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">الشعبة ${v.section}</span>
+                                                <span class="px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(v.violationType)}">${getDegreeLabel(v.violationType)}</span>
+                                                <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold">⏳ لم يتم الإرسال</span>
+                                            </div>
+                                            <div class="bg-gray-50 border rounded-lg p-4 mb-3">
+                                                <p class="text-gray-800 font-semibold mb-2">${v.violationDetails}</p>
+                                                ${v.documentation ? `<p class="text-sm text-gray-600 mt-2"><strong>الإجراء:</strong> ${v.documentation}</p>` : ''}
+                                            </div>
+                                            <div class="flex gap-4 text-sm text-gray-600">
+                                                <span>👨‍🏫 ${v.teacherName}</span>
+                                                <span>📅 ${v.date}</span>
+                                                <span>🕐 ${v.time}</span>
+                                            </div>
+                                        </div>
+                                        <button onclick="markAsSent('${v.id}')" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-md whitespace-nowrap font-bold">
+                                            ✅ تم الإرسال
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('') : `
+                                <div class="p-16 text-center">
+                                    <div class="text-6xl mb-4">✅</div>
+                                    <p class="text-xl text-gray-500">جميع الإشعارات تم إرسالها!</p>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Sent Notifications History -->
+                    <div class="bg-white rounded-xl shadow-lg">
+                        <div class="border-b px-6 py-4 bg-green-50">
+                            <h2 class="text-2xl font-bold text-green-800 flex items-center gap-2">
+                                ✅ سجل الإشعارات المرسلة (${state.notificationsSent.length})
+                            </h2>
+                        </div>
+                        <div class="divide-y max-h-96 overflow-y-auto">
+                            ${state.notificationsSent.length > 0 ? state.notificationsSent.slice(0, 20).map(n => {
+                                const violation = state.violations.find(v => v.id === n.violationId);
+                                if (!violation) return '';
+                                return `
+                                    <div class="p-4 hover:bg-gray-50">
+                                        <div class="flex justify-between items-start gap-4">
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-3 mb-2">
+                                                    <h4 class="font-bold text-gray-900">${violation.studentName}</h4>
+                                                    <span class="text-xs bg-gray-100 px-2 py-1 rounded">${violation.grade} - ${violation.section}</span>
+                                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">✅ تم الإرسال</span>
+                                                </div>
+                                                <p class="text-sm text-gray-600 mb-1">${violation.violationDetails}</p>
+                                                <div class="flex gap-3 text-xs text-gray-500">
+                                                    <span>📤 أرسل بواسطة: ${n.sentBy}</span>
+                                                    <span>📅 ${new Date(n.sentAt).toLocaleDateString('ar-SA')}</span>
+                                                    <span>🕐 ${new Date(n.sentAt).toLocaleTimeString('ar-SA')}</span>
+                                                </div>
+                                                ${n.notes ? `<p class="text-xs text-blue-600 mt-2">📝 ${n.notes}</p>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('') : `
+                                <div class="p-16 text-center">
+                                    <div class="text-6xl mb-4">📭</div>
+                                    <p class="text-xl text-gray-500">لا توجد إشعارات تم إرسالها بعد</p>
+                                </div>
+                            `}
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -1512,6 +1674,7 @@
             try {
                 await loadViolations();
                 await loadStudentActions();
+                await loadNotificationsSent();
             } catch (error) {
                 console.error('Error initializing app:', error);
                 hideLoading();
