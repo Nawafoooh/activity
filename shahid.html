@@ -636,8 +636,24 @@
             };
             
             try {
-                const docId = await addViolationToFirebase(violation);
-                violation.id = docId;
+                showLoading();
+                
+                // Try to save to Firebase
+                if (isFirebaseInitialized) {
+                    try {
+                        const docId = await addViolationToFirebase(violation);
+                        violation.id = docId;
+                    } catch (firebaseError) {
+                        console.error('Firebase error:', firebaseError);
+                        // Continue with local storage if Firebase fails
+                        violation.id = 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        alert('⚠️ تم حفظ المخالفة محلياً فقط. قد تكون هناك مشكلة في الاتصال بقاعدة البيانات.');
+                    }
+                } else {
+                    // No Firebase - use local ID
+                    violation.id = 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                }
+                
                 state.violations.unshift(violation);
                 
                 const count = getStudentViolationCount(violation.studentName, state.currentUser.id);
@@ -652,9 +668,12 @@
                     msg += 'سيتم إحالته للوكيل/المرشد الطلابي للمتابعة.';
                 }
                 
+                hideLoading();
                 alert(msg);
                 closeAddForm();
             } catch (error) {
+                hideLoading();
+                console.error('Error adding violation:', error);
                 alert('❌ خطأ في إضافة المخالفة: ' + error.message);
             }
         };
