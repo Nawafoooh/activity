@@ -1038,13 +1038,14 @@
         }
 
         function renderAdminAssistantDashboard() {
-            const pendingNotifications = state.violations.filter(v => 
-                v.status === 'active' && !isNotificationSent(v.id)
-            );
+            // المخالفات النشطة فقط
+            const activeViolations = state.violations.filter(v => v.status === 'active');
             
-            const sentNotifications = state.violations.filter(v => 
-                isNotificationSent(v.id)
-            );
+            // المخالفات التي لم يتم إرسال إشعار بها
+            const pendingNotifications = activeViolations.filter(v => !isNotificationSent(v.id));
+            
+            // المخالفات التي تم إرسال إشعار بها
+            const sentNotifications = activeViolations.filter(v => isNotificationSent(v.id));
 
             return `
                 <div class="max-w-7xl mx-auto px-6 py-6">
@@ -1060,16 +1061,16 @@
                         <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-green-500">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="text-4xl">✅</span>
-                                <div class="text-3xl font-bold text-green-600">${state.notificationsSent.length}</div>
+                                <div class="text-3xl font-bold text-green-600">${sentNotifications.length}</div>
                             </div>
                             <div class="text-gray-600 font-medium">إشعارات تم إرسالها</div>
                         </div>
                         <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-500">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="text-4xl">📊</span>
-                                <div class="text-3xl font-bold text-blue-600">${state.violations.length}</div>
+                                <div class="text-3xl font-bold text-blue-600">${activeViolations.length}</div>
                             </div>
-                            <div class="text-gray-600 font-medium">إجمالي المخالفات</div>
+                            <div class="text-gray-600 font-medium">المخالفات النشطة</div>
                         </div>
                     </div>
 
@@ -1077,13 +1078,13 @@
                     <div class="bg-white rounded-xl shadow-lg mb-6">
                         <div class="border-b px-6 py-4 bg-red-50">
                             <h2 class="text-2xl font-bold text-red-800 flex items-center gap-2">
-                                📢 إشعارات قيد الانتظار (${pendingNotifications.length})
+                                📢 إشعارات قيد الانتظار - تحتاج إرسال (${pendingNotifications.length})
                             </h2>
-                            <p class="text-sm text-red-600 mt-1">المخالفات التي تحتاج لإرسال إشعار لولي الأمر</p>
+                            <p class="text-sm text-red-600 mt-1">المخالفات التي تحتاج لإرسال إشعار لولي الأمر عبر الواتساب</p>
                         </div>
-                        <div class="divide-y max-h-96 overflow-y-auto">
+                        <div class="divide-y max-h-[600px] overflow-y-auto">
                             ${pendingNotifications.length > 0 ? pendingNotifications.map(v => `
-                                <div class="p-6 hover:bg-gray-50 transition-all">
+                                <div class="p-6 hover:bg-gray-50 transition-all border-r-4 border-red-400">
                                     <div class="flex justify-between items-start gap-4">
                                         <div class="flex-1">
                                             <div class="flex items-center gap-3 mb-3 flex-wrap">
@@ -1091,27 +1092,33 @@
                                                 <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">${v.grade}</span>
                                                 <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">الشعبة ${v.section}</span>
                                                 <span class="px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(v.violationType)}">${getDegreeLabel(v.violationType)}</span>
-                                                <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold">⏳ لم يتم الإرسال</span>
+                                                <span class="bg-red-600 text-white px-4 py-1 rounded-full text-xs font-bold animate-pulse">⚠️ لم يتم الإرسال بعد</span>
                                             </div>
-                                            <div class="bg-gray-50 border rounded-lg p-4 mb-3">
-                                                <p class="text-gray-800 font-semibold mb-2">${v.violationDetails}</p>
-                                                ${v.documentation ? `<p class="text-sm text-gray-600 mt-2"><strong>الإجراء:</strong> ${v.documentation}</p>` : ''}
+                                            <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-3">
+                                                <p class="text-gray-800 font-semibold mb-2"><strong>المخالفة:</strong> ${v.violationDetails}</p>
+                                                ${v.documentation ? `<p class="text-sm text-gray-700 mt-2"><strong>📝 الإجراء المتبع:</strong> ${v.documentation}</p>` : ''}
                                             </div>
-                                            <div class="flex gap-4 text-sm text-gray-600">
-                                                <span>👨‍🏫 ${v.teacherName}</span>
+                                            <div class="flex gap-4 text-sm text-gray-600 mb-3">
+                                                <span>👨‍🏫 <strong>المعلم:</strong> ${v.teacherName}</span>
                                                 <span>📅 ${v.date}</span>
                                                 <span>🕐 ${v.time}</span>
                                             </div>
+                                            <div class="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-900">
+                                                <strong>📱 الإجراء المطلوب:</strong> إرسال إشعار لولي أمر الطالب عبر الواتساب، ثم الضغط على زر "تم الإرسال"
+                                            </div>
                                         </div>
-                                        <button onclick="markAsSent('${v.id}')" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-md whitespace-nowrap font-bold">
-                                            ✅ تم الإرسال
-                                        </button>
+                                        <div class="flex flex-col gap-2">
+                                            <button onclick="markAsSent('${v.id}')" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-lg whitespace-nowrap font-bold text-lg">
+                                                ✅ تم الإرسال
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             `).join('') : `
                                 <div class="p-16 text-center">
                                     <div class="text-6xl mb-4">✅</div>
-                                    <p class="text-xl text-gray-500">جميع الإشعارات تم إرسالها!</p>
+                                    <p class="text-xl text-gray-500 font-bold">ممتاز! جميع الإشعارات تم إرسالها</p>
+                                    <p class="text-sm text-gray-400 mt-2">لا توجد إشعارات قيد الانتظار حالياً</p>
                                 </div>
                             `}
                         </div>
@@ -1121,29 +1128,38 @@
                     <div class="bg-white rounded-xl shadow-lg">
                         <div class="border-b px-6 py-4 bg-green-50">
                             <h2 class="text-2xl font-bold text-green-800 flex items-center gap-2">
-                                ✅ سجل الإشعارات المرسلة (${state.notificationsSent.length})
+                                ✅ سجل الإشعارات المرسلة (${sentNotifications.length})
                             </h2>
+                            <p class="text-sm text-green-600 mt-1">المخالفات التي تم إرسال إشعار بها لأولياء الأمور</p>
                         </div>
-                        <div class="divide-y max-h-96 overflow-y-auto">
-                            ${state.notificationsSent.length > 0 ? state.notificationsSent.slice(0, 20).map(n => {
-                                const violation = state.violations.find(v => v.id === n.violationId);
-                                if (!violation) return '';
+                        <div class="divide-y max-h-[500px] overflow-y-auto">
+                            ${sentNotifications.length > 0 ? sentNotifications.map(v => {
+                                const notificationInfo = getNotificationInfo(v.id);
                                 return `
-                                    <div class="p-4 hover:bg-gray-50">
+                                    <div class="p-4 hover:bg-gray-50 border-r-4 border-green-400">
                                         <div class="flex justify-between items-start gap-4">
                                             <div class="flex-1">
-                                                <div class="flex items-center gap-3 mb-2">
-                                                    <h4 class="font-bold text-gray-900">${violation.studentName}</h4>
-                                                    <span class="text-xs bg-gray-100 px-2 py-1 rounded">${violation.grade} - ${violation.section}</span>
-                                                    <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">✅ تم الإرسال</span>
+                                                <div class="flex items-center gap-3 mb-2 flex-wrap">
+                                                    <h4 class="font-bold text-gray-900 text-lg">${v.studentName}</h4>
+                                                    <span class="text-xs bg-gray-100 px-3 py-1 rounded-full">${v.grade} - ${v.section}</span>
+                                                    <span class="text-xs ${getDegreeColor(v.violationType)} px-3 py-1 rounded-full font-bold">${getDegreeLabel(v.violationType)}</span>
+                                                    <span class="text-xs bg-green-600 text-white px-3 py-1 rounded-full font-bold">✅ تم الإرسال</span>
                                                 </div>
-                                                <p class="text-sm text-gray-600 mb-1">${violation.violationDetails}</p>
-                                                <div class="flex gap-3 text-xs text-gray-500">
-                                                    <span>📤 أرسل بواسطة: ${n.sentBy}</span>
-                                                    <span>📅 ${new Date(n.sentAt).toLocaleDateString('ar-SA')}</span>
-                                                    <span>🕐 ${new Date(n.sentAt).toLocaleTimeString('ar-SA')}</span>
+                                                <p class="text-sm text-gray-700 mb-2"><strong>المخالفة:</strong> ${v.violationDetails}</p>
+                                                <div class="flex gap-3 text-xs text-gray-500 mb-2">
+                                                    <span>👨‍🏫 ${v.teacherName}</span>
+                                                    <span>📅 تاريخ المخالفة: ${v.date}</span>
                                                 </div>
-                                                ${n.notes ? `<p class="text-xs text-blue-600 mt-2">📝 ${n.notes}</p>` : ''}
+                                                ${notificationInfo ? `
+                                                    <div class="bg-green-50 border border-green-200 rounded p-2 mt-2">
+                                                        <div class="flex gap-3 text-xs text-green-800">
+                                                            <span>📤 أرسل بواسطة: ${notificationInfo.sentBy}</span>
+                                                            <span>📅 ${new Date(notificationInfo.sentAt).toLocaleDateString('ar-SA')}</span>
+                                                            <span>🕐 ${new Date(notificationInfo.sentAt).toLocaleTimeString('ar-SA', {hour: '2-digit', minute: '2-digit'})}</span>
+                                                        </div>
+                                                        ${notificationInfo.notes ? `<p class="text-xs text-green-700 mt-1"><strong>📝 ملاحظات:</strong> ${notificationInfo.notes}</p>` : ''}
+                                                    </div>
+                                                ` : ''}
                                             </div>
                                         </div>
                                     </div>
