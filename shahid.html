@@ -4,32 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام إدارة المخالفات السلوكية - متوسطة المنذر بن عمرو الأنصاري</title>
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-    
-    <!-- Theme Colors -->
-    <meta name="theme-color" content="#2563eb">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="msapplication-TileColor" content="#2563eb">
-    
-    <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-152x152.png">
-    
-    <!-- iOS Meta Tags -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="المخالفات السلوكية">
-    
-    <!-- Microsoft Tiles -->
-    <meta name="msapplication-TileImage" content="icons/icon-144x144.png">
-    
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="نظام إدارة المخالفات السلوكية للطلاب - متوسطة المنذر بن عمرو الأنصاري">
-    <meta name="keywords" content="مخالفات، سلوكية، مدرسة، طلاب، إدارة">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
@@ -82,35 +56,6 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-        
-        /* PWA Install Button Animation */
-        @keyframes slideInUp {
-            from {
-                transform: translateY(100px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        .install-button {
-            animation: slideInUp 0.5s ease-out;
-        }
-        
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
-        }
-        
-        .bounce-animation {
-            animation: bounce 2s infinite;
         }
     </style>
 </head>
@@ -352,153 +297,1505 @@
             return JSON.parse(JSON.stringify(obj));
         }
 
-        // [بقية الكود الأصلي - سأضيف فقط كود PWA في النهاية]
-        // ... (جميع الدوال الأصلية من getStudentViolationCount حتى initApp)
-        
-        // ملاحظة: احتفظ بكل الكود الأصلي كما هو، وأضف التالي قبل </script>
-    </script>
-    
-    <!-- ==========================================
-         PWA Service Worker Registration
-         ========================================== -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js')
-                    .then((registration) => {
-                        console.log('✅ Service Worker registered:', registration.scope);
-                        
-                        // Check for updates
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    showUpdateNotification();
-                                }
-                            });
-                        });
-                        
-                        // Request notification permission
-                        if ('Notification' in window && Notification.permission === 'default') {
-                            setTimeout(() => {
-                                Notification.requestPermission().then((permission) => {
-                                    if (permission === 'granted') {
-                                        console.log('✅ Notifications enabled');
-                                    }
-                                });
-                            }, 5000);
-                        }
-                    })
-                    .catch((error) => {
-                        console.error('❌ Service Worker registration failed:', error);
-                    });
-            });
+        // ==========================================
+        // Firebase CRUD Operations
+        // ==========================================
+        async function loadViolations() {
+            if (!isFirebaseInitialized) {
+                render();
+                return;
+            }
+            
+            try {
+                showLoading();
+                const { collection, getDocs, query, orderBy } = window.firestoreModules;
+                const q = query(collection(db, COLLECTIONS.violations), orderBy('createdAt', 'desc'));
+                const snapshot = await getDocs(q);
+                
+                state.violations = [];
+                snapshot.forEach(doc => {
+                    state.violations.push({ id: doc.id, ...doc.data() });
+                });
+                
+                console.log(`✅ تم تحميل ${state.violations.length} مخالفة`);
+                hideLoading();
+                render();
+            } catch (error) {
+                console.error('Error loading violations:', error);
+                hideLoading();
+                alert('خطأ في تحميل المخالفات: ' + error.message);
+                render();
+            }
         }
 
-        // Install button
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            showInstallButton();
-        });
+        async function loadStudentActions() {
+            if (!isFirebaseInitialized) return;
+            
+            try {
+                const { collection, getDocs, query, orderBy } = window.firestoreModules;
+                const q = query(collection(db, COLLECTIONS.studentActions), orderBy('actionDate', 'desc'));
+                const snapshot = await getDocs(q);
+                
+                state.studentActions = [];
+                snapshot.forEach(doc => {
+                    state.studentActions.push({ id: doc.id, ...doc.data() });
+                });
+                
+                console.log(`✅ تم تحميل ${state.studentActions.length} إجراء`);
+            } catch (error) {
+                console.error('Error loading student actions:', error);
+            }
+        }
 
-        function showInstallButton() {
-            if (document.getElementById('pwa-install-btn')) return;
+        async function addViolationToFirebase(violation) {
+            if (!isFirebaseInitialized) return null;
             
-            const btn = document.createElement('button');
-            btn.id = 'pwa-install-btn';
-            btn.className = 'install-button fixed bottom-6 left-6 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-full shadow-2xl hover:shadow-3xl hover:scale-105 transition-all duration-300 z-50 font-bold text-base flex items-center gap-2';
-            btn.innerHTML = `
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/>
-                </svg>
-                تثبيت التطبيق
-            `;
+            try {
+                showLoading();
+                const { collection, addDoc } = window.firestoreModules;
+                const docRef = await addDoc(collection(db, COLLECTIONS.violations), violation);
+                hideLoading();
+                return docRef.id;
+            } catch (error) {
+                hideLoading();
+                throw error;
+            }
+        }
+
+        async function updateViolationInFirebase(violationId, updates) {
+            if (!isFirebaseInitialized) return;
             
-            btn.onclick = async () => {
-                if (!deferredPrompt) return;
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    btn.style.opacity = '0';
-                    setTimeout(() => btn.remove(), 300);
+            try {
+                showLoading();
+                const { doc, updateDoc } = window.firestoreModules;
+                await updateDoc(doc(db, COLLECTIONS.violations, violationId), updates);
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                throw error;
+            }
+        }
+
+        async function loadNotificationsSent() {
+            if (!isFirebaseInitialized) return;
+            
+            try {
+                const { collection, getDocs, query, orderBy } = window.firestoreModules;
+                const q = query(collection(db, COLLECTIONS.notificationsSent), orderBy('sentAt', 'desc'));
+                const snapshot = await getDocs(q);
+                
+                state.notificationsSent = [];
+                snapshot.forEach(doc => {
+                    state.notificationsSent.push({ id: doc.id, ...doc.data() });
+                });
+                
+                console.log(`✅ تم تحميل ${state.notificationsSent.length} إشعار`);
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+
+        async function markNotificationAsSent(violationId, notes = '') {
+            if (!isFirebaseInitialized) return null;
+            
+            try {
+                const { collection, addDoc } = window.firestoreModules;
+                const notification = {
+                    violationId: violationId,
+                    sentBy: state.currentUser.name,
+                    sentAt: new Date().toISOString(),
+                    notes: notes
+                };
+                const docRef = await addDoc(collection(db, COLLECTIONS.notificationsSent), notification);
+                return docRef.id;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // ==========================================
+        // Business Logic Functions
+        // ==========================================
+        function getStudentViolationCount(studentName, teacherId = null, status = 'active') {
+            return state.violations.filter(v => 
+                v.studentName === studentName && 
+                (teacherId === null || v.teacherId === teacherId) &&
+                (status === 'all' || v.status === status)
+            ).length;
+        }
+
+        function getStudentsByViolationCount() {
+            const studentMap = {};
+            
+            state.violations.filter(v => v.status === 'active').forEach(v => {
+                const key = `${v.studentName}_${v.teacherId}`;
+                
+                if (!studentMap[key]) {
+                    studentMap[key] = {
+                        name: v.studentName,
+                        grade: v.grade,
+                        section: v.section,
+                        teacherId: v.teacherId,
+                        teacherName: v.teacherName,
+                        count: 0,
+                        violations: []
+                    };
                 }
-                deferredPrompt = null;
+                studentMap[key].count++;
+                studentMap[key].violations.push(v);
+            });
+            
+            return Object.values(studentMap)
+                .filter(s => s.count >= 3)
+                .sort((a, b) => b.count - a.count);
+        }
+
+        function getDegreeLabel(type) {
+            const labels = {
+                first: 'درجة أولى',
+                second: 'درجة ثانية',
+                third: 'درجة ثالثة'
+            };
+            return labels[type] || type;
+        }
+
+        function getDegreeColor(type) {
+            const colors = {
+                first: 'bg-green-100 text-green-800 border-green-200',
+                second: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                third: 'bg-red-100 text-red-800 border-red-200'
+            };
+            return colors[type] || 'bg-gray-100 text-gray-800';
+        }
+
+        function getRoleLabel(role) {
+            const labels = {
+                teacher: 'المعلم',
+                assistant: 'الوكيل',
+                counselor: 'الموجه الطلابي',
+                principal: 'المدير',
+                admin_assistant: 'المساعد الإداري'
+            };
+            return labels[role];
+        }
+
+        function getFilteredViolations() {
+            let filtered = [...state.violations];
+
+            if (state.currentUser.role === 'teacher') {
+                filtered = filtered.filter(v => v.teacherId === state.currentUser.id);
+            } else if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
+                const studentsUnderWatch = getStudentsByViolationCount();
+                const studentTeacherPairs = studentsUnderWatch.map(s => `${s.name}_${s.teacherId}`);
+                filtered = filtered.filter(v => 
+                    studentTeacherPairs.includes(`${v.studentName}_${v.teacherId}`)
+                );
+            } else if (state.currentUser.role === 'admin_assistant') {
+                // Admin assistant sees all violations
+                filtered = [...state.violations];
+            }
+
+            if (state.filters.selectedTab === 'active') {
+                filtered = filtered.filter(v => v.status === 'active');
+            } else if (state.filters.selectedTab === 'resolved') {
+                filtered = filtered.filter(v => v.status === 'resolved');
+            }
+
+            if (state.filters.searchStudent.trim()) {
+                filtered = filtered.filter(v => 
+                    v.studentName.includes(state.filters.searchStudent.trim())
+                );
+            }
+
+            if (state.filters.filterGrade) {
+                filtered = filtered.filter(v => v.grade === state.filters.filterGrade);
+            }
+
+            if (state.filters.filterSection) {
+                filtered = filtered.filter(v => v.section === state.filters.filterSection);
+            }
+
+            if (state.filters.dateFrom) {
+                filtered = filtered.filter(v => v.date >= state.filters.dateFrom);
+            }
+
+            if (state.filters.dateTo) {
+                filtered = filtered.filter(v => v.date <= state.filters.dateTo);
+            }
+
+            return filtered;
+        }
+
+        function isNotificationSent(violationId) {
+            return state.notificationsSent.some(n => n.violationId === violationId);
+        }
+
+        function getNotificationInfo(violationId) {
+            return state.notificationsSent.find(n => n.violationId === violationId);
+        }
+
+        // ==========================================
+        // Admin Assistant Functions - MUST BE BEFORE RENDER
+        // ==========================================
+        window.markAsSent = async function(violationId) {
+            console.log('🔘 تم الضغط على زر "تم الإرسال" للمخالفة:', violationId);
+            
+            // التأكيد أولاً
+            const confirmSend = confirm('⚠️ تأكيد الإرسال\n\nهل قمت فعلاً بإرسال الإشعار لولي الأمر عبر الواتساب؟\n\n✅ اضغط "موافق" فقط إذا تم إرسال الإشعار\n❌ اضغط "إلغاء" إذا لم ترسل بعد');
+            
+            if (!confirmSend) {
+                console.log('❌ المستخدم ألغى العملية');
+                return;
+            }
+            
+            console.log('✅ المستخدم أكد الإرسال');
+            
+            // طلب الملاحظات
+            const notes = prompt('📝 ملاحظات إضافية (اختياري):\n\nأمثلة:\n- تم الرد - ولي الأمر متعاون\n- لم يرد على الهاتف\n- وعد بالمتابعة\n\nاترك فارغاً إذا لم تكن هناك ملاحظات');
+            
+            if (notes === null) {
+                console.log('❌ المستخدم ألغى في مرحلة الملاحظات');
+                return;
+            }
+            
+            console.log('📝 الملاحظات:', notes || 'بدون ملاحظات');
+            
+            try {
+                showLoading();
+                
+                // حفظ في Firebase
+                if (isFirebaseInitialized) {
+                    try {
+                        const notifId = await markNotificationAsSent(violationId, notes || '');
+                        console.log('✅ تم الحفظ في Firebase بنجاح:', notifId);
+                    } catch (firebaseError) {
+                        console.error('⚠️ خطأ Firebase (سيتم الحفظ محلياً):', firebaseError);
+                    }
+                }
+                
+                // حفظ في الحالة المحلية
+                const notification = {
+                    id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    violationId: violationId,
+                    sentBy: state.currentUser.name,
+                    sentAt: new Date().toISOString(),
+                    notes: notes || ''
+                };
+                
+                state.notificationsSent.unshift(notification);
+                console.log('✅ تم الحفظ في الحالة المحلية');
+                console.log('📊 عدد الإشعارات المرسلة:', state.notificationsSent.length);
+                
+                hideLoading();
+                
+                // رسالة نجاح مفصلة
+                let successMsg = '✅ تم تسجيل إرسال الإشعار بنجاح!\n\n';
+                successMsg += `📅 التاريخ: ${new Date().toLocaleDateString('ar-SA')}\n`;
+                successMsg += `🕐 الوقت: ${new Date().toLocaleTimeString('ar-SA', {hour: '2-digit', minute: '2-digit'})}\n`;
+                successMsg += `👤 أرسل بواسطة: ${state.currentUser.name}`;
+                if (notes && notes.trim()) {
+                    successMsg += `\n📝 الملاحظات: ${notes}`;
+                }
+                
+                alert(successMsg);
+                
+                console.log('🔄 إعادة رسم الواجهة...');
+                render();
+                console.log('✅ تمت العملية بنجاح');
+                
+            } catch (error) {
+                hideLoading();
+                console.error('❌ خطأ في حفظ البيانات:', error);
+                alert('❌ خطأ في حفظ البيانات:\n\n' + error.message);
+            }
+        };
+
+        function getStats() {
+            let violations = [...state.violations];
+            
+            if (state.currentUser.role === 'teacher') {
+                violations = violations.filter(v => v.teacherId === state.currentUser.id);
+            } else if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
+                const studentsUnderWatch = getStudentsByViolationCount();
+                const studentTeacherPairs = studentsUnderWatch.map(s => `${s.name}_${s.teacherId}`);
+                violations = violations.filter(v => 
+                    studentTeacherPairs.includes(`${v.studentName}_${v.teacherId}`)
+                );
+            }
+            
+            const active = violations.filter(v => v.status === 'active').length;
+            const resolved = violations.filter(v => v.status === 'resolved').length;
+            const studentsUnderWatch = getStudentsByViolationCount().length;
+            const today = violations.filter(v => 
+                v.date === new Date().toISOString().split('T')[0]
+            ).length;
+
+            return { active, resolved, studentsUnderWatch, today };
+        }
+
+        function canResolveViolation(violation) {
+            if (state.currentUser.role === 'principal') return true;
+            if (state.currentUser.role === 'assistant' || state.currentUser.role === 'counselor') {
+                return getStudentViolationCount(violation.studentName, violation.teacherId) >= 3;
+            }
+            if (state.currentUser.role === 'teacher') {
+                return violation.teacherId === state.currentUser.id;
+            }
+            return false;
+        }
+
+        // ==========================================
+        // Action Handlers
+        // ==========================================
+        window.setCurrentUser = function(role, name, id) {
+            if (role === 'principal' || role === 'assistant' || role === 'counselor' || role === 'admin_assistant') {
+                if (!state.authenticated[role]) {
+                    const password = prompt(`🔒 يرجى إدخال كلمة السر لصفحة ${getRoleLabel(role)}:`);
+                    
+                    if (password !== config.passwords[role]) {
+                        alert('❌ كلمة السر غير صحيحة!');
+                        return;
+                    }
+                    
+                    state.authenticated[role] = true;
+                }
+            }
+            
+            if (role === 'teacher' && !name) {
+                name = teachersList[0];
+            }
+            
+            if (role === 'teacher') {
+                id = teachersList.indexOf(name) + 1;
+            }
+            
+            state.currentUser = { role, name, id };
+            loadViolations();
+            loadStudentActions();
+            if (role === 'admin_assistant') {
+                loadNotificationsSent();
+            }
+        };
+
+        window.setFilter = function(key, value) {
+            state.filters[key] = value;
+            render();
+        };
+
+        window.clearFilters = function() {
+            state.filters = {
+                selectedTab: state.filters.selectedTab,
+                searchStudent: '',
+                filterGrade: '',
+                filterSection: '',
+                dateFrom: '',
+                dateTo: ''
+            };
+            render();
+        };
+
+        window.openAddForm = function() {
+            state.modals.showAddForm = true;
+            render();
+        };
+
+        window.closeAddForm = function() {
+            state.modals.showAddForm = false;
+            state.newViolation = {
+                studentName: '',
+                grade: '',
+                section: '',
+                violationType: 'first',
+                violationDetails: '',
+                documentation: '',
+                date: new Date().toISOString().split('T')[0],
+                time: new Date().toTimeString().slice(0, 5)
+            };
+            render();
+        };
+
+        window.addViolation = async function() {
+            const v = state.newViolation;
+            
+            if (!v.studentName.trim()) {
+                alert('⚠️ يرجى إدخال اسم الطالب');
+                return;
+            }
+            if (!v.grade) {
+                alert('⚠️ يرجى اختيار الصف');
+                return;
+            }
+            if (!v.section) {
+                alert('⚠️ يرجى اختيار الشعبة');
+                return;
+            }
+            if (!v.violationDetails) {
+                alert('⚠️ يرجى اختيار نوع المخالفة');
+                return;
+            }
+            if (!v.documentation.trim()) {
+                alert('⚠️ يرجى كتابة توثيق المخالفة (الإجراء المتبع)');
+                return;
+            }
+            
+            const violation = {
+                studentName: v.studentName.trim(),
+                grade: v.grade,
+                section: v.section,
+                violationType: v.violationType,
+                violationDetails: v.violationDetails,
+                documentation: v.documentation.trim(),
+                date: v.date,
+                time: v.time,
+                teacherName: state.currentUser.name,
+                teacherId: state.currentUser.id,
+                status: 'active',
+                createdAt: new Date().toISOString()
             };
             
-            document.body.appendChild(btn);
-        }
-
-        window.addEventListener('appinstalled', () => {
-            const btn = document.getElementById('pwa-install-btn');
-            if (btn) {
-                btn.style.opacity = '0';
-                setTimeout(() => btn.remove(), 300);
+            try {
+                showLoading();
+                
+                // Try to save to Firebase
+                if (isFirebaseInitialized) {
+                    try {
+                        const docId = await addViolationToFirebase(violation);
+                        violation.id = docId;
+                    } catch (firebaseError) {
+                        console.error('Firebase error:', firebaseError);
+                        // Continue with local storage if Firebase fails
+                        violation.id = 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        alert('⚠️ تم حفظ المخالفة محلياً فقط. قد تكون هناك مشكلة في الاتصال بقاعدة البيانات.');
+                    }
+                } else {
+                    // No Firebase - use local ID
+                    violation.id = 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                }
+                
+                state.violations.unshift(violation);
+                
+                const count = getStudentViolationCount(violation.studentName, state.currentUser.id);
+                
+                let msg = '✅ تم إضافة المخالفة بنجاح!\n\n';
+                msg += `👤 الطالب: ${violation.studentName}\n`;
+                msg += `📚 الصف: ${violation.grade} - الشعبة ${violation.section}\n`;
+                msg += `⚠️ المخالفة: ${violation.violationDetails}`;
+                
+                if (count >= 3) {
+                    msg += `\n\n🚨 تنبيه: هذا الطالب لديه ${count} مخالفات منك!\n`;
+                    msg += 'سيتم إحالته للوكيل/المرشد الطلابي للمتابعة.';
+                }
+                
+                hideLoading();
+                alert(msg);
+                closeAddForm();
+            } catch (error) {
+                hideLoading();
+                console.error('Error adding violation:', error);
+                alert('❌ خطأ في إضافة المخالفة: ' + error.message);
             }
-            showSuccessMessage('تم تثبيت التطبيق بنجاح! 🎉');
-        });
+        };
 
-        // Network status
-        window.addEventListener('online', () => {
-            showNetworkStatus('متصل بالإنترنت ✓', 'success');
-        });
-
-        window.addEventListener('offline', () => {
-            showNetworkStatus('غير متصل - وضع دون اتصال', 'warning');
-        });
-
-        function showNetworkStatus(message, type) {
-            const div = document.createElement('div');
-            div.className = `fixed top-24 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-xl z-50 font-bold ${
-                type === 'success' ? 'bg-green-600 text-white' : 'bg-orange-600 text-white'
-            }`;
-            div.textContent = message;
-            document.body.appendChild(div);
+        window.resolveViolation = async function(violationId) {
+            const reason = prompt('أدخل سبب حل المخالفة (السلوك الإيجابي):');
             
-            setTimeout(() => {
-                div.style.opacity = '0';
-                div.style.transition = 'opacity 0.3s';
-                setTimeout(() => div.remove(), 300);
-            }, 3000);
+            if (reason && reason.trim()) {
+                try {
+                    const updates = {
+                        status: 'resolved',
+                        resolutionReason: reason.trim(),
+                        resolvedBy: state.currentUser.name,
+                        resolvedAt: new Date().toISOString()
+                    };
+                    
+                    await updateViolationInFirebase(violationId, updates);
+                    
+                    state.violations = state.violations.map(v => 
+                        v.id === violationId ? { ...v, ...updates } : v
+                    );
+                    
+                    render();
+                    alert('✅ تم حل المخالفة بنجاح');
+                } catch (error) {
+                    alert('❌ خطأ في حل المخالفة: ' + error.message);
+                }
+            }
+        };
+
+        window.openDetailsModal = function(violationId) {
+            const violation = state.violations.find(v => v.id === violationId);
+            if (violation) {
+                state.modals.selectedViolation = sanitizeForJson(violation);
+                state.modals.showDetailsModal = true;
+                render();
+            }
+        };
+
+        window.closeDetailsModal = function() {
+            state.modals.showDetailsModal = false;
+            state.modals.selectedViolation = null;
+            render();
+        };
+
+        window.openActionModal = function(studentIndex) {
+            const students = getStudentsByViolationCount();
+            const student = students[studentIndex];
+            if (student) {
+                state.modals.selectedStudent = sanitizeForJson(student);
+                state.modals.showActionModal = true;
+                render();
+            }
+        };
+
+        window.closeActionModal = function() {
+            state.modals.showActionModal = false;
+            state.modals.selectedStudent = null;
+            render();
+        };
+
+        window.saveStudentAction = async function() {
+            const actionDetails = document.getElementById('actionDetailsInput')?.value.trim();
+            
+            if (!actionDetails) {
+                alert('⚠️ يرجى إدخال تفاصيل الإجراء المتخذ');
+                return;
+            }
+
+            const student = state.modals.selectedStudent;
+            
+            const action = {
+                studentName: student.name,
+                teacherId: student.teacherId,
+                teacherName: student.teacherName,
+                actionBy: state.currentUser.role,
+                actionByName: state.currentUser.name,
+                actionDate: new Date().toISOString(),
+                actionDetails: actionDetails,
+                violationsIncluded: student.violations.map(v => v.id)
+            };
+
+            try {
+                const docId = await addStudentActionToFirebase(action);
+                action.id = docId;
+                state.studentActions.push(action);
+
+                alert('✅ تم حفظ الإجراء بنجاح!');
+                closeActionModal();
+            } catch (error) {
+                alert('❌ خطأ في حفظ الإجراء: ' + error.message);
+            }
+        };
+
+        window.printStudentReport = function(studentIndex) {
+            const students = getStudentsByViolationCount();
+            const student = students[studentIndex];
+            
+            if (!student) return;
+            
+            const action = state.studentActions.find(a => 
+                a.studentName === student.name && 
+                a.teacherId === student.teacherId &&
+                a.actionBy === state.currentUser.role
+            );
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(generatePrintContent(student, action));
+            printWindow.document.close();
+        };
+
+        function generatePrintContent(student, action) {
+            return `
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>تقرير مخالفات - ${student.name}</title>
+                    <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+                        body { font-family: 'Cairo', sans-serif; padding: 40px; direction: rtl; }
+                        .header { text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; }
+                        .header h1 { color: #1e40af; margin: 10px 0; }
+                        .info-box { background: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+                        .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+                        .violation-item { border: 2px solid #e5e7eb; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+                        .teacher-highlight { background: #fef3c7; padding: 15px; border-radius: 8px; border: 2px solid #f59e0b; margin-bottom: 20px; }
+                        .action-box { background: #dbeafe; border: 2px solid #2563eb; padding: 20px; border-radius: 8px; margin-top: 30px; }
+                        .signature-area { margin-top: 50px; display: flex; justify-content: space-between; }
+                        .signature-box { text-align: center; width: 200px; }
+                        .signature-line { border-top: 2px solid #000; margin-top: 60px; padding-top: 10px; }
+                        @media print { body { padding: 20px; } .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>📚 ${config.schoolInfo.name}</h1>
+                        <h2>تقرير المخالفات السلوكية</h2>
+                        <p>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
+                    </div>
+
+                    <div class="teacher-highlight">
+                        <h3 style="color: #92400e; margin-bottom: 10px; font-size: 18px;">👨‍🏫 المعلم المسجل للمخالفات</h3>
+                        <div style="font-size: 20px; font-weight: bold; color: #78350f;">${student.teacherName}</div>
+                        <div style="margin-top: 5px; font-size: 14px; color: #92400e;">جميع المخالفات المذكورة أدناه مسجلة من قبل هذا المعلم فقط</div>
+                    </div>
+
+                    <div class="info-box">
+                        <h3 style="color: #1e40af; margin-bottom: 15px;">معلومات الطالب</h3>
+                        <div class="info-row"><strong>الاسم:</strong><span>${student.name}</span></div>
+                        <div class="info-row"><strong>الصف:</strong><span>${student.grade}</span></div>
+                        <div class="info-row"><strong>الشعبة:</strong><span>${student.section}</span></div>
+                        <div class="info-row"><strong>عدد المخالفات:</strong><span style="color: #dc2626; font-weight: bold;">${student.count} مخالفات</span></div>
+                    </div>
+
+                    <h3 style="color: #1e40af; margin-top: 30px; margin-bottom: 15px;">تفاصيل المخالفات:</h3>
+                    ${student.violations.map((v, i) => `
+                        <div class="violation-item">
+                            <div style="font-weight: bold; margin-bottom: 10px;">
+                                ${i + 1}. ${v.violationDetails}
+                                <span style="background: ${v.violationType === 'first' ? '#dcfce7' : v.violationType === 'second' ? '#fef3c7' : '#fee2e2'}; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-right: 10px;">
+                                    ${getDegreeLabel(v.violationType)}
+                                </span>
+                            </div>
+                            <div style="color: #6b7280; font-size: 14px;">
+                                <div>📅 التاريخ: ${v.date} | 🕐 الوقت: ${v.time}</div>
+                                ${v.documentation ? `<div style="margin-top: 8px;">📝 ${v.documentation}</div>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+
+                    ${action ? `
+                        <div class="action-box">
+                            <h3 style="color: #1e40af; margin-bottom: 15px;">الإجراء المتخذ من قبل ${getRoleLabel(action.actionBy)}</h3>
+                            <div style="margin-bottom: 10px;"><strong>المسؤول:</strong> ${action.actionByName}</div>
+                            <div style="margin-bottom: 10px;"><strong>التاريخ:</strong> ${new Date(action.actionDate).toLocaleString('ar-SA')}</div>
+                            <div style="margin-top: 15px; padding: 15px; background: white; border-radius: 4px;">
+                                <strong>تفاصيل الإجراء:</strong>
+                                <p style="margin-top: 10px; line-height: 1.8;">${action.actionDetails}</p>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="signature-area">
+                        <div class="signature-box"><div class="signature-line">المعلم<br>${student.teacherName}</div></div>
+                        <div class="signature-box"><div class="signature-line">${state.currentUser.role === 'assistant' ? 'الوكيل' : 'المرشد الطلابي'}</div></div>
+                        <div class="signature-box"><div class="signature-line">ولي الأمر</div></div>
+                        <div class="signature-box"><div class="signature-line">مدير المدرسة</div></div>
+                    </div>
+
+                    <div class="no-print" style="text-align: center; margin-top: 30px;">
+                        <button onclick="window.print()" style="background: #2563eb; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-family: 'Cairo', sans-serif;">🖨️ طباعة التقرير</button>
+                        <button onclick="window.close()" style="background: #6b7280; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 10px; font-family: 'Cairo', sans-serif;">إغلاق</button>
+                    </div>
+                </body>
+                </html>
+            `;
         }
 
-        function showSuccessMessage(message) {
-            const div = document.createElement('div');
-            div.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white px-8 py-6 rounded-xl shadow-2xl z-[60] text-center';
-            div.innerHTML = `<div class="text-6xl mb-4">✅</div><div class="text-xl font-bold text-gray-900">${message}</div>`;
-            document.body.appendChild(div);
+        window.exportToCSV = function() {
+            const filtered = getFilteredViolations();
+            const headers = ['#', 'الطالب', 'الصف', 'الشعبة', 'الدرجة', 'المخالفة', 'المعلم', 'التاريخ', 'الوقت', 'الحالة'];
+            const rows = filtered.map((v, i) => [
+                i + 1,
+                v.studentName,
+                v.grade,
+                v.section,
+                getDegreeLabel(v.violationType),
+                v.violationDetails,
+                v.teacherName,
+                v.date,
+                v.time,
+                v.status === 'active' ? 'نشط' : 'محلول'
+            ]);
+
+            const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `مخالفات_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        };
+
+        // ==========================================
+        // Render Functions
+        // ==========================================
+        function render() {
+            console.log('🎨 بدء رسم الواجهة...');
+            console.log('👤 المستخدم الحالي:', state.currentUser.role, state.currentUser.name);
+            console.log('📊 عدد المخالفات:', state.violations.length);
+            console.log('📢 عدد الإشعارات المرسلة:', state.notificationsSent.length);
             
-            setTimeout(() => {
-                div.style.opacity = '0';
-                div.style.transition = 'opacity 0.3s';
-                setTimeout(() => div.remove(), 300);
-            }, 2500);
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                ${renderHeader()}
+                ${renderUserTabs()}
+                ${renderMainContent()}
+                ${state.modals.showAddForm ? renderAddModal() : ''}
+                ${state.modals.showDetailsModal ? renderDetailsModal() : ''}
+                ${state.modals.showActionModal ? renderActionModal() : ''}
+            `;
+            
+            console.log('✅ تم رسم الواجهة');
         }
 
-        function showUpdateNotification() {
-            const div = document.createElement('div');
-            div.className = 'fixed bottom-24 left-6 bg-blue-600 text-white px-6 py-4 rounded-lg shadow-2xl z-50 max-w-sm';
-            div.innerHTML = `
-                <div class="flex items-start gap-3">
-                    <div class="text-2xl">🔄</div>
-                    <div class="flex-1">
-                        <div class="font-bold mb-1">تحديث جديد متاح!</div>
-                        <div class="text-sm text-blue-100 mb-3">يوجد إصدار جديد من التطبيق</div>
-                        <button onclick="window.location.reload()" class="bg-white text-blue-600 px-4 py-2 rounded font-bold text-sm hover:bg-blue-50">
-                            تحديث الآن
-                        </button>
+        function renderHeader() {
+            return `
+                <div class="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white shadow-2xl">
+                    <div class="max-w-7xl mx-auto px-6 py-8">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <div>
+                                <h1 class="text-4xl font-bold mb-2">📚 ${config.schoolInfo.name}</h1>
+                                <p class="text-blue-100 text-lg">نظام إدارة المخالفات السلوكية - ${config.schoolInfo.type}</p>
+                                ${isFirebaseInitialized ? 
+                                    '<p class="text-green-300 text-sm mt-2">🟢 متصل بقاعدة البيانات</p>' : 
+                                    '<p class="text-red-300 text-sm mt-2">🔴 غير متصل بقاعدة البيانات</p>'
+                                }
+                            </div>
+                            <div class="text-left bg-blue-800 bg-opacity-50 rounded-lg p-4">
+                                <p class="text-sm text-blue-100 mb-1">👤 مدير المدرسة: ${config.schoolInfo.principal}</p>
+                                <p class="text-sm text-blue-100 mb-1">👤 الوكيل: ${config.schoolInfo.assistant}</p>
+                                <p class="text-sm text-blue-100">👤 الموجه الطلابي: ${config.schoolInfo.counselor}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
-            document.body.appendChild(div);
-            
-            setTimeout(() => {
-                div.style.opacity = '0';
-                div.style.transition = 'opacity 0.3s';
-                setTimeout(() => div.remove(), 300);
-            }, 10000);
         }
+
+        function renderUserTabs() {
+            const isActive = (role) => state.currentUser.role === role;
+            const btnClass = (role) => `flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                isActive(role) ? 'bg-blue-600 text-white shadow-lg transform scale-105' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`;
+            const isLocked = (role) => (role === 'principal' || role === 'assistant' || role === 'counselor') && !state.authenticated[role];
+
+            return `
+                <div class="bg-white border-b shadow-sm sticky top-0 z-40">
+                    <div class="max-w-7xl mx-auto px-6 py-4">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <div class="flex gap-2 flex-wrap items-center">
+                                ${state.currentUser.role === 'teacher' ? `
+                                    <select onchange="setCurrentUser('teacher', this.value)" class="px-4 py-3 border-2 border-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium text-blue-900 bg-blue-50">
+                                        ${teachersList.map(t => `<option value="${t}" ${state.currentUser.name === t ? 'selected' : ''}>👨‍🏫 ${t}</option>`).join('')}
+                                    </select>
+                                ` : `
+                                    <button onclick="setCurrentUser('teacher', '${teachersList[0]}', 1)" class="${btnClass('teacher')}">👨‍🏫 صفحة المعلم</button>
+                                `}
+                                <button onclick="setCurrentUser('assistant', '${config.schoolInfo.assistant}', 999)" class="${btnClass('assistant')}">
+                                    ${isLocked('assistant') ? '🔒' : '📋'} صفحة الوكيل
+                                </button>
+                                <button onclick="setCurrentUser('counselor', '${config.schoolInfo.counselor}', 998)" class="${btnClass('counselor')}">
+                                    ${isLocked('counselor') ? '🔒' : '📢'} الموجه الطلابي
+                                </button>
+                                <button onclick="setCurrentUser('principal', '${config.schoolInfo.principal}', 997)" class="${btnClass('principal')}">
+                                    ${isLocked('principal') ? '🔒' : '🏛️'} صفحة المدير
+                                </button>
+                                <button onclick="setCurrentUser('admin_assistant', '${config.schoolInfo.adminAssistant}', 996)" class="${btnClass('admin_assistant')}">
+                                    ${isLocked('admin_assistant') ? '🔒' : '📞'} المساعد الإداري
+                                </button>
+                            </div>
+                            <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                                <p class="text-sm text-blue-900"><span class="font-bold">المستخدم الحالي:</span> ${state.currentUser.name} - ${getRoleLabel(state.currentUser.role)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMainContent() {
+            const stats = getStats();
+            const filtered = getFilteredViolations();
+
+            // Show admin assistant dashboard
+            if (state.currentUser.role === 'admin_assistant') {
+                return renderAdminAssistantDashboard();
+            }
+
+            return `
+                <div class="max-w-7xl mx-auto px-6 py-6">
+                    ${renderStats(stats)}
+                    ${renderViolationsSection(filtered)}
+                    ${renderStudentsUnderWatch()}
+                </div>
+            `;
+        }
+
+        function renderAdminAssistantDashboard() {
+            // المخالفات النشطة فقط
+            const activeViolations = state.violations.filter(v => v.status === 'active');
+            
+            // المخالفات التي لم يتم إرسال إشعار بها
+            const pendingNotifications = activeViolations.filter(v => !isNotificationSent(v.id));
+            
+            // المخالفات التي تم إرسال إشعار بها
+            const sentNotifications = activeViolations.filter(v => isNotificationSent(v.id));
+
+            return `
+                <div class="max-w-7xl mx-auto px-6 py-6">
+                    <!-- Statistics -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-red-500">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-4xl">📢</span>
+                                <div class="text-3xl font-bold text-red-600">${pendingNotifications.length}</div>
+                            </div>
+                            <div class="text-gray-600 font-medium">إشعارات قيد الانتظار</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-green-500">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-4xl">✅</span>
+                                <div class="text-3xl font-bold text-green-600">${sentNotifications.length}</div>
+                            </div>
+                            <div class="text-gray-600 font-medium">إشعارات تم إرسالها</div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-500">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-4xl">📊</span>
+                                <div class="text-3xl font-bold text-blue-600">${activeViolations.length}</div>
+                            </div>
+                            <div class="text-gray-600 font-medium">المخالفات النشطة</div>
+                        </div>
+                    </div>
+
+                    <!-- Pending Notifications -->
+                    <div class="bg-white rounded-xl shadow-lg mb-6">
+                        <div class="border-b px-6 py-4 bg-red-50">
+                            <h2 class="text-2xl font-bold text-red-800 flex items-center gap-2">
+                                📢 إشعارات قيد الانتظار - تحتاج إرسال (${pendingNotifications.length})
+                            </h2>
+                            <p class="text-sm text-red-600 mt-1">المخالفات التي تحتاج لإرسال إشعار لولي الأمر عبر الواتساب</p>
+                        </div>
+                        <div class="divide-y max-h-[600px] overflow-y-auto">
+                            ${pendingNotifications.length > 0 ? pendingNotifications.map(v => `
+                                <div class="p-6 hover:bg-gray-50 transition-all border-r-4 border-red-400">
+                                    <div class="flex justify-between items-start gap-4">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-3 mb-3 flex-wrap">
+                                                <h3 class="text-xl font-bold text-gray-900">${v.studentName}</h3>
+                                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">${v.grade}</span>
+                                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full">الشعبة ${v.section}</span>
+                                                <span class="px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(v.violationType)}">${getDegreeLabel(v.violationType)}</span>
+                                                <span class="bg-red-600 text-white px-4 py-1 rounded-full text-xs font-bold animate-pulse">⚠️ لم يتم الإرسال بعد</span>
+                                            </div>
+                                            <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-3">
+                                                <p class="text-gray-800 font-semibold mb-2"><strong>المخالفة:</strong> ${v.violationDetails}</p>
+                                                ${v.documentation ? `<p class="text-sm text-gray-700 mt-2"><strong>📝 الإجراء المتبع:</strong> ${v.documentation}</p>` : ''}
+                                            </div>
+                                            <div class="flex gap-4 text-sm text-gray-600 mb-3">
+                                                <span>👨‍🏫 <strong>المعلم:</strong> ${v.teacherName}</span>
+                                                <span>📅 ${v.date}</span>
+                                                <span>🕐 ${v.time}</span>
+                                            </div>
+                                            <div class="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-900">
+                                                <strong>📱 الإجراء المطلوب:</strong> إرسال إشعار لولي أمر الطالب عبر الواتساب، ثم الضغط على زر "تم الإرسال"
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col gap-2">
+                                            <button onclick="markAsSent('${v.id}')" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-lg whitespace-nowrap font-bold text-lg">
+                                                ✅ تم الإرسال
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('') : `
+                                <div class="p-16 text-center">
+                                    <div class="text-6xl mb-4">✅</div>
+                                    <p class="text-xl text-gray-500 font-bold">ممتاز! جميع الإشعارات تم إرسالها</p>
+                                    <p class="text-sm text-gray-400 mt-2">لا توجد إشعارات قيد الانتظار حالياً</p>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Sent Notifications History -->
+                    <div class="bg-white rounded-xl shadow-lg">
+                        <div class="border-b px-6 py-4 bg-green-50">
+                            <h2 class="text-2xl font-bold text-green-800 flex items-center gap-2">
+                                ✅ سجل الإشعارات المرسلة (${sentNotifications.length})
+                            </h2>
+                            <p class="text-sm text-green-600 mt-1">المخالفات التي تم إرسال إشعار بها لأولياء الأمور</p>
+                        </div>
+                        <div class="divide-y max-h-[500px] overflow-y-auto">
+                            ${sentNotifications.length > 0 ? sentNotifications.map(v => {
+                                const notificationInfo = getNotificationInfo(v.id);
+                                return `
+                                    <div class="p-4 hover:bg-gray-50 border-r-4 border-green-400">
+                                        <div class="flex justify-between items-start gap-4">
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-3 mb-2 flex-wrap">
+                                                    <h4 class="font-bold text-gray-900 text-lg">${v.studentName}</h4>
+                                                    <span class="text-xs bg-gray-100 px-3 py-1 rounded-full">${v.grade} - ${v.section}</span>
+                                                    <span class="text-xs ${getDegreeColor(v.violationType)} px-3 py-1 rounded-full font-bold">${getDegreeLabel(v.violationType)}</span>
+                                                    <span class="text-xs bg-green-600 text-white px-3 py-1 rounded-full font-bold">✅ تم الإرسال</span>
+                                                </div>
+                                                <p class="text-sm text-gray-700 mb-2"><strong>المخالفة:</strong> ${v.violationDetails}</p>
+                                                <div class="flex gap-3 text-xs text-gray-500 mb-2">
+                                                    <span>👨‍🏫 ${v.teacherName}</span>
+                                                    <span>📅 تاريخ المخالفة: ${v.date}</span>
+                                                </div>
+                                                ${notificationInfo ? `
+                                                    <div class="bg-green-50 border border-green-200 rounded p-2 mt-2">
+                                                        <div class="flex gap-3 text-xs text-green-800">
+                                                            <span>📤 أرسل بواسطة: ${notificationInfo.sentBy}</span>
+                                                            <span>📅 ${new Date(notificationInfo.sentAt).toLocaleDateString('ar-SA')}</span>
+                                                            <span>🕐 ${new Date(notificationInfo.sentAt).toLocaleTimeString('ar-SA', {hour: '2-digit', minute: '2-digit'})}</span>
+                                                        </div>
+                                                        ${notificationInfo.notes ? `<p class="text-xs text-green-700 mt-1"><strong>📝 ملاحظات:</strong> ${notificationInfo.notes}</p>` : ''}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('') : `
+                                <div class="p-16 text-center">
+                                    <div class="text-6xl mb-4">📭</div>
+                                    <p class="text-xl text-gray-500">لا توجد إشعارات تم إرسالها بعد</p>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStats(stats) {
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-blue-500">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-4xl">⚠️</span>
+                            <div class="text-3xl font-bold text-blue-600">${stats.active}</div>
+                        </div>
+                        <div class="text-gray-600 font-medium">المخالفات النشطة</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-green-500">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-4xl">✅</span>
+                            <div class="text-3xl font-bold text-green-600">${stats.resolved}</div>
+                        </div>
+                        <div class="text-gray-600 font-medium">المخالفات المحلولة</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-orange-500">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-4xl">👁️</span>
+                            <div class="text-3xl font-bold text-orange-600">${stats.studentsUnderWatch}</div>
+                        </div>
+                        <div class="text-gray-600 font-medium">طلاب تحت المراقبة</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow border-t-4 border-purple-500">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-4xl">📅</span>
+                            <div class="text-3xl font-bold text-purple-600">${stats.today}</div>
+                        </div>
+                        <div class="text-gray-600 font-medium">مخالفات اليوم</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderViolationsSection(filtered) {
+            const stats = getStats();
+            const tabClass = (tab) => `px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                state.filters.selectedTab === tab ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'
+            }`;
+
+            return `
+                <div class="bg-white rounded-xl shadow-lg mb-6">
+                    <div class="border-b px-6 py-4">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <div class="flex gap-3">
+                                <button onclick="setFilter('selectedTab', 'all')" class="${tabClass('all')}">جميع المخالفات (${state.violations.length})</button>
+                                <button onclick="setFilter('selectedTab', 'active')" class="${tabClass('active')}">النشطة (${stats.active})</button>
+                                <button onclick="setFilter('selectedTab', 'resolved')" class="${tabClass('resolved')}">المحلولة (${stats.resolved})</button>
+                            </div>
+                            <div class="flex gap-3">
+                                <button onclick="exportToCSV()" class="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md">📥 تصدير Excel</button>
+                                ${state.currentUser.role === 'teacher' ? '<button onclick="openAddForm()" class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">➕ إضافة مخالفة جديدة</button>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${renderFilters()}
+                    ${renderViolationsList(filtered)}
+                </div>
+            `;
+        }
+
+        function renderFilters() {
+            const hasFilters = state.filters.searchStudent || state.filters.filterGrade || state.filters.filterSection || state.filters.dateFrom || state.filters.dateTo;
+
+            return `
+                <div class="p-6 bg-gray-50 border-b">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">🔍 بحث بالاسم</label>
+                            <input type="text" value="${state.filters.searchStudent}" onchange="setFilter('searchStudent', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="اسم الطالب...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">📊 الصف</label>
+                            <select onchange="setFilter('filterGrade', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">الكل</option>
+                                ${config.grades.map(g => `<option value="${g}" ${state.filters.filterGrade === g ? 'selected' : ''}>${g}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">الشعبة</label>
+                            <select onchange="setFilter('filterSection', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">الكل</option>
+                                ${config.sections.map(s => `<option value="${s}" ${state.filters.filterSection === s ? 'selected' : ''}>${s}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">من تاريخ</label>
+                            <input type="date" value="${state.filters.dateFrom}" onchange="setFilter('dateFrom', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">إلى تاريخ</label>
+                            <input type="date" value="${state.filters.dateTo}" onchange="setFilter('dateTo', this.value)" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    ${hasFilters ? '<button onclick="clearFilters()" class="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium">مسح جميع الفلاتر</button>' : ''}
+                </div>
+            `;
+        }
+
+        function renderViolationsList(filtered) {
+            if (filtered.length === 0) {
+                return `
+                    <div class="p-16 text-center">
+                        <div class="text-6xl mb-4">⚠️</div>
+                        <p class="text-xl text-gray-500 mb-2">لا توجد مخالفات للعرض</p>
+                        <p class="text-sm text-gray-400">جرب تغيير الفلاتر أو إضافة مخالفة جديدة</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="divide-y">
+                    ${filtered.map(v => renderViolationItem(v)).join('')}
+                </div>
+                <div class="p-4 bg-gray-50 border-t text-center text-sm text-gray-600">
+                    عرض ${filtered.length} من أصل ${state.violations.length} مخالفة
+                </div>
+            `;
+        }
+
+        function renderViolationItem(v) {
+            const violationCount = getStudentViolationCount(v.studentName, v.teacherId);
+            const isHighPriority = violationCount >= 3;
+            
+            return `
+                <div class="p-6 hover:bg-gray-50 transition-all duration-200 ${isHighPriority && v.status === 'active' ? 'bg-red-50 border-r-4 border-red-500' : ''}">
+                    <div class="flex justify-between items-start gap-6">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-3 flex-wrap">
+                                <h3 class="text-xl font-bold text-gray-900">${v.studentName}</h3>
+                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">${v.grade}</span>
+                                <span class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">الشعبة ${v.section}</span>
+                                <span class="px-3 py-1 rounded-full text-xs font-bold border-2 ${getDegreeColor(v.violationType)}">${getDegreeLabel(v.violationType)}</span>
+                                ${isHighPriority && v.status === 'active' ? `<span class="flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md animate-pulse">⚠️ تحت المراقبة (${violationCount} مخالفات من ${v.teacherName})</span>` : ''}
+                                ${v.status === 'resolved' ? '<span class="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold">✅ تم الحل</span>' : ''}
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-lg p-4 mb-3">
+                                <p class="text-gray-800 mb-2 font-semibold text-lg">${v.violationDetails}</p>
+                                ${v.documentation ? `<div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg"><p class="text-sm text-blue-900"><span class="font-bold">📝 الإجراء المتبع:</span><br>${v.documentation}</p></div>` : ''}
+                            </div>
+                            <div class="flex flex-wrap gap-4 text-sm text-gray-600">
+                                <span>👤 <strong>المعلم:</strong> ${v.teacherName}</span>
+                                <span>📅 <strong>التاريخ:</strong> ${v.date}</span>
+                                <span>🕐 <strong>الوقت:</strong> ${v.time}</span>
+                            </div>
+                            ${v.status === 'resolved' && v.resolutionReason ? `
+                                <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                    <div class="flex items-start gap-2 mb-2">
+                                        <span class="text-2xl">🏆</span>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-bold text-green-900 mb-1">سبب حل المخالفة (السلوك الإيجابي):</p>
+                                            <p class="text-sm text-green-800 mb-2">${v.resolutionReason}</p>
+                                            <div class="flex gap-4 text-xs text-green-700">
+                                                <span>تم الحل بواسطة: ${v.resolvedBy}</span>
+                                                <span>في: ${new Date(v.resolvedAt).toLocaleString('ar-SA')}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <button onclick="openDetailsModal('${v.id}')" class="flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors whitespace-nowrap">👁️ التفاصيل</button>
+                            ${v.status === 'active' && canResolveViolation(v) ? '<button onclick="resolveViolation(\'' + v.id + '\')" class="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-md whitespace-nowrap">🏆 حل المخالفة</button>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStudentsUnderWatch() {
+            if (state.currentUser.role !== 'assistant' && state.currentUser.role !== 'counselor' && state.currentUser.role !== 'principal') {
+                return '';
+            }
+
+            const studentsUnderWatch = getStudentsByViolationCount();
+
+            return `
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-2xl font-bold mb-4 flex items-center gap-2 text-red-700">⚠️ الطلاب تحت المراقبة (3 مخالفات فأكثر من نفس المعلم)</h2>
+                    <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
+                        <p class="text-sm text-yellow-900"><strong>📌 ملاحظة هامة:</strong> يتم احتساب المخالفات لكل معلم بشكل مستقل. الطالب يُحال للوكيل/المرشد فقط عندما يسجل <strong>نفس المعلم</strong> 3 مخالفات أو أكثر عليه.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${studentsUnderWatch.length > 0 ? studentsUnderWatch.map((student, index) => {
+                            const hasAction = state.studentActions.find(a => 
+                                a.studentName === student.name && a.teacherId === student.teacherId && a.actionBy === state.currentUser.role
+                            );
+                            return `
+                                <div class="bg-red-50 border-2 border-red-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h3 class="font-bold text-gray-900">${student.name}</h3>
+                                        <span class="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold">${student.count} مخالفات</span>
+                                    </div>
+                                    <div class="text-sm text-gray-600 mb-2">${student.grade} - الشعبة ${student.section}</div>
+                                    <div class="text-xs bg-yellow-100 border border-yellow-300 rounded p-2 mb-2"><strong>👨‍🏫 المعلم:</strong> ${student.teacherName}</div>
+                                    <div class="text-xs text-gray-500 mb-3">آخر مخالفة: ${student.violations[student.violations.length - 1].date}</div>
+                                    ${hasAction ? '<div class="bg-blue-100 border border-blue-300 rounded p-2 mb-3 text-xs"><div class="font-bold text-blue-900 mb-1">✅ تم اتخاذ إجراء</div><div class="text-blue-800">' + new Date(hasAction.actionDate).toLocaleDateString('ar-SA') + '</div></div>' : ''}
+                                    <div class="flex gap-2 mt-3">
+                                        <button onclick="openActionModal(${index})" class="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">${hasAction ? '📝 تعديل الإجراء' : '📋 اتخاذ إجراء'}</button>
+                                        <button onclick="printStudentReport(${index})" class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors">🖨️ طباعة</button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : '<div class="col-span-full text-center py-8 text-gray-500"><div class="text-5xl mb-2">✅</div><p>لا يوجد طلاب تحت المراقبة حالياً</p></div>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAddModal() {
+            const v = state.newViolation;
+            const isDisabled = !v.studentName.trim() || !v.grade || !v.section || !v.violationDetails || !v.documentation.trim();
+
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target === this) closeAddForm()">
+                    <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                        <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+                            <h2 class="text-2xl font-bold flex items-center gap-2">➕ إضافة مخالفة سلوكية جديدة</h2>
+                            <p class="text-blue-100 text-sm mt-1">يرجى ملء جميع البيانات المطلوبة</p>
+                        </div>
+                        
+                        <form onsubmit="event.preventDefault(); addViolation();" class="p-6 space-y-5">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">اسم الطالب <span class="text-red-500">*</span></label>
+                                <input type="text" id="studentNameInput" value="${v.studentName}" oninput="state.newViolation.studentName = this.value; updateFieldBorder(this);" class="w-full px-4 py-3 border-2 ${v.studentName.trim() ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="أدخل اسم الطالب الثلاثي الكامل" required autocomplete="off">
+                                <p class="text-xs text-gray-500 mt-1">مثال: أحمد محمد علي</p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">الصف <span class="text-red-500">*</span></label>
+                                    <select id="gradeSelect" onchange="state.newViolation.grade = this.value; updateSelectBorder(this); updateButtonState();" required class="w-full px-4 py-3 border-2 ${v.grade ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        <option value="">اختر الصف</option>
+                                        ${config.grades.map(g => `<option value="${g}" ${v.grade === g ? 'selected' : ''}>${g}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">الشعبة <span class="text-red-500">*</span></label>
+                                    <select id="sectionSelect" onchange="state.newViolation.section = this.value; updateSelectBorder(this); updateButtonState();" required class="w-full px-4 py-3 border-2 ${v.section ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        <option value="">اختر الشعبة</option>
+                                        ${config.sections.map(s => `<option value="${s}" ${v.section === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">درجة المخالفة <span class="text-red-500">*</span></label>
+                                <div class="grid grid-cols-3 gap-3">
+                                    <button type="button" onclick="state.newViolation.violationType = 'first'; state.newViolation.violationDetails = ''; updateViolationTypeUI();" class="p-4 border-2 rounded-lg font-medium transition-all ${v.violationType === 'first' ? 'border-green-500 bg-green-50 text-green-800' : 'border-gray-300 hover:border-green-300'}">
+                                        <div class="text-lg mb-1">درجة أولى</div>
+                                        <div class="text-xs text-gray-600">(درجة واحدة)</div>
+                                    </button>
+                                    <button type="button" onclick="state.newViolation.violationType = 'second'; state.newViolation.violationDetails = ''; updateViolationTypeUI();" class="p-4 border-2 rounded-lg font-medium transition-all ${v.violationType === 'second' ? 'border-yellow-500 bg-yellow-50 text-yellow-800' : 'border-gray-300 hover:border-yellow-300'}">
+                                        <div class="text-lg mb-1">درجة ثانية</div>
+                                        <div class="text-xs text-gray-600">(درجتين)</div>
+                                    </button>
+                                    <button type="button" onclick="state.newViolation.violationType = 'third'; state.newViolation.violationDetails = ''; updateViolationTypeUI();" class="p-4 border-2 rounded-lg font-medium transition-all ${v.violationType === 'third' ? 'border-red-500 bg-red-50 text-red-800' : 'border-gray-300 hover:border-red-300'}">
+                                        <div class="text-lg mb-1">درجة ثالثة</div>
+                                        <div class="text-xs text-gray-600">(ثلاث درجات)</div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">نوع المخالفة <span class="text-red-500">*</span></label>
+                                <select id="violationTypeSelect" onchange="state.newViolation.violationDetails = this.value; updateSelectBorder(this); updateButtonState();" required class="w-full px-4 py-3 border-2 ${v.violationDetails ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="">اختر نوع المخالفة</option>
+                                    ${config.violationTypes[v.violationType].items.map(item => `<option value="${item}" ${v.violationDetails === item ? 'selected' : ''}>${item}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">توثيق المخالفة (الإجراء المتبع) <span class="text-red-500">*</span></label>
+                                <textarea id="documentationInput" oninput="state.newViolation.documentation = this.value; updateFieldBorder(this);" class="w-full px-4 py-3 border-2 ${v.documentation.trim() ? 'border-green-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 resize-none" rows="4" placeholder="اكتب الإجراء الذي اتخذته مع الطالب (مثال: تم توجيهه شفوياً - تم حرمانه من الفسحة - تم إحالته لوكيل الطلاب...)" required>${v.documentation}</textarea>
+                                <p class="text-xs text-red-600 mt-1">⚠️ هذا الحقل إلزامي لتوثيق الإجراء المتخذ</p>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">التاريخ</label>
+                                    <input type="date" value="${v.date}" onchange="state.newViolation.date = this.value;" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">الوقت</label>
+                                    <input type="time" value="${v.time}" onchange="state.newViolation.time = this.value;" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+
+                            <div id="missingFieldsWarning" style="display: ${isDisabled ? 'block' : 'none'};" class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
+                                <p class="text-sm text-yellow-900 font-bold">⚠️ يرجى ملء الحقول التالية:</p>
+                                <ul class="text-xs text-yellow-800 mt-2 mr-4 list-disc" id="missingFieldsList">
+                                    ${!v.studentName.trim() ? '<li>اسم الطالب</li>' : ''}
+                                    ${!v.grade ? '<li>الصف</li>' : ''}
+                                    ${!v.section ? '<li>الشعبة</li>' : ''}
+                                    ${!v.violationDetails ? '<li>نوع المخالفة</li>' : ''}
+                                    ${!v.documentation.trim() ? '<li>توثيق المخالفة (الإجراء المتبع)</li>' : ''}
+                                </ul>
+                            </div>
+                        </form>
+
+                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl flex gap-3 justify-end">
+                            <button type="button" onclick="closeAddForm()" class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">إلغاء</button>
+                            <button type="button" id="saveViolationBtn" onclick="addViolation()" ${isDisabled ? 'disabled' : ''} class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}">
+                                ${isDisabled ? '⚠️ يرجى ملء جميع البيانات المطلوبة' : '✔ حفظ المخالفة'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Helper functions for dynamic updates without full render
+        window.updateFieldBorder = function(element) {
+            if (element.value.trim()) {
+                element.classList.remove('border-gray-300');
+                element.classList.add('border-green-500');
+            } else {
+                element.classList.remove('border-green-500');
+                element.classList.add('border-gray-300');
+            }
+            updateButtonState();
+        };
+
+        window.updateSelectBorder = function(element) {
+            if (element.value) {
+                element.classList.remove('border-gray-300');
+                element.classList.add('border-green-500');
+            } else {
+                element.classList.remove('border-green-500');
+                element.classList.add('border-gray-300');
+            }
+        };
+
+        window.updateViolationTypeUI = function() {
+            const violationSelect = document.getElementById('violationTypeSelect');
+            if (violationSelect) {
+                const v = state.newViolation;
+                violationSelect.innerHTML = `
+                    <option value="">اختر نوع المخالفة</option>
+                    ${config.violationTypes[v.violationType].items.map(item => `<option value="${item}">${item}</option>`).join('')}
+                `;
+                violationSelect.classList.remove('border-green-500');
+                violationSelect.classList.add('border-gray-300');
+            }
+            updateButtonState();
+        };
+
+        window.updateButtonState = function() {
+            const v = state.newViolation;
+            const isDisabled = !v.studentName.trim() || !v.grade || !v.section || !v.violationDetails || !v.documentation.trim();
+            
+            const saveBtn = document.getElementById('saveViolationBtn');
+            const warningDiv = document.getElementById('missingFieldsWarning');
+            const missingList = document.getElementById('missingFieldsList');
+            
+            if (saveBtn) {
+                if (isDisabled) {
+                    saveBtn.disabled = true;
+                    saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    saveBtn.innerHTML = '⚠️ يرجى ملء جميع البيانات المطلوبة';
+                } else {
+                    saveBtn.disabled = false;
+                    saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    saveBtn.innerHTML = '✔ حفظ المخالفة';
+                }
+            }
+            
+            if (warningDiv) {
+                warningDiv.style.display = isDisabled ? 'block' : 'none';
+            }
+            
+            if (missingList) {
+                let missingFields = '';
+                if (!v.studentName.trim()) missingFields += '<li>اسم الطالب</li>';
+                if (!v.grade) missingFields += '<li>الصف</li>';
+                if (!v.section) missingFields += '<li>الشعبة</li>';
+                if (!v.violationDetails) missingFields += '<li>نوع المخالفة</li>';
+                if (!v.documentation.trim()) missingFields += '<li>توثيق المخالفة (الإجراء المتبع)</li>';
+                missingList.innerHTML = missingFields;
+            }
+        };
+
+        function renderDetailsModal() {
+            const v = state.modals.selectedViolation;
+            if (!v) return '';
+
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50">
+                    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+                            <h2 class="text-2xl font-bold flex items-center gap-2">👁️ تفاصيل المخالفة</h2>
+                        </div>
+                        
+                        <div class="p-6 space-y-4">
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <h3 class="font-bold text-lg text-gray-900 mb-3">معلومات الطالب</h3>
+                                <div class="grid grid-cols-2 gap-3 text-sm">
+                                    <div><span class="text-gray-600">الاسم:</span><span class="font-bold mr-2">${v.studentName}</span></div>
+                                    <div><span class="text-gray-600">الصف:</span><span class="font-bold mr-2">${v.grade}</span></div>
+                                    <div><span class="text-gray-600">الشعبة:</span><span class="font-bold mr-2">${v.section}</span></div>
+                                    <div><span class="text-gray-600">عدد المخالفات من هذا المعلم:</span><span class="font-bold mr-2">${getStudentViolationCount(v.studentName, v.teacherId)}</span></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <h3 class="font-bold text-lg text-gray-900 mb-3">تفاصيل المخالفة</h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(v.violationType)}">${getDegreeLabel(v.violationType)}</span>
+                                    </div>
+                                    <div><span class="text-gray-600">نوع المخالفة:</span><p class="font-bold mt-1">${v.violationDetails}</p></div>
+                                    ${v.documentation ? `<div><span class="text-gray-600">التوثيق:</span><p class="mt-1 text-gray-800">${v.documentation}</p></div>` : ''}
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <h3 class="font-bold text-lg text-gray-900 mb-3">معلومات التسجيل</h3>
+                                <div class="grid grid-cols-2 gap-3 text-sm">
+                                    <div><span class="text-gray-600">المعلم:</span><span class="font-bold mr-2">${v.teacherName}</span></div>
+                                    <div><span class="text-gray-600">التاريخ:</span><span class="font-bold mr-2">${v.date}</span></div>
+                                    <div><span class="text-gray-600">الوقت:</span><span class="font-bold mr-2">${v.time}</span></div>
+                                    <div><span class="text-gray-600">الحالة:</span><span class="font-bold mr-2 ${v.status === 'active' ? 'text-orange-600' : 'text-green-600'}">${v.status === 'active' ? 'نشطة' : 'محلولة'}</span></div>
+                                </div>
+                            </div>
+
+                            ${v.status === 'resolved' && v.resolutionReason ? `
+                                <div class="bg-green-50 rounded-lg p-4 border-2 border-green-200">
+                                    <h3 class="font-bold text-lg text-green-900 mb-3 flex items-center gap-2">🏆 معلومات الحل</h3>
+                                    <div class="space-y-2 text-sm">
+                                        <div><span class="text-green-700">السلوك الإيجابي:</span><p class="font-bold mt-1 text-green-900">${v.resolutionReason}</p></div>
+                                        <div class="grid grid-cols-2 gap-3 mt-3">
+                                            <div><span class="text-green-700">تم الحل بواسطة:</span><span class="font-bold mr-2 text-green-900">${v.resolvedBy}</span></div>
+                                            <div><span class="text-green-700">تاريخ الحل:</span><span class="font-bold mr-2 text-green-900">${new Date(v.resolvedAt).toLocaleDateString('ar-SA')}</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl">
+                            <button onclick="closeDetailsModal()" class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">إغلاق</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderActionModal() {
+            const student = state.modals.selectedStudent;
+            if (!student) return '';
+
+            const existingAction = state.studentActions.find(a => 
+                a.studentName === student.name && a.teacherId === student.teacherId && a.actionBy === state.currentUser.role
+            );
+
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center p-4 z-50" onclick="if(event.target === this) closeActionModal()">
+                    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                        <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+                            <h2 class="text-2xl font-bold flex items-center gap-2">📋 ${existingAction ? 'تعديل' : 'اتخاذ'} الإجراء - ${getRoleLabel(state.currentUser.role)}</h2>
+                            <p class="text-blue-100 text-sm mt-1">الطالب: ${student.name} | المعلم: ${student.teacherName}</p>
+                        </div>
+                        
+                        <div class="p-6">
+                            <div class="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-6">
+                                <h3 class="font-bold text-lg text-red-900 mb-3">معلومات الطالب</h3>
+                                <div class="grid grid-cols-2 gap-3 text-sm mb-4">
+                                    <div><span class="text-gray-600">الاسم:</span><span class="font-bold mr-2">${student.name}</span></div>
+                                    <div><span class="text-gray-600">الصف:</span><span class="font-bold mr-2">${student.grade}</span></div>
+                                    <div><span class="text-gray-600">الشعبة:</span><span class="font-bold mr-2">${student.section}</span></div>
+                                    <div><span class="text-gray-600">عدد المخالفات:</span><span class="font-bold mr-2 text-red-600">${student.count} مخالفات</span></div>
+                                </div>
+                                <div class="bg-yellow-100 border border-yellow-300 rounded p-2 text-sm"><strong>👨‍🏫 المعلم المسجل:</strong> ${student.teacherName}</div>
+                            </div>
+
+                            <div class="mb-6">
+                                <h3 class="font-bold text-lg text-gray-900 mb-3">📝 قائمة المخالفات:</h3>
+                                <div class="space-y-3">
+                                    ${student.violations.map((v, index) => `
+                                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                            <div class="flex items-start justify-between mb-2">
+                                                <div class="flex-1">
+                                                    <div class="font-bold text-gray-900 mb-1">${index + 1}. ${v.violationDetails}</div>
+                                                    <div class="text-sm text-gray-600">📅 ${v.date} | 🕐 ${v.time}</div>
+                                                    ${v.documentation ? `<div class="text-sm text-gray-700 mt-2 bg-white p-2 rounded border border-gray-200">${v.documentation}</div>` : ''}
+                                                </div>
+                                                <span class="px-3 py-1 rounded-full text-xs font-bold ${getDegreeColor(v.violationType)} whitespace-nowrap mr-3">${getDegreeLabel(v.violationType)}</span>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
+                                <h3 class="font-bold text-lg text-blue-900 mb-3">📋 الإجراء المتخذ من قبل ${getRoleLabel(state.currentUser.role)}</h3>
+                                <textarea id="actionDetailsInput" class="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none" rows="6" placeholder="أدخل تفاصيل الإجراء المتخذ (مثال: تم استدعاء ولي الأمر - توقيع تعهد - توجيه وإرشاد...)">${existingAction ? existingAction.actionDetails : ''}</textarea>
+                                <p class="text-sm text-blue-700 mt-2">💡 يرجى كتابة الإجراء المتخذ بشكل واضح ومفصل</p>
+                            </div>
+                        </div>
+
+                        <div class="sticky bottom-0 bg-gray-50 p-6 border-t rounded-b-xl flex gap-3 justify-end">
+                            <button type="button" onclick="closeActionModal()" class="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium">إلغاء</button>
+                            <button type="button" onclick="saveStudentAction()" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg">💾 حفظ الإجراء</button>
+                            ${existingAction ? '<button type="button" onclick="printStudentReport(' + getStudentsByViolationCount().findIndex(s => s.name === student.name && s.teacherId === student.teacherId) + ')" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-lg">🖨️ طباعة التقرير</button>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // Initialize Application
+        // ==========================================
+        async function initApp() {
+            if (!isFirebaseInitialized) {
+                console.warn('⚠️ تحذير: Firebase غير متصل - يعمل النظام في وضع عدم الاتصال');
+                render();
+                return;
+            }
+
+            try {
+                await loadViolations();
+                await loadStudentActions();
+                await loadNotificationsSent();
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                hideLoading();
+                alert('خطأ في تحميل البيانات: ' + error.message);
+                render();
+            }
+        }
+
+        // Don't auto-start - wait for Firebase
+        // initApp() will be called from the setTimeout above
     </script>
 </body>
 </html>
+
