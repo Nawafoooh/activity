@@ -155,7 +155,6 @@
         .icon.students { background: linear-gradient(135deg, #3498db, #2980b9); }
         .icon.reports { background: linear-gradient(135deg, #f39c12, #e67e22); }
         .icon.settings { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
-        .icon.disq { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .icon.messages { background: linear-gradient(135deg, #16a085, #1abc9c); }
 
         .student-item {
@@ -173,12 +172,6 @@
         .student-item:hover {
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             transform: translateX(5px);
-        }
-
-        .student-item.disqualified {
-            background: linear-gradient(135deg, #ffe8ee, #ffd8e2);
-            border-right-color: #e74c3c;
-            border-left: 5px solid #e74c3c;
         }
 
         .student-info h4 {
@@ -200,12 +193,6 @@
             background: #e3f2fd;
             padding: 10px 20px;
             border-radius: 10px;
-        }
-
-        .student-score.invalid {
-            color: #e74c3c;
-            background: #ffe8ee;
-            text-decoration: line-through;
         }
 
         .student-actions {
@@ -325,23 +312,6 @@
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border-color: #667eea;
-        }
-
-        .disqualified-badge {
-            display: inline-block;
-            background: #e74c3c;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.75em;
-            font-weight: bold;
-            margin-left: 8px;
-            animation: blinkBadge 1.5s infinite;
-        }
-
-        @keyframes blinkBadge {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
         }
 
         .notification {
@@ -641,7 +611,6 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('questions')">📝 إدارة الأسئلة</button>
             <button class="tab" onclick="switchTab('students')">👥 الطلاب</button>
-            <button class="tab" onclick="switchTab('disqualified')">🚫 المستبعدون</button>
             <button class="tab" onclick="switchTab('messages')">💬 الرسائل</button>
             <button class="tab" onclick="switchTab('settings')">⚙️ الإعدادات</button>
         </div>
@@ -772,38 +741,6 @@
             </div>
         </div>
 
-        <!-- Disqualified Tab -->
-        <div id="disqualifiedTab" class="tab-content">
-            <div class="stats-grid">
-                <div class="stat-card red">
-                    <div class="stat-number" id="disqualifiedCount">0</div>
-                    <div class="stat-label">عدد المستبعدين</div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">
-                    <div class="icon disq">🚫</div>
-                    <span>الطلاب المستبعدون من المسابقة</span>
-                </div>
-
-                <div style="background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-right: 4px solid #f39c12;">
-                    <h4 style="color: #856404; margin-bottom: 10px;">📌 معلومات هامة</h4>
-                    <p style="color: #856404; line-height: 1.8;">
-                        • الطلاب المستبعدون هم من حصلوا على درجات أعلى من 204 (محاولة تلاعب)<br>
-                        • يمكنك إعادة أي طالب للمسابقة بالضغط على زر "إعادة للمسابقة"<br>
-                        • <strong>خيار جديد:</strong> يمكنك اختيار الحفاظ على نقاطه الحالية أو تصفيرها<br>
-                        • <strong>استئناف ذكي:</strong> سيستأنف الطالب من نفس السؤال الذي توقف عنده<br>
-                        • الإجابات السابقة محفوظة ولن يحتاج للإجابة عليها مرة أخرى<br>
-                        • إذا اخترت تصفير النقاط، سيبدأ من 0 نقطة لكن من نفس السؤال الحالي
-                    </p>
-                </div>
-
-                <div class="loading" id="disqualifiedLoading"><p>جاري تحميل القائمة...</p></div>
-                <div id="disqualifiedList"></div>
-            </div>
-        </div>
-
         <!-- Messages Tab -->
         <div id="messagesTab" class="tab-content">
             <div class="stats-grid">
@@ -874,9 +811,6 @@
                         <strong>👥 عدد الطلاب:</strong> <span id="totalStudentsCount">0</span>
                     </p>
                     <p style="margin: 10px 0; color: #555;">
-                        <strong>🚫 عدد المستبعدين:</strong> <span id="totalDisqualifiedCount">0</span>
-                    </p>
-                    <p style="margin: 10px 0; color: #555;">
                         <strong>💬 عدد الرسائل:</strong> <span id="totalMessagesCount">0</span>
                     </p>
                     <p style="margin: 10px 0; color: #555;">
@@ -915,8 +849,6 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
-        const MAX_SCORE = 204;
 
         let allStudents = [];
         let allMessages = [];
@@ -958,7 +890,6 @@
 
             if (tabName === 'questions') loadQuestions();
             if (tabName === 'students') loadStudents();
-            if (tabName === 'disqualified') loadDisqualifiedStudents();
             if (tabName === 'messages') loadMessages();
             if (tabName === 'settings') updateSystemInfo();
         };
@@ -1273,12 +1204,11 @@
         }
 
         function updateStudentsStats() {
-            const activeStudents = allStudents.filter(s => !s.disqualified && (s.score || 0) <= MAX_SCORE);
             const stats = {
-                total: activeStudents.length,
-                grade1: activeStudents.filter(s => s.grade === '1').length,
-                grade2: activeStudents.filter(s => s.grade === '2').length,
-                grade3: activeStudents.filter(s => s.grade === '3').length
+                total: allStudents.length,
+                grade1: allStudents.filter(s => s.grade === '1').length,
+                grade2: allStudents.filter(s => s.grade === '2').length,
+                grade3: allStudents.filter(s => s.grade === '3').length
             };
             document.getElementById('totalStudents').textContent = stats.total;
             document.getElementById('grade1Count').textContent = stats.grade1;
@@ -1287,11 +1217,10 @@
         }
 
         function displayStudents() {
-            const activeStudents = allStudents.filter(s => !s.disqualified && (s.score || 0) <= MAX_SCORE);
-            activeStudents.sort((a, b) => (b.score || 0) - (a.score || 0));
+            allStudents.sort((a, b) => (b.score || 0) - (a.score || 0));
             
             const box = document.getElementById('studentsList');
-            if (!activeStudents.length) {
+            if (!allStudents.length) {
                 box.innerHTML = `
                     <div style="text-align:center;padding:40px;color:#7f8c8d">
                         <p>لا يوجد طلاب مسجلون</p>
@@ -1299,7 +1228,7 @@
                 return;
             }
 
-            box.innerHTML = activeStudents.map(st => {
+            box.innerHTML = allStudents.map(st => {
                 const isCompleted = st.testCompleted === true;
                 const statusBadge = isCompleted 
                     ? '<span style="background:#d4edda;color:#155724;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:5px">✅ أتم الاختبار</span>' 
@@ -1363,7 +1292,6 @@
                     lastAnswers: [],
                     questionsAnswered: 0,
                     testCompleted: false,
-                    disqualified: false,
                     fullResetAt: new Date()
                 });
                 showNotification(`تم إعادة ${name} بالكامل`, 'success');
@@ -1383,158 +1311,6 @@
             } catch (e) {
                 console.error(e);
                 showNotification('خطأ أثناء حذف الطالب', 'error');
-            }
-        };
-
-        // Disqualified Students Management
-        async function loadDisqualifiedStudents() {
-            showLoading('disqualifiedLoading', true);
-            try {
-                const snap = await getDocs(collection(db, 'students'));
-                const disqualified = [];
-                
-                snap.forEach(d => {
-                    const data = d.data();
-                    const score = data.score || 0;
-                    
-                    if (data.disqualified === true || score > MAX_SCORE) {
-                        disqualified.push({ id: d.id, ...data });
-                    }
-                });
-                
-                document.getElementById('disqualifiedCount').textContent = disqualified.length;
-                displayDisqualified(disqualified);
-            } catch (e) {
-                console.error(e);
-                showNotification('خطأ أثناء تحميل المستبعدين', 'error');
-            } finally {
-                showLoading('disqualifiedLoading', false);
-            }
-        }
-
-        function displayDisqualified(students) {
-            const box = document.getElementById('disqualifiedList');
-            
-            if (!students.length) {
-                box.innerHTML = `
-                    <div style="text-align:center;padding:40px;color:#27ae60;background:#d4edda;border-radius:15px">
-                        <h3 style="margin-bottom:10px">✅ لا يوجد طلاب مستبعدون</h3>
-                        <p>جميع الطلاب ملتزمون بقواعد المسابقة</p>
-                    </div>`;
-                return;
-            }
-
-            box.innerHTML = students.map(st => {
-                const score = st.score || 0;
-                const isScoreValid = score <= MAX_SCORE;
-                const currentQuestion = st.lastQuestion || 0;
-                const totalQuestions = 204;
-                
-                const reason = score > MAX_SCORE 
-                    ? `درجة غير صحيحة: ${score}/${MAX_SCORE} ❌` 
-                    : (st.disqualificationReason || 'محاولة تلاعب بالدرجات');
-                
-                const scoreClass = isScoreValid ? 'student-score' : 'student-score invalid';
-                const scoreNote = isScoreValid 
-                    ? '<p style="font-size:11px;color:#27ae60;margin-top:3px">✓ النقاط صحيحة - يمكن الحفاظ عليها عند الاسترجاع</p>'
-                    : '<p style="font-size:11px;color:#e74c3c;margin-top:3px">✗ نقاط غير صحيحة - يُنصح بتصفيرها</p>';
-                
-                const progressNote = currentQuestion > 0 
-                    ? `<p style="font-size:12px;color:#3498db;margin-top:5px;font-weight:500">📝 السؤال الحالي: ${currentQuestion + 1} من ${totalQuestions}</p>`
-                    : '<p style="font-size:12px;color:#95a5a6;margin-top:5px">📝 لم يبدأ الاختبار بعد</p>';
-                
-                return `
-                <div class="student-item disqualified">
-                    <div class="student-info">
-                        <h4>
-                            ${st.name} 
-                            <span class="disqualified-badge">⚠️ مستبعد</span>
-                        </h4>
-                        <p>الصف ${st.grade} • رقم الطالب: ${st.code}</p>
-                        <p style="color:#e74c3c;font-weight:bold;margin-top:5px">
-                            سبب الاستبعاد: ${reason}
-                        </p>
-                        ${progressNote}
-                        <p style="font-size:12px;color:#95a5a6;margin-top:3px">
-                            تم الاستبعاد: ${st.disqualifiedAt ? new Date(st.disqualifiedAt.toDate()).toLocaleString('ar-SA') : 'غير متاح'}
-                        </p>
-                    </div>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-direction:column">
-                        <div>
-                            <div class="${scoreClass}">${score} نقطة</div>
-                            ${scoreNote}
-                        </div>
-                        <div class="student-actions">
-                            <button class="btn success" onclick="reinstateStudent('${st.id}','${st.name}',${score})" title="إعادة للمسابقة مع استئناف من نفس السؤال">
-                                ✅ إعادة للمسابقة
-                            </button>
-                            <button class="btn danger" onclick="deleteStudent('${st.id}','${st.name}')">
-                                🗑️ حذف نهائياً
-                            </button>
-                        </div>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        window.reinstateStudent = async function(id, name, currentScore) {
-            const choice = confirm(
-                `إعادة الطالب ${name} للمسابقة\n\n` +
-                `هل تريد الحفاظ على نقاطه الحالية؟\n\n` +
-                `✅ موافق = الحفاظ على النقاط (${currentScore} نقطة)\n` +
-                `❌ إلغاء = إعادة النقاط إلى 0\n\n` +
-                `اختر الخيار المناسب:`
-            );
-            
-            const keepScore = choice;
-            const studentDoc = allStudents.find(s => s.id === id);
-            const currentQuestion = studentDoc?.lastQuestion || 0;
-            const currentAnswers = studentDoc?.lastAnswers || [];
-            
-            const finalConfirm = confirm(
-                `تأكيد إعادة الطالب ${name}\n\n` +
-                `سيتم:\n` +
-                `✅ إزالة علامة الاستبعاد\n` +
-                `${keepScore ? `✅ الحفاظ على النقاط الحالية (${currentScore} نقطة)` : '⚠️ إعادة النقاط إلى 0'}\n` +
-                `✅ السماح له بالمشاركة مجدداً\n` +
-                `✅ استئناف الاختبار من السؤال رقم ${currentQuestion + 1}\n` +
-                `✅ الحفاظ على إجاباته السابقة\n\n` +
-                `هل تريد المتابعة؟`
-            );
-            
-            if (!finalConfirm) return;
-            
-            try {
-                const updateData = {
-                    disqualified: false,
-                    disqualificationReason: '',
-                    testCompleted: false,
-                    lastQuestion: currentQuestion,
-                    lastAnswers: currentAnswers,
-                    reinstatedAt: new Date(),
-                    reinstatedWithScore: keepScore,
-                    reinstatedFromQuestion: currentQuestion,
-                    lastActive: new Date()
-                };
-                
-                if (!keepScore) {
-                    updateData.score = 0;
-                    updateData.questionsAnswered = 0;
-                }
-                
-                await updateDoc(doc(db, 'students', id), updateData);
-                
-                const message = keepScore 
-                    ? `✅ تم إعادة الطالب ${name} مع الحفاظ على ${currentScore} نقطة\n📝 سيستأنف من السؤال رقم ${currentQuestion + 1}` 
-                    : `✅ تم إعادة الطالب ${name} وتصفير النقاط\n📝 سيستأنف من السؤال رقم ${currentQuestion + 1}`;
-                
-                showNotification(message, 'success');
-                loadDisqualifiedStudents();
-                loadStudents();
-                updateSystemInfo();
-            } catch (e) {
-                console.error(e);
-                showNotification('❌ خطأ أثناء إعادة الطالب', 'error');
             }
         };
 
@@ -1752,14 +1528,12 @@
                         lastAnswers: [],
                         questionsAnswered: 0,
                         testCompleted: false,
-                        disqualified: false,
                         systemReset: new Date()
                     });
                 });
                 await batch.commit();
                 showNotification('تم إعادة تعيين النظام بنجاح', 'success');
                 loadStudents();
-                loadDisqualifiedStudents();
             } catch (e) {
                 console.error(e);
                 showNotification('حدث خطأ أثناء إعادة التعيين', 'error');
@@ -1768,12 +1542,7 @@
 
         function updateSystemInfo() {
             document.getElementById('lastUpdate').textContent = new Date().toLocaleString('ar-SA');
-            
-            const activeStudents = allStudents.filter(s => !s.disqualified && (s.score || 0) <= MAX_SCORE);
-            const disqualifiedStudents = allStudents.filter(s => s.disqualified === true || (s.score || 0) > MAX_SCORE);
-            
-            document.getElementById('totalStudentsCount').textContent = activeStudents.length;
-            document.getElementById('totalDisqualifiedCount').textContent = disqualifiedStudents.length;
+            document.getElementById('totalStudentsCount').textContent = allStudents.length;
             document.getElementById('totalMessagesCount').textContent = allMessages.length;
             document.getElementById('totalQuestionsCount').textContent = currentQuestions.length;
         }
