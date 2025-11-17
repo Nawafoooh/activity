@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سجل متابعة تنفيذ خطط التحسين الأكاديمية</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            padding: 25px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .table-container {
+            padding: 30px;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        th {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 15px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .status-منفذ {
+            background: #d4edda !important;
+            color: #155724;
+            font-weight: 600;
+        }
+        
+        .status-غير-منفذ {
+            background: #f8d7da !important;
+            color: #721c24;
+            font-weight: 600;
+        }
+        
+        .status-قيد-المراجعة {
+            background: #fff3cd !important;
+            color: #856404;
+            font-weight: 600;
+        }
+        
+        .stats {
+            padding: 25px 30px;
+            background: #f8f9fa;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .delete-btn:hover {
+            background: #c82333;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>سجل متابعة تنفيذ خطط التحسين الأكاديمية</h1>
+            <p>متوسطة المنذر بن عمرو الأنصاري</p>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" onclick="addRow()">➕ إضافة معلم جديد</button>
+            <button class="btn btn-success" onclick="exportToExcel()">📥 تحميل ملف Excel</button>
+            <button class="btn btn-danger" onclick="clearTable()">🗑️ مسح الجدول</button>
+        </div>
+        
+        <div class="table-container">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>اسم المعلم</th>
+                        <th>خطة التحسين المطلوبة</th>
+                        <th>تاريخ الاستلام</th>
+                        <th>تاريخ التنفيذ</th>
+                        <th>الحالة</th>
+                        <th>ملاحظات الإدارة</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card" style="border-top: 4px solid #28a745;">
+                <div class="stat-number" style="color: #28a745;" id="countMunafadh">0</div>
+                <div class="stat-label">خطط منفذة</div>
+            </div>
+            <div class="stat-card" style="border-top: 4px solid #dc3545;">
+                <div class="stat-number" style="color: #dc3545;" id="countGhayr">0</div>
+                <div class="stat-label">خطط غير منفذة</div>
+            </div>
+            <div class="stat-card" style="border-top: 4px solid #ffc107;">
+                <div class="stat-number" style="color: #ffc107;" id="countQaid">0</div>
+                <div class="stat-label">خطط قيد المراجعة</div>
+            </div>
+            <div class="stat-card" style="border-top: 4px solid #667eea;">
+                <div class="stat-number" style="color: #667eea;" id="countPercentage">0%</div>
+                <div class="stat-label">نسبة الإنجاز</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // تحميل البيانات من localStorage أو استخدام البيانات الافتراضية
+        let data = JSON.parse(localStorage.getItem('improvementData')) || [
+            {
+                name: 'سلطان السحيمي',
+                plan: 'خطة تحسين نتائج الطلاب',
+                receiveDate: '',
+                executeDate: '',
+                status: 'منفذ',
+                notes: 'تم التسليم'
+            },
+            {
+                name: 'مشعل هليل الحربي',
+                plan: 'خطة تحسين نتائج الطلاب',
+                receiveDate: '',
+                executeDate: '',
+                status: 'منفذ',
+                notes: 'تم التسليم'
+            },
+            {
+                name: '',
+                plan: 'خطة تحسين نتائج الطلاب',
+                receiveDate: '',
+                executeDate: '',
+                status: 'غير منفذ',
+                notes: ''
+            },
+            {
+                name: '',
+                plan: 'خطة تحسين نتائج الطلاب',
+                receiveDate: '',
+                executeDate: '',
+                status: 'غير منفذ',
+                notes: ''
+            },
+            {
+                name: '',
+                plan: 'خطة تحسين نتائج الطلاب',
+                receiveDate: '',
+                executeDate: '',
+                status: 'غير منفذ',
+                notes: ''
+            }
+        ];
+        
+        // حفظ البيانات في localStorage
+        function saveData() {
+            localStorage.setItem('improvementData', JSON.stringify(data));
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            data.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" value="${row.name}" onchange="updateData(${index}, 'name', this.value)"></td>
+                    <td><input type="text" value="${row.plan}" onchange="updateData(${index}, 'plan', this.value)"></td>
+                    <td><input type="date" value="${row.receiveDate}" onchange="updateData(${index}, 'receiveDate', this.value)"></td>
+                    <td><input type="date" value="${row.executeDate}" onchange="updateData(${index}, 'executeDate', this.value)"></td>
+                    <td class="status-${row.status.replace(/\s/g, '-')}">
+                        <select onchange="updateData(${index}, 'status', this.value)">
+                            <option value="منفذ" ${row.status === 'منفذ' ? 'selected' : ''}>منفذ</option>
+                            <option value="غير منفذ" ${row.status === 'غير منفذ' ? 'selected' : ''}>غير منفذ</option>
+                            <option value="قيد المراجعة" ${row.status === 'قيد المراجعة' ? 'selected' : ''}>قيد المراجعة</option>
+                        </select>
+                    </td>
+                    <td><input type="text" value="${row.notes}" onchange="updateData(${index}, 'notes', this.value)"></td>
+                    <td><button class="delete-btn" onclick="deleteRow(${index})">حذف</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            updateStats();
+        }
+
+        function updateData(index, field, value) {
+            data[index][field] = value;
+            saveData();
+            renderTable();
+        }
+
+        function addRow() {
+            data.push({
+                name: '',
+                plan: 'خطة تحسين نتائج الطلاب',
+                receiveDate: '',
+                executeDate: '',
+                status: 'غير منفذ',
+                notes: ''
+            });
+            saveData();
+            renderTable();
+        }
+
+        function deleteRow(index) {
+            if (confirm('هل أنت متأكد من حذف هذا الصف؟')) {
+                data.splice(index, 1);
+                saveData();
+                renderTable();
+            }
+        }
+
+        function clearTable() {
+            if (confirm('هل أنت متأكد من مسح جميع البيانات؟')) {
+                data = [];
+                saveData();
+                renderTable();
+            }
+        }
+
+        function updateStats() {
+            const munafadh = data.filter(d => d.status === 'منفذ').length;
+            const ghayr = data.filter(d => d.status === 'غير منفذ').length;
+            const qaid = data.filter(d => d.status === 'قيد المراجعة').length;
+            const total = data.length;
+            const percentage = total > 0 ? Math.round((munafadh / total) * 100) : 0;
+            
+            document.getElementById('countMunafadh').textContent = munafadh;
+            document.getElementById('countGhayr').textContent = ghayr;
+            document.getElementById('countQaid').textContent = qaid;
+            document.getElementById('countPercentage').textContent = percentage + '%';
+        }
+
+        function exportToExcel() {
+            const wb = XLSX.utils.book_new();
+            
+            const wsData = [
+                ['سجل متابعة تنفيذ خطط التحسين الأكاديمية'],
+                ['متوسطة المنذر بن عمرو الأنصاري'],
+                [],
+                ['اسم المعلم', 'خطة التحسين المطلوبة', 'تاريخ الاستلام', 'تاريخ التنفيذ', 'الحالة', 'ملاحظات الإدارة']
+            ];
+            
+            data.forEach(row => {
+                wsData.push([
+                    row.name,
+                    row.plan,
+                    row.receiveDate,
+                    row.executeDate,
+                    row.status,
+                    row.notes
+                ]);
+            });
+            
+            wsData.push([]);
+            wsData.push(['الإحصائيات']);
+            wsData.push(['خطط منفذة', data.filter(d => d.status === 'منفذ').length]);
+            wsData.push(['خطط غير منفذة', data.filter(d => d.status === 'غير منفذ').length]);
+            wsData.push(['خطط قيد المراجعة', data.filter(d => d.status === 'قيد المراجعة').length]);
+            wsData.push(['نسبة الإنجاز', Math.round((data.filter(d => d.status === 'منفذ').length / data.length) * 100) + '%']);
+            
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            ws['!cols'] = [
+                {wch: 20},
+                {wch: 30},
+                {wch: 15},
+                {wch: 15},
+                {wch: 15},
+                {wch: 30}
+            ];
+            
+            XLSX.utils.book_append_sheet(wb, ws, 'سجل المتابعة');
+            
+            const fileName = `سجل_متابعة_خطط_التحسين_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
