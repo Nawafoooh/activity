@@ -212,6 +212,141 @@
             transform: translateY(-2px);
         }
 
+        .waiting-section {
+            margin-top: 40px;
+            padding: 25px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 2px solid #cbd5e0;
+        }
+
+        .waiting-section h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+
+        .waiting-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #4a5568;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px;
+            border: 2px solid #cbd5e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+
+        .btn-distribute {
+            background: #ed8936;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-distribute:hover {
+            background: #dd6b20;
+            transform: translateY(-2px);
+        }
+
+        .waiting-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .waiting-table th,
+        .waiting-table td {
+            border: 1px solid #cbd5e0;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .waiting-table th {
+            background: #4a5568;
+            color: white;
+            font-weight: bold;
+        }
+
+        .waiting-table tr:nth-child(even) {
+            background: #f7fafc;
+        }
+
+        .waiting-assigned {
+            background: #c6f6d5 !important;
+            font-weight: bold;
+        }
+
+        .signature-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #cbd5e0;
+        }
+
+        .signature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .signature-box {
+            text-align: center;
+            padding: 15px;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+        }
+
+        .signature-box label {
+            display: block;
+            font-weight: bold;
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+
+        .signature-box input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #cbd5e0;
+            border-radius: 5px;
+            text-align: center;
+        }
+
         @media print {
             body {
                 background: white;
@@ -324,6 +459,62 @@
             <button class="btn btn-save" onclick="saveData()">💾 حفظ البيانات</button>
             <button class="btn btn-print" onclick="window.print()">🖨️ طباعة الجدول</button>
             <button class="btn btn-clear" onclick="clearSchedule()">🗑️ مسح الجدول</button>
+        </div>
+
+        <!-- قسم جدول الانتظار -->
+        <div class="waiting-section">
+            <h2>📋 جدول توزيع الانتظار</h2>
+            
+            <div class="waiting-form">
+                <div class="form-group">
+                    <label>اسم المعلم الغائب</label>
+                    <select id="absentTeacher">
+                        <option value="">اختر المعلم الغائب</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>اليوم</label>
+                    <select id="absenceDay">
+                        <option value="">اختر اليوم</option>
+                        <option value="sun">الأحد</option>
+                        <option value="mon">الإثنين</option>
+                        <option value="tue">الثلاثاء</option>
+                        <option value="wed">الأربعاء</option>
+                        <option value="thu">الخميس</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>التاريخ</label>
+                    <input type="date" id="absenceDate">
+                </div>
+                
+                <div class="form-group" style="align-self: end;">
+                    <button class="btn-distribute" onclick="distributeWaiting()">توزيع الانتظار</button>
+                </div>
+            </div>
+
+            <div id="waitingResult"></div>
+            
+            <!-- قسم التوقيع -->
+            <div class="signature-section">
+                <h3 style="text-align: center; color: #2d3748; margin-bottom: 15px;">التوقيعات</h3>
+                <div class="signature-grid">
+                    <div class="signature-box">
+                        <label>اليوم</label>
+                        <input type="text" id="sigDay" placeholder="مثال: الأحد">
+                    </div>
+                    <div class="signature-box">
+                        <label>التاريخ</label>
+                        <input type="text" id="sigDate" placeholder="مثال: 1446/6/15">
+                    </div>
+                    <div class="signature-box">
+                        <label>التوقيع</label>
+                        <input type="text" id="sigName" placeholder="اسم المسؤول">
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -463,7 +654,10 @@
                 nameInput.className = 'teacher-input';
                 nameInput.placeholder = `معلم ${i + 1}`;
                 nameInput.id = `teacher_${i}`;
-                nameInput.addEventListener('change', saveData);
+                nameInput.addEventListener('change', () => {
+                    saveData();
+                    updateAbsentTeacherList();
+                });
                 nameCell.appendChild(nameInput);
                 row.appendChild(nameCell);
 
@@ -530,6 +724,7 @@
             }
 
             loadData();
+            updateAbsentTeacherList();
         }
 
         function saveData() {
