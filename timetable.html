@@ -722,7 +722,7 @@
             }
         }
 
-        // فحص الفصول غير المسندة أو الناقصة
+        // فحص الفصول غير المسندة في كل حصة
         function checkUnassignedClasses() {
             const allClasses = [
                 '1-1', '1-2', '1-3', '1-4', '1-5', '1-6',
@@ -730,36 +730,39 @@
                 '3-1', '3-2', '3-3', '3-4', '3-5', '3-6'
             ];
             
-            const classAssignments = {};
+            const dayNames = {
+                'sun': 'الأحد',
+                'mon': 'الإثنين',
+                'tue': 'الثلاثاء',
+                'wed': 'الأربعاء',
+                'thu': 'الخميس'
+            };
             
-            // تهيئة عداد لكل فصل
-            allClasses.forEach(cls => {
-                classAssignments[cls] = 0;
-            });
+            const missingClasses = [];
             
-            // حساب عدد الحصص المسندة لكل فصل
-            for (let i = 0; i < 42; i++) {
-                days.forEach(day => {
-                    for (let period = 1; period <= 7; period++) {
+            // فحص كل حصة (كل عمود)
+            days.forEach(day => {
+                for (let period = 1; period <= 7; period++) {
+                    const assignedInThisPeriod = new Set();
+                    
+                    // جمع جميع الفصول المسندة في هذه الحصة
+                    for (let i = 0; i < 42; i++) {
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
                         if (select && select.value && !select.value.startsWith('انتظار')) {
-                            if (classAssignments.hasOwnProperty(select.value)) {
-                                classAssignments[select.value]++;
-                            }
+                            assignedInThisPeriod.add(select.value);
                         }
                     }
-                });
-            }
-            
-            // البحث عن الفصول التي لديها أقل من 5 حصص (غير مكتمل) أو 0 حصص (غير مسند)
-            const unassignedClasses = [];
-            const incompleteClasses = [];
-            
-            allClasses.forEach(cls => {
-                if (classAssignments[cls] === 0) {
-                    unassignedClasses.push(cls);
-                } else if (classAssignments[cls] < 5) {
-                    incompleteClasses.push(`${cls} (${classAssignments[cls]} حصص)`);
+                    
+                    // البحث عن الفصول المفقودة في هذه الحصة
+                    allClasses.forEach(cls => {
+                        if (!assignedInThisPeriod.has(cls)) {
+                            missingClasses.push({
+                                class: cls,
+                                day: dayNames[day],
+                                period: period
+                            });
+                        }
+                    });
                 }
             });
             
@@ -776,20 +779,35 @@
             
             let newAlerts = '';
             
-            if (unassignedClasses.length > 0) {
+            if (missingClasses.length > 0) {
+                // تجميع حسب الفصل
+                const classSummary = {};
+                missingClasses.forEach(item => {
+                    if (!classSummary[item.class]) {
+                        classSummary[item.class] = [];
+                    }
+                    classSummary[item.class].push(`${item.day} - ح${item.period}`);
+                });
+                
+                // عرض التنبيه
+                let detailsHTML = '<ul style="margin: 10px 0; padding-right: 20px; max-height: 200px; overflow-y: auto;">';
+                Object.keys(classSummary).sort().forEach(cls => {
+                    const count = classSummary[cls].length;
+                    detailsHTML += `<li><strong>${cls}</strong>: غير مسند في ${count} حصة (${classSummary[cls].slice(0, 3).join('، ')}${count > 3 ? '...' : ''})</li>`;
+                });
+                detailsHTML += '</ul>';
+                
                 newAlerts += `
                     <div class="alert warning">
-                        ⚠️ تنبيه: يوجد ${unassignedClasses.length} فصل غير مسند نهائياً!<br>
-                        <strong>الفصول:</strong> ${unassignedClasses.join('، ')}
+                        ⚠️ تنبيه: يوجد ${missingClasses.length} حصة فارغة (فصول غير مسندة)!<br>
+                        <strong>عدد الفصول المتأثرة:</strong> ${Object.keys(classSummary).length} فصل
+                        ${detailsHTML}
                     </div>
                 `;
-            }
-            
-            if (incompleteClasses.length > 0) {
+            } else {
                 newAlerts += `
-                    <div class="alert info">
-                        ℹ️ ملاحظة: يوجد ${incompleteClasses.length} فصل لديه حصص قليلة (أقل من 5 حصص):<br>
-                        <strong>الفصول:</strong> ${incompleteClasses.join('، ')}
+                    <div class="alert success">
+                        ✅ ممتاز! جميع الفصول مسندة في جميع الحصص
                     </div>
                 `;
             }
