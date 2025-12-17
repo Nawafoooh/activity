@@ -450,7 +450,7 @@
     <div class="container">
         <div class="header">
             <h1>📚 الجدول المدرسي الأسبوعي الكامل</h1>
-            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1447 هـ - المرحلة المتوسطة</p>
+            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1446 هـ - المرحلة المتوسطة</p>
         </div>
 
         <div id="alertBox"></div>
@@ -743,6 +743,11 @@
             // فحص كل حصة (كل عمود)
             days.forEach(day => {
                 for (let period = 1; period <= 7; period++) {
+                    // استثناء: الخميس الحصة السابعة لا يوجد بها حصص
+                    if (day === 'thu' && period === 7) {
+                        continue;
+                    }
+                    
                     const assignedInThisPeriod = new Set();
                     
                     // جمع جميع الفصول المسندة في هذه الحصة
@@ -770,11 +775,23 @@
             const alertBox = document.getElementById('alertBox');
             let existingAlerts = alertBox.innerHTML;
             
-            // إزالة التنبيهات القديمة
+            // إزالة التنبيهات القديمة عن الفصول غير المسندة فقط
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = existingAlerts;
-            const oldWarnings = tempDiv.querySelectorAll('.alert.warning, .alert.info');
-            oldWarnings.forEach(alert => alert.remove());
+            const oldWarnings = tempDiv.querySelectorAll('.alert.warning');
+            oldWarnings.forEach(alert => {
+                if (alert.textContent.includes('حصة فارغة') || alert.textContent.includes('فصول غير مسندة')) {
+                    alert.remove();
+                }
+            });
+            
+            const oldSuccess = tempDiv.querySelectorAll('.alert.success');
+            oldSuccess.forEach(alert => {
+                if (alert.textContent.includes('جميع الفصول مسندة')) {
+                    alert.remove();
+                }
+            });
+            
             existingAlerts = tempDiv.innerHTML;
             
             let newAlerts = '';
