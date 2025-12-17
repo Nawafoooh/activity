@@ -202,6 +202,38 @@
             transform: translateY(-2px);
         }
 
+        .btn-export {
+            background: #9f7aea;
+            color: white;
+        }
+
+        .btn-export:hover {
+            background: #805ad5;
+            transform: translateY(-2px);
+        }
+
+        .btn-import {
+            background: #38b2ac;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-import:hover {
+            background: #319795;
+            transform: translateY(-2px);
+        }
+
+        .btn-import input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
         .btn-save {
             background: #4299e1;
             color: white;
@@ -246,6 +278,7 @@
             font-weight: bold;
             margin-bottom: 5px;
             color: #4a5568;
+            font-size: 14px;
         }
 
         .form-group input,
@@ -254,6 +287,9 @@
             border: 2px solid #cbd5e0;
             border-radius: 5px;
             font-size: 14px;
+            width: 100%;
+            background: white;
+            min-height: 42px;
         }
 
         .form-group input:focus,
@@ -457,6 +493,11 @@
 
         <div class="buttons">
             <button class="btn btn-save" onclick="saveData()">💾 حفظ البيانات</button>
+            <button class="btn btn-export" onclick="exportSchedule()">📤 تصدير الجدول</button>
+            <button class="btn btn-import">
+                📥 استيراد الجدول
+                <input type="file" id="importFile" accept=".json" onchange="importSchedule(event)">
+            </button>
             <button class="btn btn-print" onclick="window.print()">🖨️ طباعة الجدول</button>
             <button class="btn btn-clear" onclick="clearSchedule()">🗑️ مسح الجدول</button>
         </div>
@@ -800,8 +841,291 @@
             }
         }
 
+        // تحديث قائمة المعلمين الغائبين
+        function updateAbsentTeacherList() {
+            const select = document.getElementById('absentTeacher');
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">اختر المعلم الغائب</option>';
+            
+            for (let i = 0; i < 42; i++) {
+                const teacherInput = document.getElementById(`teacher_${i}`);
+                if (teacherInput && teacherInput.value.trim()) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = teacherInput.value;
+                    select.appendChild(option);
+                }
+            }
+            
+            select.value = currentValue;
+        }
+
+        // توزيع الانتظار
+        function distributeWaiting() {
+            const absentTeacherIndex = document.getElementById('absentTeacher').value;
+            const day = document.getElementById('absenceDay').value;
+            const date = document.getElementById('absenceDate').value;
+            
+            if (!absentTeacherIndex || !day) {
+                alert('يرجى اختيار المعلم الغائب واليوم!');
+                return;
+            }
+            
+            const absentTeacherName = document.getElementById(`teacher_${absentTeacherIndex}`).value;
+            
+            // جمع حصص المعلم الغائب
+            const absentClasses = [];
+            for (let period = 1; period <= 7; period++) {
+                const select = document.getElementById(`cell_${absentTeacherIndex}_${day}_${period}`);
+                if (select && select.value && !select.value.startsWith('انتظار')) {
+                    absentClasses.push({
+                        period: period,
+                        class: select.value
+                    });
+                }
+            }
+            
+            if (absentClasses.length === 0) {
+                alert('المعلم المختار ليس لديه حصص في هذا اليوم!');
+                return;
+            }
+            
+            // حساب عدد حصص الانتظار لكل معلم في هذا اليوم
+            const teacherWaitingCount = {};
+            for (let i = 0; i < 42; i++) {
+                teacherWaitingCount[i] = 0;
+                for (let period = 1; period <= 7; period++) {
+                    const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                    if (select && select.value && select.value.startsWith('انتظار')) {
+                        teacherWaitingCount[i]++;
+                    }
+                }
+            }
+            
+            // توزيع الحصص
+            const assignments = [];
+            
+            for (const absentClass of absentClasses) {
+                let assigned = false;
+                
+                // البحث عن معلم لديه انتظار في نفس الحصة (من انتظار1 إلى انتظار5)
+                for (let waitNum = 1; waitNum <= 5 && !assigned; waitNum++) {
+                    for (let i = 0; i < 42; i++) {
+                        if (i == absentTeacherIndex) continue;
+                        if (teacherWaitingCount[i] >= 1) continue; // لا يتم إسناد حصتين انتظار في اليوم
+                        
+                        const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
+                        if (select && select.value === `انتظار${waitNum}`) {
+                            const teacherName = document.getElementById(`teacher_${i}`).value || `معلم ${i + 1}`;
+                            assignments.push({
+                                period: absentClass.period,
+                                class: absentClass.class,
+                                teacher: teacherName,
+                                teacherIndex: i
+                            });
+                            teacherWaitingCount[i]++;
+                            assigned = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // إذا لم يتم العثور على معلم لديه انتظار، ابحث عن معلم ليس لديه حصة
+                if (!assigned) {
+                    for (let i = 0; i < 42; i++) {
+                        if (i == absentTeacherIndex) continue;
+                        if (teacherWaitingCount[i] >= 1) continue;
+                        
+                        const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
+                        if (select && !select.value) {
+                            const teacherName = document.getElementById(`teacher_${i}`).value || `معلم ${i + 1}`;
+                            assignments.push({
+                                period: absentClass.period,
+                                class: absentClass.class,
+                                teacher: teacherName,
+                                teacherIndex: i
+                            });
+                            teacherWaitingCount[i]++;
+                            assigned = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!assigned) {
+                    assignments.push({
+                        period: absentClass.period,
+                        class: absentClass.class,
+                        teacher: 'لم يتم التوزيع',
+                        teacherIndex: null
+                    });
+                }
+            }
+            
+            // عرض النتائج
+            displayWaitingResults(absentTeacherName, day, date, assignments);
+        }
+
+        function displayWaitingResults(absentTeacher, day, date, assignments) {
+            const dayNames = {
+                'sun': 'الأحد',
+                'mon': 'الإثنين',
+                'tue': 'الثلاثاء',
+                'wed': 'الأربعاء',
+                'thu': 'الخميس'
+            };
+            
+            let html = `
+                <h3 style="color: #2d3748; margin-bottom: 15px;">نتيجة التوزيع</h3>
+                <p style="margin-bottom: 10px;"><strong>المعلم الغائب:</strong> ${absentTeacher}</p>
+                <p style="margin-bottom: 10px;"><strong>اليوم:</strong> ${dayNames[day]}</p>
+                ${date ? `<p style="margin-bottom: 20px;"><strong>التاريخ:</strong> ${date}</p>` : ''}
+                
+                <table class="waiting-table">
+                    <thead>
+                        <tr>
+                            <th>الحصة</th>
+                            <th>الفصل</th>
+                            <th>المعلم البديل</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            assignments.forEach(assign => {
+                const rowClass = assign.teacherIndex !== null ? 'waiting-assigned' : '';
+                html += `
+                    <tr class="${rowClass}">
+                        <td>${assign.period}</td>
+                        <td>${assign.class}</td>
+                        <td>${assign.teacher}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('waitingResult').innerHTML = html;
+        }
+
+        // تصدير الجدول
+        function exportSchedule() {
+            const data = {};
+            
+            // حفظ أسماء المعلمين
+            for (let i = 0; i < 42; i++) {
+                const input = document.getElementById(`teacher_${i}`);
+                if (input) {
+                    data[`teacher_${i}`] = input.value;
+                }
+            }
+
+            // حفظ بيانات الجدول
+            for (let i = 0; i < 42; i++) {
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select) {
+                            data[`cell_${i}_${day}_${period}`] = select.value;
+                        }
+                    }
+                });
+            }
+
+            // حفظ بيانات التوقيع
+            data.sigDay = document.getElementById('sigDay')?.value || '';
+            data.sigDate = document.getElementById('sigDate')?.value || '';
+            data.sigName = document.getElementById('sigName')?.value || '';
+            
+            // إضافة معلومات الملف
+            data.exportDate = new Date().toISOString();
+            data.version = '1.0';
+            
+            // تحويل إلى JSON وتنزيل الملف
+            const jsonString = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `جدول_مدرسي_${new Date().toLocaleDateString('ar-SA').replace(/\//g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('✅ تم تصدير الجدول بنجاح!\n\nيمكنك الآن مشاركة الملف مع وكيل المدرسة أو نقله لجهاز آخر.');
+        }
+
+        // استيراد الجدول
+        function importSchedule(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // تحميل أسماء المعلمين
+                    for (let i = 0; i < 42; i++) {
+                        const input = document.getElementById(`teacher_${i}`);
+                        if (input && data[`teacher_${i}`]) {
+                            input.value = data[`teacher_${i}`];
+                        }
+                    }
+
+                    // تحميل بيانات الجدول
+                    for (let i = 0; i < 42; i++) {
+                        days.forEach(day => {
+                            for (let period = 1; period <= 7; period++) {
+                                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                                if (select && data[`cell_${i}_${day}_${period}`]) {
+                                    select.value = data[`cell_${i}_${day}_${period}`];
+                                }
+                            }
+                        });
+                    }
+
+                    // تحميل بيانات التوقيع
+                    if (document.getElementById('sigDay')) {
+                        document.getElementById('sigDay').value = data.sigDay || '';
+                    }
+                    if (document.getElementById('sigDate')) {
+                        document.getElementById('sigDate').value = data.sigDate || '';
+                    }
+                    if (document.getElementById('sigName')) {
+                        document.getElementById('sigName').value = data.sigName || '';
+                    }
+                    
+                    // حفظ في localStorage
+                    localStorage.setItem('schoolSchedule', JSON.stringify(data));
+                    
+                    // تحديث قائمة المعلمين الغائبين
+                    updateAbsentTeacherList();
+                    
+                    // فحص التعارضات
+                    setTimeout(() => checkConflicts(), 100);
+                    
+                    alert('✅ تم استيراد الجدول بنجاح!\n\nتم تحميل جميع البيانات.');
+                    
+                    // إعادة تعيين قيمة input file
+                    event.target.value = '';
+                    
+                } catch (error) {
+                    alert('❌ خطأ في قراءة الملف!\n\nتأكد من أن الملف صحيح وغير تالف.');
+                    console.error('Import error:', error);
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+
         // التهيئة
         createSchedule();
     </script>
 </body>
-</html>
+    </html>
