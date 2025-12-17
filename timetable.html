@@ -55,6 +55,18 @@
             color: #22543d;
         }
 
+        .alert.warning {
+            background: #fffaf0;
+            border-right-color: #f6ad55;
+            color: #7c2d12;
+        }
+
+        .alert.info {
+            background: #ebf8ff;
+            border-right-color: #63b3ed;
+            color: #2c5282;
+        }
+
         .schedule-wrapper {
             overflow-x: auto;
             margin-top: 20px;
@@ -94,6 +106,16 @@
             position: sticky;
             right: 0;
             z-index: 5;
+        }
+
+        .class-count {
+            background: #e6fffa;
+            font-weight: bold;
+            text-align: center;
+            color: #234e52;
+            font-size: 13px;
+            width: 60px;
+            min-width: 60px;
         }
 
         .period-header {
@@ -438,6 +460,7 @@
                 <thead>
                     <tr>
                         <th rowspan="2" style="background: #1a202c;">اسم المعلم</th>
+                        <th rowspan="2" style="background: #2c7a7b; width: 60px;">عدد<br>الحصص</th>
                         <th colspan="7" style="background: #d69e2e;">الأحد</th>
                         <th colspan="7" style="background: #3182ce;" class="day-border">الإثنين</th>
                         <th colspan="7" style="background: #38a169;" class="day-border">الثلاثاء</th>
@@ -668,6 +691,86 @@
             return conflicts.length === 0;
         }
 
+        // تحديث عدد الحصص لكل معلم
+        function updateClassCounts() {
+            for (let i = 0; i < 42; i++) {
+                let count = 0;
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value && !select.value.startsWith('انتظار')) {
+                            count++;
+                        }
+                    }
+                });
+                
+                const countCell = document.getElementById(`count_${i}`);
+                if (countCell) {
+                    countCell.textContent = count;
+                    // تلوين حسب العدد
+                    if (count === 0) {
+                        countCell.style.background = '#fed7d7';
+                        countCell.style.color = '#742a2a';
+                    } else if (count < 10) {
+                        countCell.style.background = '#fefcbf';
+                        countCell.style.color = '#744210';
+                    } else {
+                        countCell.style.background = '#c6f6d5';
+                        countCell.style.color = '#22543d';
+                    }
+                }
+            }
+        }
+
+        // فحص الفصول غير المسندة
+        function checkUnassignedClasses() {
+            const allClasses = [
+                '1-1', '1-2', '1-3', '1-4', '1-5', '1-6',
+                '2-1', '2-2', '2-3', '2-4', '2-5', '2-6',
+                '3-1', '3-2', '3-3', '3-4', '3-5', '3-6'
+            ];
+            
+            const assignedClasses = new Set();
+            
+            // جمع جميع الفصول المسندة
+            for (let i = 0; i < 42; i++) {
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value && !select.value.startsWith('انتظار')) {
+                            assignedClasses.add(select.value);
+                        }
+                    }
+                });
+            }
+            
+            // البحث عن الفصول غير المسندة
+            const unassignedClasses = allClasses.filter(cls => !assignedClasses.has(cls));
+            
+            // عرض التنبيه إذا وجدت فصول غير مسندة
+            const alertBox = document.getElementById('alertBox');
+            let existingAlerts = alertBox.innerHTML;
+            
+            // إزالة التنبيهات القديمة عن الفصول غير المسندة
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = existingAlerts;
+            const oldUnassignedAlerts = tempDiv.querySelectorAll('.alert.warning');
+            oldUnassignedAlerts.forEach(alert => alert.remove());
+            existingAlerts = tempDiv.innerHTML;
+            
+            if (unassignedClasses.length > 0) {
+                const warningHTML = `
+                    <div class="alert warning">
+                        ⚠️ تنبيه: يوجد ${unassignedClasses.length} فصل غير مسند لأي معلم!<br>
+                        <strong>الفصول:</strong> ${unassignedClasses.join('، ')}
+                    </div>
+                `;
+                alertBox.innerHTML = existingAlerts + warningHTML;
+            } else {
+                alertBox.innerHTML = existingAlerts;
+            }
+        }
+
         function getDayName(day) {
             const names = {
                 'sun': 'الأحد',
@@ -701,6 +804,13 @@
                 });
                 nameCell.appendChild(nameInput);
                 row.appendChild(nameCell);
+
+                // خلية عدد الحصص
+                const countCell = document.createElement('td');
+                countCell.className = 'class-count';
+                countCell.id = `count_${i}`;
+                countCell.textContent = '0';
+                row.appendChild(countCell);
 
                 // إنشاء 35 خلية (5 أيام × 7 حصص)
                 days.forEach((day, dayIndex) => {
@@ -753,6 +863,8 @@
 
                         select.addEventListener('change', () => {
                             checkConflicts();
+                            updateClassCounts();
+                            checkUnassignedClasses();
                             saveData();
                         });
 
@@ -766,6 +878,8 @@
 
             loadData();
             updateAbsentTeacherList();
+            updateClassCounts();
+            checkUnassignedClasses();
         }
 
         function saveData() {
@@ -831,6 +945,8 @@
 
                 // فحص التعارضات بعد التحميل
                 setTimeout(() => checkConflicts(), 100);
+                setTimeout(() => updateClassCounts(), 150);
+                setTimeout(() => checkUnassignedClasses(), 200);
             }
         }
 
@@ -1112,6 +1228,12 @@
                     
                     alert('✅ تم استيراد الجدول بنجاح!\n\nتم تحميل جميع البيانات.');
                     
+                    // تحديث العدادات
+                    setTimeout(() => {
+                        updateClassCounts();
+                        checkUnassignedClasses();
+                    }, 200);
+                    
                     // إعادة تعيين قيمة input file
                     event.target.value = '';
                     
@@ -1128,4 +1250,4 @@
         createSchedule();
     </script>
 </body>
-    </html>
+</html>
