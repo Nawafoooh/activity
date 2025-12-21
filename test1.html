@@ -666,7 +666,7 @@
     <div class="container">
         <div class="header">
             <h1>📚 الجدول المدرسي الأسبوعي الكامل</h1>
-            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1447 هـ - المرحلة المتوسطة</p>
+            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1446 هـ - المرحلة المتوسطة</p>
         </div>
 
         <div id="alertBox"></div>
@@ -788,8 +788,36 @@
             
             <div class="waiting-form">
                 <div class="form-group">
-                    <label>اسم المعلم الغائب</label>
-                    <select id="absentTeacher">
+                    <label>المعلم الغائب 1</label>
+                    <select id="absentTeacher1">
+                        <option value="">اختر المعلم الغائب</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>المعلم الغائب 2</label>
+                    <select id="absentTeacher2">
+                        <option value="">اختر المعلم الغائب</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>المعلم الغائب 3</label>
+                    <select id="absentTeacher3">
+                        <option value="">اختر المعلم الغائب</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>المعلم الغائب 4</label>
+                    <select id="absentTeacher4">
+                        <option value="">اختر المعلم الغائب</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>المعلم الغائب 5</label>
+                    <select id="absentTeacher5">
                         <option value="">اختر المعلم الغائب</option>
                     </select>
                 </div>
@@ -1878,10 +1906,9 @@
                 return;
             }
 
-            // حساب عدد الحصص الدراسية لكل معلم
+            // الخطوة 1: حساب الحصص الدراسية فقط (بدون الانتظار)
             const teacherClassCounts = {};
-            const teacherHasClassAfterPeriod = {}; // تتبع آخر حصة للمعلم في كل يوم
-            const teacherWaitingCells = {}; // تتبع خلايا الانتظار الحالية
+            const teacherHasClassAfterPeriod = {};
 
             for (let i = 0; i < 42; i++) {
                 const teacherName = document.getElementById(`teacher_${i}`)?.value;
@@ -1889,96 +1916,74 @@
 
                 teacherClassCounts[i] = 0;
                 teacherHasClassAfterPeriod[i] = {};
-                teacherWaitingCells[i] = [];
 
                 days.forEach(day => {
-                    teacherHasClassAfterPeriod[i][day] = 0; // آخر حصة دراسية في اليوم
+                    teacherHasClassAfterPeriod[i][day] = 0;
 
                     for (let period = 1; period <= 7; period++) {
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select) {
-                            if (select.value && select.value.startsWith('انتظار')) {
-                                // حفظ خلايا الانتظار الحالية
-                                teacherWaitingCells[i].push({ day, period, select });
-                            } else if (select.value) {
-                                // حصة دراسية
-                                teacherClassCounts[i]++;
-                                teacherHasClassAfterPeriod[i][day] = period; // تحديث آخر حصة
-                            }
+                        if (select && select.value && !select.value.startsWith('انتظار')) {
+                            teacherClassCounts[i]++;
+                            teacherHasClassAfterPeriod[i][day] = period;
                         }
                     }
                 });
             }
 
-            // الخطوة 1: حذف الانتظار الزائد (المعلمين الذين تجاوزوا 20)
+            // الخطوة 2: حذف جميع حصص الانتظار الحالية
             let removedCount = 0;
             for (let i = 0; i < 42; i++) {
-                const teacherName = document.getElementById(`teacher_${i}`)?.value;
-                if (!teacherName || !teacherName.trim()) continue;
-
-                const classCount = teacherClassCounts[i] || 0;
-                const currentWaiting = teacherWaitingCells[i].length;
-                const totalCurrent = classCount + currentWaiting;
-
-                if (totalCurrent > 20) {
-                    // حذف الانتظار الزائد
-                    const toRemove = totalCurrent - 20;
-                    for (let j = 0; j < toRemove && j < teacherWaitingCells[i].length; j++) {
-                        teacherWaitingCells[i][j].select.value = '';
-                        removedCount++;
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value && select.value.startsWith('انتظار')) {
+                            select.value = '';
+                            removedCount++;
+                        }
                     }
-                    // تحديث القائمة
-                    teacherWaitingCells[i] = teacherWaitingCells[i].slice(toRemove);
-                }
+                });
             }
 
-            // الخطوة 2: حساب عدد حصص الانتظار المطلوبة لكل معلم بعد التنظيف
+            // الخطوة 3: حساب حصص الانتظار المطلوبة بناءً على الحصص الدراسية فقط
             const teacherWaitingNeeded = {};
             for (let i = 0; i < 42; i++) {
                 const teacherName = document.getElementById(`teacher_${i}`)?.value;
                 if (!teacherName || !teacherName.trim()) continue;
 
                 const classCount = teacherClassCounts[i] || 0;
-                const currentWaiting = teacherWaitingCells[i].length;
-                const totalCurrent = classCount + currentWaiting;
                 
-                if (totalCurrent < 20) {
-                    teacherWaitingNeeded[i] = 20 - totalCurrent;
+                // فقط المعلمين الذين لديهم أقل من 20 حصة دراسية
+                if (classCount < 20) {
+                    teacherWaitingNeeded[i] = 20 - classCount;
                 } else {
                     teacherWaitingNeeded[i] = 0;
                 }
             }
 
-            // الخطوة 3: توزيع حصص الانتظار الجديدة
+            // الخطوة 4: توزيع حصص الانتظار الجديدة
             const waitingTypes = ['انتظار1', 'انتظار2', 'انتظار3', 'انتظار4', 'انتظار5'];
             let waitingIndex = 0;
             let assignedCount = 0;
 
-            // التوزيع بالترتيب: نمر على كل حصة ونوزع الانتظار
             days.forEach(day => {
                 for (let period = 1; period <= 7; period++) {
-                    // تخطي الخميس الحصة السابعة
                     if (day === 'thu' && period === 7) continue;
 
-                    // البحث عن معلم مناسب لهذه الحصة
                     for (let i = 0; i < 42; i++) {
                         const teacherName = document.getElementById(`teacher_${i}`)?.value;
                         if (!teacherName || !teacherName.trim()) continue;
 
-                        // تحقق من الشروط
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (!select || select.value) continue; // الخلية مشغولة
+                        if (!select || select.value) continue;
 
-                        // الشرط 1: المعلم يحتاج حصص انتظار
+                        // التحقق: المعلم يحتاج انتظار (أقل من 20)
                         if (teacherWaitingNeeded[i] <= 0) continue;
 
-                        // الشرط 2: لا توجد حصص انتظار بعد الحصة الثالثة إذا لم يكن للمعلم حصص بعدها
+                        // التحقق: قاعدة الحصة الثالثة
                         const lastClassPeriod = teacherHasClassAfterPeriod[i][day];
-                        if (period > 3 && lastClassPeriod <= 3) {
-                            continue; // المعلم ليس لديه حصص بعد الثالثة
-                        }
+                        if (period > 3 && lastClassPeriod <= 3) continue;
 
-                        // الشرط 3: عدم التعارض - التأكد من عدم وجود نفس نوع الانتظار في نفس الحصة
+                        // التحقق: عدم التعارض
                         let conflictFound = false;
                         const currentWaitingType = waitingTypes[waitingIndex % 5];
                         
@@ -2011,7 +2016,7 @@
             // عرض النتيجة التفصيلية
             let summaryHTML = '<div class="alert success">';
             summaryHTML += `✅ تم ضبط حصص الانتظار بنجاح!<br>`;
-            summaryHTML += `🔸 تم حذف ${removedCount} حصة انتظار زائدة<br>`;
+            summaryHTML += `🔸 تم حذف ${removedCount} حصة انتظار قديمة<br>`;
             summaryHTML += `🔹 تم إضافة ${assignedCount} حصة انتظار جديدة<br><br>`;
             summaryHTML += '<strong>📊 ملخص النصاب لكل معلم:</strong>';
             summaryHTML += '<div style="max-height: 300px; overflow-y: auto;">';
@@ -2037,7 +2042,7 @@
 
                 const total = classCount + currentWaiting;
                 const rowColor = total === 20 ? '#c6f6d5' : (total < 20 ? '#fed7d7' : '#fef5e7');
-                const statusIcon = total === 20 ? '✅' : (total < 20 ? '⚠️' : '⚠️');
+                const statusIcon = total === 20 ? '✅' : (total < 20 ? '⚠️' : '❌');
 
                 summaryHTML += `<tr style="background: ${rowColor};">`;
                 summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0;">${statusIcon} ${teacherName}</td>`;
