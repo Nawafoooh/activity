@@ -741,6 +741,7 @@
 
         <div class="buttons">
             <button class="btn btn-save" onclick="saveData()">💾 حفظ البيانات</button>
+            <button class="btn btn-auto-assign" onclick="autoAssignWaiting()">⚡ توزيع الانتظار تلقائياً</button>
             <button class="btn btn-export" onclick="exportSchedule()">📤 تصدير الجدول</button>
             <button class="btn btn-import">
                 📥 استيراد الجدول
@@ -748,6 +749,17 @@
             </button>
             <button class="btn btn-print" onclick="window.print()">🖨️ طباعة الجدول</button>
             <button class="btn btn-clear" onclick="clearSchedule()">🗑️ مسح الجدول</button>
+        </div>
+
+        <div class="waiting-rules">
+            <h4>📋 قواعد توزيع حصص الانتظار:</h4>
+            <ul>
+                <li>✅ المعلمين أقل من 20 حصة يتم إكمال نصابهم إلى 20 بحصص الانتظار</li>
+                <li>❌ المعلمين 20 حصة أو أكثر: لا يتم إسناد انتظار لهم</li>
+                <li>🚫 لا توجد حصص انتظار بعد الحصة الثالثة إذا لم يكن للمعلم حصص بعدها</li>
+                <li>📊 التوزيع بالترتيب: انتظار1، انتظار2، انتظار3، انتظار4، انتظار5</li>
+                <li>⚠️ لا تعارض في حصص الانتظار (كل حصة انتظار لمعلم واحد فقط)</li>
+            </ul>
         </div>
 
         </div>
@@ -1858,6 +1870,187 @@
             document.body.classList.add('printing-teacher-schedule');
             window.print();
             document.body.classList.remove('printing-teacher-schedule');
+        }
+
+        // التوزيع التلقائي لحصص الانتظار
+        function autoAssignWaiting() {
+            if (!confirm('سيتم توزيع حصص الانتظار تلقائياً وفقاً للقواعد المحددة.\nسيتم ضبط جميع المعلمين إلى 20 حصة بالضبط.\nهل تريد المتابعة؟')) {
+                return;
+            }
+
+            // حساب عدد الحصص الدراسية لكل معلم
+            const teacherClassCounts = {};
+            const teacherHasClassAfterPeriod = {}; // تتبع آخر حصة للمعلم في كل يوم
+            const teacherWaitingCells = {}; // تتبع خلايا الانتظار الحالية
+
+            for (let i = 0; i < 42; i++) {
+                const teacherName = document.getElementById(`teacher_${i}`)?.value;
+                if (!teacherName || !teacherName.trim()) continue;
+
+                teacherClassCounts[i] = 0;
+                teacherHasClassAfterPeriod[i] = {};
+                teacherWaitingCells[i] = [];
+
+                days.forEach(day => {
+                    teacherHasClassAfterPeriod[i][day] = 0; // آخر حصة دراسية في اليوم
+
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select) {
+                            if (select.value && select.value.startsWith('انتظار')) {
+                                // حفظ خلايا الانتظار الحالية
+                                teacherWaitingCells[i].push({ day, period, select });
+                            } else if (select.value) {
+                                // حصة دراسية
+                                teacherClassCounts[i]++;
+                                teacherHasClassAfterPeriod[i][day] = period; // تحديث آخر حصة
+                            }
+                        }
+                    }
+                });
+            }
+
+            // الخطوة 1: حذف الانتظار الزائد (المعلمين الذين تجاوزوا 20)
+            let removedCount = 0;
+            for (let i = 0; i < 42; i++) {
+                const teacherName = document.getElementById(`teacher_${i}`)?.value;
+                if (!teacherName || !teacherName.trim()) continue;
+
+                const classCount = teacherClassCounts[i] || 0;
+                const currentWaiting = teacherWaitingCells[i].length;
+                const totalCurrent = classCount + currentWaiting;
+
+                if (totalCurrent > 20) {
+                    // حذف الانتظار الزائد
+                    const toRemove = totalCurrent - 20;
+                    for (let j = 0; j < toRemove && j < teacherWaitingCells[i].length; j++) {
+                        teacherWaitingCells[i][j].select.value = '';
+                        removedCount++;
+                    }
+                    // تحديث القائمة
+                    teacherWaitingCells[i] = teacherWaitingCells[i].slice(toRemove);
+                }
+            }
+
+            // الخطوة 2: حساب عدد حصص الانتظار المطلوبة لكل معلم بعد التنظيف
+            const teacherWaitingNeeded = {};
+            for (let i = 0; i < 42; i++) {
+                const teacherName = document.getElementById(`teacher_${i}`)?.value;
+                if (!teacherName || !teacherName.trim()) continue;
+
+                const classCount = teacherClassCounts[i] || 0;
+                const currentWaiting = teacherWaitingCells[i].length;
+                const totalCurrent = classCount + currentWaiting;
+                
+                if (totalCurrent < 20) {
+                    teacherWaitingNeeded[i] = 20 - totalCurrent;
+                } else {
+                    teacherWaitingNeeded[i] = 0;
+                }
+            }
+
+            // الخطوة 3: توزيع حصص الانتظار الجديدة
+            const waitingTypes = ['انتظار1', 'انتظار2', 'انتظار3', 'انتظار4', 'انتظار5'];
+            let waitingIndex = 0;
+            let assignedCount = 0;
+
+            // التوزيع بالترتيب: نمر على كل حصة ونوزع الانتظار
+            days.forEach(day => {
+                for (let period = 1; period <= 7; period++) {
+                    // تخطي الخميس الحصة السابعة
+                    if (day === 'thu' && period === 7) continue;
+
+                    // البحث عن معلم مناسب لهذه الحصة
+                    for (let i = 0; i < 42; i++) {
+                        const teacherName = document.getElementById(`teacher_${i}`)?.value;
+                        if (!teacherName || !teacherName.trim()) continue;
+
+                        // تحقق من الشروط
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (!select || select.value) continue; // الخلية مشغولة
+
+                        // الشرط 1: المعلم يحتاج حصص انتظار
+                        if (teacherWaitingNeeded[i] <= 0) continue;
+
+                        // الشرط 2: لا توجد حصص انتظار بعد الحصة الثالثة إذا لم يكن للمعلم حصص بعدها
+                        const lastClassPeriod = teacherHasClassAfterPeriod[i][day];
+                        if (period > 3 && lastClassPeriod <= 3) {
+                            continue; // المعلم ليس لديه حصص بعد الثالثة
+                        }
+
+                        // الشرط 3: عدم التعارض - التأكد من عدم وجود نفس نوع الانتظار في نفس الحصة
+                        let conflictFound = false;
+                        const currentWaitingType = waitingTypes[waitingIndex % 5];
+                        
+                        for (let j = 0; j < 42; j++) {
+                            const otherSelect = document.getElementById(`cell_${j}_${day}_${period}`);
+                            if (otherSelect && otherSelect.value === currentWaitingType) {
+                                conflictFound = true;
+                                break;
+                            }
+                        }
+
+                        if (conflictFound) continue;
+
+                        // إسناد حصة الانتظار
+                        select.value = currentWaitingType;
+                        teacherWaitingNeeded[i]--;
+                        waitingIndex++;
+                        assignedCount++;
+                        break;
+                    }
+                }
+            });
+
+            // حفظ التغييرات
+            saveData();
+            updateClassCounts();
+            checkConflicts();
+            checkUnassignedClasses();
+
+            // عرض النتيجة التفصيلية
+            let summaryHTML = '<div class="alert success">';
+            summaryHTML += `✅ تم ضبط حصص الانتظار بنجاح!<br>`;
+            summaryHTML += `🔸 تم حذف ${removedCount} حصة انتظار زائدة<br>`;
+            summaryHTML += `🔹 تم إضافة ${assignedCount} حصة انتظار جديدة<br><br>`;
+            summaryHTML += '<strong>📊 ملخص النصاب لكل معلم:</strong>';
+            summaryHTML += '<div style="max-height: 300px; overflow-y: auto;">';
+            summaryHTML += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+            summaryHTML += '<tr style="background: #edf2f7; font-weight: bold;"><td style="padding: 8px; border: 1px solid #cbd5e0;">المعلم</td><td style="padding: 8px; border: 1px solid #cbd5e0;">حصص دراسية</td><td style="padding: 8px; border: 1px solid #cbd5e0;">حصص انتظار</td><td style="padding: 8px; border: 1px solid #cbd5e0;">الإجمالي</td></tr>';
+
+            for (let i = 0; i < 42; i++) {
+                const teacherName = document.getElementById(`teacher_${i}`)?.value;
+                if (!teacherName || !teacherName.trim()) continue;
+
+                const classCount = teacherClassCounts[i] || 0;
+                
+                // إعادة حساب حصص الانتظار الحالية
+                let currentWaiting = 0;
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value && select.value.startsWith('انتظار')) {
+                            currentWaiting++;
+                        }
+                    }
+                });
+
+                const total = classCount + currentWaiting;
+                const rowColor = total === 20 ? '#c6f6d5' : (total < 20 ? '#fed7d7' : '#fef5e7');
+                const statusIcon = total === 20 ? '✅' : (total < 20 ? '⚠️' : '⚠️');
+
+                summaryHTML += `<tr style="background: ${rowColor};">`;
+                summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0;">${statusIcon} ${teacherName}</td>`;
+                summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${classCount}</td>`;
+                summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${currentWaiting}</td>`;
+                summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center; font-weight: bold;">${total}</td>`;
+                summaryHTML += '</tr>';
+            }
+
+            summaryHTML += '</table></div></div>';
+
+            const alertBox = document.getElementById('alertBox');
+            alertBox.innerHTML = summaryHTML + alertBox.innerHTML;
         }
 
         // التهيئة
