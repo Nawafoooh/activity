@@ -345,6 +345,7 @@
             width: 100%;
             background: white;
             min-height: 42px;
+            cursor: pointer;
         }
 
         .form-group input:focus,
@@ -1033,6 +1034,7 @@
             updateClassCounts();
             checkConflicts();
             checkUnassignedClasses();
+            updateTeacherSelect();
         }
 
         // الخيارات المتاحة للحصص
@@ -1304,6 +1306,7 @@
                     saveData();
                     saveToFirebase();
                     updateAbsentTeacherList();
+                    updateTeacherSelect();
                 });
                 nameCell.appendChild(nameInput);
                 row.appendChild(nameCell);
@@ -1384,6 +1387,9 @@
             updateAbsentTeacherList();
             updateClassCounts();
             checkUnassignedClasses();
+            
+            // تحديث قائمة المعلمين في تبويب جدول المعلم أيضاً
+            updateTeacherSelect();
         }
 
         function saveData() {
@@ -1458,50 +1464,67 @@
 
         // تحديث قائمة المعلمين الغائبين
         function updateAbsentTeacherList() {
-            const select = document.getElementById('absentTeacher');
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">اختر المعلم الغائب</option>';
-            
-            for (let i = 0; i < 42; i++) {
-                const teacherInput = document.getElementById(`teacher_${i}`);
-                if (teacherInput && teacherInput.value.trim()) {
-                    const option = document.createElement('option');
-                    option.value = i;
-                    option.textContent = teacherInput.value;
-                    select.appendChild(option);
+            for (let selectNum = 1; selectNum <= 5; selectNum++) {
+                const select = document.getElementById(`absentTeacher${selectNum}`);
+                if (!select) continue;
+                
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">اختر المعلم الغائب</option>';
+                
+                for (let i = 0; i < 42; i++) {
+                    const teacherInput = document.getElementById(`teacher_${i}`);
+                    if (teacherInput && teacherInput.value.trim()) {
+                        const option = document.createElement('option');
+                        option.value = i;
+                        option.textContent = teacherInput.value;
+                        select.appendChild(option);
+                    }
                 }
+                
+                select.value = currentValue;
             }
-            
-            select.value = currentValue;
         }
 
         // توزيع الانتظار
         function distributeWaiting() {
-            const absentTeacherIndex = document.getElementById('absentTeacher').value;
-            const day = document.getElementById('absenceDay').value;
-            const date = document.getElementById('absenceDate').value;
+            const absentTeachers = [];
             
-            if (!absentTeacherIndex || !day) {
-                alert('يرجى اختيار المعلم الغائب واليوم!');
-                return;
-            }
-            
-            const absentTeacherName = document.getElementById(`teacher_${absentTeacherIndex}`).value;
-            
-            // جمع حصص المعلم الغائب
-            const absentClasses = [];
-            for (let period = 1; period <= 7; period++) {
-                const select = document.getElementById(`cell_${absentTeacherIndex}_${day}_${period}`);
-                if (select && select.value && !select.value.startsWith('انتظار')) {
-                    absentClasses.push({
-                        period: period,
-                        class: select.value
-                    });
+            // جمع المعلمين الغائبين
+            for (let selectNum = 1; selectNum <= 5; selectNum++) {
+                const index = document.getElementById(`absentTeacher${selectNum}`)?.value;
+                if (index) {
+                    absentTeachers.push(parseInt(index));
                 }
             }
             
-            if (absentClasses.length === 0) {
-                alert('المعلم المختار ليس لديه حصص في هذا اليوم!');
+            const day = document.getElementById('absenceDay').value;
+            const date = document.getElementById('absenceDate').value;
+            
+            if (absentTeachers.length === 0 || !day) {
+                alert('يرجى اختيار معلم غائب واحد على الأقل واليوم!');
+                return;
+            }
+            
+            // جمع جميع الحصص للمعلمين الغائبين
+            const allAbsentClasses = [];
+            absentTeachers.forEach(absentTeacherIndex => {
+                const absentTeacherName = document.getElementById(`teacher_${absentTeacherIndex}`).value;
+                
+                for (let period = 1; period <= 7; period++) {
+                    const select = document.getElementById(`cell_${absentTeacherIndex}_${day}_${period}`);
+                    if (select && select.value && !select.value.startsWith('انتظار')) {
+                        allAbsentClasses.push({
+                            period: period,
+                            class: select.value,
+                            teacherName: absentTeacherName,
+                            teacherIndex: absentTeacherIndex
+                        });
+                    }
+                }
+            });
+            
+            if (allAbsentClasses.length === 0) {
+                alert('المعلمين المختارين ليس لديهم حصص في هذا اليوم!');
                 return;
             }
             
@@ -1520,14 +1543,14 @@
             // توزيع الحصص
             const assignments = [];
             
-            for (const absentClass of absentClasses) {
+            for (const absentClass of allAbsentClasses) {
                 let assigned = false;
                 
                 // البحث عن معلم لديه انتظار في نفس الحصة (من انتظار1 إلى انتظار5)
                 for (let waitNum = 1; waitNum <= 5 && !assigned; waitNum++) {
                     for (let i = 0; i < 42; i++) {
-                        if (i == absentTeacherIndex) continue;
-                        if (teacherWaitingCount[i] >= 1) continue; // لا يتم إسناد حصتين انتظار في اليوم
+                        if (absentTeachers.includes(i)) continue;
+                        if (teacherWaitingCount[i] >= 1) continue;
                         
                         const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
                         if (select && select.value === `انتظار${waitNum}`) {
@@ -1536,7 +1559,8 @@
                                 period: absentClass.period,
                                 class: absentClass.class,
                                 teacher: teacherName,
-                                teacherIndex: i
+                                teacherIndex: i,
+                                absentTeacher: absentClass.teacherName
                             });
                             teacherWaitingCount[i]++;
                             assigned = true;
@@ -1545,10 +1569,10 @@
                     }
                 }
                 
-                // إذا لم يتم العثور على معلم لديه انتظار، ابحث عن معلم ليس لديه حصة
+                // إذا لم يتم العثور على معلم لديه انتظار
                 if (!assigned) {
                     for (let i = 0; i < 42; i++) {
-                        if (i == absentTeacherIndex) continue;
+                        if (absentTeachers.includes(i)) continue;
                         if (teacherWaitingCount[i] >= 1) continue;
                         
                         const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
@@ -1558,7 +1582,8 @@
                                 period: absentClass.period,
                                 class: absentClass.class,
                                 teacher: teacherName,
-                                teacherIndex: i
+                                teacherIndex: i,
+                                absentTeacher: absentClass.teacherName
                             });
                             teacherWaitingCount[i]++;
                             assigned = true;
@@ -1572,16 +1597,17 @@
                         period: absentClass.period,
                         class: absentClass.class,
                         teacher: 'لم يتم التوزيع',
-                        teacherIndex: null
+                        teacherIndex: null,
+                        absentTeacher: absentClass.teacherName
                     });
                 }
             }
             
             // عرض النتائج
-            displayWaitingResults(absentTeacherName, day, date, assignments);
+            displayWaitingResults(absentTeachers, day, date, assignments);
         }
 
-        function displayWaitingResults(absentTeacher, day, date, assignments) {
+        function displayWaitingResults(absentTeachers, day, date, assignments) {
             const dayNames = {
                 'sun': 'الأحد',
                 'mon': 'الإثنين',
@@ -1590,15 +1616,20 @@
                 'thu': 'الخميس'
             };
             
+            const absentNames = absentTeachers.map(index => 
+                document.getElementById(`teacher_${index}`).value
+            ).join('، ');
+            
             let html = `
                 <h3 style="color: #2d3748; margin-bottom: 15px;">نتيجة التوزيع</h3>
-                <p style="margin-bottom: 10px;"><strong>المعلم الغائب:</strong> ${absentTeacher}</p>
+                <p style="margin-bottom: 10px;"><strong>المعلمين الغائبين:</strong> ${absentNames}</p>
                 <p style="margin-bottom: 10px;"><strong>اليوم:</strong> ${dayNames[day]}</p>
                 ${date ? `<p style="margin-bottom: 20px;"><strong>التاريخ:</strong> ${date}</p>` : ''}
                 
                 <table class="waiting-table">
                     <thead>
                         <tr>
+                            <th>المعلم الغائب</th>
                             <th>الحصة</th>
                             <th>الفصل</th>
                             <th>المعلم البديل</th>
@@ -1611,6 +1642,7 @@
                 const rowClass = assign.teacherIndex !== null ? 'waiting-assigned' : '';
                 html += `
                     <tr class="${rowClass}">
+                        <td>${assign.absentTeacher}</td>
                         <td>${assign.period}</td>
                         <td>${assign.class}</td>
                         <td>${assign.teacher}</td>
