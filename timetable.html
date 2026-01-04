@@ -131,7 +131,6 @@
             background-color: #ffffff;
         }
 
-        /* خط عريض بين الأيام */
         .day-border {
             border-right: 4px solid #2d3748 !important;
         }
@@ -142,7 +141,6 @@
         .day-wed { background-color: #fef5ff; }
         .day-thu { background-color: #fff5f5; }
 
-        /* تنسيق الخلايا المتعارضة */
         .conflict {
             background-color: #fed7d7 !important;
             border: 2px solid #fc8181 !important;
@@ -592,7 +590,7 @@
                 padding: 5px;
             }
 
-            .buttons, .alert, .firebase-status, .waiting-section {
+            .buttons, .alert, .firebase-status, .waiting-section, .tabs {
                 display: none;
             }
 
@@ -620,7 +618,6 @@
                 margin: 10mm;
             }
 
-            /* إخفاء الجدول الرئيسي عند طباعة جدول معلم */
             body.printing-teacher-schedule .schedule-wrapper {
                 display: none;
             }
@@ -630,6 +627,10 @@
             }
 
             body.printing-teacher-schedule #teacherScheduleView {
+                display: block !important;
+            }
+
+            body.printing-teacher-schedule #classScheduleView {
                 display: block !important;
             }
         }
@@ -676,6 +677,7 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('main')">📋 الجدول الرئيسي</button>
             <button class="tab" onclick="switchTab('teacher')">👨‍🏫 جدول معلم</button>
+            <button class="tab" onclick="switchTab('class')">📚 جدول فصل</button>
         </div>
 
         <!-- محتوى التبويب الرئيسي -->
@@ -782,6 +784,32 @@
             </div>
         </div>
         <!-- نهاية تبويب جدول معلم -->
+
+        <!-- محتوى تبويب جدول فصل -->
+        <div id="classTab" class="tab-content">
+            <div class="teacher-schedule-selector">
+                <h3>اختر الصف والفصل لعرض جدوله:</h3>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <select id="gradeSelect" onchange="updateClassList()" style="flex: 1; min-width: 200px;">
+                        <option value="">-- اختر الصف --</option>
+                        <option value="1">الصف الأول متوسط</option>
+                        <option value="2">الصف الثاني متوسط</option>
+                        <option value="3">الصف الثالث متوسط</option>
+                    </select>
+                    
+                    <select id="classNumberSelect" onchange="showClassSchedule()" style="flex: 1; min-width: 200px;">
+                        <option value="">-- اختر الفصل --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="classScheduleView"></div>
+
+            <div class="buttons" style="margin-top: 20px;">
+                <button class="btn btn-print" onclick="printClassSchedule()">🖨️ طباعة جدول الفصل</button>
+            </div>
+        </div>
+        <!-- نهاية تبويب جدول فصل -->
 
         <!-- قسم جدول الانتظار -->
         <div class="waiting-section">
@@ -1324,7 +1352,7 @@
                         const cell = document.createElement('td');
                         cell.className = dayColors[day];
                         
-                        // إضافة خط عريض بعد الحصة السابعة (قبل بداية اليوم التالي)
+                        // إضافة خط عريض بين الأيام (قبل بداية اليوم التالي)
                         if (period === 1 && dayIndex > 0) {
                             cell.classList.add('day-border');
                         }
@@ -1387,8 +1415,6 @@
             updateAbsentTeacherList();
             updateClassCounts();
             checkUnassignedClasses();
-            
-            // تحديث قائمة المعلمين في تبويب جدول المعلم أيضاً
             updateTeacherSelect();
         }
 
@@ -1416,11 +1442,7 @@
             }
 
             localStorage.setItem('schoolSchedule', JSON.stringify(data));
-            
-            // حفظ على Firebase
             saveToFirebase();
-            
-            // إظهار رسالة نجاح (اختياري - الآن Firebase يظهر الحالة)
         }
 
         function loadData() {
@@ -1448,7 +1470,6 @@
                     });
                 }
 
-                // فحص التعارضات بعد التحميل
                 setTimeout(() => checkConflicts(), 100);
                 setTimeout(() => updateClassCounts(), 150);
                 setTimeout(() => checkUnassignedClasses(), 200);
@@ -1489,7 +1510,6 @@
         function distributeWaiting() {
             const absentTeachers = [];
             
-            // جمع المعلمين الغائبين
             for (let selectNum = 1; selectNum <= 5; selectNum++) {
                 const index = document.getElementById(`absentTeacher${selectNum}`)?.value;
                 if (index) {
@@ -1505,7 +1525,6 @@
                 return;
             }
             
-            // جمع جميع الحصص للمعلمين الغائبين
             const allAbsentClasses = [];
             absentTeachers.forEach(absentTeacherIndex => {
                 const absentTeacherName = document.getElementById(`teacher_${absentTeacherIndex}`).value;
@@ -1528,7 +1547,6 @@
                 return;
             }
             
-            // حساب عدد حصص الانتظار لكل معلم في هذا اليوم
             const teacherWaitingCount = {};
             for (let i = 0; i < 42; i++) {
                 teacherWaitingCount[i] = 0;
@@ -1540,70 +1558,66 @@
                 }
             }
             
-            // ✅ توزيع الحصص على جميع المعلمين الـ42، وليس فقط أول 10
-const assignments = [];
+            const assignments = [];
 
-for (const absentClass of allAbsentClasses) {
-    let assigned = false;
+            for (const absentClass of allAbsentClasses) {
+                let assigned = false;
 
-    // البحث عن معلم لديه انتظار في نفس الحصة (من انتظار1 إلى انتظار5)
-    for (let waitNum = 1; waitNum <= 5 && !assigned; waitNum++) {
-        for (let i = 0; i < 42; i++) { // ✅ التوزيع على جميع المعلمين
-            if (absentTeachers.includes(i)) continue;
-            if (teacherWaitingCount[i] >= 1) continue;
+                for (let waitNum = 1; waitNum <= 5 && !assigned; waitNum++) {
+                    for (let i = 0; i < 42; i++) {
+                        if (absentTeachers.includes(i)) continue;
+                        if (teacherWaitingCount[i] >= 1) continue;
 
-            const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
-            if (select && select.value === `انتظار${waitNum}`) {
-                const teacherName = document.getElementById(`teacher_${i}`).value || `معلم ${i + 1}`;
-                assignments.push({
-                    period: absentClass.period,
-                    class: absentClass.class,
-                    teacher: teacherName,
-                    teacherIndex: i,
-                    absentTeacher: absentClass.teacherName
-                });
-                teacherWaitingCount[i]++;
-                assigned = true;
-                break;
+                        const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
+                        if (select && select.value === `انتظار${waitNum}`) {
+                            const teacherName = document.getElementById(`teacher_${i}`).value || `معلم ${i + 1}`;
+                            assignments.push({
+                                period: absentClass.period,
+                                class: absentClass.class,
+                                teacher: teacherName,
+                                teacherIndex: i,
+                                absentTeacher: absentClass.teacherName
+                            });
+                            teacherWaitingCount[i]++;
+                            assigned = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!assigned) {
+                    for (let i = 0; i < 42; i++) {
+                        if (absentTeachers.includes(i)) continue;
+                        if (teacherWaitingCount[i] >= 1) continue;
+
+                        const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
+                        if (select && !select.value) {
+                            const teacherName = document.getElementById(`teacher_${i}`).value || `معلم ${i + 1}`;
+                            assignments.push({
+                                period: absentClass.period,
+                                class: absentClass.class,
+                                teacher: teacherName,
+                                teacherIndex: i,
+                                absentTeacher: absentClass.teacherName
+                            });
+                            teacherWaitingCount[i]++;
+                            assigned = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!assigned) {
+                    assignments.push({
+                        period: absentClass.period,
+                        class: absentClass.class,
+                        teacher: 'لم يتم التوزيع',
+                        teacherIndex: null,
+                        absentTeacher: absentClass.teacherName
+                    });
+                }
             }
-        }
-    }
-
-    // إذا لم يتم العثور على معلم لديه انتظار
-    if (!assigned) {
-        for (let i = 0; i < 42; i++) { // ✅ التوزيع على جميع المعلمين
-            if (absentTeachers.includes(i)) continue;
-            if (teacherWaitingCount[i] >= 1) continue;
-
-            const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
-            if (select && !select.value) {
-                const teacherName = document.getElementById(`teacher_${i}`).value || `معلم ${i + 1}`;
-                assignments.push({
-                    period: absentClass.period,
-                    class: absentClass.class,
-                    teacher: teacherName,
-                    teacherIndex: i,
-                    absentTeacher: absentClass.teacherName
-                });
-                teacherWaitingCount[i]++;
-                assigned = true;
-                break;
-            }
-        }
-    }
-
-    if (!assigned) {
-        assignments.push({
-            period: absentClass.period,
-            class: absentClass.class,
-            teacher: 'لم يتم التوزيع',
-            teacherIndex: null,
-            absentTeacher: absentClass.teacherName
-        });
-    }
-}
             
-            // عرض النتائج
             displayWaitingResults(absentTeachers, day, date, assignments);
         }
 
@@ -1662,7 +1676,6 @@ for (const absentClass of allAbsentClasses) {
         function exportSchedule() {
             const data = {};
             
-            // حفظ أسماء المعلمين
             for (let i = 0; i < 42; i++) {
                 const input = document.getElementById(`teacher_${i}`);
                 if (input) {
@@ -1670,7 +1683,6 @@ for (const absentClass of allAbsentClasses) {
                 }
             }
 
-            // حفظ بيانات الجدول
             for (let i = 0; i < 42; i++) {
                 days.forEach(day => {
                     for (let period = 1; period <= 7; period++) {
@@ -1682,16 +1694,12 @@ for (const absentClass of allAbsentClasses) {
                 });
             }
 
-            // حفظ بيانات التوقيع
             data.sigDay = document.getElementById('sigDay')?.value || '';
             data.sigDate = document.getElementById('sigDate')?.value || '';
             data.sigName = document.getElementById('sigName')?.value || '';
-            
-            // إضافة معلومات الملف
             data.exportDate = new Date().toISOString();
             data.version = '1.0';
             
-            // تحويل إلى JSON وتنزيل الملف
             const jsonString = JSON.stringify(data, null, 2);
             const blob = new Blob([jsonString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -1717,7 +1725,6 @@ for (const absentClass of allAbsentClasses) {
                 try {
                     const data = JSON.parse(e.target.result);
                     
-                    // تحميل أسماء المعلمين
                     for (let i = 0; i < 42; i++) {
                         const input = document.getElementById(`teacher_${i}`);
                         if (input && data[`teacher_${i}`]) {
@@ -1725,7 +1732,6 @@ for (const absentClass of allAbsentClasses) {
                         }
                     }
 
-                    // تحميل بيانات الجدول
                     for (let i = 0; i < 42; i++) {
                         days.forEach(day => {
                             for (let period = 1; period <= 7; period++) {
@@ -1737,7 +1743,6 @@ for (const absentClass of allAbsentClasses) {
                         });
                     }
 
-                    // تحميل بيانات التوقيع
                     if (document.getElementById('sigDay')) {
                         document.getElementById('sigDay').value = data.sigDay || '';
                     }
@@ -1748,24 +1753,18 @@ for (const absentClass of allAbsentClasses) {
                         document.getElementById('sigName').value = data.sigName || '';
                     }
                     
-                    // حفظ في localStorage
                     localStorage.setItem('schoolSchedule', JSON.stringify(data));
-                    
-                    // تحديث قائمة المعلمين الغائبين
                     updateAbsentTeacherList();
                     
-                    // فحص التعارضات
                     setTimeout(() => checkConflicts(), 100);
                     
                     alert('✅ تم استيراد الجدول بنجاح!\n\nتم تحميل جميع البيانات.');
                     
-                    // تحديث العدادات
                     setTimeout(() => {
                         updateClassCounts();
                         checkUnassignedClasses();
                     }, 200);
                     
-                    // إعادة تعيين قيمة input file
                     event.target.value = '';
                     
                 } catch (error) {
@@ -1779,7 +1778,6 @@ for (const absentClass of allAbsentClasses) {
 
         // التبديل بين التبويبات
         function switchTab(tabName) {
-            // إخفاء جميع التبويبات
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
@@ -1787,7 +1785,6 @@ for (const absentClass of allAbsentClasses) {
                 tab.classList.remove('active');
             });
 
-            // إظهار التبويب المحدد
             if (tabName === 'main') {
                 document.getElementById('mainTab').classList.add('active');
                 document.querySelectorAll('.tab')[0].classList.add('active');
@@ -1795,6 +1792,9 @@ for (const absentClass of allAbsentClasses) {
                 document.getElementById('teacherTab').classList.add('active');
                 document.querySelectorAll('.tab')[1].classList.add('active');
                 updateTeacherSelect();
+            } else if (tabName === 'class') {
+                document.getElementById('classTab').classList.add('active');
+                document.querySelectorAll('.tab')[2].classList.add('active');
             }
         }
 
@@ -1881,7 +1881,6 @@ for (const absentClass of allAbsentClasses) {
                 html += '</tr>';
             });
 
-            // حساب إجمالي الحصص
             let totalClasses = 0;
             let totalWaiting = 0;
             
@@ -1932,13 +1931,146 @@ for (const absentClass of allAbsentClasses) {
             document.body.classList.remove('printing-teacher-schedule');
         }
 
+        // تحديث قائمة الفصول حسب الصف المختار
+        function updateClassList() {
+            const grade = document.getElementById('gradeSelect').value;
+            const classSelect = document.getElementById('classNumberSelect');
+            
+            classSelect.innerHTML = '<option value="">-- اختر الفصل --</option>';
+            
+            if (grade) {
+                for (let i = 1; i <= 6; i++) {
+                    const option = document.createElement('option');
+                    option.value = `${grade}-${i}`;
+                    option.textContent = `الفصل ${i}`;
+                    classSelect.appendChild(option);
+                }
+            }
+            
+            document.getElementById('classScheduleView').innerHTML = '';
+        }
+
+        // عرض جدول الفصل
+        function showClassSchedule() {
+            const classValue = document.getElementById('classNumberSelect').value;
+            const viewDiv = document.getElementById('classScheduleView');
+            
+            if (!classValue) {
+                viewDiv.innerHTML = '';
+                return;
+            }
+
+            const [grade, classNum] = classValue.split('-');
+            const gradeNames = {
+                '1': 'الأول',
+                '2': 'الثاني',
+                '3': 'الثالث'
+            };
+            
+            const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
+            
+            const dayNames = {
+                'sun': 'الأحد',
+                'mon': 'الإثنين',
+                'tue': 'الثلاثاء',
+                'wed': 'الأربعاء',
+                'thu': 'الخميس'
+            };
+
+            let html = `
+                <div class="teacher-schedule-table">
+                    <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">
+                        جدول ${className}
+                    </h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="day-header">اليوم / الحصة</th>
+                                <th class="period-header">الأولى</th>
+                                <th class="period-header">الثانية</th>
+                                <th class="period-header">الثالثة</th>
+                                <th class="period-header">الرابعة</th>
+                                <th class="period-header">الخامسة</th>
+                                <th class="period-header">السادسة</th>
+                                <th class="period-header">السابعة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            days.forEach(day => {
+                html += `<tr><td class="day-header">${dayNames[day]}</td>`;
+                
+                for (let period = 1; period <= 7; period++) {
+                    let teacherName = '-';
+                    let cellStyle = '';
+                    
+                    for (let i = 0; i < 42; i++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value === classValue) {
+                            const teacherInput = document.getElementById(`teacher_${i}`);
+                            teacherName = teacherInput ? teacherInput.value : `معلم ${i + 1}`;
+                            cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
+                            break;
+                        }
+                    }
+                    
+                    html += `<td style="${cellStyle}">${teacherName}</td>`;
+                }
+                
+                html += '</tr>';
+            });
+
+            let totalClasses = 0;
+            
+            days.forEach(day => {
+                for (let period = 1; period <= 7; period++) {
+                    for (let i = 0; i < 42; i++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value === classValue) {
+                            totalClasses++;
+                            break;
+                        }
+                    }
+                }
+            });
+
+            html += `
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
+                                    📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+
+            viewDiv.innerHTML = html;
+        }
+
+        // طباعة جدول الفصل
+        function printClassSchedule() {
+            const classValue = document.getElementById('classNumberSelect').value;
+            
+            if (!classValue) {
+                alert('يرجى اختيار فصل أولاً!');
+                return;
+            }
+
+            document.body.classList.add('printing-teacher-schedule');
+            window.print();
+            document.body.classList.remove('printing-teacher-schedule');
+        }
+
         // التوزيع التلقائي لحصص الانتظار
         function autoAssignWaiting() {
             if (!confirm('سيتم توزيع حصص الانتظار تلقائياً وفقاً للقواعد المحددة.\nسيتم ضبط جميع المعلمين إلى 20 حصة بالضبط.\nهل تريد المتابعة؟')) {
                 return;
             }
 
-            // الخطوة 1: حساب الحصص الدراسية فقط (بدون الانتظار)
             const teacherClassCounts = {};
             const teacherHasClassAfterPeriod = {};
 
@@ -1962,7 +2094,6 @@ for (const absentClass of allAbsentClasses) {
                 });
             }
 
-            // الخطوة 2: حذف جميع حصص الانتظار الحالية
             let removedCount = 0;
             for (let i = 0; i < 42; i++) {
                 days.forEach(day => {
@@ -1976,7 +2107,6 @@ for (const absentClass of allAbsentClasses) {
                 });
             }
 
-            // الخطوة 3: حساب حصص الانتظار المطلوبة بناءً على الحصص الدراسية فقط
             const teacherWaitingNeeded = {};
             for (let i = 0; i < 42; i++) {
                 const teacherName = document.getElementById(`teacher_${i}`)?.value;
@@ -1984,7 +2114,6 @@ for (const absentClass of allAbsentClasses) {
 
                 const classCount = teacherClassCounts[i] || 0;
                 
-                // فقط المعلمين الذين لديهم أقل من 20 حصة دراسية
                 if (classCount < 20) {
                     teacherWaitingNeeded[i] = 20 - classCount;
                 } else {
@@ -1992,7 +2121,6 @@ for (const absentClass of allAbsentClasses) {
                 }
             }
 
-            // الخطوة 4: توزيع حصص الانتظار الجديدة
             const waitingTypes = ['انتظار1', 'انتظار2', 'انتظار3', 'انتظار4', 'انتظار5'];
             let waitingIndex = 0;
             let assignedCount = 0;
@@ -2008,14 +2136,11 @@ for (const absentClass of allAbsentClasses) {
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
                         if (!select || select.value) continue;
 
-                        // التحقق: المعلم يحتاج انتظار (أقل من 20)
                         if (teacherWaitingNeeded[i] <= 0) continue;
 
-                        // التحقق: قاعدة الحصة الثالثة
                         const lastClassPeriod = teacherHasClassAfterPeriod[i][day];
                         if (period > 3 && lastClassPeriod <= 3) continue;
 
-                        // التحقق: عدم التعارض
                         let conflictFound = false;
                         const currentWaitingType = waitingTypes[waitingIndex % 5];
                         
@@ -2029,7 +2154,6 @@ for (const absentClass of allAbsentClasses) {
 
                         if (conflictFound) continue;
 
-                        // إسناد حصة الانتظار
                         select.value = currentWaitingType;
                         teacherWaitingNeeded[i]--;
                         waitingIndex++;
@@ -2039,13 +2163,11 @@ for (const absentClass of allAbsentClasses) {
                 }
             });
 
-            // حفظ التغييرات
             saveData();
             updateClassCounts();
             checkConflicts();
             checkUnassignedClasses();
 
-            // عرض النتيجة التفصيلية
             let summaryHTML = '<div class="alert success">';
             summaryHTML += `✅ تم ضبط حصص الانتظار بنجاح!<br>`;
             summaryHTML += `🔸 تم حذف ${removedCount} حصة انتظار قديمة<br>`;
@@ -2061,7 +2183,6 @@ for (const absentClass of allAbsentClasses) {
 
                 const classCount = teacherClassCounts[i] || 0;
                 
-                // إعادة حساب حصص الانتظار الحالية
                 let currentWaiting = 0;
                 days.forEach(day => {
                     for (let period = 1; period <= 7; period++) {
@@ -2095,4 +2216,3 @@ for (const absentClass of allAbsentClasses) {
     </script>
 </body>
 </html>
-
