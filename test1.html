@@ -442,6 +442,48 @@
             text-align: center;
         }
 
+        .firebase-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .firebase-status.connected {
+            border-left: 4px solid #48bb78;
+        }
+
+        .firebase-status.disconnected {
+            border-left: 4px solid #fc8181;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.green {
+            background: #48bb78;
+        }
+
+        .status-dot.red {
+            background: #fc8181;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         .tabs {
             display: flex;
             gap: 10px;
@@ -537,6 +579,12 @@
         }
 
         @media print {
+            .firebase-status {
+                display: none;
+            }
+        }
+
+        @media print {
             body {
                 background: white;
                 padding: 5px;
@@ -592,6 +640,34 @@
             }
         }
     </style>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDoL-couGVgC_IaXK3vuy5CIju42tVwHA",
+            authDomain: "school-schedule-4fb85.firebaseapp.com",
+            projectId: "school-schedule-4fb85",
+            storageBucket: "school-schedule-4fb85.firebasestorage.app",
+            messagingSenderId: "497127591768",
+            appId: "1:497127591768:web:8c9f5ae5f6ff9d75565f2d",
+            measurementId: "G-980R6L9J57"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        window.firebaseDB = db;
+        window.firestoreDoc = doc;
+        window.firestoreSetDoc = setDoc;
+        window.firestoreGetDoc = getDoc;
+        window.firestoreOnSnapshot = onSnapshot;
+        window.firebaseReady = true;
+        
+        document.dispatchEvent(new Event('firebaseReady'));
+    </script>
 </head>
 <body>
     <div class="container">
@@ -810,6 +886,12 @@
                 </div>
             </div>
         </div>
+
+        <!-- حالة الاتصال بـ Firebase -->
+        <div id="firebaseStatus" class="firebase-status disconnected">
+            <div class="status-dot red"></div>
+            <span>جاري الاتصال بالسحابة...</span>
+        </div>
     </div>
 
     <script>
@@ -848,6 +930,157 @@
             { value: 'انتظار4', label: 'انتظار4', group: 'waiting' },
             { value: 'انتظار5', label: 'انتظار5', group: 'waiting' }
         ];
+
+        let isFirebaseReady = false;
+        let isSyncing = false;
+        const scheduleDocId = 'main-schedule';
+
+        // انتظار تحميل Firebase
+        document.addEventListener('firebaseReady', () => {
+            isFirebaseReady = true;
+            initFirebaseSync();
+        });
+
+        function updateFirebaseStatus(connected, message) {
+            const statusEl = document.getElementById('firebaseStatus');
+            const dotEl = statusEl.querySelector('.status-dot');
+            const textEl = statusEl.querySelector('span');
+            
+            if (connected) {
+                statusEl.className = 'firebase-status connected';
+                dotEl.className = 'status-dot green';
+            } else {
+                statusEl.className = 'firebase-status disconnected';
+                dotEl.className = 'status-dot red';
+            }
+            
+            textEl.textContent = message;
+        }
+
+        async function initFirebaseSync() {
+            try {
+                // تحميل البيانات من Firebase
+                const docRef = window.firestoreDoc(window.firebaseDB, 'schedules', scheduleDocId);
+                const docSnap = await window.firestoreGetDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    loadDataFromObject(data);
+                    updateFirebaseStatus(true, '✅ متصل - التحديث تلقائي');
+                } else {
+                    updateFirebaseStatus(true, '✅ متصل - جدول جديد');
+                }
+                
+                // مراقبة التغييرات في الوقت الفعلي
+                window.firestoreOnSnapshot(docRef, (doc) => {
+                    if (!isSyncing && doc.exists()) {
+                        const data = doc.data();
+                        loadDataFromObject(data);
+                        updateFirebaseStatus(true, '✅ متصل - تم التحديث للتو');
+                        setTimeout(() => {
+                            updateFirebaseStatus(true, '✅ متصل - التحديث تلقائي');
+                        }, 2000);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Firebase error:', error);
+                updateFirebaseStatus(false, '❌ خطأ في الاتصال');
+            }
+        }
+
+        async function saveToFirebase() {
+            if (!isFirebaseReady) {
+                console.log('Firebase not ready yet');
+                return;
+            }
+            
+            isSyncing = true;
+            
+            try {
+                const data = {};
+                
+                // حفظ أسماء المعلمين
+                for (let i = 0; i < 42; i++) {
+                    const input = document.getElementById(`teacher_${i}`);
+                    if (input) {
+                        data[`teacher_${i}`] = input.value;
+                    }
+                }
+
+                // حفظ بيانات الجدول
+                for (let i = 0; i < 42; i++) {
+                    days.forEach(day => {
+                        for (let period = 1; period <= 7; period++) {
+                            const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                            if (select) {
+                                data[`cell_${i}_${day}_${period}`] = select.value;
+                            }
+                        }
+                    });
+                }
+
+                // حفظ بيانات التوقيع
+                data.sigDay = document.getElementById('sigDay')?.value || '';
+                data.sigDate = document.getElementById('sigDate')?.value || '';
+                data.sigName = document.getElementById('sigName')?.value || '';
+                data.lastUpdate = new Date().toISOString();
+                
+                const docRef = window.firestoreDoc(window.firebaseDB, 'schedules', scheduleDocId);
+                await window.firestoreSetDoc(docRef, data);
+                
+                updateFirebaseStatus(true, '✅ تم الحفظ على السحابة');
+                
+                setTimeout(() => {
+                    updateFirebaseStatus(true, '✅ متصل - التحديث تلقائي');
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Save error:', error);
+                updateFirebaseStatus(false, '❌ فشل الحفظ');
+            } finally {
+                isSyncing = false;
+            }
+        }
+
+        function loadDataFromObject(data) {
+            // تحميل أسماء المعلمين
+            for (let i = 0; i < 42; i++) {
+                const input = document.getElementById(`teacher_${i}`);
+                if (input && data[`teacher_${i}`]) {
+                    input.value = data[`teacher_${i}`];
+                }
+            }
+
+            // تحميل بيانات الجدول
+            for (let i = 0; i < 42; i++) {
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && data[`cell_${i}_${day}_${period}`]) {
+                            select.value = data[`cell_${i}_${day}_${period}`];
+                        }
+                    }
+                });
+            }
+
+            // تحميل بيانات التوقيع
+            if (document.getElementById('sigDay')) {
+                document.getElementById('sigDay').value = data.sigDay || '';
+            }
+            if (document.getElementById('sigDate')) {
+                document.getElementById('sigDate').value = data.sigDate || '';
+            }
+            if (document.getElementById('sigName')) {
+                document.getElementById('sigName').value = data.sigName || '';
+            }
+            
+            updateAbsentTeacherList();
+            updateClassCounts();
+            checkConflicts();
+            checkUnassignedClasses();
+            updateTeacherSelect();
+        }
 
         function checkConflicts() {
             const conflicts = [];
@@ -1067,6 +1300,7 @@
                 nameInput.id = `teacher_${i}`;
                 nameInput.addEventListener('change', () => {
                     saveData();
+                    saveToFirebase();
                     updateAbsentTeacherList();
                     updateTeacherSelect();
                 });
@@ -1128,6 +1362,7 @@
                             updateClassCounts();
                             checkUnassignedClasses();
                             saveData();
+                            saveToFirebase();
                         });
 
                         cell.appendChild(select);
@@ -1169,9 +1404,12 @@
             data.sigDay = document.getElementById('sigDay')?.value || '';
             data.sigDate = document.getElementById('sigDate')?.value || '';
             data.sigName = document.getElementById('sigName')?.value || '';
+            
+            saveToFirebase();
         }
 
         function loadData() {
+            // سيتم التحميل تلقائياً من Firebase
         }
 
         function clearSchedule() {
@@ -1925,6 +2163,7 @@
             updateClassCounts();
             checkConflicts();
             checkUnassignedClasses();
+            saveToFirebase();
 
             let summaryHTML = '<div class="alert success">';
             summaryHTML += `✅ تم ضبط حصص الانتظار بنجاح!<br>`;
