@@ -146,6 +146,21 @@
             border: 2px solid #fc8181 !important;
         }
 
+        .lab-conflict {
+            background-color: #fed7aa !important;
+            border: 2px solid #f97316 !important;
+            animation: pulse-orange 1.5s infinite;
+        }
+
+        @keyframes pulse-orange {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+            }
+            50% { 
+                box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
+            }
+        }
+
         select {
             width: 100%;
             border: 1px solid #cbd5e0;
@@ -776,7 +791,29 @@
                 <li>🎯 الأولوية للمعلمين الأقل حصصاً</li>
                 <li>🧠 <strong>توزيع ذكي أسبوعياً:</strong> المعلم الذي يأخذ انتظار يوم الأحد لن يكون له الأولوية في الأيام التالية</li>
                 <li>🚫 <strong>الحصص الوهمية:</strong> يمكنك وضع "وهمي" في أي خلية لمنع إسناد الانتظار فيها</li>
+                <li>💻 <strong>كشف تعارض المعامل:</strong> تعارض معلمي الحاسب (عبدالله القرني & عبدالمجيد الرشيدي) يظهر باللون البرتقالي 🟠</li>
             </ul>
+        </div>
+
+        <div style="background: #fff7ed; border: 2px solid #f97316; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="color: #c2410c; margin-bottom: 10px;">💻 إعدادات تعارض معمل الحاسب:</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 10px;">
+                <div>
+                    <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 5px;">معلم الحاسب الأول:</label>
+                    <input type="text" id="labTeacher1" value="عبدالله القرني" 
+                           style="width: 100%; padding: 8px; border: 2px solid #fdba74; border-radius: 5px;"
+                           onchange="checkConflicts()">
+                </div>
+                <div>
+                    <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 5px;">معلم الحاسب الثاني:</label>
+                    <input type="text" id="labTeacher2" value="عبدالمجيد الرشيدي" 
+                           style="width: 100%; padding: 8px; border: 2px solid #fdba74; border-radius: 5px;"
+                           onchange="checkConflicts()">
+                </div>
+            </div>
+            <p style="color: #9a3412; font-size: 13px; margin-top: 10px;">
+                💡 <strong>ملاحظة:</strong> يمكنك تغيير أسماء معلمي الحاسب حسب مدرستك. أي تعارض بينهم سيظهر باللون البرتقالي 🟠
+            </p>
         </div>
 
         </div>
@@ -1114,6 +1151,8 @@
                 data.sigDay = document.getElementById('sigDay')?.value || '';
                 data.sigDate = document.getElementById('sigDate')?.value || '';
                 data.sigName = document.getElementById('sigName')?.value || '';
+                data.labTeacher1 = document.getElementById('labTeacher1')?.value || 'عبدالله القرني';
+                data.labTeacher2 = document.getElementById('labTeacher2')?.value || 'عبدالمجيد الرشيدي';
                 data.lastUpdate = new Date().toISOString();
                 
                 const docRef = window.firestoreDoc(window.firebaseDB, 'schedules', scheduleDocId);
@@ -1169,6 +1208,12 @@
             if (document.getElementById('sigName')) {
                 document.getElementById('sigName').value = data.sigName || '';
             }
+            if (document.getElementById('labTeacher1')) {
+                document.getElementById('labTeacher1').value = data.labTeacher1 || 'عبدالله القرني';
+            }
+            if (document.getElementById('labTeacher2')) {
+                document.getElementById('labTeacher2').value = data.labTeacher2 || 'عبدالمجيد الرشيدي';
+            }
             
             updateAbsentTeacherList();
             updateClassCounts();
@@ -1179,8 +1224,27 @@
 
         function checkConflicts() {
             const conflicts = [];
+            const labConflicts = [];
             const schedule = {};
 
+            // الحصول على أسماء معلمي الحاسب
+            const labTeacher1Name = document.getElementById('labTeacher1')?.value.trim() || 'عبدالله القرني';
+            const labTeacher2Name = document.getElementById('labTeacher2')?.value.trim() || 'عبدالمجيد الرشيدي';
+
+            // إنشاء خريطة لأسماء المعلمين
+            const teacherIndexMap = {};
+            for (let i = 0; i < 42; i++) {
+                const teacherInput = document.getElementById(`teacher_${i}`);
+                if (teacherInput && teacherInput.value.trim()) {
+                    teacherIndexMap[i] = teacherInput.value.trim();
+                }
+            }
+
+            // العثور على مؤشرات معلمي الحاسب
+            const labTeacher1Index = Object.keys(teacherIndexMap).find(key => teacherIndexMap[key] === labTeacher1Name);
+            const labTeacher2Index = Object.keys(teacherIndexMap).find(key => teacherIndexMap[key] === labTeacher2Name);
+
+            // جمع جميع الحصص المجدولة
             for (let i = 0; i < 42; i++) {
                 days.forEach((day, dayIndex) => {
                     for (let period = 1; period <= 7; period++) {
@@ -1196,21 +1260,84 @@
                 });
             }
 
+            // فحص التعارضات العادية
             Object.keys(schedule).forEach(key => {
                 if (schedule[key].length > 1) {
                     conflicts.push(...schedule[key]);
                 }
             });
 
+            // فحص تعارضات معمل الحاسب (نفس الوقت والحصة)
+            if (labTeacher1Index && labTeacher2Index) {
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const teacher1Select = document.getElementById(`cell_${labTeacher1Index}_${day}_${period}`);
+                        const teacher2Select = document.getElementById(`cell_${labTeacher2Index}_${day}_${period}`);
+                        
+                        // تعارض إذا كان كلاهما لديه حصة في نفس الوقت (باستثناء الانتظار)
+                        if (teacher1Select && teacher2Select && 
+                            teacher1Select.value && teacher2Select.value &&
+                            !teacher1Select.value.startsWith('انتظار') && 
+                            !teacher2Select.value.startsWith('انتظار') &&
+                            teacher1Select.value !== 'وهمي' &&
+                            teacher2Select.value !== 'وهمي') {
+                            
+                            labConflicts.push({
+                                teacher: labTeacher1Index,
+                                day,
+                                period,
+                                select: teacher1Select
+                            });
+                            labConflicts.push({
+                                teacher: labTeacher2Index,
+                                day,
+                                period,
+                                select: teacher2Select
+                            });
+                        }
+                    }
+                });
+            }
+
+            // إزالة التنسيق السابق
             document.querySelectorAll('.conflict').forEach(el => {
                 el.classList.remove('conflict');
             });
+            document.querySelectorAll('.lab-conflict').forEach(el => {
+                el.classList.remove('lab-conflict');
+            });
 
+            // تطبيق التنسيق على الخلايا المتعارضة (أحمر)
             conflicts.forEach(item => {
                 item.select.parentElement.classList.add('conflict');
             });
 
+            // تطبيق التنسيق على تعارضات المعمل (برتقالي)
+            labConflicts.forEach(item => {
+                item.select.parentElement.classList.add('lab-conflict');
+            });
+
+            // إظهار رسائل التنبيه
             const alertBox = document.getElementById('alertBox');
+            let alertHTML = '';
+
+            if (labConflicts.length > 0) {
+                const uniqueLabConflicts = new Set();
+                labConflicts.forEach(c => {
+                    uniqueLabConflicts.add(`${getDayName(c.day)} - الحصة ${c.period}`);
+                });
+                
+                alertHTML += `
+                    <div class="alert" style="background: #fff7ed; border-right-color: #f97316; color: #9a3412;">
+                        🟠 تنبيه معمل الحاسب: يوجد ${labConflicts.length / 2} تعارض في استخدام معمل الحاسب!<br>
+                        <strong>التعارضات:</strong> ${Array.from(uniqueLabConflicts).join(' | ')}
+                        <br><small style="margin-top: 5px; display: block;">
+                            💻 ${labTeacher1Name} و ${labTeacher2Name} لديهما حصص في نفس الوقت
+                        </small>
+                    </div>
+                `;
+            }
+
             if (conflicts.length > 0) {
                 const uniqueConflicts = new Set();
                 conflicts.forEach(c => {
@@ -1218,15 +1345,17 @@
                     uniqueConflicts.add(`${c.select.value} في ${getDayName(c.day)} - الحصة ${c.period}`);
                 });
                 
-                alertBox.innerHTML = `
+                alertHTML += `
                     <div class="alert">
                         ⚠️ تنبيه: يوجد ${conflicts.length / 2} تعارض في الجدول! يرجى مراجعة الخلايا المظللة باللون الأحمر.
                     </div>
                 `;
-            } else {
-                alertBox.innerHTML = `
+            }
+            
+            if (conflicts.length === 0 && labConflicts.length === 0) {
+                alertHTML = `
                     <div class="alert success">
-                        ✅ ممتاز! لا يوجد أي تعارض في الجدول
+                        ✅ ممتاز! لا يوجد أي تعارض في الجدول ولا في معمل الحاسب
                     </div>
                 `;
                 setTimeout(() => {
@@ -1234,7 +1363,9 @@
                 }, 3000);
             }
 
-            return conflicts.length === 0;
+            alertBox.innerHTML = alertHTML;
+
+            return conflicts.length === 0 && labConflicts.length === 0;
         }
 
         function updateClassCounts() {
@@ -1507,6 +1638,8 @@
             data.sigDay = document.getElementById('sigDay')?.value || '';
             data.sigDate = document.getElementById('sigDate')?.value || '';
             data.sigName = document.getElementById('sigName')?.value || '';
+            data.labTeacher1 = document.getElementById('labTeacher1')?.value || 'عبدالله القرني';
+            data.labTeacher2 = document.getElementById('labTeacher2')?.value || 'عبدالمجيد الرشيدي';
             
             saveToFirebase();
         }
@@ -1806,6 +1939,8 @@
             data.sigDay = document.getElementById('sigDay')?.value || '';
             data.sigDate = document.getElementById('sigDate')?.value || '';
             data.sigName = document.getElementById('sigName')?.value || '';
+            data.labTeacher1 = document.getElementById('labTeacher1')?.value || 'عبدالله القرني';
+            data.labTeacher2 = document.getElementById('labTeacher2')?.value || 'عبدالمجيد الرشيدي';
             data.exportDate = new Date().toISOString();
             data.version = '2.0';
             
@@ -1859,6 +1994,12 @@
                     }
                     if (document.getElementById('sigName')) {
                         document.getElementById('sigName').value = data.sigName || '';
+                    }
+                    if (document.getElementById('labTeacher1')) {
+                        document.getElementById('labTeacher1').value = data.labTeacher1 || 'عبدالله القرني';
+                    }
+                    if (document.getElementById('labTeacher2')) {
+                        document.getElementById('labTeacher2').value = data.labTeacher2 || 'عبدالمجيد الرشيدي';
                     }
                     
                     updateAbsentTeacherList();
