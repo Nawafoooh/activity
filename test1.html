@@ -2407,7 +2407,11 @@
                     let displayValue = value || '-';
                     let cellStyle = '';
                     
-                    if (value && value.startsWith('انتظار')) {
+                    // ✅ إخفاء الحصص الوهمية - عرضها كخلية فارغة
+                    if (value === 'وهمي') {
+                        displayValue = '-';
+                        cellStyle = 'background: #f7fafc; color: #a0aec0;';
+                    } else if (value && value.startsWith('انتظار')) {
                         cellStyle = 'background: #fef5e7; color: #b7791f; font-weight: bold;';
                     } else if (value) {
                         cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
@@ -2421,6 +2425,7 @@
 
             let totalClasses = 0;
             let totalWaiting = 0;
+            let totalDummy = 0; // عد الحصص الوهمية ولكن لا تعرضها
             
             days.forEach(day => {
                 for (let period = 1; period <= 7; period++) {
@@ -2428,6 +2433,8 @@
                     if (select && select.value) {
                         if (select.value.startsWith('انتظار')) {
                             totalWaiting++;
+                        } else if (select.value === 'وهمي') {
+                            totalDummy++; // عد ولكن لا تعرض
                         } else {
                             totalClasses++;
                         }
@@ -2445,6 +2452,18 @@
                                     ⏳ عدد حصص الانتظار: <span style="color: #b7791f;">${totalWaiting}</span> حصة
                                     &nbsp;&nbsp;|&nbsp;&nbsp;
                                     📈 الإجمالي: <span style="color: #22543d;">${totalClasses + totalWaiting}</span> حصة
+            `;
+            
+            // ✅ إضافة ملاحظة إذا كان لديه حصص وهمية
+            if (totalDummy > 0) {
+                html += `
+                                    <br><small style="color: #9a3412; margin-top: 5px; display: block;">
+                                        🚫 ملاحظة: يوجد ${totalDummy} حصة وهمية (غير معروضة)
+                                    </small>
+                `;
+            }
+            
+            html += `
                                 </td>
                             </tr>
                         </tfoot>
