@@ -694,6 +694,7 @@
             <button class="tab active" onclick="switchTab('main')">📋 الجدول الرئيسي</button>
             <button class="tab" onclick="switchTab('teacher')">👨‍🏫 جدول معلم</button>
             <button class="tab" onclick="switchTab('class')">📚 جدول فصل</button>
+            <button class="tab" onclick="switchTab('manage')">🔧 إدارة الجدول</button>
         </div>
 
         <div id="mainTab" class="tab-content active">
@@ -816,6 +817,80 @@
 
             <div class="buttons" style="margin-top: 20px;">
                 <button class="btn btn-print" onclick="printClassSchedule()">🖨️ طباعة جدول الفصل</button>
+            </div>
+        </div>
+
+        <!-- محتوى تبويب إدارة الجدول -->
+        <div id="manageTab" class="tab-content">
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 800px; margin: 0 auto;">
+                <h2 style="text-align: center; color: #2d3748; margin-bottom: 30px;">
+                    🔧 إدارة وصيانة الجدول
+                </h2>
+
+                <div style="display: grid; gap: 20px;">
+                    <!-- قسم مسح حصص الانتظار -->
+                    <div style="background: #f7fafc; padding: 25px; border-radius: 10px; border: 2px solid #cbd5e0;">
+                        <h3 style="color: #2c5282; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                            ⏳ إدارة حصص الانتظار
+                        </h3>
+                        <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.6;">
+                            يمكنك مسح جميع حصص الانتظار من الجدول مع الاحتفاظ بالحصص الدراسية. 
+                            هذا مفيد عند إعادة توزيع الانتظار من جديد.
+                        </p>
+                        <button class="btn" style="background: #ed8936; color: white; width: 100%;" onclick="clearWaitingClasses()">
+                            🗑️ مسح جميع حصص الانتظار
+                        </button>
+                        <div id="waitingStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
+                            <strong style="color: #2d3748;">📊 الإحصائيات:</strong>
+                            <div id="waitingStatsContent" style="margin-top: 10px; color: #4a5568;"></div>
+                        </div>
+                    </div>
+
+                    <!-- قسم مسح الحصص الوهمية -->
+                    <div style="background: #f7fafc; padding: 25px; border-radius: 10px; border: 2px solid #cbd5e0;">
+                        <h3 style="color: #805ad5; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                            🚫 إدارة الحصص الوهمية
+                        </h3>
+                        <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.6;">
+                            يمكنك مسح جميع الحصص الوهمية من الجدول. 
+                            الحصص الوهمية تُستخدم لمنع إسناد الانتظار في خلايا معينة.
+                        </p>
+                        <button class="btn" style="background: #9f7aea; color: white; width: 100%;" onclick="clearDummyClasses()">
+                            🗑️ مسح جميع الحصص الوهمية
+                        </button>
+                        <div id="dummyStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
+                            <strong style="color: #2d3748;">📊 الإحصائيات:</strong>
+                            <div id="dummyStatsContent" style="margin-top: 10px; color: #4a5568;"></div>
+                        </div>
+                    </div>
+
+                    <!-- قسم مسح كامل -->
+                    <div style="background: #fff5f5; padding: 25px; border-radius: 10px; border: 2px solid #fc8181;">
+                        <h3 style="color: #c53030; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                            ⚠️ مسح الجدول بالكامل
+                        </h3>
+                        <p style="color: #742a2a; margin-bottom: 20px; line-height: 1.6;">
+                            <strong>تحذير:</strong> سيتم مسح جميع البيانات بما في ذلك أسماء المعلمين والحصص الدراسية. 
+                            هذا الإجراء لا يمكن التراجع عنه!
+                        </p>
+                        <button class="btn btn-clear" style="width: 100%;" onclick="clearSchedule()">
+                            🗑️ مسح الجدول بالكامل
+                        </button>
+                    </div>
+
+                    <!-- إحصائيات عامة -->
+                    <div style="background: #ebf8ff; padding: 25px; border-radius: 10px; border: 2px solid #63b3ed;">
+                        <h3 style="color: #2c5282; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                            📊 إحصائيات الجدول الحالي
+                        </h3>
+                        <button class="btn" style="background: #4299e1; color: white; width: 100%;" onclick="showScheduleStats()">
+                            📈 عرض الإحصائيات التفصيلية
+                        </button>
+                        <div id="generalStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
+                            <div id="generalStatsContent"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1826,7 +1901,238 @@
             } else if (tabName === 'class') {
                 document.getElementById('classTab').classList.add('active');
                 document.querySelectorAll('.tab')[2].classList.add('active');
+            } else if (tabName === 'manage') {
+                document.getElementById('manageTab').classList.add('active');
+                document.querySelectorAll('.tab')[3].classList.add('active');
             }
+        }
+
+        function clearWaitingClasses() {
+            if (!confirm('هل أنت متأكد من مسح جميع حصص الانتظار؟\n\nسيتم الاحتفاظ بجميع الحصص الدراسية والحصص الوهمية.\nيمكنك إعادة توزيع الانتظار بعد ذلك.')) {
+                return;
+            }
+
+            let removedCount = 0;
+            const teacherWaitingCount = {};
+
+            for (let i = 0; i < 42; i++) {
+                teacherWaitingCount[i] = 0;
+                
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value && select.value.startsWith('انتظار')) {
+                            select.value = '';
+                            removedCount++;
+                            teacherWaitingCount[i]++;
+                        }
+                    }
+                });
+            }
+
+            saveData();
+            updateClassCounts();
+            checkConflicts();
+            checkUnassignedClasses();
+            saveToFirebase();
+
+            // عرض الإحصائيات
+            let statsHTML = `
+                <div style="color: #22543d; font-size: 14px;">
+                    ✅ تم مسح <strong>${removedCount}</strong> حصة انتظار بنجاح!<br><br>
+                    <strong>التفاصيل:</strong>
+                    <ul style="margin-top: 10px; padding-right: 20px;">
+            `;
+
+            for (let i = 0; i < 42; i++) {
+                const teacherName = document.getElementById(`teacher_${i}`)?.value;
+                if (teacherName && teacherName.trim() && teacherWaitingCount[i] > 0) {
+                    statsHTML += `<li>${teacherName}: تم مسح ${teacherWaitingCount[i]} حصة</li>`;
+                }
+            }
+
+            statsHTML += `</ul></div>`;
+
+            document.getElementById('waitingStatsContent').innerHTML = statsHTML;
+            document.getElementById('waitingStats').style.display = 'block';
+
+            // إخفاء بعد 10 ثواني
+            setTimeout(() => {
+                document.getElementById('waitingStats').style.display = 'none';
+            }, 10000);
+
+            alert(`✅ تم مسح ${removedCount} حصة انتظار بنجاح!`);
+        }
+
+        function clearDummyClasses() {
+            if (!confirm('هل أنت متأكد من مسح جميع الحصص الوهمية؟\n\nسيتم الاحتفاظ بجميع الحصص الدراسية وحصص الانتظار.')) {
+                return;
+            }
+
+            let removedCount = 0;
+            const teacherDummyCount = {};
+
+            for (let i = 0; i < 42; i++) {
+                teacherDummyCount[i] = 0;
+                
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value === 'وهمي') {
+                            select.value = '';
+                            select.parentElement.classList.remove('dummy-cell');
+                            removedCount++;
+                            teacherDummyCount[i]++;
+                        }
+                    }
+                });
+            }
+
+            saveData();
+            updateClassCounts();
+            checkConflicts();
+            checkUnassignedClasses();
+            saveToFirebase();
+
+            // عرض الإحصائيات
+            let statsHTML = `
+                <div style="color: #553c9a; font-size: 14px;">
+                    ✅ تم مسح <strong>${removedCount}</strong> حصة وهمية بنجاح!<br><br>
+            `;
+
+            if (removedCount > 0) {
+                statsHTML += `<strong>التفاصيل:</strong><ul style="margin-top: 10px; padding-right: 20px;">`;
+                
+                for (let i = 0; i < 42; i++) {
+                    const teacherName = document.getElementById(`teacher_${i}`)?.value;
+                    if (teacherName && teacherName.trim() && teacherDummyCount[i] > 0) {
+                        statsHTML += `<li>${teacherName}: تم مسح ${teacherDummyCount[i]} حصة</li>`;
+                    }
+                }
+                
+                statsHTML += `</ul>`;
+            }
+
+            statsHTML += `</div>`;
+
+            document.getElementById('dummyStatsContent').innerHTML = statsHTML;
+            document.getElementById('dummyStats').style.display = 'block';
+
+            // إخفاء بعد 10 ثواني
+            setTimeout(() => {
+                document.getElementById('dummyStats').style.display = 'none';
+            }, 10000);
+
+            alert(`✅ تم مسح ${removedCount} حصة وهمية بنجاح!`);
+        }
+
+        function showScheduleStats() {
+            let totalTeachers = 0;
+            let totalClasses = 0;
+            let totalWaiting = 0;
+            let totalDummy = 0;
+            let totalEmpty = 0;
+
+            const teacherStats = [];
+
+            for (let i = 0; i < 42; i++) {
+                const teacherName = document.getElementById(`teacher_${i}`)?.value;
+                if (!teacherName || !teacherName.trim()) continue;
+
+                totalTeachers++;
+                let classes = 0;
+                let waiting = 0;
+                let dummy = 0;
+                let empty = 0;
+
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select) {
+                            if (select.value && select.value.startsWith('انتظار')) {
+                                waiting++;
+                            } else if (select.value === 'وهمي') {
+                                dummy++;
+                            } else if (select.value && !select.value.startsWith('انتظار')) {
+                                classes++;
+                            } else {
+                                empty++;
+                            }
+                        }
+                    }
+                });
+
+                totalClasses += classes;
+                totalWaiting += waiting;
+                totalDummy += dummy;
+                totalEmpty += empty;
+
+                teacherStats.push({
+                    name: teacherName,
+                    classes: classes,
+                    waiting: waiting,
+                    dummy: dummy,
+                    empty: empty,
+                    total: classes + waiting + dummy
+                });
+            }
+
+            // ترتيب المعلمين حسب الإجمالي
+            teacherStats.sort((a, b) => b.total - a.total);
+
+            let statsHTML = `
+                <div style="color: #2d3748; font-size: 14px;">
+                    <div style="background: #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin-bottom: 10px; color: #2c5282;">📊 الإحصائيات العامة:</h4>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                            <div>👥 عدد المعلمين: <strong>${totalTeachers}</strong></div>
+                            <div>📚 حصص دراسية: <strong>${totalClasses}</strong></div>
+                            <div>⏳ حصص انتظار: <strong>${totalWaiting}</strong></div>
+                            <div>🚫 حصص وهمية: <strong>${totalDummy}</strong></div>
+                            <div>⬜ خلايا فارغة: <strong>${totalEmpty}</strong></div>
+                            <div>📈 الإجمالي: <strong>${totalClasses + totalWaiting + totalDummy}</strong></div>
+                        </div>
+                    </div>
+
+                    <h4 style="margin-bottom: 10px; color: #2c5282;">👥 تفاصيل المعلمين:</h4>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                            <thead style="position: sticky; top: 0; background: #edf2f7;">
+                                <tr>
+                                    <th style="padding: 8px; border: 1px solid #cbd5e0; text-align: right;">المعلم</th>
+                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">دراسية</th>
+                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">انتظار</th>
+                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">وهمي</th>
+                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">فارغة</th>
+                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">المجموع</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            teacherStats.forEach(stat => {
+                const rowColor = stat.total === 20 ? '#c6f6d5' : (stat.total < 20 ? '#fed7d7' : '#fef5e7');
+                statsHTML += `
+                    <tr style="background: ${rowColor};">
+                        <td style="padding: 8px; border: 1px solid #cbd5e0;">${stat.name}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.classes}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.waiting}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.dummy}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.empty}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center; font-weight: bold;">${stat.total}</td>
+                    </tr>
+                `;
+            });
+
+            statsHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('generalStatsContent').innerHTML = statsHTML;
+            document.getElementById('generalStats').style.display = 'block';
         }
 
         function updateTeacherSelect() {
