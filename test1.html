@@ -287,6 +287,18 @@
             color: #2d3748;
         }
 
+        .dummy-cell {
+            background: repeating-linear-gradient(
+                45deg,
+                #fed7d7,
+                #fed7d7 10px,
+                #feebc8 10px,
+                #feebc8 20px
+            ) !important;
+            font-weight: bold;
+            color: #742a2a;
+        }
+
         .btn-save {
             background: #4299e1;
             color: white;
@@ -753,7 +765,7 @@
         </div>
 
         <div class="waiting-rules">
-            <h4>📋 قواعد توزيع حصص الانتظار المحسّنة:</h4>
+            <h4>📋 قواعد توزيع حصص الانتظار الذكية:</h4>
             <ul>
                 <li>✅ المعلمين أقل من 20 حصة يتم إكمال نصابهم إلى 20 بحصص الانتظار</li>
                 <li>❌ المعلمين 20 حصة أو أكثر: لا يتم إسناد انتظار لهم</li>
@@ -761,6 +773,8 @@
                 <li>📊 التوزيع بالترتيب: انتظار1، انتظار2، انتظار3، انتظار4، انتظار5</li>
                 <li>⚠️ لا تعارض في حصص الانتظار (كل حصة انتظار لمعلم واحد فقط)</li>
                 <li>🎯 الأولوية للمعلمين الأقل حصصاً</li>
+                <li>🧠 <strong>توزيع ذكي أسبوعياً:</strong> المعلم الذي يأخذ انتظار يوم الأحد لن يكون له الأولوية في الأيام التالية</li>
+                <li>🚫 <strong>الحصص الوهمية:</strong> يمكنك وضع "وهمي" في أي خلية لمنع إسناد الانتظار فيها</li>
             </ul>
         </div>
 
@@ -928,7 +942,8 @@
             { value: 'انتظار2', label: 'انتظار2', group: 'waiting' },
             { value: 'انتظار3', label: 'انتظار3', group: 'waiting' },
             { value: 'انتظار4', label: 'انتظار4', group: 'waiting' },
-            { value: 'انتظار5', label: 'انتظار5', group: 'waiting' }
+            { value: 'انتظار5', label: 'انتظار5', group: 'waiting' },
+            { value: 'وهمي', label: '🚫 وهمي (ممنوع)', group: 'dummy' }
         ];
 
         let isFirebaseReady = false;
@@ -1059,6 +1074,11 @@
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
                         if (select && data[`cell_${i}_${day}_${period}`]) {
                             select.value = data[`cell_${i}_${day}_${period}`];
+                            
+                            // تطبيق تنسيق الحصص الوهمية
+                            if (select.value === 'وهمي') {
+                                select.parentElement.classList.add('dummy-cell');
+                            }
                         }
                     }
                 });
@@ -1148,7 +1168,7 @@
                 days.forEach(day => {
                     for (let period = 1; period <= 7; period++) {
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select && select.value && !select.value.startsWith('انتظار')) {
+                        if (select && select.value && !select.value.startsWith('انتظار') && select.value !== 'وهمي') {
                             count++;
                         }
                     }
@@ -1343,6 +1363,7 @@
                                 else if (option.group === 'second') groupHeader.textContent = '▼ الصف الثاني';
                                 else if (option.group === 'third') groupHeader.textContent = '▼ الصف الثالث';
                                 else if (option.group === 'waiting') groupHeader.textContent = '▼ حصص الانتظار';
+                                else if (option.group === 'dummy') groupHeader.textContent = '▼ حصص خاصة';
                                 select.appendChild(groupHeader);
                                 
                                 currentGroup = option.group;
@@ -1358,6 +1379,13 @@
                         });
 
                         select.addEventListener('change', () => {
+                            // إضافة تنسيق خاص للخلايا الوهمية
+                            if (select.value === 'وهمي') {
+                                cell.classList.add('dummy-cell');
+                            } else {
+                                cell.classList.remove('dummy-cell');
+                            }
+                            
                             checkConflicts();
                             updateClassCounts();
                             checkUnassignedClasses();
@@ -2063,10 +2091,11 @@
         }
 
         function autoAssignWaiting() {
-            if (!confirm('سيتم توزيع حصص الانتظار تلقائياً وفقاً للقواعد المحددة.\nسيتم ضبط جميع المعلمين إلى 20 حصة بالضبط.\nهل تريد المتابعة؟')) {
+            if (!confirm('سيتم توزيع حصص الانتظار تلقائياً وفقاً للقواعد الذكية.\nسيتم ضبط جميع المعلمين إلى 20 حصة بالضبط.\nالتوزيع سيراعي العدالة الأسبوعية.\nهل تريد المتابعة؟')) {
                 return;
             }
 
+            // حساب عدد الحصص الدراسية لكل معلم
             const teacherClassCounts = {};
             const teacherHasClassAfterPeriod = {};
 
@@ -2082,7 +2111,7 @@
 
                     for (let period = 1; period <= 7; period++) {
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select && select.value && !select.value.startsWith('انتظار')) {
+                        if (select && select.value && !select.value.startsWith('انتظار') && select.value !== 'وهمي') {
                             teacherClassCounts[i]++;
                             teacherHasClassAfterPeriod[i][day] = period;
                         }
@@ -2090,6 +2119,7 @@
                 });
             }
 
+            // حذف جميع حصص الانتظار القديمة
             let removedCount = 0;
             for (let i = 0; i < 42; i++) {
                 days.forEach(day => {
@@ -2103,7 +2133,10 @@
                 });
             }
 
+            // حساب عدد حصص الانتظار المطلوبة لكل معلم
             const teacherWaitingNeeded = {};
+            const teacherWaitingAssigned = {}; // تتبع عدد الانتظار المسند أسبوعياً
+            
             for (let i = 0; i < 42; i++) {
                 const teacherName = document.getElementById(`teacher_${i}`)?.value;
                 if (!teacherName || !teacherName.trim()) continue;
@@ -2112,8 +2145,10 @@
                 
                 if (classCount < 20) {
                     teacherWaitingNeeded[i] = 20 - classCount;
+                    teacherWaitingAssigned[i] = 0; // البداية من صفر
                 } else {
                     teacherWaitingNeeded[i] = 0;
+                    teacherWaitingAssigned[i] = 0;
                 }
             }
 
@@ -2121,22 +2156,54 @@
             let waitingIndex = 0;
             let assignedCount = 0;
 
+            // التوزيع الذكي: نمر على كل يوم وحصة
             days.forEach(day => {
                 for (let period = 1; period <= 7; period++) {
                     if (day === 'thu' && period === 7) continue;
 
+                    // إنشاء قائمة بالمعلمين المؤهلين لهذه الحصة
+                    const eligibleTeachers = [];
+                    
                     for (let i = 0; i < 42; i++) {
                         const teacherName = document.getElementById(`teacher_${i}`)?.value;
                         if (!teacherName || !teacherName.trim()) continue;
 
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (!select || select.value) continue;
+                        if (!select || select.value) continue; // الخلية مشغولة أو وهمية
 
+                        // تحقق: هل الخلية وهمية؟
+                        if (select.value === 'وهمي') continue;
+
+                        // تحقق: هل المعلم يحتاج حصص انتظار؟
                         if (teacherWaitingNeeded[i] <= 0) continue;
 
+                        // تحقق: قاعدة الحصة الثالثة
                         const lastClassPeriod = teacherHasClassAfterPeriod[i][day];
                         if (period > 3 && lastClassPeriod <= 3) continue;
 
+                        // حساب الأولوية الذكية:
+                        // 1. عدد الحصص الكلي (الأقل له الأولوية)
+                        // 2. عدد حصص الانتظار المسندة أسبوعياً (الأقل له الأولوية)
+                        const totalClasses = teacherClassCounts[i];
+                        const weeklyWaiting = teacherWaitingAssigned[i];
+                        
+                        eligibleTeachers.push({
+                            index: i,
+                            name: teacherName,
+                            totalClasses: totalClasses,
+                            weeklyWaiting: weeklyWaiting,
+                            priority: (weeklyWaiting * 1000) + totalClasses // الأولوية: من لديه أقل انتظار أسبوعي ثم أقل حصص
+                        });
+                    }
+
+                    // ترتيب حسب الأولوية (الأقل أولاً)
+                    eligibleTeachers.sort((a, b) => a.priority - b.priority);
+
+                    // محاولة الإسناد للمعلم الأكثر أولوية
+                    for (const teacher of eligibleTeachers) {
+                        const i = teacher.index;
+                        
+                        // التحقق من عدم وجود تعارض في نوع الانتظار
                         let conflictFound = false;
                         const currentWaitingType = waitingTypes[waitingIndex % 5];
                         
@@ -2150,11 +2217,15 @@
 
                         if (conflictFound) continue;
 
+                        // إسناد الحصة
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
                         select.value = currentWaitingType;
+                        
                         teacherWaitingNeeded[i]--;
+                        teacherWaitingAssigned[i]++; // زيادة عدد الانتظار الأسبوعي
                         waitingIndex++;
                         assignedCount++;
-                        break;
+                        break; // تم الإسناد، ننتقل للحصة التالية
                     }
                 }
             });
@@ -2165,14 +2236,22 @@
             checkUnassignedClasses();
             saveToFirebase();
 
+            // عرض التقرير
             let summaryHTML = '<div class="alert success">';
-            summaryHTML += `✅ تم ضبط حصص الانتظار بنجاح!<br>`;
+            summaryHTML += `✅ تم ضبط حصص الانتظار بنجاح باستخدام النظام الذكي!<br>`;
             summaryHTML += `🔸 تم حذف ${removedCount} حصة انتظار قديمة<br>`;
-            summaryHTML += `🔹 تم إضافة ${assignedCount} حصة انتظار جديدة<br><br>`;
+            summaryHTML += `🔹 تم إضافة ${assignedCount} حصة انتظار جديدة<br>`;
+            summaryHTML += `🧠 تم تطبيق التوزيع العادل أسبوعياً<br><br>`;
             summaryHTML += '<strong>📊 ملخص النصاب لكل معلم:</strong>';
             summaryHTML += '<div style="max-height: 300px; overflow-y: auto;">';
             summaryHTML += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
-            summaryHTML += '<tr style="background: #edf2f7; font-weight: bold;"><td style="padding: 8px; border: 1px solid #cbd5e0;">المعلم</td><td style="padding: 8px; border: 1px solid #cbd5e0;">حصص دراسية</td><td style="padding: 8px; border: 1px solid #cbd5e0;">حصص انتظار</td><td style="padding: 8px; border: 1px solid #cbd5e0;">الإجمالي</td></tr>';
+            summaryHTML += '<tr style="background: #edf2f7; font-weight: bold;">';
+            summaryHTML += '<td style="padding: 8px; border: 1px solid #cbd5e0;">المعلم</td>';
+            summaryHTML += '<td style="padding: 8px; border: 1px solid #cbd5e0;">حصص دراسية</td>';
+            summaryHTML += '<td style="padding: 8px; border: 1px solid #cbd5e0;">حصص انتظار</td>';
+            summaryHTML += '<td style="padding: 8px; border: 1px solid #cbd5e0;">توزيع الانتظار</td>';
+            summaryHTML += '<td style="padding: 8px; border: 1px solid #cbd5e0;">الإجمالي</td>';
+            summaryHTML += '</tr>';
 
             for (let i = 0; i < 42; i++) {
                 const teacherName = document.getElementById(`teacher_${i}`)?.value;
@@ -2180,15 +2259,37 @@
 
                 const classCount = teacherClassCounts[i] || 0;
                 
+                // حساب حصص الانتظار الحالية وتوزيعها
                 let currentWaiting = 0;
+                const waitingPerDay = {};
                 days.forEach(day => {
+                    waitingPerDay[day] = 0;
                     for (let period = 1; period <= 7; period++) {
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
                         if (select && select.value && select.value.startsWith('انتظار')) {
                             currentWaiting++;
+                            waitingPerDay[day]++;
                         }
                     }
                 });
+
+                // عرض توزيع الانتظار على الأيام
+                const dayNames = {
+                    'sun': 'أحد',
+                    'mon': 'إثنين',
+                    'tue': 'ثلاثاء',
+                    'wed': 'أربعاء',
+                    'thu': 'خميس'
+                };
+                
+                let distribution = '';
+                days.forEach(day => {
+                    if (waitingPerDay[day] > 0) {
+                        distribution += `${dayNames[day]}(${waitingPerDay[day]}) `;
+                    }
+                });
+                
+                if (!distribution) distribution = '-';
 
                 const total = classCount + currentWaiting;
                 const rowColor = total === 20 ? '#c6f6d5' : (total < 20 ? '#fed7d7' : '#fef5e7');
@@ -2198,6 +2299,7 @@
                 summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0;">${statusIcon} ${teacherName}</td>`;
                 summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${classCount}</td>`;
                 summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${currentWaiting}</td>`;
+                summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0; font-size: 11px;">${distribution}</td>`;
                 summaryHTML += `<td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center; font-weight: bold;">${total}</td>`;
                 summaryHTML += '</tr>';
             }
