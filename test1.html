@@ -1700,7 +1700,9 @@
                 
                 for (let period = 1; period <= 7; period++) {
                     const select = document.getElementById(`cell_${absentTeacherIndex}_${day}_${period}`);
-                    if (select && select.value && !select.value.startsWith('انتظار')) {
+                    
+                    // ✅ تحقق مهم: تجاهل الحصص الوهمية تماماً
+                    if (select && select.value && !select.value.startsWith('انتظار') && select.value !== 'وهمي') {
                         allAbsentClasses.push({
                             period: period,
                             class: select.value,
@@ -1712,18 +1714,18 @@
             });
             
             if (allAbsentClasses.length === 0) {
-                alert('المعلمين المختارين ليس لديهم حصص في هذا اليوم!');
+                alert('المعلمين المختارين ليس لديهم حصص دراسية في هذا اليوم!\n\nملاحظة: الحصص الوهمية لا يتم توزيع انتظار لها.');
                 return;
             }
 
-            // حساب عدد حصص كل معلم (حصص دراسية فقط)
+            // حساب عدد حصص كل معلم (حصص دراسية فقط - بدون وهمي)
             const teacherClassCounts = {};
             for (let i = 0; i < 42; i++) {
                 teacherClassCounts[i] = 0;
                 days.forEach(d => {
                     for (let p = 1; p <= 7; p++) {
                         const sel = document.getElementById(`cell_${i}_${d}_${p}`);
-                        if (sel && sel.value && !sel.value.startsWith('انتظار')) {
+                        if (sel && sel.value && !sel.value.startsWith('انتظار') && sel.value !== 'وهمي') {
                             teacherClassCounts[i]++;
                         }
                     }
@@ -1764,6 +1766,11 @@
                     
                     const cellValue = select.value;
                     
+                    // ✅ تحقق مهم: تجاهل الحصص الوهمية تماماً - لا يمكن الإسناد فيها
+                    if (cellValue === 'وهمي') {
+                        continue; // انتقل للمعلم التالي
+                    }
+                    
                     // التحقق: يجب أن تكون الخلية تحتوي على حصة انتظار أو فارغة
                     if (!cellValue || cellValue.startsWith('انتظار')) {
                         // التحقق: لم يسبق للمعلم الإسناد في هذا اليوم
@@ -1793,7 +1800,7 @@
                     }
                 }
 
-                // إذا لم يتم الإسناد، ابحث عن أي معلم متاح حتى لو كان لديه حصة
+                // إذا لم يتم الإسناد، ابحث عن أي معلم متاح حتى لو كان لديه حصة (ولكن ليس وهمي)
                 if (!assigned) {
                     for (const teacher of availableTeachers) {
                         const i = teacher.index;
@@ -1808,6 +1815,11 @@
                         
                         const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
                         if (select) {
+                            // ✅ تحقق مهم: تجاهل الحصص الوهمية حتى في هذه المرحلة
+                            if (select.value === 'وهمي') {
+                                continue;
+                            }
+                            
                             assignments.push({
                                 period: absentClass.period,
                                 class: absentClass.class,
@@ -1852,12 +1864,52 @@
                 document.getElementById(`teacher_${index}`).value
             ).join('، ');
             
+            // ✅ فلترة الحصص الوهمية من النتائج - لا يجب عرضها أصلاً
+            const validAssignments = assignments.filter(assign => {
+                // التحقق من أن الحصة الأصلية ليست وهمية
+                const absentTeacherIndex = assign.teacherIndex || absentTeachers[0];
+                const originalSelect = document.getElementById(`cell_${assign.absentTeacher ? absentTeachers.find(idx => 
+                    document.getElementById(`teacher_${idx}`).value === assign.absentTeacher
+                ) : absentTeacherIndex}_${day}_${assign.period}`);
+                
+                // إذا كانت الحصة الأصلية وهمية، لا تعرضها في النتائج
+                if (originalSelect && originalSelect.value === 'وهمي') {
+                    return false;
+                }
+                
+                return true;
+            });
+            
             let html = `
                 <h3 style="color: #2d3748; margin-bottom: 15px;">نتيجة التوزيع</h3>
                 <p style="margin-bottom: 10px;"><strong>المعلمين الغائبين:</strong> ${absentNames}</p>
                 <p style="margin-bottom: 10px;"><strong>اليوم:</strong> ${dayNames[day]}</p>
                 ${date ? `<p style="margin-bottom: 20px;"><strong>التاريخ:</strong> ${date}</p>` : ''}
-                
+            `;
+            
+            // ✅ إضافة تنبيه إذا كان هناك حصص وهمية تم تجاهلها
+            const ignoredDummyCount = assignments.length - validAssignments.length;
+            if (ignoredDummyCount > 0) {
+                html += `
+                    <div style="background: #fff7ed; border: 2px solid #f97316; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                        <strong style="color: #c2410c;">🚫 تنبيه:</strong> 
+                        <span style="color: #9a3412;">تم تجاهل ${ignoredDummyCount} حصة وهمية - الحصص الوهمية لا تحتاج بديل</span>
+                    </div>
+                `;
+            }
+            
+            if (validAssignments.length === 0) {
+                html += `
+                    <div style="background: #fef5e7; border: 2px solid #f6ad55; padding: 20px; border-radius: 8px; text-align: center;">
+                        <h4 style="color: #c05621; margin-bottom: 10px;">⚠️ لا توجد حصص تحتاج توزيع</h4>
+                        <p style="color: #9c4221;">جميع حصص المعلم الغائب هي حصص وهمية، وبالتالي لا تحتاج إلى معلم بديل.</p>
+                    </div>
+                `;
+                document.getElementById('waitingResult').innerHTML = html;
+                return;
+            }
+            
+            html += `
                 <table class="waiting-table">
                     <thead>
                         <tr>
@@ -1874,7 +1926,7 @@
             let successCount = 0;
             let failCount = 0;
             
-            assignments.forEach(assign => {
+            validAssignments.forEach(assign => {
                 const rowClass = assign.teacherIndex !== null && !assign.teacher.includes('مشغول') ? 'waiting-assigned' : 'waiting-unassigned';
                 const statusIcon = assign.teacherIndex !== null && !assign.teacher.includes('مشغول') ? '✅' : '❌';
                 const statusText = assign.teacherIndex !== null && !assign.teacher.includes('مشغول') ? 'تم الإسناد' : 'غير مسند';
@@ -1905,7 +1957,17 @@
                                 &nbsp;&nbsp;|&nbsp;&nbsp;
                                 ❌ لم يتم الإسناد: <span style="color: #742a2a;">${failCount}</span> حصة
                                 &nbsp;&nbsp;|&nbsp;&nbsp;
-                                📊 الإجمالي: <span style="color: #2c5282;">${assignments.length}</span> حصة
+                                📊 الإجمالي: <span style="color: #2c5282;">${validAssignments.length}</span> حصة
+            `;
+            
+            if (ignoredDummyCount > 0) {
+                html += `
+                                &nbsp;&nbsp;|&nbsp;&nbsp;
+                                🚫 حصص وهمية (تم تجاهلها): <span style="color: #c2410c;">${ignoredDummyCount}</span>
+                `;
+            }
+            
+            html += `
                             </td>
                         </tr>
                     </tfoot>
