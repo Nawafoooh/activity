@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة حصص الانتظار العادل</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 20px;
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: var(--primary);
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 10px;
+        }
+
+        .stats-panel {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .equity-indicator {
+            font-weight: bold;
+            font-size: 1.2em;
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+
+        .equity-green { background: #d4edda; color: #155724; }
+        .equity-yellow { background: #fff3cd; color: #856404; }
+        .equity-red { background: #f8d7da; color: #721c24; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .form-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        input, select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 8px 15px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background: var(--primary);
+            color: white;
+            transition: 0.3s;
+        }
+
+        button.reset-btn { background: var(--danger); }
+        button:hover { opacity: 0.8; }
+
+        .progress-container {
+            width: 100%;
+            background-color: #eee;
+            border-radius: 10px;
+            height: 12px;
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+
+        .status-low { background-color: var(--success); }
+        .status-mid { background-color: var(--warning); }
+        .status-high { background-color: var(--danger); }
+
+        .waiting-cell select {
+            width: 100%;
+            border: none;
+            background: transparent;
+        }
+
+        .alert-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 25px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        @media print {
+            .no-print, .form-group, button { display: none !important; }
+            body { background: white; margin: 0; }
+            .container { box-shadow: none; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="alert" class="alert-box"></div>
+
+<div class="container">
+    <h1>نظام توزيع حصص الانتظار العادل</h1>
+
+    <div class="stats-panel no-print">
+        <div>
+            <span>مؤشر العدالة العام: </span>
+            <span id="equityLabel" class="equity-indicator">--</span>
+        </div>
+        <div>
+            <span>متوسط الاستهلاك: </span>
+            <b id="avgConsumption">0%</b>
+        </div>
+    </div>
+
+    <div class="form-group no-print">
+        <input type="text" id="teacherName" placeholder="اسم المعلم">
+        <input type="number" id="lessonCount" placeholder="عدد الحصص">
+        <button onclick="addTeacher()">إضافة معلم</button>
+        <button class="reset-btn" onclick="resetWeekly()">إعادة ضبط أسبوع جديد</button>
+        <button onclick="window.print()">طباعة الجدول</button>
+    </div>
+
+    <h2>بيانات المعلمين</h2>
+    <table id="teacherTable">
+        <thead>
+            <tr>
+                <th>المعلم</th>
+                <th>الحصص</th>
+                <th>الحد الأقصى</th>
+                <th>المسند</th>
+                <th>المتبقي</th>
+                <th>نسبة الاستهلاك</th>
+            </tr>
+        </thead>
+        <tbody id="teacherBody"></tbody>
+    </table>
+
+    <h2>جدول توزيع الانتظار</h2>
+    <table id="scheduleTable">
+        <thead>
+            <tr>
+                <th>اليوم / الحصة</th>
+                <th>1</th>
+                <th>2</th>
+                <th>3</th>
+                <th>4</th>
+                <th>5</th>
+                <th>6</th>
+                <th>7</th>
+            </tr>
+        </thead>
+        <tbody id="scheduleBody"></tbody>
+    </table>
+</div>
+
+<script>
+    let teachers = JSON.parse(localStorage.getItem('teachers')) || [];
+    let schedule = JSON.parse(localStorage.getItem('schedule')) || {};
+
+    const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
+    const lessonsCount = 7;
+
+    function calculateMaxWaiting(lessons) {
+        if (lessons >= 20) return 0;
+        if (lessons >= 18) return 2;
+        if (lessons >= 16) return 4;
+        if (lessons >= 15) return 5;
+        if (lessons <= 10) return 10;
+        return 0;
+    }
+
+    function showAlert(msg, type = 'danger') {
+        const alert = document.getElementById('alert');
+        alert.textContent = msg;
+        alert.style.backgroundColor = type === 'danger' ? '#e74c3c' : '#f39c12';
+        alert.style.display = 'block';
+        setTimeout(() => alert.style.display = 'none', 4000);
+    }
+
+    function addTeacher() {
+        const name = document.getElementById('teacherName').value;
+        const lessons = parseInt(document.getElementById('lessonCount').value);
+
+        if (!name || isNaN(lessons)) return;
+
+        teachers.push({
+            id: Date.now().toString(),
+            name: name,
+            lessons: lessons,
+            maxWaiting: calculateMaxWaiting(lessons),
+            assigned: 0
+        });
+
+        saveAndRefresh();
+        document.getElementById('teacherName').value = '';
+        document.getElementById('lessonCount').value = '';
+    }
+
+    function updateAssignment(day, lesson, teacherId) {
+        const oldTeacherId = schedule[`${day}-${lesson}`];
+        
+        if (teacherId !== "") {
+            const t = teachers.find(x => x.id === teacherId);
+            
+            // Rule: 100% Limit
+            if (t.assigned >= t.maxWaiting && t.maxWaiting > 0) {
+                showAlert(`عذراً، المعلم ${t.name} تجاوز حد الانتظار المسموح به!`);
+                refreshAll();
+                return;
+            }
+
+            // Rule: First and Last lesson check
+            if (lesson === "1" || lesson === "7") {
+                const opposite = lesson === "1" ? "7" : "1";
+                if (schedule[`${day}-${opposite}`] === teacherId) {
+                    showAlert(`تنبيه: المعلم ${t.name} لديه انتظار في أول وآخر حصة اليوم!`, 'warning');
+                }
+            }
+
+            // Rule: Consecutive days check
+            const dayIdx = days.indexOf(day);
+            if (dayIdx > 0) {
+                if (schedule[`${days[dayIdx-1]}-${lesson}`] === teacherId) {
+                    showAlert(`تنبيه: المعلم ${t.name} لديه نفس الحصة ليومين متتاليين!`, 'warning');
+                }
+            }
+        }
+
+        schedule[`${day}-${lesson}`] = teacherId;
+        recalculateAssignments();
+        saveAndRefresh();
+    }
+
+    function recalculateAssignments() {
+        teachers.forEach(t => t.assigned = 0);
+        Object.values(schedule).forEach(id => {
+            if (id) {
+                const t = teachers.find(x => x.id === id);
+                if (t) t.assigned++;
+            }
+        });
+    }
+
+    function saveAndRefresh() {
+        localStorage.setItem('teachers', JSON.stringify(teachers));
+        localStorage.setItem('schedule', JSON.stringify(schedule));
+        refreshAll();
+    }
+
+    function refreshAll() {
+        renderTeachers();
+        renderSchedule();
+        updateEquity();
+    }
+
+    function renderTeachers() {
+        const body = document.getElementById('teacherBody');
+        body.innerHTML = '';
+
+        teachers.forEach(t => {
+            const ratio = t.maxWaiting > 0 ? (t.assigned / t.maxWaiting) * 100 : 0;
+            let statusClass = 'status-low';
+            if (ratio > 40) statusClass = 'status-mid';
+            if (ratio > 70) statusClass = 'status-high';
+
+            body.innerHTML += `
+                <tr>
+                    <td>${t.name}</td>
+                    <td>${t.lessons}</td>
+                    <td>${t.maxWaiting}</td>
+                    <td>${t.assigned}</td>
+                    <td>${t.maxWaiting - t.assigned}</td>
+                    <td style="width: 200px">
+                        <div>${ratio.toFixed(1)}%</div>
+                        <div class="progress-container">
+                            <div class="progress-bar ${statusClass}" style="width: ${Math.min(ratio, 100)}%"></div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderSchedule() {
+        const body = document.getElementById('scheduleBody');
+        body.innerHTML = '';
+
+        days.forEach(day => {
+            let row = `<tr><td>${day}</td>`;
+            for (let i = 1; i <= lessonsCount; i++) {
+                const key = `${day}-${i}`;
+                const selectedId = schedule[key] || "";
+                
+                let options = `<option value="">---</option>`;
+                teachers.forEach(t => {
+                    if (t.maxWaiting > 0) {
+                        const selected = t.id === selectedId ? 'selected' : '';
+                        options += `<option value="${t.id}" ${selected}>${t.name}</option>`;
+                    }
+                });
+
+                row += `<td class="waiting-cell"><select onchange="updateAssignment('${day}', '${i}', this.value)">${options}</select></td>`;
+            }
+            row += `</tr>`;
+            body.innerHTML += row;
+        });
+    }
+
+    function updateEquity() {
+        if (teachers.length === 0) return;
+
+        const ratios = teachers
+            .filter(t => t.maxWaiting > 0)
+            .map(t => (t.assigned / t.maxWaiting) * 100);
+
+        if (ratios.length === 0) return;
+
+        const avg = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+        const max = Math.max(...ratios);
+        const min = Math.min(...ratios);
+        const diff = max - min;
+
+        const label = document.getElementById('equityLabel');
+        document.getElementById('avgConsumption').textContent = avg.toFixed(1) + '%';
+
+        if (diff <= 15) {
+            label.textContent = '🟢 عادل';
+            label.className = 'equity-indicator equity-green';
+        } else if (diff <= 30) {
+            label.textContent = '🟡 مقبول';
+            label.className = 'equity-indicator equity-yellow';
+        } else {
+            label.textContent = '🔴 غير عادل';
+            label.className = 'equity-indicator equity-red';
+        }
+    }
+
+    function resetWeekly() {
+        if (confirm('هل أنت متأكد من تصفير جدول الأسبوع؟ سيتم الحفاظ على المعلمين وتصفير التكليفات فقط.')) {
+            schedule = {};
+            teachers.forEach(t => t.assigned = 0);
+            saveAndRefresh();
+        }
+    }
+
+    // Initial Load
+    refreshAll();
+</script>
+
+</body>
+</html>
