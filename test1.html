@@ -1713,118 +1713,119 @@
         }
 
         function distributeWaiting() {
-    const absentTeachers = [];
-    // 1. جمع المعلمين الغائبين
-    for (let selectNum = 1; selectNum <= 5; selectNum++) {
-        const index = document.getElementById(`absentTeacher${selectNum}`)?.value;
-        if (index) absentTeachers.push(parseInt(index));
-    }
-
-    const day = document.getElementById('absenceDay').value;
-    const date = document.getElementById('absenceDate').value;
-
-    if (absentTeachers.length === 0 || !day) {
-        alert('يرجى اختيار معلم غائب واحد على الأقل واليوم!');
-        return;
-    }
-
-    // 2. تحليل نصاب جميع المعلمين (حصص دراسية + حصص انتظار مثبتة مسبقاً)
-    const teacherStats = {};
-    for (let i = 0; i < 42; i++) {
-        let actualClasses = 0;
-        let existingWaiting = 0;
+    try {
+        const days = [1, 2, 3, 4, 5]; 
+        const absentTeachers = [];
         
-        for (let d = 1; d <= 5; d++) {
-            for (let p = 1; p <= 7; p++) {
-                const val = document.getElementById(`cell_${i}_${d}_${p}`).value;
-                if (val && val !== 'وهمي') {
-                    if (val.startsWith('انتظار')) existingWaiting++;
-                    else actualClasses++;
+        // جلب المعلمين الغائبين
+        for (let selectNum = 1; selectNum <= 5; selectNum++) {
+            const el = document.getElementById(`absentTeacher${selectNum}`);
+            if (el && el.value) {
+                absentTeachers.push(parseInt(el.value));
+            }
+        }
+
+        const day = document.getElementById('absenceDay').value;
+        const date = document.getElementById('absenceDate').value;
+
+        if (absentTeachers.length === 0 || !day) {
+            alert('يرجى اختيار معلم غائب واحد على الأقل واليوم!');
+            return;
+        }
+
+        // --- حساب النصاب الحالي بدقة لكل معلم (حصص + انتظارات سابقة) ---
+        const teacherStats = {};
+        for (let i = 0; i < 42; i++) {
+            const tName = document.getElementById(`teacher_${i}`)?.value.trim();
+            if (!tName) continue;
+
+            let actualClasses = 0;
+            let existingWaiting = 0;
+            
+            days.forEach(d => {
+                for (let p = 1; p <= 7; p++) {
+                    const cell = document.getElementById(`cell_${i}_${d}_${p}`);
+                    if (cell && cell.value && cell.value !== 'وهمي') {
+                        if (cell.value.startsWith('انتظار')) existingWaiting++;
+                        else actualClasses++;
+                    }
+                }
+            });
+
+            teacherStats[i] = {
+                name: tName,
+                totalLoad: actualClasses + existingWaiting,
+                isAbsent: absentTeachers.includes(i)
+            };
+        }
+
+        // --- حصر حصص الغياب المطلوب تغطيتها ---
+        const allAbsentClasses = [];
+        absentTeachers.forEach(absentIdx => {
+            if (!teacherStats[absentIdx]) return;
+            for (let period = 1; period <= 7; period++) {
+                const cell = document.getElementById(`cell_${absentIdx}_${day}_${period}`);
+                if (cell && cell.value && cell.value !== 'وهمي' && !cell.value.startsWith('انتظار')) {
+                    allAbsentClasses.push({
+                        period: period,
+                        className: cell.value,
+                        absentTeacherName: teacherStats[absentIdx].name
+                    });
                 }
             }
-        }
-        teacherStats[i] = {
-            totalLoad: actualClasses + existingWaiting,
-            name: document.getElementById(`teacher_${i}`).value,
-            dailyWaitingToday: 0 // تتبع ما سيتم إسناده الآن
-        };
-    }
+        });
 
-    // 3. حصر حصص المعلمين الغائبين المطلوب تغطيتها
-    const allAbsentClasses = [];
-    absentTeachers.forEach(absentIdx => {
-        for (let period = 1; period <= 7; period++) {
-            const cellVal = document.getElementById(`cell_${absentIdx}_${day}_${period}`).value;
-            if (cellVal && cellVal !== 'وهمي' && !cellVal.startsWith('انتظار')) {
-                allAbsentClasses.push({
-                    period: period,
-                    className: cellVal,
-                    absentTeacherName: teacherStats[absentIdx].name
+        const assignments = [];
+        const MAX_LIMIT = 20; // القاعدة: لا يتجاوز 20 حصة
+
+        allAbsentClasses.forEach(absentClass => {
+            let candidates = [];
+            for (let i = 0; i < 42; i++) {
+                if (!teacherStats[i] || teacherStats[i].isAbsent) continue;
+
+                const cell = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
+                // الشرط الذكي: النصاب < 20 + الخلية فارغة + ليست وهمي
+                if (teacherStats[i].totalLoad < MAX_LIMIT && cell && !cell.value) {
+                    candidates.push(i);
+                }
+            }
+
+            // ترتيب: الأقل نصاباً أولاً
+            candidates.sort((a, b) => teacherStats[a].totalLoad - teacherStats[b].totalLoad);
+
+            if (candidates.length > 0) {
+                const bestIdx = candidates[0];
+                assignments.push({
+                    period: absentClass.period,
+                    class: absentClass.className,
+                    teacher: teacherStats[bestIdx].name,
+                    absentTeacher: absentClass.absentTeacherName,
+                    waitingType: 'تكملة نصاب'
+                });
+                teacherStats[bestIdx].totalLoad++; // تحديث وهمي للحساب اللحظي
+            } else {
+                assignments.push({
+                    period: absentClass.period,
+                    class: absentClass.className,
+                    teacher: '❌ لا يوجد متاح (الكل نصاب 20+)',
+                    absentTeacher: absentClass.absentTeacherName,
+                    waitingType: 'عجز'
                 });
             }
-        }
-    });
+        });
 
-    if (allAbsentClasses.length === 0) {
-        alert('المعلمين المختارين ليس لديهم حصص فعلية لتغطيتها.');
-        return;
+        // استدعاء دالة العرض الأصلية في ملفك
+        if (typeof displayWaitingResults === 'function') {
+            displayWaitingResults(absentTeachers, day, date, assignments);
+        } else {
+            console.error("دالة displayWaitingResults غير موجودة!");
+        }
+
+    } catch (error) {
+        console.error("حدث خطأ في نظام التوزيع:", error);
+        alert("عذراً، حدث خطأ تقني. تأكد من صحة أسماء المعلمين والجداول.");
     }
-
-    const assignments = [];
-    const MAX_LIMIT = 20; // السقف الذي طلبته
-
-    // 4. البدء في توزيع حصص الغياب على المعلمين المتاحين (الذكاء الاصطناعي)
-    allAbsentClasses.forEach(absentClass => {
-        let assigned = false;
-
-        // إنشاء قائمة بالمرشحين المتاحين في هذه الحصة وترتيبهم حسب النصاب الأقل
-        let candidates = [];
-        for (let i = 0; i < 42; i++) {
-            if (absentTeachers.includes(i) || !teacherStats[i].name) continue;
-
-            const currentCell = document.getElementById(`cell_${i}_${day}_${absentClass.period}`).value;
-            
-            // شروط الترشيح:
-            // 1. نصابه الكلي أقل من 20
-            // 2. ليس لديه حصة أو انتظار في هذا الوقت
-            // 3. الخلية ليست "وهمي"
-            if (teacherStats[i].totalLoad < MAX_LIMIT && !currentCell && currentCell !== 'وهمي') {
-                candidates.push(i);
-            }
-        }
-
-        // ترتيب المرشحين: الأقل نصاباً أولاً
-        candidates.sort((a, b) => teacherStats[a].totalLoad - teacherStats[b].totalLoad);
-
-        if (candidates.length > 0) {
-            const bestTeacherIdx = candidates[0];
-            assignments.push({
-                period: absentClass.period,
-                class: absentClass.className,
-                teacher: teacherStats[bestTeacherIdx].name,
-                absentTeacher: absentClass.absentTeacherName,
-                status: 'تم الإسناد (تكملة نصاب)'
-            });
-            // تحديث مؤقت للنصاب لضمان التوزيع العادل في الحصة التالية
-            teacherStats[bestTeacherIdx].totalLoad++;
-            assigned = true;
-        }
-
-        // حالة الطوارئ: إذا كان الكل فوق الـ 20 أو مشغولين
-        if (!assigned) {
-            assignments.push({
-                period: absentClass.period,
-                class: absentClass.className,
-                teacher: '⚠️ لا يوجد متاح تحت نصاب 20',
-                absentTeacher: absentClass.absentTeacherName,
-                status: 'فشل التوزيع الآلي'
-            });
-        }
-    });
-
-    displayWaitingResults(absentTeachers, day, date, assignments);
 }
-        }
 
         function displayWaitingResults(absentTeachers, day, date, assignments) {
             const dayNames = {
