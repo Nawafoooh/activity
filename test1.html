@@ -3,106 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>جدول المدرسة المطور - نظام 20 حصة</title>
+    <title>نظام الجدول المدرسي - سقف الـ 20 حصة</title>
     <style>
-        /* ... (نفس التنسيقات الموجودة في ملفك الأصلي) ... */
+        /* التنسيقات الأصلية للملف */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; padding: 15px; }
         .container { max-width: 100%; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 20px; }
-        .schedule-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1200px; }
-        .schedule-table th, .schedule-table td { border: 1px solid #cbd5e0; padding: 6px 4px; text-align: center; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #4a5568; padding-bottom: 10px; }
+        .buttons { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; transition: 0.3s; }
+        .btn-auto { background: #2c7a7b; }
+        .btn-auto:hover { background: #285e61; }
+        .btn-clear { background: #e53e3e; }
+        .btn-save { background: #3182ce; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { border: 1px solid #cbd5e0; padding: 5px; text-align: center; }
+        th { background: #2d3748; color: white; }
+        
+        input[type="text"] { width: 100%; border: none; text-align: center; outline: none; padding: 3px; }
+        .teacher-name { background: #edf2f7; font-weight: bold; }
         .waiting-cell-assigned { background-color: #ebf8ff !important; font-weight: bold; color: #2b6cb0; }
-        .stats-ok { background-color: #c6f6d5 !important; } /* لون أخضر للنصاب المكتمل */
-        .stats-low { background-color: #fed7d7 !important; } /* لون أحمر للنصاب الناقص */
-        /* (بقية التنسيقات الأصلية محتواة هنا) */
+        
+        /* تقرير الإحصائيات */
+        #statsContainer { margin-top: 30px; }
+        .stats-ok { background: #c6f6d5 !important; }
+        .stats-low { background: #fed7d7 !important; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📚 الجدول المدرسي الأسبوعي (توزيع ذكي 20 حصة)</h1>
-        </div>
 
-        <div class="buttons">
-            <button class="btn btn-save" onclick="saveData()">💾 حفظ وحفظ للسحابة</button>
-            <button class="btn btn-auto-assign" style="background:#2c7a7b" onclick="smartPopulateWaiting()">⚡ توزيع الانتظار التلقائي (سقف 20)</button>
-            <button class="btn btn-clear" onclick="clearOnlyWaiting()">🗑️ مسح الانتظار فقط</button>
-            <button class="btn btn-print" onclick="window.print()">🖨️ طباعة</button>
-        </div>
-
-        <div class="schedule-wrapper">
-            <table class="schedule-table">
-                <thead>
-                    </thead>
-                <tbody id="scheduleBody"></tbody>
-            </table>
-        </div>
-
-        <div id="statsSection" style="margin-top:20px; padding:15px; background:#edf2f7; border-radius:8px;">
-            <h3>📊 مراقبة النصاب (حصص + انتظار)</h3>
-            <div id="statsTableContainer"></div>
-        </div>
+<div class="container">
+    <div class="header">
+        <h1>📊 نظام توزيع الانتظار الذكي (إكمال لـ 20 حصة)</h1>
     </div>
 
-<script>
-    // الإعدادات الثابتة
-    const MAX_TARGET = 20;
-    const days = ['sun', 'mon', 'tue', 'wed', 'thu'];
-    
-    // --- الوظيفة الجديدة: التوزيع الذكي للانتظار حتى 20 حصة ---
-    function smartPopulateWaiting() {
-        if(!confirm("سيتم ملء حصص الانتظار للمعلمين الذين لم يصل نصابهم لـ 20 حصة. استمرار؟")) return;
-        
-        // 1. مسح الانتظارات القديمة
-        clearOnlyWaiting(false);
+    <div class="buttons">
+        <button class="btn btn-auto" onclick="smartDistributeToTwenty()">🚀 توزيع ذكي (إكمال لـ 20)</button>
+        <button class="btn btn-clear" onclick="clearWaitingOnly()">🗑️ مسح الانتظار</button>
+        <button class="btn btn-save" onclick="saveData()">💾 حفظ الجدول</button>
+    </div>
 
-        // 2. تحليل البيانات الحالية
-        let teacherData = [];
+    <div style="overflow-x: auto;">
+        <table id="mainTable">
+            <thead>
+                <tr>
+                    <th rowspan="2">المعلم</th>
+                    <th colspan="7">الأحد</th>
+                    <th colspan="7">الاثنين</th>
+                    <th colspan="7">الثلاثاء</th>
+                    <th colspan="7">الأربعاء</th>
+                    <th colspan="7">الخميس</th>
+                </tr>
+                <tr id="periodsHeader"></tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="statsContainer">
+        <h3>📈 تقرير نصاب المعلمين</h3>
+        <div id="statsContent"></div>
+    </div>
+</div>
+
+<script>
+    const days = ['sun', 'mon', 'tue', 'wed', 'thu'];
+    const MAX_TARGET = 20;
+
+    // توليد الجدول
+    window.onload = () => {
+        const headerRow = document.getElementById('periodsHeader');
+        const tbody = document.getElementById('tableBody');
+        
+        // توليد أرقام الحصص في الرأس
+        for(let i=0; i<5; i++) {
+            for(let p=1; p<=7; p++) headerRow.innerHTML += `<th>${p}</th>`;
+        }
+
+        // توليد الصفوف (42 معلم)
+        for (let i = 0; i < 42; i++) {
+            let row = `<tr><td><input type="text" id="teacher_${i}" class="teacher-name" placeholder="اسم المعلم"></td>`;
+            days.forEach(day => {
+                for (let p = 1; p <= 7; p++) {
+                    row += `<td><input type="text" id="cell_${i}_${day}_${p}" onchange="updateStats()"></td>`;
+                }
+            });
+            row += `</tr>`;
+            tbody.innerHTML += row;
+        }
+        loadData();
+    };
+
+    // خوارزمية التوزيع الذكي - الإكمال لـ 20 حصة
+    function smartDistributeToTwenty() {
+        if(!confirm("سيقوم النظام الآن بملء الفراغات لرفع نصاب كل معلم إلى 20 حصة. استمرار؟")) return;
+
+        // 1. مسح الانتظارات القديمة
+        clearWaitingOnly(false);
+
+        // 2. تحليل النصاب الحالي
+        let teachers = [];
         for (let i = 0; i < 42; i++) {
             let name = document.getElementById(`teacher_${i}`).value.trim();
             if (name) {
-                let actualClasses = 0;
-                days.forEach(day => {
-                    for (let p = 1; p <= 7; p++) {
-                        let val = document.getElementById(`cell_${i}_${day}_${p}`).value;
-                        if (val && val !== 'وهمي' && !val.startsWith('انتظار')) actualClasses++;
+                let actual = 0;
+                days.forEach(d => {
+                    for(let p=1; p<=7; p++) {
+                        let val = document.getElementById(`cell_${i}_${d}_${p}`).value;
+                        if (val && val !== 'وهمي') actual++;
                     }
                 });
-                teacherData.push({ id: i, name: name, total: actualClasses });
+                teachers.push({ id: i, name: name, total: actual });
             }
         }
 
-        // 3. التوزيع المتوازن
-        days.forEach(day => {
-            for (let p = 1; p <= 7; p++) {
-                // ترتيب المعلمين تصاعدياً حسب النصاب الحالي (الأقل يأخذ أولاً)
-                teacherData.sort((a, b) => a.total - b.total);
+        // 3. محرك التوزيع المتكرر
+        let changed = true;
+        while (changed) {
+            changed = false;
+            // ترتيب المعلمين: الأقل نصاباً أولاً
+            teachers.sort((a, b) => a.total - b.total);
 
-                let waitingLevel = 1;
-                for (let t of teacherData) {
-                    if (waitingLevel > 5) break; // بحد أقصى 5 انتظارات لكل حصة
+            for (let t of teachers) {
+                if (t.total >= MAX_TARGET) continue;
 
-                    let cell = document.getElementById(`cell_${t.id}_${day}_${p}`);
-                    if (t.total < MAX_TARGET && !cell.value) {
-                        cell.value = `انتظار${waitingLevel}`;
-                        cell.parentElement.classList.add('waiting-cell-assigned');
-                        t.total++;
-                        waitingLevel++;
+                let foundForTeacher = false;
+                for (let d of days) {
+                    for (let p = 1; p <= 7; p++) {
+                        let cell = document.getElementById(`cell_${t.id}_${d}_${p}`);
+                        
+                        if (!cell.value) {
+                            // حساب مستوى الانتظار (1-5) في هذه الحصة
+                            let currentWaitLevel = 1;
+                            for (let otherI = 0; otherI < 42; otherI++) {
+                                let otherVal = document.getElementById(`cell_${otherI}_${d}_${p}`).value;
+                                if (otherVal.startsWith('انتظار')) currentWaitLevel++;
+                            }
+
+                            if (currentWaitLevel <= 5) {
+                                cell.value = `انتظار${currentWaitLevel}`;
+                                cell.classList.add('waiting-cell-assigned');
+                                t.total++;
+                                changed = true;
+                                foundForTeacher = true;
+                                break;
+                            }
+                        }
                     }
+                    if (foundForTeacher) break;
                 }
             }
-        });
-
-        updateClassCounts(); // تحديث الأرقام في الجدول
-        renderStatsTable(); // تحديث جدول الإحصائيات
-        alert("تم التوزيع الذكي بنجاح!");
+        }
+        updateStats();
+        alert("تم إكمال نصاب المعلمين إلى 20 حصة بنجاح.");
     }
 
-    // --- الوظيفة الجديدة: تحديث جدول الإحصائيات ---
-    function renderStatsTable() {
-        let html = '<table style="width:100%; border-collapse:collapse; margin-top:10px;">';
-        html += '<tr style="background:#2d3748; color:white;"><th>المعلم</th><th>حصص</th><th>انتظار</th><th>المجموع</th><th>الحالة</th></tr>';
-        
+    function updateStats() {
+        let html = `<table><tr><th>المعلم</th><th>حصص فعلية</th><th>انتظار</th><th>المجموع</th><th>الحالة</th></tr>`;
         for (let i = 0; i < 42; i++) {
             let name = document.getElementById(`teacher_${i}`).value;
             if (!name) continue;
@@ -119,30 +177,62 @@
 
             let total = c + w;
             let rowClass = total >= 20 ? 'stats-ok' : 'stats-low';
-            html += `<tr class="${rowClass}"><td>${name}</td><td>${c}</td><td>${w}</td><td>${total}</td><td>${total >= 20 ? '✅ مكتمل' : '⚠️ ناقص'}</td></tr>`;
+            html += `<tr class="${rowClass}">
+                <td>${name}</td><td>${c}</td><td>${w}</td>
+                <td style="font-weight:bold">${total}</td>
+                <td>${total >= 20 ? '✅ مكتمل' : '⚠️ ناقص (' + (20-total) + ')'}</td>
+            </tr>`;
         }
-        html += '</table>';
-        document.getElementById('statsTableContainer').innerHTML = html;
+        html += `</table>`;
+        document.getElementById('statsContent').innerHTML = html;
     }
 
-    function clearOnlyWaiting(confirmAction = true) {
-        if (confirmAction && !confirm("هل تريد مسح خانات الانتظار فقط؟")) return;
+    function clearWaitingOnly(confirmFlag = true) {
+        if (confirmFlag && !confirm("مسح جميع خانات الانتظار؟")) return;
         for (let i = 0; i < 42; i++) {
-            days.forEach(day => {
-                for (let p = 1; p <= 7; p++) {
-                    let cell = document.getElementById(`cell_${i}_${day}_${p}`);
+            days.forEach(d => {
+                for(let p=1; p<=7; p++) {
+                    let cell = document.getElementById(`cell_${i}_${d}_${p}`);
                     if (cell.value.startsWith('انتظار')) {
                         cell.value = '';
-                        cell.parentElement.classList.remove('waiting-cell-assigned');
+                        cell.classList.remove('waiting-cell-assigned');
                     }
                 }
             });
         }
-        renderStatsTable();
+        updateStats();
     }
 
-    // ملاحظة: بقية الدوال الأصلية (توليد الجدول، الحفظ، Firebase) تبقى كما هي 
-    // لضمان استقرار الملف.
+    function saveData() {
+        let data = {};
+        for (let i = 0; i < 42; i++) {
+            data[`t_${i}`] = document.getElementById(`teacher_${i}`).value;
+            days.forEach(d => {
+                for(let p=1; p<=7; p++) {
+                    data[`c_${i}_${d}_${p}`] = document.getElementById(`cell_${i}_${d}_${p}`).value;
+                }
+            });
+        }
+        localStorage.setItem('smartTableData', JSON.stringify(data));
+        alert("تم الحفظ محلياً بنجاح.");
+    }
+
+    function loadData() {
+        let data = JSON.parse(localStorage.getItem('smartTableData'));
+        if (!data) return;
+        for (let i = 0; i < 42; i++) {
+            document.getElementById(`teacher_${i}`).value = data[`t_${i}`] || '';
+            days.forEach(d => {
+                for(let p=1; p<=7; p++) {
+                    let val = data[`c_${i}_${d}_${p}`] || '';
+                    let cell = document.getElementById(`cell_${i}_${d}_${p}`);
+                    cell.value = val;
+                    if (val.startsWith('انتظار')) cell.classList.add('waiting-cell-assigned');
+                }
+            });
+        }
+        updateStats();
+    }
 </script>
 </body>
 </html>
