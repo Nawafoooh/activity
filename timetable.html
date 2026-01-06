@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>جدول مدرسي </title>
+    <title>جدول مدرسي كامل - محسّن</title>
     <style>
         * {
             margin: 0;
@@ -609,6 +609,29 @@
             .firebase-status {
                 display: none;
             }
+            
+            /* ✅ إخفاء كامل للحصص الوهمية - بدون أي أثر */
+            td[data-dummy="true"] {
+                background: transparent !important;
+                background-image: none !important;
+            }
+            
+            td[data-dummy="true"] select {
+                visibility: hidden !important;
+            }
+            
+            td[data-dummy="true"]::after {
+                content: "";
+                visibility: visible;
+                display: block;
+                text-align: center;
+            }
+            
+            /* إزالة تأثير الخطوط المائلة عند الطباعة */
+            .dummy-cell {
+                background: transparent !important;
+                background-image: none !important;
+            }
         }
 
         @media print {
@@ -780,40 +803,13 @@
             <button class="btn btn-clear" onclick="clearSchedule()">🗑️ مسح الجدول</button>
         </div>
 
-        <div class="waiting-rules">
-            <h4>📋 قواعد توزيع حصص الانتظار الذكية:</h4>
-            <ul>
-                <li>✅ المعلمين أقل من 20 حصة يتم إكمال نصابهم إلى 20 بحصص الانتظار</li>
-                <li>❌ المعلمين 20 حصة أو أكثر: لا يتم إسناد انتظار لهم</li>
-                <li>🚫 لا توجد حصص انتظار بعد الحصة الثالثة إذا لم يكن للمعلم حصص بعدها</li>
-                <li>📊 التوزيع بالترتيب: انتظار1، انتظار2، انتظار3، انتظار4، انتظار5</li>
-                <li>⚠️ لا تعارض في حصص الانتظار (كل حصة انتظار لمعلم واحد فقط)</li>
-                <li>🎯 الأولوية للمعلمين الأقل حصصاً</li>
-                <li>🧠 <strong>توزيع ذكي أسبوعياً:</strong> المعلم الذي يأخذ انتظار يوم الأحد لن يكون له الأولوية في الأيام التالية</li>
-                <li>🚫 <strong>الحصص الوهمية:</strong> يمكنك وضع "وهمي" في أي خلية لمنع إسناد الانتظار فيها</li>
-                <li>💻 <strong>كشف تعارض المعامل:</strong> تعارض معلمي الحاسب (عبدالله القرني & عبدالمجيد الرشيدي) يظهر باللون البرتقالي 🟠</li>
-            </ul>
-        </div>
-
-        <div style="background: #fff7ed; border: 2px solid #f97316; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="color: #c2410c; margin-bottom: 10px;">💻 إعدادات تعارض معمل الحاسب:</h4>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 10px;">
-                <div>
-                    <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 5px;">معلم الحاسب الأول:</label>
-                    <input type="text" id="labTeacher1" value="عبدالله القرني" 
-                           style="width: 100%; padding: 8px; border: 2px solid #fdba74; border-radius: 5px;"
-                           onchange="checkConflicts()">
-                </div>
-                <div>
-                    <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 5px;">معلم الحاسب الثاني:</label>
-                    <input type="text" id="labTeacher2" value="عبدالمجيد الرشيدي" 
-                           style="width: 100%; padding: 8px; border: 2px solid #fdba74; border-radius: 5px;"
-                           onchange="checkConflicts()">
-                </div>
-            </div>
-            <p style="color: #9a3412; font-size: 13px; margin-top: 10px;">
-                💡 <strong>ملاحظة:</strong> يمكنك تغيير أسماء معلمي الحاسب حسب مدرستك. أي تعارض بينهم سيظهر باللون البرتقالي 🟠
-            </p>
+        <!-- ✅ تم إخفاء قواعد الانتظار وإعدادات المعمل - لكنها تعمل في الخلفية -->
+        <!-- يمكن للمدير الوصول إليها من تبويب "إدارة الجدول" إذا لزم الأمر -->
+        
+        <!-- ✅ حقول مخفية لإعدادات معمل الحاسب - تعمل في الخلفية -->
+        <div style="display: none;">
+            <input type="text" id="labTeacher1" value="عبدالله القرني">
+            <input type="text" id="labTeacher2" value="عبدالمجيد الرشيدي">
         </div>
 
         </div>
@@ -926,6 +922,37 @@
                         <div id="generalStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
                             <div id="generalStatsContent"></div>
                         </div>
+                    </div>
+
+                    <!-- إعدادات معمل الحاسب -->
+                    <div style="background: #fff7ed; padding: 25px; border-radius: 10px; border: 2px solid #f97316;">
+                        <h3 style="color: #c2410c; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                            💻 إعدادات كشف تعارض معمل الحاسب
+                        </h3>
+                        <p style="color: #9a3412; margin-bottom: 15px; line-height: 1.6;">
+                            النظام يكشف تلقائياً أي تعارض بين معلمي الحاسب (حصص في نفس الوقت) ويظهرها باللون البرتقالي 🟠
+                        </p>
+                        <div style="display: grid; gap: 15px;">
+                            <div>
+                                <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 8px;">
+                                    معلم الحاسب الأول:
+                                </label>
+                                <input type="text" id="labTeacher1Visible" 
+                                       style="width: 100%; padding: 12px; border: 2px solid #fdba74; border-radius: 5px; font-size: 14px;"
+                                       onchange="updateLabTeacher(1, this.value)">
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 8px;">
+                                    معلم الحاسب الثاني:
+                                </label>
+                                <input type="text" id="labTeacher2Visible" 
+                                       style="width: 100%; padding: 12px; border: 2px solid #fdba74; border-radius: 5px; font-size: 14px;"
+                                       onchange="updateLabTeacher(2, this.value)">
+                            </div>
+                        </div>
+                        <p style="color: #9a3412; font-size: 13px; margin-top: 15px; padding: 10px; background: #fed7aa; border-radius: 5px;">
+                            💡 <strong>ملاحظة:</strong> بعد تغيير الأسماء، ارجع للجدول الرئيسي لترى التعارضات باللون البرتقالي
+                        </p>
                     </div>
                 </div>
             </div>
@@ -1192,6 +1219,7 @@
                             // تطبيق تنسيق الحصص الوهمية
                             if (select.value === 'وهمي') {
                                 select.parentElement.classList.add('dummy-cell');
+                                select.parentElement.setAttribute('data-dummy', 'true');
                             }
                         }
                     }
@@ -1588,8 +1616,10 @@
                             // إضافة تنسيق خاص للخلايا الوهمية
                             if (select.value === 'وهمي') {
                                 cell.classList.add('dummy-cell');
+                                cell.setAttribute('data-dummy', 'true'); // علامة للطباعة
                             } else {
                                 cell.classList.remove('dummy-cell');
+                                cell.removeAttribute('data-dummy');
                             }
                             
                             checkConflicts();
@@ -1598,6 +1628,12 @@
                             saveData();
                             saveToFirebase();
                         });
+                        
+                        // ✅ تطبيق التنسيق عند التحميل إذا كانت القيمة "وهمي"
+                        if (select.value === 'وهمي') {
+                            cell.classList.add('dummy-cell');
+                            cell.setAttribute('data-dummy', 'true');
+                        }
 
                         cell.appendChild(select);
                         row.appendChild(cell);
@@ -2107,6 +2143,20 @@
             } else if (tabName === 'manage') {
                 document.getElementById('manageTab').classList.add('active');
                 document.querySelectorAll('.tab')[3].classList.add('active');
+                // ✅ تحميل قيم معلمي الحاسب عند فتح التبويب
+                loadLabTeacherSettings();
+            }
+        }
+
+        function loadLabTeacherSettings() {
+            const teacher1 = document.getElementById('labTeacher1').value;
+            const teacher2 = document.getElementById('labTeacher2').value;
+            
+            if (document.getElementById('labTeacher1Visible')) {
+                document.getElementById('labTeacher1Visible').value = teacher1;
+            }
+            if (document.getElementById('labTeacher2Visible')) {
+                document.getElementById('labTeacher2Visible').value = teacher2;
             }
         }
 
