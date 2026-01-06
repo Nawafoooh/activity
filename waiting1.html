@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة حصص الانتظار العادل</title>
+    <title>نظام إدارة حصص الانتظار الذكي</title>
     <style>
         :root {
             --primary: #2c3e50;
@@ -48,8 +48,8 @@
 
         .equity-indicator {
             font-weight: bold;
-            font-size: 1.2em;
-            padding: 5px 15px;
+            font-size: 1.1em;
+            padding: 6px 16px;
             border-radius: 20px;
         }
 
@@ -61,18 +61,17 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            table-layout: fixed;
         }
 
         th, td {
             border: 1px solid #ddd;
-            padding: 10px;
+            padding: 8px;
             text-align: center;
+            overflow: hidden;
         }
 
-        th {
-            background-color: var(--primary);
-            color: white;
-        }
+        th { background-color: var(--primary); color: white; }
 
         .form-group {
             display: flex;
@@ -97,17 +96,15 @@
             border-radius: 4px;
             background: var(--primary);
             color: white;
-            transition: 0.3s;
         }
 
-        button.reset-btn { background: var(--danger); }
-        button:hover { opacity: 0.8; }
+        .reset-btn { background: var(--danger); }
 
         .progress-container {
             width: 100%;
             background-color: #eee;
             border-radius: 10px;
-            height: 12px;
+            height: 10px;
             margin-top: 5px;
         }
 
@@ -121,12 +118,6 @@
         .status-mid { background-color: var(--warning); }
         .status-high { background-color: var(--danger); }
 
-        .waiting-cell select {
-            width: 100%;
-            border: none;
-            background: transparent;
-        }
-
         .alert-box {
             position: fixed;
             top: 20px;
@@ -137,13 +128,21 @@
             display: none;
             z-index: 1000;
             color: white;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .waiting-cell select {
+            width: 100%;
+            border: 1px solid transparent;
+            background: #fff;
+            cursor: pointer;
         }
 
         @media print {
             .no-print, .form-group, button { display: none !important; }
-            body { background: white; margin: 0; }
-            .container { box-shadow: none; max-width: 100%; }
+            body { margin: 0; background: white; }
+            .container { box-shadow: none; width: 100%; }
         }
     </style>
 </head>
@@ -152,54 +151,42 @@
 <div id="alert" class="alert-box"></div>
 
 <div class="container">
-    <h1>نظام توزيع حصص الانتظار العادل</h1>
+    <h1>توزيع حصص الانتظار الأسبوعي العادل</h1>
 
     <div class="stats-panel no-print">
-        <div>
-            <span>مؤشر العدالة العام: </span>
-            <span id="equityLabel" class="equity-indicator">--</span>
-        </div>
-        <div>
-            <span>متوسط الاستهلاك: </span>
-            <b id="avgConsumption">0%</b>
-        </div>
+        <div>مؤشر العدالة الأسبوعي: <span id="equityLabel" class="equity-indicator">--</span></div>
+        <div>متوسط الاستهلاك: <b id="avgConsumption">0%</b></div>
     </div>
 
     <div class="form-group no-print">
-        <input type="text" id="teacherName" placeholder="اسم المعلم">
-        <input type="number" id="lessonCount" placeholder="عدد الحصص">
+        <input type="text" id="tName" placeholder="اسم المعلم">
+        <input type="number" id="tLessons" placeholder="عدد الحصص الأسبوعية">
         <button onclick="addTeacher()">إضافة معلم</button>
-        <button class="reset-btn" onclick="resetWeekly()">إعادة ضبط أسبوع جديد</button>
-        <button onclick="window.print()">طباعة الجدول</button>
+        <button class="reset-btn" onclick="resetAll()">تصفير الأسبوع</button>
+        <button onclick="window.print()">طباعة</button>
     </div>
 
-    <h2>بيانات المعلمين</h2>
+    <h2>إحصائيات المعلمين</h2>
     <table id="teacherTable">
         <thead>
             <tr>
                 <th>المعلم</th>
-                <th>الحصص</th>
+                <th>النصاب</th>
                 <th>الحد الأقصى</th>
                 <th>المسند</th>
                 <th>المتبقي</th>
-                <th>نسبة الاستهلاك</th>
+                <th style="width: 25%;">الاستهلاك</th>
             </tr>
         </thead>
         <tbody id="teacherBody"></tbody>
     </table>
 
-    <h2>جدول توزيع الانتظار</h2>
+    <h2>جدول الحصص (الأحد - الخميس)</h2>
     <table id="scheduleTable">
         <thead>
             <tr>
-                <th>اليوم / الحصة</th>
-                <th>1</th>
-                <th>2</th>
-                <th>3</th>
-                <th>4</th>
-                <th>5</th>
-                <th>6</th>
-                <th>7</th>
+                <th style="width: 100px;">اليوم</th>
+                <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th>
             </tr>
         </thead>
         <tbody id="scheduleBody"></tbody>
@@ -207,84 +194,94 @@
 </div>
 
 <script>
-    let teachers = JSON.parse(localStorage.getItem('teachers')) || [];
-    let schedule = JSON.parse(localStorage.getItem('schedule')) || {};
-
+    let teachers = JSON.parse(localStorage.getItem('w_teachers')) || [];
+    let schedule = JSON.parse(localStorage.getItem('w_schedule')) || {};
     const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
-    const lessonsCount = 7;
 
-    function calculateMaxWaiting(lessons) {
-        if (lessons >= 20) return 0;
-        if (lessons >= 18) return 2;
-        if (lessons >= 16) return 4;
-        if (lessons >= 15) return 5;
-        if (lessons <= 10) return 10;
+    function calculateLimit(n) {
+        if (n >= 20) return 0;
+        if (n >= 18) return 2;
+        if (n >= 16) return 4;
+        if (n >= 15) return 5;
+        if (n <= 10) return 5; // تم التعديل ليتوافق مع شرط (لا يتجاوز 5 حصص أسبوعياً)
         return 0;
     }
 
     function showAlert(msg, type = 'danger') {
-        const alert = document.getElementById('alert');
-        alert.textContent = msg;
-        alert.style.backgroundColor = type === 'danger' ? '#e74c3c' : '#f39c12';
-        alert.style.display = 'block';
-        setTimeout(() => alert.style.display = 'none', 4000);
+        const box = document.getElementById('alert');
+        box.textContent = msg;
+        box.style.backgroundColor = type === 'danger' ? '#e74c3c' : '#f39c12';
+        box.style.display = 'block';
+        setTimeout(() => box.style.display = 'none', 5000);
     }
 
     function addTeacher() {
-        const name = document.getElementById('teacherName').value;
-        const lessons = parseInt(document.getElementById('lessonCount').value);
-
+        const name = document.getElementById('tName').value;
+        const lessons = parseInt(document.getElementById('tLessons').value);
         if (!name || isNaN(lessons)) return;
 
         teachers.push({
-            id: Date.now().toString(),
+            id: 'id_' + Date.now(),
             name: name,
             lessons: lessons,
-            maxWaiting: calculateMaxWaiting(lessons),
+            max: Math.min(calculateLimit(lessons), 5), // القيد الجديد: لا يتجاوز 5 حصص أسبوعياً
             assigned: 0
         });
-
-        saveAndRefresh();
-        document.getElementById('teacherName').value = '';
-        document.getElementById('lessonCount').value = '';
+        save();
+        document.getElementById('tName').value = '';
+        document.getElementById('tLessons').value = '';
     }
 
-    function updateAssignment(day, lesson, teacherId) {
-        const oldTeacherId = schedule[`${day}-${lesson}`];
-        
-        if (teacherId !== "") {
-            const t = teachers.find(x => x.id === teacherId);
-            
-            // Rule: 100% Limit
-            if (t.assigned >= t.maxWaiting && t.maxWaiting > 0) {
-                showAlert(`عذراً، المعلم ${t.name} تجاوز حد الانتظار المسموح به!`);
-                refreshAll();
-                return;
-            }
+    function validateAssignment(teacherId, day, lesson) {
+        if (!teacherId) return true;
+        const teacher = teachers.find(t => t.id === teacherId);
 
-            // Rule: First and Last lesson check
-            if (lesson === "1" || lesson === "7") {
-                const opposite = lesson === "1" ? "7" : "1";
-                if (schedule[`${day}-${opposite}`] === teacherId) {
-                    showAlert(`تنبيه: المعلم ${t.name} لديه انتظار في أول وآخر حصة اليوم!`, 'warning');
-                }
-            }
+        // 1. قيد الـ 100% من الرصيد
+        if (teacher.assigned >= teacher.max) {
+            showAlert(`المعلم ${teacher.name} وصل للحد الأقصى المسموح له (${teacher.max})`);
+            return false;
+        }
 
-            // Rule: Consecutive days check
-            const dayIdx = days.indexOf(day);
-            if (dayIdx > 0) {
-                if (schedule[`${days[dayIdx-1]}-${lesson}`] === teacherId) {
-                    showAlert(`تنبيه: المعلم ${t.name} لديه نفس الحصة ليومين متتاليين!`, 'warning');
-                }
+        // 2. قيد: لا يسند أكثر من حصة في اليوم الواحد
+        let dailyCount = 0;
+        for (let l = 1; l <= 7; l++) {
+            if (schedule[`${day}-${l}`] === teacherId) dailyCount++;
+        }
+        if (dailyCount >= 1) {
+            showAlert(`لا يمكن إسناد أكثر من حصة انتظار واحدة في اليوم للمعلم ${teacher.name}`);
+            return false;
+        }
+
+        // 3. تحذير: أول وآخر حصة
+        if (lesson == 1 || lesson == 7) {
+            const opp = (lesson == 1) ? 7 : 1;
+            if (schedule[`${day}-${opp}`] === teacherId) {
+                showAlert(`تحذير: المعلم ${teacher.name} لديه انتظار في أول وآخر حصة!`, 'warning');
             }
         }
 
-        schedule[`${day}-${lesson}`] = teacherId;
-        recalculateAssignments();
-        saveAndRefresh();
+        // 4. تحذير: حصة متتالية في يومين
+        const dayIdx = days.indexOf(day);
+        if (dayIdx > 0) {
+            if (schedule[`${days[dayIdx-1]}-${lesson}`] === teacherId) {
+                showAlert(`تحذير: المعلم ${teacher.name} لديه نفس الحصة ليومين متتاليين!`, 'warning');
+            }
+        }
+
+        return true;
     }
 
-    function recalculateAssignments() {
+    function updateCell(day, lesson, teacherId) {
+        if (teacherId !== "" && !validateAssignment(teacherId, day, lesson)) {
+            renderAll(); // إعادة التعيين لإلغاء الاختيار الخاطئ
+            return;
+        }
+        schedule[`${day}-${lesson}`] = teacherId;
+        syncAssigned();
+        save();
+    }
+
+    function syncAssigned() {
         teachers.forEach(t => t.assigned = 0);
         Object.values(schedule).forEach(id => {
             if (id) {
@@ -294,111 +291,80 @@
         });
     }
 
-    function saveAndRefresh() {
-        localStorage.setItem('teachers', JSON.stringify(teachers));
-        localStorage.setItem('schedule', JSON.stringify(schedule));
-        refreshAll();
+    function save() {
+        localStorage.setItem('w_teachers', JSON.stringify(teachers));
+        localStorage.setItem('w_schedule', JSON.stringify(schedule));
+        renderAll();
     }
 
-    function refreshAll() {
-        renderTeachers();
-        renderSchedule();
-        updateEquity();
-    }
-
-    function renderTeachers() {
-        const body = document.getElementById('teacherBody');
-        body.innerHTML = '';
-
+    function renderAll() {
+        // تحديث جدول المعلمين
+        const tBody = document.getElementById('teacherBody');
+        tBody.innerHTML = '';
         teachers.forEach(t => {
-            const ratio = t.maxWaiting > 0 ? (t.assigned / t.maxWaiting) * 100 : 0;
-            let statusClass = 'status-low';
-            if (ratio > 40) statusClass = 'status-mid';
-            if (ratio > 70) statusClass = 'status-high';
-
-            body.innerHTML += `
+            const ratio = t.max > 0 ? (t.assigned / t.max) * 100 : 0;
+            const color = ratio <= 40 ? 'status-low' : (ratio <= 70 ? 'status-mid' : 'status-high');
+            tBody.innerHTML += `
                 <tr>
                     <td>${t.name}</td>
                     <td>${t.lessons}</td>
-                    <td>${t.maxWaiting}</td>
+                    <td>${t.max}</td>
                     <td>${t.assigned}</td>
-                    <td>${t.maxWaiting - t.assigned}</td>
-                    <td style="width: 200px">
-                        <div>${ratio.toFixed(1)}%</div>
-                        <div class="progress-container">
-                            <div class="progress-bar ${statusClass}" style="width: ${Math.min(ratio, 100)}%"></div>
-                        </div>
+                    <td>${t.max - t.assigned}</td>
+                    <td>
+                        <small>${ratio.toFixed(0)}%</small>
+                        <div class="progress-container"><div class="progress-bar ${color}" style="width:${Math.min(ratio, 100)}%"></div></div>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         });
-    }
 
-    function renderSchedule() {
-        const body = document.getElementById('scheduleBody');
-        body.innerHTML = '';
-
+        // تحديث جدول الانتظار
+        const sBody = document.getElementById('scheduleBody');
+        sBody.innerHTML = '';
         days.forEach(day => {
-            let row = `<tr><td>${day}</td>`;
-            for (let i = 1; i <= lessonsCount; i++) {
-                const key = `${day}-${i}`;
-                const selectedId = schedule[key] || "";
-                
-                let options = `<option value="">---</option>`;
+            let row = `<tr><td><b>${day}</b></td>`;
+            for (let i = 1; i <= 7; i++) {
+                const currentId = schedule[`${day}-${i}`] || "";
+                let options = `<option value="">--</option>`;
                 teachers.forEach(t => {
-                    if (t.maxWaiting > 0) {
-                        const selected = t.id === selectedId ? 'selected' : '';
-                        options += `<option value="${t.id}" ${selected}>${t.name}</option>`;
+                    if (t.max > 0) {
+                        options += `<option value="${t.id}" ${t.id === currentId ? 'selected' : ''}>${t.name}</option>`;
                     }
                 });
-
-                row += `<td class="waiting-cell"><select onchange="updateAssignment('${day}', '${i}', this.value)">${options}</select></td>`;
+                row += `<td class="waiting-cell"><select onchange="updateCell('${day}', ${i}, this.value)">${options}</select></td>`;
             }
             row += `</tr>`;
-            body.innerHTML += row;
+            sBody.innerHTML += row;
         });
+
+        updateEquityUI();
     }
 
-    function updateEquity() {
-        if (teachers.length === 0) return;
+    function updateEquityUI() {
+        const validTeachers = teachers.filter(t => t.max > 0);
+        if (validTeachers.length === 0) return;
 
-        const ratios = teachers
-            .filter(t => t.maxWaiting > 0)
-            .map(t => (t.assigned / t.maxWaiting) * 100);
-
-        if (ratios.length === 0) return;
-
+        const ratios = validTeachers.map(t => (t.assigned / t.max) * 100);
         const avg = ratios.reduce((a, b) => a + b, 0) / ratios.length;
-        const max = Math.max(...ratios);
-        const min = Math.min(...ratios);
-        const diff = max - min;
+        const diff = Math.max(...ratios) - Math.min(...ratios);
 
-        const label = document.getElementById('equityLabel');
+        const lbl = document.getElementById('equityLabel');
         document.getElementById('avgConsumption').textContent = avg.toFixed(1) + '%';
 
-        if (diff <= 15) {
-            label.textContent = '🟢 عادل';
-            label.className = 'equity-indicator equity-green';
-        } else if (diff <= 30) {
-            label.textContent = '🟡 مقبول';
-            label.className = 'equity-indicator equity-yellow';
-        } else {
-            label.textContent = '🔴 غير عادل';
-            label.className = 'equity-indicator equity-red';
-        }
+        if (diff <= 15) { lbl.textContent = '🟢 عادل'; lbl.className = 'equity-indicator equity-green'; }
+        else if (diff <= 30) { lbl.textContent = '🟡 مقبول'; lbl.className = 'equity-indicator equity-yellow'; }
+        else { lbl.textContent = '🔴 غير عادل'; lbl.className = 'equity-indicator equity-red'; }
     }
 
-    function resetWeekly() {
-        if (confirm('هل أنت متأكد من تصفير جدول الأسبوع؟ سيتم الحفاظ على المعلمين وتصفير التكليفات فقط.')) {
+    function resetAll() {
+        if (confirm('هل تريد تصفير التوزيع الأسبوعي؟')) {
             schedule = {};
-            teachers.forEach(t => t.assigned = 0);
-            saveAndRefresh();
+            syncAssigned();
+            save();
         }
     }
 
-    // Initial Load
-    refreshAll();
+    renderAll();
 </script>
-
 </body>
 </html>
