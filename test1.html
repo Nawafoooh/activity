@@ -609,6 +609,25 @@
             .firebase-status {
                 display: none;
             }
+            
+            /* ✅ إخفاء محتوى الحصص الوهمية عند الطباعة */
+            td[data-dummy="true"] select {
+                color: transparent !important;
+                font-size: 0 !important;
+            }
+            
+            td[data-dummy="true"]::before {
+                content: "-";
+                position: absolute;
+                color: #a0aec0;
+                font-size: 11px;
+                font-weight: normal;
+            }
+            
+            td[data-dummy="true"] {
+                background: white !important;
+                position: relative;
+            }
         }
 
         @media print {
@@ -1192,6 +1211,7 @@
                             // تطبيق تنسيق الحصص الوهمية
                             if (select.value === 'وهمي') {
                                 select.parentElement.classList.add('dummy-cell');
+                                select.parentElement.setAttribute('data-dummy', 'true');
                             }
                         }
                     }
@@ -1588,8 +1608,10 @@
                             // إضافة تنسيق خاص للخلايا الوهمية
                             if (select.value === 'وهمي') {
                                 cell.classList.add('dummy-cell');
+                                cell.setAttribute('data-dummy', 'true'); // علامة للطباعة
                             } else {
                                 cell.classList.remove('dummy-cell');
+                                cell.removeAttribute('data-dummy');
                             }
                             
                             checkConflicts();
@@ -1598,6 +1620,12 @@
                             saveData();
                             saveToFirebase();
                         });
+                        
+                        // ✅ تطبيق التنسيق عند التحميل إذا كانت القيمة "وهمي"
+                        if (select.value === 'وهمي') {
+                            cell.classList.add('dummy-cell');
+                            cell.setAttribute('data-dummy', 'true');
+                        }
 
                         cell.appendChild(select);
                         row.appendChild(cell);
