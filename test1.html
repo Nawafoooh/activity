@@ -2958,9 +2958,9 @@ function updateClassList() {
     const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
     const daysArr = ['sun', 'mon', 'tue', 'wed', 'thu'];
 
-    // الحصول على جميع مدخلات المعلمين المتاحة في الصفحة حالياً
-    const allTeacherInputs = document.querySelectorAll('input[id^="teacher_"]');
-    const teacherCount = allTeacherInputs.length;
+    // جلب جميع الأسطر (المعلمين) المتاحة في الجدول
+    const teacherRows = document.querySelectorAll('tr[id^="row_"]');
+    const teacherCount = teacherRows.length;
 
     let html = `
         <div class="teacher-schedule-table">
@@ -2981,24 +2981,33 @@ function updateClassList() {
     let totalClasses = 0;
 
     daysArr.forEach(day => {
-        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
+        html += `<tr><td class="day-header">${dayName = dayNames[day]}</td>`;
         
         for (let period = 1; period <= 7; period++) {
-            let teacherName = '-';
+            let cellData = '<span style="color: #cbd5e0;">-</span>';
             let cellStyle = '';
             
-            // بدلاً من رقم ثابت 42، نبحث في كل المدخلات الموجودة
+            // البحث في كل صفوف المعلمين
             for (let i = 0; i < teacherCount; i++) {
                 const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                
                 if (select && select.value === classValue) {
                     const teacherInput = document.getElementById(`teacher_${i}`);
-                    teacherName = teacherInput ? teacherInput.value.trim() : `معلم ${i + 1}`;
-                    cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold; border: 1px solid #38b2ac;';
+                    const subjectInput = document.getElementById(`subject_${i}`);
+                    
+                    const tName = teacherInput ? teacherInput.value.trim() : `معلم ${i+1}`;
+                    const sName = subjectInput ? subjectInput.value.trim() : 'مادة';
+                    
+                    cellData = `
+                        <div style="color: #2c5282; font-weight: bold; font-size: 13px;">${sName}</div>
+                        <div style="color: #4a5568; font-size: 11px; margin-top: 3px; border-top: 1px solid #e2e8f0;">${tName}</div>
+                    `;
+                    cellStyle = 'background: #f0fff4; border: 1px solid #68d391;';
                     totalClasses++;
                     break;
                 }
             }
-            html += `<td style="${cellStyle}">${teacherName}</td>`;
+            html += `<td style="text-align: center; padding: 8px; ${cellStyle}">${cellData}</td>`;
         }
         html += '</tr>';
     });
@@ -3007,8 +3016,8 @@ function updateClassList() {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
-                            📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
+                        <td colspan="8" style="text-align: center; background: #ebf8ff; font-weight: bold; padding: 15px; color: #2a4365;">
+                            📊 إجمالي الحصص المسندة لهذا الفصل: ${totalClasses} حصة
                         </td>
                     </tr>
                 </tfoot>
