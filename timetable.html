@@ -1389,6 +1389,49 @@
                 });
             }
         });
+        const teacherSubjects = {
+    'عبدالمجيد الرشيدي': 'المهارات الرقمية',
+    'عبدالهادي الشاماني': 'تربية فنية',
+    'علي الحربي': 'العلوم',
+    'فهد الشاماني': 'اللغة العربية',
+    'فواز الرشيدي': 'دين',
+    'فيصل الصاعدي': 'لغة عربية',
+    'فيصل ابو سلمي': 'بدنية',
+    'كاتب الرشيدي': 'انجليزي',
+    'محمد الزهراني': 'لغة عربية',
+    'محمد عياد': 'دين',
+    'موسى غازي': 'مهارات حياتية',
+    'موفق السحيمي': 'دين',
+    'نافع المطيري': 'اجتماعيات',
+    'ناهر المطيري': 'رياضيات',
+    'نميان الحربي': 'دين',
+    'طارق الحربي': 'علوم',
+    'ابراهيم الجابري': 'دين',
+    'احمد المويعزي': 'علوم',
+    'أسامه العوفي': 'اجتماعيات',
+    'حبيب العمري': 'لغة عربية',
+    'حمزه صدقه': 'انجليزي',
+    'ساير المطيري': 'بدنية',
+    'سلطان السحيمي': 'دين',
+    'سلمان الحارثي': 'دين',
+    'سيف العارضي': 'تربية فنية',
+    'عبدالعزيز المخلفي': 'علوم',
+    'عبدالعزيز الرويثي': 'عربي',
+    'عبدالله القرني': 'مهارات رقمية',
+    'عبدالله الحازمي': 'رياضيات',
+    
+    // --- الأسماء الجديدة التي تمت إضافتها ---
+    'سعد السحيمي': 'تفكير ناقد',
+    'عبيد العياضي': 'رياضيات',
+    'فؤاد العتيبي': 'انجليزي',
+    'عبدالله الرحيلي': 'رياضيات',
+    'احمد الرشيدي': 'انجليزي',
+    'محمد ذعار': 'لغة عربية',
+    'مشعل هليل': 'رياضيات',
+    'بدر السحيمي': 'دين',
+    'ابراهيم العلوي': 'اجتماعيات',
+    'عبدالله مطر': 'دين'
+};
         const days = ['sun', 'mon', 'tue', 'wed', 'thu'];
         const dayColors = {
             'sun': 'day-sun',
@@ -2883,105 +2926,108 @@
             document.getElementById('classScheduleView').innerHTML = '';
         }
 
-        function showClassSchedule() {
-            const classValue = document.getElementById('classNumberSelect').value;
-            const viewDiv = document.getElementById('classScheduleView');
+        // ✅✅✅ النسخة النهائية والمصححة - تجاهل المسافات الزائدة ✅✅✅
+function showClassSchedule() {
+    const classValue = document.getElementById('classNumberSelect').value;
+    const viewDiv = document.getElementById('classScheduleView');
+    
+    if (!classValue) {
+        viewDiv.innerHTML = '';
+        return;
+    }
+
+    const [grade, classNum] = classValue.split('-');
+    const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
+    const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
+    const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
+
+    let html = `
+        <div class="teacher-schedule-table">
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">جدول ${className}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="day-header">اليوم / الحصة</th>
+                        <th class="period-header">الأولى</th><th class="period-header">الثانية</th><th class="period-header">الثالثة</th>
+                        <th class="period-header">الرابعة</th><th class="period-header">الخامسة</th><th class="period-header">السادسة</th>
+                        <th class="period-header">السابعة</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    days.forEach(day => {
+        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
+        
+        for (let period = 1; period <= 7; period++) {
+            let teacherName = '-';
+            let cellStyle = '';
             
-            if (!classValue) {
-                viewDiv.innerHTML = '';
-                return;
+            for (let i = 0; i < 42; i++) {
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    const teacherInput = document.getElementById(`teacher_${i}`);
+                    if (teacherInput) {
+                        // ⭐️ التصحيح الحقيقي هنا ⭐️
+                        // .trim() تقوم بإزالة أي مسافات بيضاء زائدة من بداية ونهاية الاسم
+                        teacherName = teacherInput.value.trim(); 
+                    } else {
+                        teacherName = `معلم ${i + 1}`;
+                    }
+                    cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
+                    break;
+                }
+            }
+            
+            let displayContent = teacherName;
+            const subject = teacherSubjects[teacherName]; // الآن البحث سيتم بالاسم النظيف
+
+            if (teacherName !== '-' && subject) {
+                displayContent = `
+                    <div style="line-height: 1.4;">
+                        <div style="font-weight: bold; font-size: 14px;">${teacherName}</div>
+                        <div style="font-size: 11px; color: #2c7a7b; margin-top: 2px;">📚 ${subject}</div>
+                    </div>
+                `;
+            } else if (teacherName !== '-') {
+                displayContent = `<div style="font-weight: bold; font-size: 14px;">${teacherName}</div>`;
             }
 
-            const [grade, classNum] = classValue.split('-');
-            const gradeNames = {
-                '1': 'الأول',
-                '2': 'الثاني',
-                '3': 'الثالث'
-            };
-            
-            const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
-            
-            const dayNames = {
-                'sun': 'الأحد',
-                'mon': 'الإثنين',
-                'tue': 'الثلاثاء',
-                'wed': 'الأربعاء',
-                'thu': 'الخميس'
-            };
-
-            let html = `
-                <div class="teacher-schedule-table">
-                    <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">
-                        جدول ${className}
-                    </h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="day-header">اليوم / الحصة</th>
-                                <th class="period-header">الأولى</th>
-                                <th class="period-header">الثانية</th>
-                                <th class="period-header">الثالثة</th>
-                                <th class="period-header">الرابعة</th>
-                                <th class="period-header">الخامسة</th>
-                                <th class="period-header">السادسة</th>
-                                <th class="period-header">السابعة</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            days.forEach(day => {
-                html += `<tr><td class="day-header">${dayNames[day]}</td>`;
-                
-                for (let period = 1; period <= 7; period++) {
-                    let teacherName = '-';
-                    let cellStyle = '';
-                    
-                    for (let i = 0; i < 42; i++) {
-                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select && select.value === classValue) {
-                            const teacherInput = document.getElementById(`teacher_${i}`);
-                            teacherName = teacherInput ? teacherInput.value : `معلم ${i + 1}`;
-                            cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
-                            break;
-                        }
-                    }
-                    
-                    html += `<td style="${cellStyle}">${teacherName}</td>`;
-                }
-                
-                html += '</tr>';
-            });
-
-            let totalClasses = 0;
-            
-            days.forEach(day => {
-                for (let period = 1; period <= 7; period++) {
-                    for (let i = 0; i < 42; i++) {
-                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select && select.value === classValue) {
-                            totalClasses++;
-                            break;
-                        }
-                    }
-                }
-            });
-
-            html += `
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
-                                    📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            `;
-
-            viewDiv.innerHTML = html;
+            html += `<td style="${cellStyle} padding: 8px;">${displayContent}</td>`;
         }
+        
+        html += '</tr>';
+    });
+
+    // باقي الدالة يبقى كما هو
+    let totalClasses = 0;
+    days.forEach(day => {
+        for (let period = 1; period <= 7; period++) {
+            for (let i = 0; i < 42; i++) {
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    totalClasses++;
+                    break;
+                }
+            }
+        }
+    });
+
+    html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
+                            📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+
+    viewDiv.innerHTML = html;
+}
 
         function printClassSchedule() {
             const classValue = document.getElementById('classNumberSelect').value;
@@ -3175,152 +3221,7 @@
             displayAutoAssignReport(teacherData, removedCount, assignedCount);
         }
 
-        function displayAutoAssignReport(teacherData, removedCount, assignedCount) {
-            // حساب الانتظار الفعلي بعد التوزيع
-            const teacherArray = [];
-            
-            for (let i = 0; i < 42; i++) {
-                if (!teacherData[i]) continue;
-                
-                const teacher = teacherData[i];
-                let actualWaiting = 0;
-                const waitingDetails = {};
-                
-                days.forEach(day => {
-                    waitingDetails[day] = 0;
-                    for (let period = 1; period <= 7; period++) {
-                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select && select.value && select.value.startsWith('انتظار')) {
-                            actualWaiting++;
-                            waitingDetails[day]++;
-                        }
-                    }
-                });
-                
-                teacherArray.push({
-                    index: i,
-                    name: teacher.name,
-                    classCount: teacher.classCount,
-                    actualWaiting: actualWaiting,
-                    total: teacher.classCount + actualWaiting,
-                    waitingDetails: waitingDetails
-                });
-            }
-
-            // ترتيب حسب الإجمالي (الأقل أولاً)
-            teacherArray.sort((a, b) => a.total - b.total);
-
-            let summaryHTML = '<div class="alert success" style="max-height: 600px; overflow-y: auto;">';
-            summaryHTML += `
-                <h3 style="color: #22543d; margin-bottom: 15px; font-size: 20px;">✅ تم توزيع حصص الانتظار بنجاح!</h3>
-                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                        <div style="text-align: center; padding: 15px; background: #ebf8ff; border-radius: 8px;">
-                            <div style="font-size: 32px; font-weight: bold; color: #2c5282;">${removedCount}</div>
-                            <div style="color: #4a5568; margin-top: 5px;">حصة محذوفة</div>
-                        </div>
-                        <div style="text-align: center; padding: 15px; background: #f0fff4; border-radius: 8px;">
-                            <div style="font-size: 32px; font-weight: bold; color: #22543d;">${assignedCount}</div>
-                            <div style="color: #4a5568; margin-top: 5px;">حصة جديدة</div>
-                        </div>
-                        <div style="text-align: center; padding: 15px; background: #fef5e7; border-radius: 8px;">
-                            <div style="font-size: 32px; font-weight: bold; color: #c05621;">${teacherArray.length}</div>
-                            <div style="color: #4a5568; margin-top: 5px;">معلم نشط</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <h4 style="color: #22543d; margin: 20px 0 15px 0; font-size: 18px;">📊 تقرير مفصل لكل معلم:</h4>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 10px; background: white; border-radius: 8px; overflow: hidden;">
-                    <thead>
-                        <tr style="background: #2d3748; color: white;">
-                            <th style="padding: 12px; border: 1px solid #4a5568; text-align: center;">#</th>
-                            <th style="padding: 12px; border: 1px solid #4a5568; text-align: right;">المعلم</th>
-                            <th style="padding: 12px; border: 1px solid #4a5568; text-align: center;">حصص دراسية</th>
-                            <th style="padding: 12px; border: 1px solid #4a5568; text-align: center;">حصص انتظار</th>
-                            <th style="padding: 12px; border: 1px solid #4a5568; text-align: center;">التوزيع الأسبوعي</th>
-                            <th style="padding: 12px; border: 1px solid #4a5568; text-align: center;">الإجمالي</th>
-                            <th style="padding: 12px; border: 1px solid #4a5568; text-align: center;">الحالة</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            const dayNamesShort = {
-                'sun': 'أحد',
-                'mon': 'إثنين',
-                'tue': 'ثلاثاء',
-                'wed': 'أربعاء',
-                'thu': 'خميس'
-            };
-
-            teacherArray.forEach((teacher, index) => {
-                const total = teacher.total;
-                let rowColor, statusIcon, statusText, statusColor;
-                
-                if (total === 20) {
-                    rowColor = '#c6f6d5';
-                    statusIcon = '✅';
-                    statusText = 'مكتمل';
-                    statusColor = '#22543d';
-                } else if (total < 20) {
-                    rowColor = '#fed7d7';
-                    statusIcon = '⚠️';
-                    statusText = `ناقص ${20 - total}`;
-                    statusColor = '#742a2a';
-                } else {
-                    rowColor = '#fef5e7';
-                    statusIcon = '📊';
-                    statusText = `زائد ${total - 20}`;
-                    statusColor = '#c05621';
-                }
-
-                // توزيع الانتظار على الأيام
-                const distribution = Object.keys(teacher.waitingDetails)
-                    .filter(day => teacher.waitingDetails[day] > 0)
-                    .sort((a, b) => days.indexOf(a) - days.indexOf(b))
-                    .map(day => `${dayNamesShort[day]}(${teacher.waitingDetails[day]})`)
-                    .join(' ');
-
-                summaryHTML += `
-                    <tr style="background: ${rowColor};">
-                        <td style="padding: 10px; border: 1px solid #cbd5e0; text-align: center; font-weight: bold;">${index + 1}</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e0; text-align: right; font-weight: 600;">${teacher.name}</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e0; text-align: center;">${teacher.classCount}</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e0; text-align: center; font-weight: bold; color: #b7791f;">${teacher.actualWaiting}</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e0; text-align: center; font-size: 12px;">${distribution || '-'}</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e0; text-align: center; font-weight: bold; font-size: 16px;">${total}</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e0; text-align: center; color: ${statusColor}; font-weight: bold;">
-                            ${statusIcon} ${statusText}
-                        </td>
-                    </tr>
-                `;
-            });
-
-            summaryHTML += `
-                    </tbody>
-                </table>
-                
-                <div style="margin-top: 20px; padding: 15px; background: #ebf8ff; border-radius: 8px; border-right: 4px solid #4299e1;">
-                    <h5 style="color: #2c5282; margin-bottom: 10px;">💡 ملاحظات مهمة:</h5>
-                    <ul style="margin: 0; padding-right: 20px; color: #2d3748; line-height: 1.8;">
-                        <li>✅ <strong>التوزيع العادل:</strong> تم توزيع الانتظار بالتساوي - لا أحد يأخذ أكثر من حقه</li>
-                        <li>🎯 <strong>نظام الدوران:</strong> كل معلم يأخذ دوره بالعدل</li>
-                        <li>📊 <strong>التوزيع الأسبوعي:</strong> الانتظار موزع على مدار الأسبوع</li>
-                        <li>🚫 <strong>الحصص الوهمية:</strong> تم تجاهلها تماماً</li>
-                        <li>⚠️ <strong>القاعدة:</strong> لا انتظار بعد الحصة الثالثة إلا إذا كان للمعلم حصص بعدها</li>
-                    </ul>
-                </div>
-            </div>`;
-
-            const alertBox = document.getElementById('alertBox');
-            alertBox.innerHTML = summaryHTML;
-            
-            // التمرير للأعلى لرؤية التقرير
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function displayAutoAssignReport(teacherData, removedCount, assignedCount) {
+            function displayAutoAssignReport(teacherData, removedCount, assignedCount) {
             // حساب الانتظار الفعلي بعد التوزيع
             teacherData.forEach(teacher => {
                 let actualWaiting = 0;
@@ -3457,4 +3358,5 @@
         createSchedule();
     </script>
 </body>
-</html>
+</html> 
+
