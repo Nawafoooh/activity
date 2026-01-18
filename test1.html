@@ -2926,7 +2926,7 @@
             document.getElementById('classScheduleView').innerHTML = '';
         }
 
-        // ✅ النسخة المصححة والنهائية للدالة
+        // ✅✅✅ النسخة النهائية والمصححة - تجاهل المسافات الزائدة ✅✅✅
 function showClassSchedule() {
     const classValue = document.getElementById('classNumberSelect').value;
     const viewDiv = document.getElementById('classScheduleView');
@@ -2967,19 +2967,22 @@ function showClassSchedule() {
                 const select = document.getElementById(`cell_${i}_${day}_${period}`);
                 if (select && select.value === classValue) {
                     const teacherInput = document.getElementById(`teacher_${i}`);
-                    teacherName = teacherInput ? teacherInput.value : `معلم ${i + 1}`;
+                    if (teacherInput) {
+                        // ⭐️ التصحيح الحقيقي هنا ⭐️
+                        // .trim() تقوم بإزالة أي مسافات بيضاء زائدة من بداية ونهاية الاسم
+                        teacherName = teacherInput.value.trim(); 
+                    } else {
+                        teacherName = `معلم ${i + 1}`;
+                    }
                     cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
                     break;
                 }
             }
             
-            // --- ⭐️ بداية التصحيح ⭐️ ---
-            // هنا، نستخدم متغير "teacherName" الذي حصلنا عليه للتو من الحلقة السابقة
             let displayContent = teacherName;
-            const subject = teacherSubjects[teacherName]; // ابحث عن المادة باستخدام اسم المعلم الصحيح
+            const subject = teacherSubjects[teacherName]; // الآن البحث سيتم بالاسم النظيف
 
             if (teacherName !== '-' && subject) {
-                // إذا وجدنا المعلم والمادة، اعرضهما معاً
                 displayContent = `
                     <div style="line-height: 1.4;">
                         <div style="font-weight: bold; font-size: 14px;">${teacherName}</div>
@@ -2987,10 +2990,8 @@ function showClassSchedule() {
                     </div>
                 `;
             } else if (teacherName !== '-') {
-                // إذا وجدنا المعلم ولكن لا توجد له مادة مسجلة، اعرض اسمه فقط
                 displayContent = `<div style="font-weight: bold; font-size: 14px;">${teacherName}</div>`;
             }
-            // --- ⭐️ نهاية التصحيح ⭐️ ---
 
             html += `<td style="${cellStyle} padding: 8px;">${displayContent}</td>`;
         }
@@ -2998,7 +2999,7 @@ function showClassSchedule() {
         html += '</tr>';
     });
 
-    // باقي الدالة لحساب الإجمالي يبقى كما هو...
+    // باقي الدالة يبقى كما هو
     let totalClasses = 0;
     days.forEach(day => {
         for (let period = 1; period <= 7; period++) {
@@ -3027,8 +3028,6 @@ function showClassSchedule() {
 
     viewDiv.innerHTML = html;
 }
-
-
 
         function printClassSchedule() {
             const classValue = document.getElementById('classNumberSelect').value;
