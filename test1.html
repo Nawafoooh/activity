@@ -2944,7 +2944,8 @@ function updateClassList() {
 }
 
         function showClassSchedule() {
-    const classValue = document.getElementById('classNumberSelect').value;
+    const classSelect = document.getElementById('classNumberSelect');
+    const classValue = classSelect.value;
     const viewDiv = document.getElementById('classScheduleView');
     
     if (!classValue) {
@@ -2952,19 +2953,35 @@ function updateClassList() {
         return;
     }
 
-    const [grade, classNum] = classValue.split('-');
+    // تحليل رقم الصف والفصل بدقة (يدعم صيغة 1-1 أو 1/1)
+    let grade, classNum;
+    if (classValue.includes('-')) {
+        [grade, classNum] = classValue.split('-');
+    } else if (classValue.includes('/')) {
+        [grade, classNum] = classValue.split('/');
+    } else {
+        grade = classValue.charAt(0);
+        classNum = classValue.substring(1);
+    }
+
     const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
-    const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
-    const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
+    const classNameFull = `الصف ${gradeNames[grade] || grade} متوسط - الفصل ${classNum}`;
+    
+    const dayNames = {
+        'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء',
+        'wed': 'الأربعاء', 'thu': 'الخميس'
+    };
     const daysArr = ['sun', 'mon', 'tue', 'wed', 'thu'];
 
-    // جلب جميع الأسطر (المعلمين) المتاحة في الجدول
-    const teacherRows = document.querySelectorAll('tr[id^="row_"]');
-    const teacherCount = teacherRows.length;
+    // حل مشكلة العدد: جلب كل الصفوف المتاحة فعلياً في جدول البيانات
+    const allRows = document.querySelectorAll('tr[id^="row_"]');
+    const totalTeachers = allRows.length > 0 ? allRows.length : 100; // فحص حتى 100 معلم إذا لم يجد الأسطر
 
     let html = `
         <div class="teacher-schedule-table">
-            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">جدول ${className}</h2>
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px; font-family: 'Segoe UI', Tahoma;">
+                📅 جدول ${classNameFull}
+            </h2>
             <table>
                 <thead>
                     <tr>
@@ -2981,33 +2998,41 @@ function updateClassList() {
     let totalClasses = 0;
 
     daysArr.forEach(day => {
-        html += `<tr><td class="day-header">${dayName = dayNames[day]}</td>`;
+        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
         
         for (let period = 1; period <= 7; period++) {
-            let cellData = '<span style="color: #cbd5e0;">-</span>';
-            let cellStyle = '';
+            let foundData = { teacher: '-', subject: '', found: false };
             
-            // البحث في كل صفوف المعلمين
-            for (let i = 0; i < teacherCount; i++) {
+            for (let i = 0; i < totalTeachers; i++) {
                 const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                
-                if (select && select.value === classValue) {
-                    const teacherInput = document.getElementById(`teacher_${i}`);
-                    const subjectInput = document.getElementById(`subject_${i}`);
-                    
-                    const tName = teacherInput ? teacherInput.value.trim() : `معلم ${i+1}`;
-                    const sName = subjectInput ? subjectInput.value.trim() : 'مادة';
-                    
-                    cellData = `
-                        <div style="color: #2c5282; font-weight: bold; font-size: 13px;">${sName}</div>
-                        <div style="color: #4a5568; font-size: 11px; margin-top: 3px; border-top: 1px solid #e2e8f0;">${tName}</div>
-                    `;
-                    cellStyle = 'background: #f0fff4; border: 1px solid #68d391;';
-                    totalClasses++;
-                    break;
+                if (select) {
+                    // مطابقة ذكية: نتحقق من القيمة المختارة بكل الصيغ الممكنة (1-1 و 1/1)
+                    const val = select.value.trim();
+                    const option1 = `${grade}-${classNum}`;
+                    const option2 = `${grade}/${classNum}`;
+
+                    if (val === classValue || val === option1 || val === option2) {
+                        const tInput = document.getElementById(`teacher_${i}`);
+                        const sInput = document.getElementById(`subject_${i}`);
+                        
+                        foundData.teacher = tInput ? tInput.value.trim() : `معلم ${i+1}`;
+                        foundData.subject = sInput ? sInput.value.trim() : 'مادة';
+                        foundData.found = true;
+                        totalClasses++;
+                        break;
+                    }
                 }
             }
-            html += `<td style="text-align: center; padding: 8px; ${cellStyle}">${cellData}</td>`;
+
+            if (foundData.found) {
+                html += `
+                    <td style="background: #f0fff4; border: 1px solid #68d391; text-align: center; padding: 5px;">
+                        <div style="font-weight: bold; color: #2c5282; font-size: 13px;">${foundData.subject}</div>
+                        <div style="color: #4a5568; font-size: 11px; margin-top: 2px; border-top: 1px solid #e2e8f0;">${foundData.teacher}</div>
+                    </td>`;
+            } else {
+                html += `<td style="text-align: center; color: #cbd5e0;">-</td>`;
+            }
         }
         html += '</tr>';
     });
@@ -3016,8 +3041,8 @@ function updateClassList() {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="8" style="text-align: center; background: #ebf8ff; font-weight: bold; padding: 15px; color: #2a4365;">
-                            📊 إجمالي الحصص المسندة لهذا الفصل: ${totalClasses} حصة
+                        <td colspan="8" style="text-align: center; background: #ebf8ff; font-weight: bold; padding: 12px; color: #2a4365;">
+                            📊 إجمالي الحصص: ${totalClasses}
                         </td>
                     </tr>
                 </tfoot>
