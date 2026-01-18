@@ -1289,9 +1289,15 @@
         // 🔐 نظام الحماية بكلمة المرور
         // ═══════════════════════════════════════════════════════════════
         const CORRECT_PASSWORD = 'Nawaf2030'; // ✅ الرقم السري
+        // ✅✅ الخطوة 1: أضف هذا الكود بعد سطر كلمة المرور مباشرة ✅✅
+
+// قائمة بالمعلمين غير النشطين (سيتم تجاهلهم تماماً في كل العمليات)
+// الأرقام تمثل فهرس المعلم (تبدأ من 0). معلم 21 هو 20، 22 هو 21، 42 هو 41.
+const excludedTeachers = [20, 21, 41]; 
+
         const SESSION_KEY = 'schedule_auth_session';
         
-        // التحقق من الجلسة عند تحميل الصفحة
+                // التحقق من الجلسة عند تحميل الصفحة
         // ✅✅✅ استبدل الكود القديم بهذا الكود الجديد والآمن ✅✅✅
 // لا تقم بتشغيل أي شيء حتى يتم تحميل كامل الصفحة ومحتواها
 document.addEventListener('DOMContentLoaded', function() {
@@ -1946,118 +1952,113 @@ const specialAssignments = {
             return names[day];
         }
 
-        function createSchedule() {
-            const tbody = document.getElementById('scheduleBody');
-            tbody.innerHTML = '';
+        // ✅✅ الخطوة 2: استبدل الدالة القديمة بهذه النسخة المحدثة بالكامل ✅✅
+function createSchedule() {
+    const tbody = document.getElementById('scheduleBody');
+    tbody.innerHTML = '';
 
-            for (let i = 0; i < 42; i++) {
-                const row = document.createElement('tr');
-                row.className = i % 2 === 0 ? 'row-even' : 'row-odd';
+    for (let i = 0; i < 42; i++) {
+        const row = document.createElement('tr');
+        row.className = i % 2 === 0 ? 'row-even' : 'row-odd';
+        
+        // --- ⭐️ هذا هو التعديل الذكي ⭐️ ---
+        // إذا كان المعلم موجوداً في قائمة المستبعدين، قم بإخفاء الصف الخاص به
+        if (excludedTeachers.includes(i)) {
+            row.style.display = 'none';
+        }
+        // --- نهاية التعديل ---
 
-                const nameCell = document.createElement('td');
-                nameCell.className = 'teacher-name';
-                const nameInput = document.createElement('input');
-                nameInput.type = 'text';
-                nameInput.className = 'teacher-input';
-                nameInput.placeholder = `معلم ${i + 1}`;
-                nameInput.id = `teacher_${i}`;
-                nameInput.addEventListener('change', () => {
+        const nameCell = document.createElement('td');
+        nameCell.className = 'teacher-name';
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'teacher-input';
+        nameInput.placeholder = `معلم ${i + 1}`;
+        nameInput.id = `teacher_${i}`;
+        nameInput.addEventListener('change', () => {
+            saveData();
+            saveToFirebase();
+            updateAbsentTeacherList();
+            updateTeacherSelect();
+        });
+        nameCell.appendChild(nameInput);
+        row.appendChild(nameCell);
+
+        const countCell = document.createElement('td');
+        countCell.className = 'class-count';
+        countCell.id = `count_${i}`;
+        countCell.textContent = '0';
+        row.appendChild(countCell);
+
+        days.forEach((day, dayIndex) => {
+            for (let period = 1; period <= 7; period++) {
+                const cell = document.createElement('td');
+                cell.className = dayColors[day];
+                if (period === 1 && dayIndex > 0) {
+                    cell.classList.add('day-border');
+                }
+                const select = document.createElement('select');
+                select.id = `cell_${i}_${day}_${period}`;
+                let currentGroup = '';
+                classOptions.forEach(option => {
+                    if (option.group && option.group !== currentGroup) {
+                        if (currentGroup !== '') {
+                            const separator = document.createElement('option');
+                            separator.disabled = true;
+                            separator.textContent = '───────';
+                            select.appendChild(separator);
+                        }
+                        const groupHeader = document.createElement('option');
+                        groupHeader.disabled = true;
+                        groupHeader.style.fontWeight = 'bold';
+                        groupHeader.style.background = '#edf2f7';
+                        if (option.group === 'first') groupHeader.textContent = '▼ الصف الأول';
+                        else if (option.group === 'second') groupHeader.textContent = '▼ الصف الثاني';
+                        else if (option.group === 'third') groupHeader.textContent = '▼ الصف الثالث';
+                        else if (option.group === 'waiting') groupHeader.textContent = '▼ حصص الانتظار';
+                        else if (option.group === 'dummy') groupHeader.textContent = '▼ حصص خاصة';
+                        select.appendChild(groupHeader);
+                        currentGroup = option.group;
+                    }
+                    const opt = document.createElement('option');
+                    opt.value = option.value;
+                    opt.textContent = option.label;
+                    if (option.group) {
+                        opt.style.paddingRight = '15px';
+                    }
+                    select.appendChild(opt);
+                });
+                select.addEventListener('change', () => {
+                    if (select.value === 'وهمي') {
+                        cell.classList.add('dummy-cell');
+                        cell.setAttribute('data-dummy', 'true');
+                    } else {
+                        cell.classList.remove('dummy-cell');
+                        cell.removeAttribute('data-dummy');
+                    }
+                    checkConflicts();
+                    updateClassCounts();
+                    checkUnassignedClasses();
                     saveData();
                     saveToFirebase();
-                    updateAbsentTeacherList();
-                    updateTeacherSelect();
                 });
-                nameCell.appendChild(nameInput);
-                row.appendChild(nameCell);
-
-                const countCell = document.createElement('td');
-                countCell.className = 'class-count';
-                countCell.id = `count_${i}`;
-                countCell.textContent = '0';
-                row.appendChild(countCell);
-
-                days.forEach((day, dayIndex) => {
-                    for (let period = 1; period <= 7; period++) {
-                        const cell = document.createElement('td');
-                        cell.className = dayColors[day];
-                        
-                        if (period === 1 && dayIndex > 0) {
-                            cell.classList.add('day-border');
-                        }
-
-                        const select = document.createElement('select');
-                        select.id = `cell_${i}_${day}_${period}`;
-                        
-                        let currentGroup = '';
-                        classOptions.forEach(option => {
-                            if (option.group && option.group !== currentGroup) {
-                                if (currentGroup !== '') {
-                                    const separator = document.createElement('option');
-                                    separator.disabled = true;
-                                    separator.textContent = '───────';
-                                    select.appendChild(separator);
-                                }
-                                
-                                const groupHeader = document.createElement('option');
-                                groupHeader.disabled = true;
-                                groupHeader.style.fontWeight = 'bold';
-                                groupHeader.style.background = '#edf2f7';
-                                if (option.group === 'first') groupHeader.textContent = '▼ الصف الأول';
-                                else if (option.group === 'second') groupHeader.textContent = '▼ الصف الثاني';
-                                else if (option.group === 'third') groupHeader.textContent = '▼ الصف الثالث';
-                                else if (option.group === 'waiting') groupHeader.textContent = '▼ حصص الانتظار';
-                                else if (option.group === 'dummy') groupHeader.textContent = '▼ حصص خاصة';
-                                select.appendChild(groupHeader);
-                                
-                                currentGroup = option.group;
-                            }
-                            
-                            const opt = document.createElement('option');
-                            opt.value = option.value;
-                            opt.textContent = option.label;
-                            if (option.group) {
-                                opt.style.paddingRight = '15px';
-                            }
-                            select.appendChild(opt);
-                        });
-
-                        select.addEventListener('change', () => {
-                            // إضافة تنسيق خاص للخلايا الوهمية
-                            if (select.value === 'وهمي') {
-                                cell.classList.add('dummy-cell');
-                                cell.setAttribute('data-dummy', 'true'); // علامة للطباعة
-                            } else {
-                                cell.classList.remove('dummy-cell');
-                                cell.removeAttribute('data-dummy');
-                            }
-                            
-                            checkConflicts();
-                            updateClassCounts();
-                            checkUnassignedClasses();
-                            saveData();
-                            saveToFirebase();
-                        });
-                        
-                        // ✅ تطبيق التنسيق عند التحميل إذا كانت القيمة "وهمي"
-                        if (select.value === 'وهمي') {
-                            cell.classList.add('dummy-cell');
-                            cell.setAttribute('data-dummy', 'true');
-                        }
-
-                        cell.appendChild(select);
-                        row.appendChild(cell);
-                    }
-                });
-
-                tbody.appendChild(row);
+                if (select.value === 'وهمي') {
+                    cell.classList.add('dummy-cell');
+                    cell.setAttribute('data-dummy', 'true');
+                }
+                cell.appendChild(select);
+                row.appendChild(cell);
             }
+        });
+        tbody.appendChild(row);
+    }
+    loadData();
+    updateAbsentTeacherList();
+    updateClassCounts();
+    checkUnassignedClasses();
+    updateTeacherSelect();
+}
 
-            loadData();
-            updateAbsentTeacherList();
-            updateClassCounts();
-            checkUnassignedClasses();
-            updateTeacherSelect();
-        }
 
         function saveData() {
             const data = {};
