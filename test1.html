@@ -2943,73 +2943,80 @@ function updateClassList() {
     }
 }
 
-// 2. الدالة الاحترافية لعرض الجدول (حل مشكلة الأسماء المفقودة)
-function showClassSchedule() {
-    const grade = document.getElementById('gradeSelect').value;
-    const classNum = document.getElementById('classNumberSelect').value;
-    const container = document.getElementById('classScheduleView');
-
-    if (!grade || !classNum) {
-        container.innerHTML = '<div class="alert info">يرجى اختيار الصف والفصل لعرض الجدول</div>';
+        function showClassSchedule() {
+    const classValue = document.getElementById('classNumberSelect').value;
+    const viewDiv = document.getElementById('classScheduleView');
+    
+    if (!classValue) {
+        viewDiv.innerHTML = '';
         return;
     }
 
-    const targetClass = `${grade}/${classNum}`;
-    const days = {
-        'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 
-        'wed': 'الأربعاء', 'thu': 'الخميس'
-    };
+    const [grade, classNum] = classValue.split('-');
+    const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
+    const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
+    const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
+    const daysArr = ['sun', 'mon', 'tue', 'wed', 'thu'];
 
-    let tableHtml = `
-        <div class="schedule-wrapper" style="animation: fadeIn 0.5s ease;">
-            <h2 style="text-align:center; margin: 20px 0; color:#2d3748; border-bottom: 2px solid #4299e1; padding-bottom: 10px;">
-                📅 جدول الحصص للفصل: [ ${targetClass} ]
-            </h2>
-            <table class="teacher-schedule-table" style="width:100%; border-collapse: collapse; background: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    // الحصول على جميع مدخلات المعلمين المتاحة في الصفحة حالياً
+    const allTeacherInputs = document.querySelectorAll('input[id^="teacher_"]');
+    const teacherCount = allTeacherInputs.length;
+
+    let html = `
+        <div class="teacher-schedule-table">
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">جدول ${className}</h2>
+            <table>
                 <thead>
                     <tr>
-                        <th style="background:#2d3748; color:white; padding:15px;">اليوم / الحصة</th>
-                        ${[1, 2, 3, 4, 5, 6, 7].map(n => `<th style="background:#4299e1; color:white;">${n}</th>`).join('')}
+                        <th class="day-header">اليوم / الحصة</th>
+                        <th class="period-header">الأولى</th><th class="period-header">الثانية</th>
+                        <th class="period-header">الثالثة</th><th class="period-header">الرابعة</th>
+                        <th class="period-header">الخامسة</th><th class="period-header">السادسة</th>
+                        <th class="period-header">السابعة</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
 
-    // معالجة كل يوم
-    Object.entries(days).forEach(([dayKey, dayName]) => {
-        tableHtml += `<tr><td style="background:#f7fafc; font-weight:bold; border:1px solid #cbd5e0; padding:12px;">${dayName}</td>`;
+    let totalClasses = 0;
+
+    daysArr.forEach(day => {
+        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
         
         for (let period = 1; period <= 7; period++) {
-            let foundMatch = false;
-            let cellContent = "";
-
-            // البحث الاحترافي في مصفوفة المعلمين
-            teachers.forEach(teacher => {
-                const scheduleKey = `${dayKey}-${period}`;
-                const lesson = teacher.schedule[scheduleKey];
-                
-                // تنظيف الأسماء ومقارنة الفصل
-                if (lesson && lesson.className && lesson.className.trim() === targetClass) {
-                    foundMatch = true;
-                    cellContent = `
-                        <div style="font-weight:bold; color:#2b6cb0; font-size:14px;">${lesson.subject || 'مادة'}</div>
-                        <div style="font-size:11px; color:#718096; margin-top:4px; border-top:1px dashed #e2e8f0; padding-top:2px;">
-                            ${teacher.name.trim()}
-                        </div>
-                    `;
+            let teacherName = '-';
+            let cellStyle = '';
+            
+            // بدلاً من رقم ثابت 42، نبحث في كل المدخلات الموجودة
+            for (let i = 0; i < teacherCount; i++) {
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    const teacherInput = document.getElementById(`teacher_${i}`);
+                    teacherName = teacherInput ? teacherInput.value.trim() : `معلم ${i + 1}`;
+                    cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold; border: 1px solid #38b2ac;';
+                    totalClasses++;
+                    break;
                 }
-            });
-
-            tableHtml += `
-                <td style="border:1px solid #cbd5e0; text-align:center; height:60px; min-width:110px;">
-                    ${foundMatch ? cellContent : '<span style="color:#e2e8f0;">-</span>'}
-                </td>`;
+            }
+            html += `<td style="${cellStyle}">${teacherName}</td>`;
         }
-        tableHtml += `</tr>`;
+        html += '</tr>';
     });
 
-    tableHtml += `</tbody></table></div>`;
-    container.innerHTML = tableHtml;
+    html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
+                            📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+
+    viewDiv.innerHTML = html;
 }
 
         function printClassSchedule() {
