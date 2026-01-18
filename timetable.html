@@ -1389,6 +1389,19 @@
                 });
             }
         });
+        // قائمة للحالات الخاصة: معلم يدرس مادة غير مادته الأساسية في حصة معينة
+const specialAssignments = {
+    // 'اسم المعلم': { 'يوم_حصة': 'اسم المادة البديلة' }
+    'ابراهيم الجابري': {
+        'sun_6': 'مهارات حياتية' // الأحد، الحصة السادسة
+    },
+    'بدر السحيمي': {
+        'wed_6': 'مهارات حياتية' // الأربعاء، الحصة السادسة
+    },
+    'فواز الرشيدي': {
+        'sun_3': 'مهارات حياتية' // الأحد، الحصة الثالثة
+    }
+}
         const teacherSubjects = {
     'عبدالمجيد الرشيدي': 'المهارات الرقمية',
     'عبدالهادي الشاماني': 'تربية فنية',
@@ -2926,7 +2939,7 @@
             document.getElementById('classScheduleView').innerHTML = '';
         }
 
-        // ✅✅✅ النسخة النهائية والمصححة - تجاهل المسافات الزائدة ✅✅✅
+        // ✅✅ الخطوة 2: استبدل الدالة القديمة بهذه النسخة المحدثة بالكامل ✅✅
 function showClassSchedule() {
     const classValue = document.getElementById('classNumberSelect').value;
     const viewDiv = document.getElementById('classScheduleView');
@@ -2968,9 +2981,7 @@ function showClassSchedule() {
                 if (select && select.value === classValue) {
                     const teacherInput = document.getElementById(`teacher_${i}`);
                     if (teacherInput) {
-                        // ⭐️ التصحيح الحقيقي هنا ⭐️
-                        // .trim() تقوم بإزالة أي مسافات بيضاء زائدة من بداية ونهاية الاسم
-                        teacherName = teacherInput.value.trim(); 
+                        teacherName = teacherInput.value.trim();
                     } else {
                         teacherName = `معلم ${i + 1}`;
                     }
@@ -2979,9 +2990,20 @@ function showClassSchedule() {
                 }
             }
             
-            let displayContent = teacherName;
-            const subject = teacherSubjects[teacherName]; // الآن البحث سيتم بالاسم النظيف
+            // --- ⭐️ بداية المنطق الذكي الجديد ⭐️ ---
+            let subject = null;
+            const assignmentKey = `${day}_${period}`; // مفتاح البحث مثل 'sun_6'
 
+            // 1. ابحث أولاً في قائمة الاستثناءات
+            if (specialAssignments[teacherName] && specialAssignments[teacherName][assignmentKey]) {
+                subject = specialAssignments[teacherName][assignmentKey];
+            } else {
+                // 2. إذا لم تجد استثناءً، ابحث في القائمة الأساسية
+                subject = teacherSubjects[teacherName];
+            }
+            // --- ⭐️ نهاية المنطق الذكي الجديد ⭐️ ---
+
+            let displayContent = teacherName;
             if (teacherName !== '-' && subject) {
                 displayContent = `
                     <div style="line-height: 1.4;">
@@ -3029,18 +3051,6 @@ function showClassSchedule() {
     viewDiv.innerHTML = html;
 }
 
-        function printClassSchedule() {
-            const classValue = document.getElementById('classNumberSelect').value;
-            
-            if (!classValue) {
-                alert('يرجى اختيار فصل أولاً!');
-                return;
-            }
-
-            document.body.classList.add('printing-teacher-schedule');
-            window.print();
-            document.body.classList.remove('printing-teacher-schedule');
-        }
 
         function autoAssignWaiting() {
             if (!confirm('سيتم توزيع حصص الانتظار تلقائياً وفقاً للقواعد الذكية.\n\n✅ توزيع عادل على جميع المعلمين\n✅ الأولوية للأقل حصصاً\n✅ كل معلم سيصل إلى 20 حصة\n\nهل تريد المتابعة؟')) {
@@ -3359,4 +3369,5 @@ function showClassSchedule() {
     </script>
 </body>
 </html> 
+
 
