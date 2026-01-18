@@ -2927,115 +2927,125 @@
         }
 
         function showClassSchedule() {
-            const classValue = document.getElementById('classNumberSelect').value;
-            const viewDiv = document.getElementById('classScheduleView');
+    const classValue = document.getElementById('classNumberSelect').value;
+    const viewDiv = document.getElementById('classScheduleView');
+    
+    if (!classValue) {
+        viewDiv.innerHTML = '';
+        return;
+    }
+
+    const [grade, classNum] = classValue.split('-');
+    const gradeNames = {
+        '1': 'الأول',
+        '2': 'الثاني',
+        '3': 'الثالث'
+    };
+    
+    const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
+    
+    const dayNames = {
+        'sun': 'الأحد',
+        'mon': 'الإثنين',
+        'tue': 'الثلاثاء',
+        'wed': 'الأربعاء',
+        'thu': 'الخميس'
+    };
+
+    let html = `
+        <div class="teacher-schedule-table">
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">
+                جدول ${className}
+            </h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="day-header">اليوم / الحصة</th>
+                        <th class="period-header">الأولى</th>
+                        <th class="period-header">الثانية</th>
+                        <th class="period-header">الثالثة</th>
+                        <th class="period-header">الرابعة</th>
+                        <th class="period-header">الخامسة</th>
+                        <th class="period-header">السادسة</th>
+                        <th class="period-header">السابعة</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    days.forEach(day => {
+        // ابدأ صف اليوم في الجدول
+        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
+        
+        // ✅ بداية حلقة التكرار الصحيحة للحصص (من 1 إلى 7)
+        for (let period = 1; period <= 7; period++) {
+            let teacherName = '-';
+            let cellStyle = '';
             
-            if (!classValue) {
-                viewDiv.innerHTML = '';
-                return;
+            // ابحث عن المعلم الذي لديه هذا الفصل في هذه الحصة
+            for (let i = 0; i < 42; i++) {
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    const teacherInput = document.getElementById(`teacher_${i}`);
+                    teacherName = teacherInput ? teacherInput.value : `معلم ${i + 1}`;
+                    cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
+                    break; // توقف عن البحث بمجرد العثور على المعلم
+                }
+            }
+            
+            // ✅ هذا هو الجزء الذي تم نقله وتصحيحه
+            // قم بإعداد المحتوى الذي سيعرض داخل الخلية (اسم المعلم والمادة)
+            let displayContent = teacherName;
+            if (teacherName !== '-' && teacherSubjects[teacherName]) {
+                displayContent = `
+                    <div style="line-height: 1.4;">
+                        <div style="font-weight: bold; font-size: 14px;">${teacherName}</div>
+                        <div style="font-size: 11px; color: #2c7a7b; margin-top: 2px;">📚 ${teacherSubjects[teacherName]}</div>
+                    </div>
+                `;
+            } else if (teacherName !== '-') {
+                // في حال لم يتم العثور على المادة، اعرض اسم المعلم فقط
+                displayContent = `<div style="font-weight: bold; font-size: 14px;">${teacherName}</div>`;
             }
 
-            const [grade, classNum] = classValue.split('-');
-            const gradeNames = {
-                '1': 'الأول',
-                '2': 'الثاني',
-                '3': 'الثالث'
-            };
-            
-            const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
-            
-            const dayNames = {
-                'sun': 'الأحد',
-                'mon': 'الإثنين',
-                'tue': 'الثلاثاء',
-                'wed': 'الأربعاء',
-                'thu': 'الخميس'
-            };
+            // أضف الخلية (td) إلى صف الجدول
+            html += `<td style="${cellStyle} padding: 8px;">${displayContent}</td>`;
+        }
+        
+        // أغلق صف اليوم
+        html += '</tr>';
+    });
 
-            let html = `
-                <div class="teacher-schedule-table">
-                    <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">
-                        جدول ${className}
-                    </h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="day-header">اليوم / الحصة</th>
-                                <th class="period-header">الأولى</th>
-                                <th class="period-header">الثانية</th>
-                                <th class="period-header">الثالثة</th>
-                                <th class="period-header">الرابعة</th>
-                                <th class="period-header">الخامسة</th>
-                                <th class="period-header">السادسة</th>
-                                <th class="period-header">السابعة</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
+    // حساب إجمالي الحصص (هذا الجزء يبقى كما هو)
+    let totalClasses = 0;
+    days.forEach(day => {
+        for (let period = 1; period <= 7; period++) {
+            for (let i = 0; i < 42; i++) {
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    totalClasses++;
+                    break;
+                }
+            }
+        }
+    });
 
-            days.forEach(day => {
-                // 📝 عرض اسم المعلم واسم المادة
-let displayContent = teacherName;
-if (teacherName !== '-' && teacherSubjects[teacherName]) {
-    displayContent = `
-        <div style="line-height: 1.4;">
-            <div style="font-weight: bold; font-size: 14px;">${teacherName}</div>
-            <div style="font-size: 11px; color: #2c7a7b; margin-top: 2px;">📚 ${teacherSubjects[teacherName]}</div>
+    html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
+                            📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
     `;
+
+    viewDiv.innerHTML = html;
 }
 
-html += `<td style="${cellStyle} padding: 8px;">${displayContent}</td>`;
-                
-                for (let period = 1; period <= 7; period++) {
-                    let teacherName = '-';
-                    let cellStyle = '';
-                    
-                    for (let i = 0; i < 42; i++) {
-                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select && select.value === classValue) {
-                            const teacherInput = document.getElementById(`teacher_${i}`);
-                            teacherName = teacherInput ? teacherInput.value : `معلم ${i + 1}`;
-                            cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
-                            break;
-                        }
-                    }
-                    
-                    html += `<td style="${cellStyle}">${teacherName}</td>`;
-                }
-                
-                html += '</tr>';
-            });
-
-            let totalClasses = 0;
-            
-            days.forEach(day => {
-                for (let period = 1; period <= 7; period++) {
-                    for (let i = 0; i < 42; i++) {
-                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select && select.value === classValue) {
-                            totalClasses++;
-                            break;
-                        }
-                    }
-                }
-            });
-
-            html += `
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
-                                    📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            `;
-
-            viewDiv.innerHTML = html;
-        }
 
         function printClassSchedule() {
             const classValue = document.getElementById('classNumberSelect').value;
