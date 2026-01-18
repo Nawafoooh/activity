@@ -1292,9 +1292,23 @@
         const SESSION_KEY = 'schedule_auth_session';
         
         // التحقق من الجلسة عند تحميل الصفحة
-        window.addEventListener('DOMContentLoaded', function() {
-            checkSession();
+        // ✅✅✅ استبدل الكود القديم بهذا الكود الجديد والآمن ✅✅✅
+// لا تقم بتشغيل أي شيء حتى يتم تحميل كامل الصفحة ومحتواها
+document.addEventListener('DOMContentLoaded', function() {
+    // الآن فقط، يمكننا بأمان التحقق من الجلسة وبدء التطبيق
+    checkSession();
+
+    // ربط الأحداث الأخرى هنا أيضاً لضمان الأمان
+    const passwordInput = document.getElementById('passwordInput');
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkPassword();
+            }
         });
+    }
+});
+
 
         function checkSession() {
             const session = sessionStorage.getItem(SESSION_KEY);
@@ -1339,39 +1353,22 @@
             }
         }
 
-    
-// ✅ تأكد من أن هذه الدالة تبدو هكذا
 function showMainContent() {
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('mainContainer').style.display = 'block'; // الآن سيجد العنصر ويظهره
-    document.getElementById('lockIndicator').style.display = 'flex';
-    
+    document.querySelector('.login-overlay').style.display = 'none';
+    document.querySelector('.container').style.display = 'block';
+    document.querySelector('.lock-indicator').style.display = 'flex';
+
     if (!window.scheduleInitialized) {
         createSchedule();
         window.scheduleInitialized = true;
     }
 }
 
-        // ✅ وتأكد من أن هذه الدالة تبدو هكذا
-// ✅✅ استبدل الدالة القديمة بهذه النسخة المصححة بالكامل ✅✅
-function showLogin() {
-    document.getElementById('loginOverlay').style.display = 'flex';
-    
-    // --- ⭐️ هذا هو التصحيح المهم ⭐️ ---
-    // أولاً، ابحث عن الحاوية الرئيسية
-    const mainContainer = document.getElementById('mainContainer');
-    // ثانياً، فقط إذا كانت الحاوية موجودة، قم بإخفائها
-    if (mainContainer) {
-        mainContainer.style.display = 'none';
-    }
-    // --- نهاية التصحيح ---
 
-    document.getElementById('lockIndicator').style.display = 'none';
-    const pwdInput = document.getElementById('passwordInput');
-    if (pwdInput) {
-        pwdInput.value = '';
-        pwdInput.focus();
-    }
+ function showLogin() {
+    document.querySelector('.login-overlay').style.display = 'flex';
+    document.querySelector('.container').style.display = 'none';
+    document.querySelector('.lock-indicator').style.display = 'none';
 }
 
 
@@ -3067,152 +3064,51 @@ function showClassSchedule() {
 }
 
 
-        // ✅✅✅ النسخة النهائية والمحسّنة لدالة التوزيع الذكي ✅✅✅
+       // ✅✅✅ نسخة جديدة ومحسّنة بالكامل لدالة توزيع الانتظار ✅✅✅
 function autoAssignWaiting() {
-    if (!confirm('سيتم الآن إعادة هيكلة حصص الانتظار بالكامل.\n\nالمرحلة 1: سيتم ملء الجدول بـ 5 حصص انتظار في كل خانة زمنية.\nالمرحلة 2: سيتم توزيع هذه الحصص بعدالة على المعلمين لإكمال نصابهم.\n\nهل تريد المتابعة؟')) {
+    if (!confirm('سيتم إعادة بناء جدول الانتظار بالكامل. هل تريد المتابعة؟')) {
         return;
     }
 
-    console.log('🚀 بدء التوزيع الذكي للانتظار بنهج المرحلتين...');
+    console.log('🚀 بدء عملية التوزيع الذكي الجديدة...');
 
-    // --- الخطوة 0: حذف جميع حصص الانتظار القديمة ---
-    let removedCount = 0;
+    // --- الخطوة 1: جمع كل الخلايا المتاحة للانتظار ---
+    const availableSlots = [];
     for (let i = 0; i < 42; i++) {
         days.forEach(day => {
             for (let period = 1; period <= 7; period++) {
                 const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                if (select && select.value && select.value.startsWith('انتظار')) {
-                    select.value = '';
-                    removedCount++;
-                }
-            }
-        });
-    }
-    console.log(`🗑️ تم حذف: ${removedCount} حصة انتظار قديمة.`);
-
-    // --- المرحلة الأولى: ملء الجدول بـ 5 حصص انتظار في كل خانة زمنية ---
-    console.log('--- المرحلة 1: بدء ملء الجدول بالانتظارات ---');
-    const waitingTypes = ['انتظار1', 'انتظار2', 'انتظار3', 'انتظار4', 'انتظار5'];
-    
-    days.forEach(day => {
-        for (let period = 1; period <= 7; period++) {
-            if (day === 'thu' && period === 7) continue; // استثناء الحصة الأخيرة يوم الخميس
-
-            const availableTeachersForSlot = [];
-            for (let i = 0; i < 42; i++) {
-                const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                // ابحث فقط عن الخلايا الفارغة (ليست حصة دراسية وليست وهمية)
+                // الخلية متاحة إذا كانت فارغة (لا حصة دراسية ولا وهمية)
                 if (select && !select.value) {
-                    availableTeachersForSlot.push(i);
+                    availableSlots.push(select);
                 }
-            }
-
-            // لكل نوع انتظار (من 1 إلى 5)، ابحث عن معلم فارغ وأسند له الحصة
-            for (let j = 0; j < waitingTypes.length; j++) {
-                if (j < availableTeachersForSlot.length) {
-                    const teacherIndex = availableTeachersForSlot[j];
-                    const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
-                    select.value = waitingTypes[j];
-                }
-            }
-        }
-    });
-    console.log('✅ اكتملت المرحلة 1: تم توزيع هياكل الانتظار في الجدول.');
-
-    // --- المرحلة الثانية: إعادة توزيع الحصص بعدالة على المعلمين (المنطق الذكي) ---
-    console.log('--- المرحلة 2: بدء إعادة التوزيع العادل على المعلمين ---');
-    
-    // 1. حساب البيانات الأساسية للمعلمين
-    const teacherData = {};
-    for (let i = 0; i < 42; i++) {
-        const teacherName = document.getElementById(`teacher_${i}`)?.value;
-        if (!teacherName || !teacherName.trim()) continue;
-
-        let classCount = 0;
-        const hasClassAfterPeriod = {};
-        days.forEach(day => {
-            hasClassAfterPeriod[day] = 0;
-            for (let period = 1; period <= 7; period++) {
-                const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                if (select && select.value && !select.value.startsWith('انتظار') && select.value !== 'وهمي') {
-                    classCount++;
-                    hasClassAfterPeriod[day] = period; // آخر حصة للمعلم في هذا اليوم
+                // قم بإزالة أي حصص انتظار قديمة
+                else if (select && select.value.startsWith('انتظار')) {
+                    select.value = '';
+                    availableSlots.push(select);
                 }
             }
         });
-
-        teacherData[i] = {
-            name: teacherName,
-            classCount: classCount,
-            waitingAssigned: 0,
-            get total() { return this.classCount + this.waitingAssigned; },
-            hasClassAfterPeriod: hasClassAfterPeriod
-        };
     }
+    console.log(`🔍 تم العثور على ${availableSlots.length} خانة متاحة للانتظار.`);
 
-    // 2. المرور على كل حصة انتظار وإعادة إسنادها للمعلم الأنسب
-    let assignedCount = 0;
-    days.forEach(day => {
-        for (let period = 1; period <= 7; period++) {
-            waitingTypes.forEach(waitingType => {
-                let currentHolder = -1;
-                // ابحث عن المعلم الذي يحمل حصة الانتظار هذه حاليًا
-                for (let i = 0; i < 42; i++) {
-                    const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                    if (select && select.value === waitingType) {
-                        currentHolder = i;
-                        break;
-                    }
-                }
-
-                if (currentHolder === -1) return; // لم يتم العثور على حامل الحصة
-
-                // ابحث عن أفضل معلم لهذه الحصة
-                const eligibleTeachers = Object.keys(teacherData)
-                    .map(Number)
-                    .filter(i => {
-                        const teacher = teacherData[i];
-                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        
-                        // الشروط:
-                        // 1. الخلية فارغة أو تحتوي على حصة الانتظار الحالية
-                        // 2. نصاب المعلم لم يكتمل (أقل من 20)
-                        // 3. قاعدة الحصة الثالثة
-                        return (select && (!select.value || select.value === waitingType)) &&
-                               (teacher.total < 20) &&
-                               !(period > 3 && teacher.hasClassAfterPeriod[day] > 0 && teacher.hasClassAfterPeriod[day] <= 3);
-                    })
-                    .sort((a, b) => {
-                        // ترتيب حسب الأولوية: الأقل نصاباً ثم الأقل حصصاً
-                        return teacherData[a].total - teacherData[b].total || teacherData[a].classCount - teacherData[b].classCount;
-                    });
-
-                if (eligibleTeachers.length > 0) {
-                    const bestTeacherIndex = eligibleTeachers[0];
-                    
-                    // إذا كان المعلم الأفضل ليس هو الحامل الحالي، قم بالتبديل
-                    if (bestTeacherIndex !== currentHolder) {
-                        document.getElementById(`cell_${currentHolder}_${day}_${period}`).value = '';
-                        document.getElementById(`cell_${bestTeacherIndex}_${day}_${period}`).value = waitingType;
-                    }
-                    teacherData[bestTeacherIndex].waitingAssigned++;
-                    assignedCount++;
-                }
-            });
-        }
+    // --- الخطوة 2: توزيع حصص الانتظار (1-5) بشكل دوري على الخانات المتاحة ---
+    const waitingTypes = ['انتظار1', 'انتظار2', 'انتظار3', 'انتظار4', 'انتظار5'];
+    availableSlots.forEach((slot, index) => {
+        // استخدم معامل القسمة (%) للتوزيع الدوري
+        slot.value = waitingTypes[index % waitingTypes.length];
     });
-    
-    console.log(`✅ اكتملت المرحلة 2: تم إسناد ${assignedCount} حصة انتظار.`);
+    console.log('✅ تم ملء الجدول بهياكل الانتظار.');
 
-    // --- الخطوة النهائية: تحديث الواجهة وعرض التقرير ---
-    saveData(); // حفظ التغييرات
+    // --- الخطوة 3: تحديث الواجهة بالكامل ---
+    // لا حاجة لتقرير معقد، فالهدف هو ملء الجدول
+    saveData();
     updateClassCounts();
     checkConflicts();
     checkUnassignedClasses();
-    displayAutoAssignReport(Object.values(teacherData), removedCount, assignedCount);
-}
 
-        }
+    alert('✅ تم إعادة بناء وتوزيع حصص الانتظار بنجاح في الجدول!');
+}
 
             function displayAutoAssignReport(teacherData, removedCount, assignedCount) {
             // حساب الانتظار الفعلي بعد التوزيع
