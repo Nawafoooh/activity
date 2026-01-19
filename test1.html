@@ -2323,7 +2323,6 @@ function createSchedule() {
         console.log(`\n🔍 معالجة الحصة ${period} - الفصل: ${vacant.class}`);
 
         // --- الخطوة 1: تحديد نوع الانتظار المطلوب بالترتيب ---
-        // نحسب كم حصة تم إسنادها في هذه الحصة المحددة
         let assignedInThisPeriod = 0;
         for (let i = 0; i < index; i++) {
             if (vacantClasses[i].period === period && vacantClasses[i].assignedTo) {
@@ -2331,7 +2330,6 @@ function createSchedule() {
             }
         }
 
-        // نوع الانتظار المطلوب = الترتيب في هذه الحصة
         const requiredWaitingType = waitingTypes[assignedInThisPeriod];
         
         if (!requiredWaitingType) {
@@ -2343,7 +2341,7 @@ function createSchedule() {
 
         console.log(`🎯 المطلوب: ${requiredWaitingType} للحصة ${period}`);
 
-        // --- الخطوة 2: البحث عن البديل المثالي ---
+        // --- الخطوة 2: البحث عن البديل من معلمي الانتظار فقط ---
         const potentialSubstitutes = [];
 
         for (let i = 0; i < 42; i++) {
@@ -2355,42 +2353,63 @@ function createSchedule() {
             const substituteName = document.getElementById(`teacher_${i}`).value.trim();
             if (!substituteName) continue;
 
-            // ✅ الشرط 1: يجب أن يكون عنده انتظار في هذه الحصة
             const cellValue = substituteSelect.value;
-            if (cellValue !== requiredWaitingType) continue;
 
-            // ✅ الشرط 2: لم يأخذ حصة انتظار اليوم بعد
+            // ✅ الشرط الأساسي: يجب أن يكون عنده انتظار في هذه الحصة
+            if (!cellValue.startsWith('انتظار')) continue;
+
+            // ✅ الشرط: لم يأخذ حصة انتظار اليوم بعد
             if (!dailyAssignmentsCount[substituteName]) {
                 dailyAssignmentsCount[substituteName] = 0;
             }
             if (dailyAssignmentsCount[substituteName] >= 1) continue;
 
-            // ✅ الشرط 3: التحقق من التتبع الأسبوعي
+            // ✅ حساب الأولوية
             const weeklyCount = weeklyData[substituteName] || 0;
-
+            
+            // ✅ الأولوية القصوى: من عنده النوع المطلوب بالضبط
+            const isExactMatch = (cellValue === requiredWaitingType);
+            
             potentialSubstitutes.push({
                 name: substituteName,
                 index: i,
-                weeklyCount: weeklyCount
+                waitingType: cellValue,
+                weeklyCount: weeklyCount,
+                isExactMatch: isExactMatch
             });
         }
 
-        // ترتيب البدلاء حسب الأقل أسبوعياً
-        potentialSubstitutes.sort((a, b) => a.weeklyCount - b.weeklyCount);
+        // ✅ ترتيب البدلاء: الأولوية للمطابقة التامة، ثم الأقل أسبوعياً
+        potentialSubstitutes.sort((a, b) => {
+            // أولاً: المطابقة التامة لها الأولوية
+            if (a.isExactMatch && !b.isExactMatch) return -1;
+            if (!a.isExactMatch && b.isExactMatch) return 1;
+            // ثانياً: الأقل حصص أسبوعية
+            return a.weeklyCount - b.weeklyCount;
+        });
+
+        console.log(`📋 عدد البدلاء المحتملين (معلمي انتظار): ${potentialSubstitutes.length}`);
 
         if (potentialSubstitutes.length > 0) {
             const bestSubstitute = potentialSubstitutes[0];
             vacant.assignedTo = bestSubstitute.name;
             vacant.status = 'تم الإسناد';
-            vacant.assignmentReason = `بديل ${requiredWaitingType} (الأقل أسبوعياً: ${bestSubstitute.weeklyCount})`;
+            
+            if (bestSubstitute.isExactMatch) {
+                vacant.assignmentReason = `بديل ${requiredWaitingType} (أسبوعياً: ${bestSubstitute.weeklyCount})`;
+            } else {
+                vacant.assignmentReason = `بديل ${bestSubstitute.waitingType} بدلاً من ${requiredWaitingType} (أسبوعياً: ${bestSubstitute.weeklyCount})`;
+            }
+            
             dailyAssignmentsCount[bestSubstitute.name]++;
             assigned = true;
-            console.log(`✅ تم الإسناد لـ: ${bestSubstitute.name}`);
+            console.log(`✅ تم الإسناد لمعلم انتظار: ${bestSubstitute.name} - ${bestSubstitute.waitingType}`);
         }
 
-        // --- الخطوة 3: إذا لم يتم إسناد بديل مثالي، ابحث عن معلم فارغ ---
+        // --- الخطوة 3: فقط إذا لم يتم العثور على أي معلم انتظار، ابحث عن معلم فارغ ---
         if (!assigned) {
-            console.log(`🔄 البحث عن معلم فارغ...`);
+            console.log(`⚠️ لم يتم العثور على معلم انتظار متاح`);
+            console.log(`🔄 البحث عن معلم فارغ كحل أخير...`);
             
             const emptyTeachers = [];
             for (let i = 0; i < 42; i++) {
@@ -2429,18 +2448,18 @@ function createSchedule() {
                 const bestSubstitute = emptyTeachers[0];
                 vacant.assignedTo = bestSubstitute.name;
                 vacant.status = 'تم الإسناد';
-                vacant.assignmentReason = `معلم فارغ (نصاب: ${bestSubstitute.totalClasses}, أسبوعياً: ${bestSubstitute.weeklyCount})`;
+                vacant.assignmentReason = `⚠️ معلم فارغ (لا يوجد انتظار متاح) - نصاب: ${bestSubstitute.totalClasses}, أسبوعياً: ${bestSubstitute.weeklyCount}`;
                 dailyAssignmentsCount[bestSubstitute.name]++;
                 assigned = true;
-                console.log(`✅ تم الإسناد لمعلم فارغ: ${bestSubstitute.name}`);
+                console.log(`✅ تم الإسناد لمعلم فارغ (حل أخير): ${bestSubstitute.name}`);
             }
         }
 
         // --- إذا لم يتم الإسناد ---
         if (!assigned) {
             vacant.status = 'لم تسند تلقائياً';
-            vacant.assignmentReason = 'لا يوجد بديل متاح';
-            console.log(`❌ لم يتم الإسناد - لا يوجد بديل`);
+            vacant.assignmentReason = '❌ لا يوجد بديل متاح (لا انتظار ولا معلمين فارغين)';
+            console.log(`❌ لم يتم الإسناد - لا يوجد أي بديل`);
         }
     });
 
@@ -2462,12 +2481,22 @@ function createSchedule() {
     // إحصائيات سريعة
     const assignedCount = vacantClasses.filter(v => v.assignedTo).length;
     const unassignedCount = vacantClasses.length - assignedCount;
+    const emptyAssignedCount = vacantClasses.filter(v => v.assignmentReason.includes('معلم فارغ')).length;
     
     console.log(`\n📊 النتائج النهائية:`);
     console.log(`✅ تم الإسناد: ${assignedCount}`);
+    console.log(`⚠️ منها لمعلمين فارغين: ${emptyAssignedCount}`);
     console.log(`❌ لم يتم الإسناد: ${unassignedCount}`);
     
-    alert(`✅ تم توزيع الانتظار!\n\n📊 الإحصائيات:\n✅ تم إسناد: ${assignedCount} حصة\n❌ لم يسند: ${unassignedCount} حصة`);
+    let message = `✅ تم توزيع الانتظار!\n\n📊 الإحصائيات:\n✅ تم إسناد: ${assignedCount} حصة`;
+    if (emptyAssignedCount > 0) {
+        message += `\n⚠️ منها لمعلمين فارغين: ${emptyAssignedCount}`;
+    }
+    if (unassignedCount > 0) {
+        message += `\n❌ لم يسند: ${unassignedCount} حصة`;
+    }
+    
+    alert(message);
 }
 
         // ✅✅ الخطوة 3: استبدل الدالة القديمة بهذه النسخة الجديدة بالكامل ✅✅
