@@ -2647,114 +2647,160 @@ function switchTab(tabName) {
             alert(`✅ تم مسح ${removedCount} حصة وهمية بنجاح!`);
         }
 
-        function showScheduleStats() {
-            let totalTeachers = 0;
-            let totalClasses = 0;
-            let totalWaiting = 0;
-            let totalDummy = 0;
-            let totalEmpty = 0;
+        // =====================================================
+// دالة عرض جدول الفصل
+// =====================================================
+function showClassSchedule() {
+    const classValue = document.getElementById('classNumberSelect').value;
+    const viewDiv = document.getElementById('classScheduleView');
+    
+    if (!classValue) {
+        viewDiv.innerHTML = '';
+        return;
+    }
 
-            const teacherStats = [];
+    const [grade, classNum] = classValue.split('-');
+    const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
+    const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
+    const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
 
+    let html = `
+        <div class="teacher-schedule-table">
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">جدول ${className}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="day-header">اليوم / الحصة</th>
+                        <th class="period-header">الأولى</th>
+                        <th class="period-header">الثانية</th>
+                        <th class="period-header">الثالثة</th>
+                        <th class="period-header">الرابعة</th>
+                        <th class="period-header">الخامسة</th>
+                        <th class="period-header">السادسة</th>
+                        <th class="period-header">السابعة</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    days.forEach(day => {
+        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
+        
+        for (let period = 1; period <= 7; period++) {
+            let teacherName = '-';
+            let cellStyle = '';
+            
             for (let i = 0; i < 42; i++) {
-                const teacherName = document.getElementById(`teacher_${i}`)?.value;
-                if (!teacherName || !teacherName.trim()) continue;
-
-                totalTeachers++;
-                let classes = 0;
-                let waiting = 0;
-                let dummy = 0;
-                let empty = 0;
-
-                days.forEach(day => {
-                    for (let period = 1; period <= 7; period++) {
-                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select) {
-                            if (select.value && select.value.startsWith('انتظار')) {
-                                waiting++;
-                            } else if (select.value === 'وهمي') {
-                                dummy++;
-                            } else if (select.value && !select.value.startsWith('انتظار')) {
-                                classes++;
-                            } else {
-                                empty++;
-                            }
-                        }
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    const teacherInput = document.getElementById(`teacher_${i}`);
+                    if (teacherInput) {
+                        teacherName = teacherInput.value.trim();
+                    } else {
+                        teacherName = `معلم ${i + 1}`;
                     }
-                });
-
-                totalClasses += classes;
-                totalWaiting += waiting;
-                totalDummy += dummy;
-                totalEmpty += empty;
-
-                teacherStats.push({
-                    name: teacherName,
-                    classes: classes,
-                    waiting: waiting,
-                    dummy: dummy,
-                    empty: empty,
-                    total: classes + waiting + dummy
-                });
+                    cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
+                    break;
+                }
             }
 
-            // ترتيب المعلمين حسب الإجمالي
-            teacherStats.sort((a, b) => b.total - a.total);
+            // --- ⭐️ بداية المنطق الذكي الجديد ⭐️ ---
+            let subject = null;
+            const assignmentKey = `${day}_${period}`; // مفتاح البحث مثل 'sun_6'
 
-            let statsHTML = `
-                <div style="color: #2d3748; font-size: 14px;">
-                    <div style="background: #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                        <h4 style="margin-bottom: 10px; color: #2c5282;">📊 الإحصائيات العامة:</h4>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                            <div>👥 عدد المعلمين: <strong>${totalTeachers}</strong></div>
-                            <div>📚 حصص دراسية: <strong>${totalClasses}</strong></div>
-                            <div>⏳ حصص انتظار: <strong>${totalWaiting}</strong></div>
-                            <div>🚫 حصص وهمية: <strong>${totalDummy}</strong></div>
-                            <div>⬜ خلايا فارغة: <strong>${totalEmpty}</strong></div>
-                            <div>📈 الإجمالي: <strong>${totalClasses + totalWaiting + totalDummy}</strong></div>
-                        </div>
+            // 1. ابحث أولاً في قائمة الاستثناءات
+            if (specialAssignments[teacherName] && specialAssignments[teacherName][assignmentKey]) {
+                subject = specialAssignments[teacherName][assignmentKey];
+            } else {
+                // 2. إذا لم تجد استثناءً، ابحث في القائمة الأساسية
+                subject = teacherSubjects[teacherName];
+            }
+            // --- ⭐️ نهاية المنطق الذكي الجديد ⭐️ ---
+
+            let displayContent = teacherName;
+            if (teacherName !== '-' && subject) {
+                displayContent = `
+                    <div style="line-height: 1.4;">
+                        <div style="font-weight: bold; font-size: 14px;">${teacherName}</div>
+                        <div style="font-size: 11px; color: #2c7a7b; margin-top: 2px;">📚 ${subject}</div>
                     </div>
-
-                    <h4 style="margin-bottom: 10px; color: #2c5282;">👥 تفاصيل المعلمين:</h4>
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                            <thead style="position: sticky; top: 0; background: #edf2f7;">
-                                <tr>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0; text-align: right;">المعلم</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">دراسية</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">انتظار</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">وهمي</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">فارغة</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">المجموع</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-
-            teacherStats.forEach(stat => {
-                const rowColor = stat.total === 20 ? '#c6f6d5' : (stat.total < 20 ? '#fed7d7' : '#fef5e7');
-                statsHTML += `
-                    <tr style="background: ${rowColor};">
-                        <td style="padding: 8px; border: 1px solid #cbd5e0;">${stat.name}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.classes}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.waiting}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.dummy}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.empty}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center; font-weight: bold;">${stat.total}</td>
-                    </tr>
                 `;
-            });
+            } else if (teacherName !== '-') {
+                displayContent = `<div style="font-weight: bold; font-size: 14px;">${teacherName}</div>`;
+            }
 
-            statsHTML += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-
-            document.getElementById('generalStatsContent').innerHTML = statsHTML;
-            document.getElementById('generalStats').style.display = 'block';
+            html += `<td style="${cellStyle} padding: 8px;">${displayContent}</td>`;
         }
+        
+        html += '</tr>';
+    });
+
+    // حساب إجمالي الحصص
+    let totalClasses = 0;
+    days.forEach(day => {
+        for (let period = 1; period <= 7; period++) {
+            for (let i = 0; i < 42; i++) {
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    totalClasses++;
+                    break;
+                }
+            }
+        }
+    });
+
+    html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
+                            📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+
+    viewDiv.innerHTML = html;
+}
+
+// =====================================================
+// دالة طباعة جدول الفصل
+// =====================================================
+function printClassSchedule() {
+    const classValue = document.getElementById('classNumberSelect').value;
+    
+    if (!classValue) {
+        alert('يرجى اختيار فصل أولاً!');
+        return;
+    }
+    
+    document.body.classList.add('printing-class-schedule');
+    window.print();
+    document.body.classList.remove('printing-class-schedule');
+}
+
+// =====================================================
+// دالة طباعة التقرير اليومي
+// =====================================================
+function printDailyReport() {
+    // هذا الكود يقوم بنسخ محتوى التقرير فقط وطباعته
+    const printContents = document.getElementById('waitingResult').innerHTML;
+    const originalContents = document.body.innerHTML;
+    
+    // استبدل محتوى الصفحة بمحتوى التقرير للطباعة
+    document.body.innerHTML = printContents;
+    
+    // استدعاء وظيفة الطباعة في المتصفح
+    window.print();
+    
+    // أعد محتوى الصفحة الأصلي بعد الطباعة
+    document.body.innerHTML = originalContents;
+    
+    // أعد تحميل الصفحة لإعادة بناء أي أحداث جافاسكربت قد تكون فُقدت
+    location.reload(); 
+}
 
         function updateTeacherSelect() {
             const select = document.getElementById('teacherSelect');
@@ -2910,147 +2956,7 @@ function switchTab(tabName) {
             document.getElementById('classScheduleView').innerHTML = '';
         }
 
-    function showClassSchedule() {
-    const classValue = document.getElementById('classNumberSelect').value;
-    const viewDiv = document.getElementById('classScheduleView');
-    
-    if (!classValue) {
-        viewDiv.innerHTML = '';
-        return;
-    }
-
-    const [grade, classNum] = classValue.split('-');
-    const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
-    const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
-    const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
-
-    let html = `
-        <div class="teacher-schedule-table">
-            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">جدول ${className}</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th class="day-header">اليوم / الحصة</th>
-                        <th class="period-header">الأولى</th><th class="period-header">الثانية</th><th class="period-header">الثالثة</th>
-                        <th class="period-header">الرابعة</th><th class="period-header">الخامسة</th><th class="period-header">السادسة</th>
-                        <th class="period-header">السابعة</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    days.forEach(day => {
-        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
-        
-        for (let period = 1; period <= 7; period++) {
-            let teacherName = '-';
-            let cellStyle = '';
-            
-            for (let i = 0; i < 42; i++) {
-                const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                if (select && select.value === classValue) {
-                    const teacherInput = document.getElementById(`teacher_${i}`);
-                    if (teacherInput) {
-                        teacherName = teacherInput.value.trim();
-                    } else {
-                        teacherName = `معلم ${i + 1}`;
-                    }
-                    cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
-                    break;
-                }
-            }
-
-    function printClassSchedule() {
-    const classValue = document.getElementById('classNumberSelect').value;
-    if (!classValue) {
-        alert('يرجى اختيار فصل أولاً!');
-        return;
-    }
-    document.body.classList.add('printing-class-schedule');
-    window.print();
-    document.body.classList.remove('printing-class-schedule');
-}
-
-            // --- ⭐️ بداية المنطق الذكي الجديد ⭐️ ---
-            let subject = null;
-            const assignmentKey = `${day}_${period}`; // مفتاح البحث مثل 'sun_6'
-
-            // 1. ابحث أولاً في قائمة الاستثناءات
-            if (specialAssignments[teacherName] && specialAssignments[teacherName][assignmentKey]) {
-                subject = specialAssignments[teacherName][assignmentKey];
-            } else {
-                // 2. إذا لم تجد استثناءً، ابحث في القائمة الأساسية
-                subject = teacherSubjects[teacherName];
-            }
-            // --- ⭐️ نهاية المنطق الذكي الجديد ⭐️ ---
-
-            let displayContent = teacherName;
-            if (teacherName !== '-' && subject) {
-                displayContent = `
-                    <div style="line-height: 1.4;">
-                        <div style="font-weight: bold; font-size: 14px;">${teacherName}</div>
-                        <div style="font-size: 11px; color: #2c7a7b; margin-top: 2px;">📚 ${subject}</div>
-                    </div>
-                `;
-            } else if (teacherName !== '-') {
-                displayContent = `<div style="font-weight: bold; font-size: 14px;">${teacherName}</div>`;
-            }
-
-            html += `<td style="${cellStyle} padding: 8px;">${displayContent}</td>`;
-        }
-        
-        html += '</tr>';
-    });
-
-    // باقي الدالة يبقى كما هو
-    let totalClasses = 0;
-    days.forEach(day => {
-        for (let period = 1; period <= 7; period++) {
-            for (let i = 0; i < 42; i++) {
-                const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                if (select && select.value === classValue) {
-                    totalClasses++;
-                    break;
-                }
-            }
-        }
-    });
-
-    html += `
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
-                            📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    `;
-
-    viewDiv.innerHTML = html;
-}
-
-   function printDailyReport() {
-    // هذا الكود يقوم بنسخ محتوى التقرير فقط وطباعته
-    const printContents = document.getElementById('waitingResult').innerHTML;
-    const originalContents = document.body.innerHTML;
-    
-    // استبدل محتوى الصفحة بمحتوى التقرير للطباعة
-    document.body.innerHTML = printContents;
-    
-    // استدعاء وظيفة الطباعة في المتصفح
-    window.print();
-    
-    // أعد محتوى الصفحة الأصلي بعد الطباعة
-    document.body.innerHTML = originalContents;
-    
-    // أعد تحميل الصفحة لإعادة بناء أي أحداث جافاسكربت قد تكون فُقدت
-    location.reload(); 
-}
-
-
+   
   // ✅✅✅ النسخة النهائية المبنية على فهمك الصحيح 100% ✅✅✅
 function autoAssignWaiting() {
     if (!confirm('سيتم الآن تطبيق "التوزيع الكامل" لإكمال نصاب جميع المعلمين إلى 20 حصة. هل أنت متأكد؟')) {
