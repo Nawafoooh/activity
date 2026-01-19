@@ -775,68 +775,80 @@
             font-weight: bold;
         }
 
-        @media print {
-            .firebase-status {
-                display: none;
-            }
-            
-            /* ✅ إخفاء كامل للحصص الوهمية - بدون أي أثر */
-            td[data-dummy="true"] {
-                background: transparent !important;
-                background-image: none !important;
-            }
-            
-            td[data-dummy="true"] select {
-                visibility: hidden !important;
-            }
-            
-            td[data-dummy="true"]::after {
-                content: "";
-                visibility: visible;
-                display: block;
-                text-align: center;
-            }
-            
-            /* إزالة تأثير الخطوط المائلة عند الطباعة */
-            .dummy-cell {
-                background: transparent !important;
-                background-image: none !important;
-            }
-        }
+        /* ✅✅✅ استبدل قسم @media print بالكامل بهذا الكود المحدث ✅✅✅ */
 
-        @media print {
-            body {
-                background: white;
-                padding: 5px;
-            }
+@media print {
+    /* --- إعدادات عامة للطباعة --- */
+    body {
+        background: white;
+        padding: 5px;
+    }
+    .container {
+        box-shadow: none;
+        padding: 5px;
+    }
+    /* إخفاء العناصر غير المرغوب فيها عند الطباعة */
+    .firebase-status, .buttons, .alert, .tabs, .waiting-section, .teacher-schedule-selector {
+        display: none;
+    }
+    .header h1 {
+        font-size: 1.3em;
+    }
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
 
-            .container {
-                box-shadow: none;
-                padding: 5px;
-            }
+    /* --- إعدادات طباعة الجدول الرئيسي --- */
+    .schedule-table {
+        font-size: 8px;
+        min-width: 100%;
+    }
+    .schedule-table th,
+    .schedule-table td {
+        padding: 3px 2px;
+    }
+    .teacher-name {
+        width: 100px;
+        min-width: 100px;
+    }
+    /* إخفاء الحصص الوهمية بشكل احترافي عند الطباعة */
+    td[data-dummy="true"] {
+        background: transparent !important;
+        background-image: none !important;
+    }
+    td[data-dummy="true"] select {
+        visibility: hidden !important;
+    }
+    td[data-dummy="true"]::after {
+        content: "";
+        visibility: visible;
+        display: block;
+        text-align: center;
+    }
+    .dummy-cell {
+        background: transparent !important;
+        background-image: none !important;
+    }
 
-            .buttons, .alert, .waiting-section, .tabs {
-                display: none;
-            }
+    /* --- إعدادات طباعة جدول المعلم --- */
+    body.printing-teacher-schedule .schedule-wrapper,
+    body.printing-teacher-schedule #classScheduleView {
+        display: none;
+    }
+    body.printing-teacher-schedule #teacherScheduleView {
+        display: block !important;
+    }
 
-            .schedule-table {
-                font-size: 8px;
-                min-width: 100%;
-            }
-
-            .schedule-table th,
-            .schedule-table td {
-                padding: 3px 2px;
-            }
-
-            .teacher-name {
-                width: 100px;
-                min-width: 100px;
-            }
-
-            .header h1 {
-                font-size: 1.3em;
-            }
+    /* --- ⭐️⭐️ القواعد الجديدة لطباعة جدول الفصل ⭐️⭐️ --- */
+    body.printing-class-schedule .schedule-wrapper,
+    body.printing-class-schedule #teacherScheduleView {
+        display: none; /* إخفاء كل شيء آخر */
+    }
+    body.printing-class-schedule #classScheduleView {
+        display: block !important; /* إظهار جدول الفصل فقط */
+    }
+}
 
             @page {
                 size: A4 landscape;
@@ -2956,6 +2968,23 @@ function showClassSchedule() {
                     break;
                 }
             }
+
+            // ✅✅ الخطوة 2: استبدل الدالة القديمة بهذه النسخة المصححة ✅✅
+function printClassSchedule() {
+    const classValue = document.getElementById('classNumberSelect').value;
+    
+    if (!classValue) {
+        alert('يرجى اختيار فصل أولاً!');
+        return;
+    }
+
+    // --- ⭐️ هذا هو التصحيح المهم ⭐️ ---
+    // استخدم الفئة الجديدة والمخصصة لجدول الفصل
+    document.body.classList.add('printing-class-schedule');
+    window.print();
+    document.body.classList.remove('printing-class-schedule');
+}
+
             
             // --- ⭐️ بداية المنطق الذكي الجديد ⭐️ ---
             let subject = null;
