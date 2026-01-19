@@ -1295,6 +1295,74 @@
 // الأرقام تمثل فهرس المعلم (تبدأ من 0). معلم 21 هو 20، 22 هو 21، 42 هو 41.
 const excludedTeachers = [20, 21, 41]; 
 
+        // ✅✅ الخطوة 1: أضف هذه الدوال الجديدة لإدارة الذاكرة الأسبوعية ✅✅
+
+const WEEKLY_TRACKING_KEY = 'weeklyWaitingAssignments';
+
+// دالة لجلب بيانات التتبع الأسبوعي من الذاكرة
+function getWeeklyTrackingData() {
+    try {
+        const data = localStorage.getItem(WEEKLY_TRACKING_KEY);
+        return data ? JSON.parse(data) : {};
+    } catch (e) {
+        console.error("Failed to parse weekly tracking data:", e);
+        return {};
+    }
+}
+
+// دالة لحفظ بيانات التتبع الأسبوعي في الذاكرة
+function saveWeeklyTrackingData(data) {
+    try {
+        localStorage.setItem(WEEKLY_TRACKING_KEY, JSON.stringify(data));
+    } catch (e) {
+        console.error("Failed to save weekly tracking data:", e);
+    }
+}
+
+// دالة لتحديث وعرض جدول المتابعة الأسبوعي
+function refreshWeeklyTracking() {
+    const trackingData = getWeeklyTrackingData();
+    const contentDiv = document.getElementById('weeklyTrackingContent');
+    
+    const teacherArray = Object.entries(trackingData).map(([name, count]) => ({ name, count }));
+    teacherArray.sort((a, b) => b.count - a.count); // ترتيب من الأعلى للأقل
+
+    if (teacherArray.length === 0) {
+        contentDiv.innerHTML = '<div class="alert info">لا توجد بيانات مسجلة لهذا الأسبوع بعد.</div>';
+        return;
+    }
+
+    let html = `
+        <table class="waiting-table">
+            <thead>
+                <tr>
+                    <th>المعلم</th>
+                    <th>عدد حصص الانتظار المسندة هذا الأسبوع</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    teacherArray.forEach(teacher => {
+        html += `
+            <tr>
+                <td>${teacher.name}</td>
+                <td style="font-weight: bold; font-size: 16px;">${teacher.count}</td>
+            </tr>
+        `;
+    });
+    html += '</tbody></table>';
+    contentDiv.innerHTML = html;
+}
+
+// دالة لمسح بيانات التتبع في نهاية الأسبوع
+function resetWeeklyTracking() {
+    if (confirm('هل أنت متأكد من مسح جميع بيانات متابعة الانتظار لهذا الأسبوع؟\n\nيجب القيام بذلك في نهاية كل أسبوع للبدء من جديد.')) {
+        localStorage.removeItem(WEEKLY_TRACKING_KEY);
+        refreshWeeklyTracking();
+        alert('✅ تم مسح بيانات التتبع الأسبوعي بنجاح.');
+    }
+}
+
         const SESSION_KEY = 'schedule_auth_session';
         
                 // التحقق من الجلسة عند تحميل الصفحة
@@ -2122,180 +2190,127 @@ function createSchedule() {
             }
         }
 
-        function distributeWaiting() {
-            const absentTeachers = [];
-            
-            for (let selectNum = 1; selectNum <= 5; selectNum++) {
-                const index = document.getElementById(`absentTeacher${selectNum}`)?.value;
-                if (index) {
-                    absentTeachers.push(parseInt(index));
-                }
-            }
-            
-            const day = document.getElementById('absenceDay').value;
-            const date = document.getElementById('absenceDate').value;
-            
-            if (absentTeachers.length === 0 || !day) {
-                alert('يرجى اختيار معلم غائب واحد على الأقل واليوم!');
-                return;
-            }
-            
-            const allAbsentClasses = [];
-            absentTeachers.forEach(absentTeacherIndex => {
-                const absentTeacherName = document.getElementById(`teacher_${absentTeacherIndex}`).value;
-                
-                for (let period = 1; period <= 7; period++) {
-                    const select = document.getElementById(`cell_${absentTeacherIndex}_${day}_${period}`);
-                    
-                    // ✅ تحقق مهم: تجاهل الحصص الوهمية تماماً
-                    if (select && select.value && !select.value.startsWith('انتظار') && select.value !== 'وهمي') {
-                        allAbsentClasses.push({
-                            period: period,
-                            class: select.value,
-                            teacherName: absentTeacherName,
-                            teacherIndex: absentTeacherIndex
-                        });
-                    }
-                }
-            });
-            
-            if (allAbsentClasses.length === 0) {
-                alert('المعلمين المختارين ليس لديهم حصص دراسية في هذا اليوم!\n\nملاحظة: الحصص الوهمية لا يتم توزيع انتظار لها.');
-                return;
-            }
-
-            // حساب عدد حصص كل معلم (حصص دراسية فقط - بدون وهمي)
-            const teacherClassCounts = {};
-            for (let i = 0; i < 42; i++) {
-                teacherClassCounts[i] = 0;
-                days.forEach(d => {
-                    for (let p = 1; p <= 7; p++) {
-                        const sel = document.getElementById(`cell_${i}_${d}_${p}`);
-                        if (sel && sel.value && !sel.value.startsWith('انتظار') && sel.value !== 'وهمي') {
-                            teacherClassCounts[i]++;
-                        }
-                    }
-                });
-            }
-
-            // إنشاء قائمة المعلمين المتاحين مرتبة حسب عدد الحصص (الأقل أولاً)
-            const availableTeachers = [];
-            for (let i = 0; i < 42; i++) {
-                if (absentTeachers.includes(i)) continue; // استثناء المعلمين الغائبين
-                
-                const teacherInput = document.getElementById(`teacher_${i}`);
-                if (!teacherInput || !teacherInput.value.trim()) continue;
-                
-                availableTeachers.push({
-                    index: i,
-                    name: teacherInput.value,
-                    classCount: teacherClassCounts[i]
-                });
-            }
-            
-            // ترتيب المعلمين حسب عدد الحصص (الأقل أولاً)
-            availableTeachers.sort((a, b) => a.classCount - b.classCount);
-            
-            const assignments = [];
-            const teacherWaitingCount = {}; // تتبع عدد حصص الانتظار المسندة في هذا اليوم
-
-            for (const absentClass of allAbsentClasses) {
-                let assigned = false;
-
-                // محاولة الإسناد للمعلمين حسب الأولوية
-                for (const teacher of availableTeachers) {
-                    const i = teacher.index;
-                    
-                    // التحقق: هل المعلم لديه حصة انتظار في نفس الوقت؟
-                    const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
-                    if (!select) continue;
-                    
-                    const cellValue = select.value;
-                    
-                    // ✅ تحقق مهم: تجاهل الحصص الوهمية تماماً - لا يمكن الإسناد فيها
-                    if (cellValue === 'وهمي') {
-                        continue; // انتقل للمعلم التالي
-                    }
-                    
-                    // التحقق: يجب أن تكون الخلية تحتوي على حصة انتظار أو فارغة
-                    if (!cellValue || cellValue.startsWith('انتظار')) {
-                        // التحقق: لم يسبق للمعلم الإسناد في هذا اليوم
-                        if (!teacherWaitingCount[i]) {
-                            teacherWaitingCount[i] = 0;
-                        }
-                        
-                        if (teacherWaitingCount[i] >= 1) {
-                            continue; // هذا المعلم تم إسناد حصة له بالفعل اليوم
-                        }
-                        
-                        // التحقق: هل المعلم متواجد (له حصة دراسية أو انتظار) في نفس الوقت؟
-                        if (!cellValue || cellValue.startsWith('انتظار')) {
-                            assignments.push({
-                                period: absentClass.period,
-                                class: absentClass.class,
-                                teacher: teacher.name,
-                                teacherIndex: i,
-                                absentTeacher: absentClass.teacherName,
-                                waitingType: cellValue || 'متاح'
-                            });
-                            
-                            teacherWaitingCount[i]++;
-                            assigned = true;
-                            break;
-                        }
-                    }
-                }
-
-                // إذا لم يتم الإسناد، ابحث عن أي معلم متاح حتى لو كان لديه حصة (ولكن ليس وهمي)
-                if (!assigned) {
-                    for (const teacher of availableTeachers) {
-                        const i = teacher.index;
-                        
-                        if (!teacherWaitingCount[i]) {
-                            teacherWaitingCount[i] = 0;
-                        }
-                        
-                        if (teacherWaitingCount[i] >= 1) {
-                            continue;
-                        }
-                        
-                        const select = document.getElementById(`cell_${i}_${day}_${absentClass.period}`);
-                        if (select) {
-                            // ✅ تحقق مهم: تجاهل الحصص الوهمية حتى في هذه المرحلة
-                            if (select.value === 'وهمي') {
-                                continue;
-                            }
-                            
-                            assignments.push({
-                                period: absentClass.period,
-                                class: absentClass.class,
-                                teacher: teacher.name + ' (مشغول)',
-                                teacherIndex: i,
-                                absentTeacher: absentClass.teacherName,
-                                waitingType: 'تعارض'
-                            });
-                            
-                            teacherWaitingCount[i]++;
-                            assigned = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!assigned) {
-                    assignments.push({
-                        period: absentClass.period,
-                        class: absentClass.class,
-                        teacher: 'لم يتم التوزيع',
-                        teacherIndex: null,
-                        absentTeacher: absentClass.teacherName,
-                        waitingType: 'غير متوفر'
-                    });
-                }
-            }
-            
-            displayWaitingResults(absentTeachers, day, date, assignments);
+        // ✅✅ الخطوة 2: استبدل الدالة القديمة بهذه النسخة المطورة بالكامل ✅✅
+function distributeWaiting() {
+    // ... (بداية الدالة تبقى كما هي)
+    const absentTeacherIndexes = [];
+    for (let i = 1; i <= 5; i++) {
+        const select = document.getElementById(`absentTeacher${i}`);
+        if (select && select.value) {
+            absentTeacherIndexes.push(parseInt(select.value));
         }
+    }
+    const day = document.getElementById('absenceDay').value;
+    const date = document.getElementById('absenceDate').value;
+    if (absentTeacherIndexes.length === 0 || !day) {
+        alert('يرجى اختيار معلم غائب واحد على الأقل واليوم المحدد!');
+        return;
+    }
+
+    // --- ⭐️ بداية المنطق الجديد ⭐️ ---
+    const weeklyData = getWeeklyTrackingData(); // جلب الذاكرة الأسبوعية
+    // --- نهاية المنطق الجديد ---
+
+    const vacantClasses = [];
+    // ... (جمع الحصص الشاغرة يبقى كما هو)
+    absentTeacherIndexes.forEach(teacherIndex => {
+        const teacherName = document.getElementById(`teacher_${teacherIndex}`).value.trim();
+        for (let period = 1; period <= 7; period++) {
+            const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
+            const classValue = select ? select.value : '';
+            if (classValue && !classValue.startsWith('انتظار') && classValue !== 'وهمي') {
+                vacantClasses.push({ period, class: classValue, absentTeacher: teacherName, status: 'لم تسند بعد', assignedTo: null, assignmentReason: '' });
+            }
+        }
+    });
+
+    if (vacantClasses.length === 0) {
+        alert('المعلمون المختارون ليس لديهم حصص دراسية في هذا اليوم.');
+        return;
+    }
+
+    const dailyAssignmentsCount = {};
+
+    vacantClasses.forEach(vacant => {
+        let assigned = false;
+
+        // --- الأولوية الأولى: البحث عن البديل الأساسي مع ميزان العدالة ---
+        const potentialSubstitutes = [];
+        for (let i = 0; i < 42; i++) {
+            if (excludedTeachers.includes(i) || absentTeacherIndexes.includes(i)) continue;
+            const substituteSelect = document.getElementById(`cell_${i}_${day}_${vacant.period}`);
+            if (substituteSelect && substituteSelect.value.startsWith('انتظار')) {
+                const substituteName = document.getElementById(`teacher_${i}`).value.trim();
+                if (!dailyAssignmentsCount[substituteName]) dailyAssignmentsCount[substituteName] = 0;
+                if (dailyAssignmentsCount[substituteName] < 1) {
+                    potentialSubstitutes.push({ name: substituteName, weeklyCount: weeklyData[substituteName] || 0 });
+                }
+            }
+        }
+
+        if (potentialSubstitutes.length > 0) {
+            // ⭐️ الترتيب حسب العدالة الأسبوعية أولاً ⭐️
+            potentialSubstitutes.sort((a, b) => a.weeklyCount - b.weeklyCount);
+            const bestSubstitute = potentialSubstitutes[0];
+            vacant.assignedTo = bestSubstitute.name;
+            vacant.status = 'تم الإسناد';
+            vacant.assignmentReason = 'بديل أساسي (الأقل أسبوعياً)';
+            dailyAssignmentsCount[bestSubstitute.name]++;
+            assigned = true;
+        }
+
+        // --- الأولوية الثانية: البحث عن معلم فارغ مع ميزان العدالة ---
+        if (!assigned) {
+            const emptyTeachers = [];
+            for (let i = 0; i < 42; i++) {
+                if (excludedTeachers.includes(i) || absentTeacherIndexes.includes(i)) continue;
+                const substituteSelect = document.getElementById(`cell_${i}_${day}_${vacant.period}`);
+                if (substituteSelect && !substituteSelect.value) {
+                    const substituteName = document.getElementById(`teacher_${i}`).value.trim();
+                    if (!dailyAssignmentsCount[substituteName]) dailyAssignmentsCount[substituteName] = 0;
+                    if (dailyAssignmentsCount[substituteName] < 1) {
+                        emptyTeachers.push({ name: substituteName, index: i, weeklyCount: weeklyData[substituteName] || 0 });
+                    }
+                }
+            }
+
+            if (emptyTeachers.length > 0) {
+                // ⭐️ الترتيب حسب النصاب أولاً ثم العدالة الأسبوعية ⭐️
+                emptyTeachers.sort((a, b) => {
+                    const totalA = parseInt(document.getElementById(`count_${a.index}`).textContent);
+                    const totalB = parseInt(document.getElementById(`count_${b.index}`).textContent);
+                    return (totalA - totalB) || (a.weeklyCount - b.weeklyCount);
+                });
+                const bestSubstitute = emptyTeachers[0];
+                vacant.assignedTo = bestSubstitute.name;
+                vacant.status = 'تم الإسناد';
+                vacant.assignmentReason = 'معلم فارغ (الأقل نصاباً وأسبوعياً)';
+                dailyAssignmentsCount[bestSubstitute.name]++;
+                assigned = true;
+            }
+        }
+        
+        if (!assigned) {
+            vacant.status = 'لم تسند تلقائياً';
+            vacant.assignmentReason = 'لا يوجد بديل متاح';
+        }
+    });
+
+    // --- تحديث الذاكرة الأسبوعية بعد الإسناد ---
+    vacantClasses.forEach(vacant => {
+        if (vacant.assignedTo) {
+            if (!weeklyData[vacant.assignedTo]) {
+                weeklyData[vacant.assignedTo] = 0;
+            }
+            weeklyData[vacant.assignedTo]++;
+        }
+    });
+    saveWeeklyTrackingData(weeklyData); // حفظ البيانات المحدثة
+    console.log('💾 تم تحديث ذاكرة التتبع الأسبوعي.');
+
+    displayWaitingResults(absentTeacherIndexes, day, date, vacantClasses);
+}
+
 
         function displayWaitingResults(absentTeachers, day, date, assignments) {
             const dayNames = {
@@ -2532,31 +2547,31 @@ function createSchedule() {
             reader.readAsText(file);
         }
 
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
+        // ✅✅ الخطوة 3: استبدل دالة switchTab بهذه النسخة ✅✅
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
 
-            if (tabName === 'main') {
-                document.getElementById('mainTab').classList.add('active');
-                document.querySelectorAll('.tab')[0].classList.add('active');
-            } else if (tabName === 'teacher') {
-                document.getElementById('teacherTab').classList.add('active');
-                document.querySelectorAll('.tab')[1].classList.add('active');
-                updateTeacherSelect();
-            } else if (tabName === 'class') {
-                document.getElementById('classTab').classList.add('active');
-                document.querySelectorAll('.tab')[2].classList.add('active');
-            } else if (tabName === 'manage') {
-                document.getElementById('manageTab').classList.add('active');
-                document.querySelectorAll('.tab')[3].classList.add('active');
-                // ✅ تحميل قيم معلمي الحاسب عند فتح التبويب
-                loadLabTeacherSettings();
-            }
-        }
+    const tabElement = document.getElementById(tabName + 'Tab');
+    const buttonElement = document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`);
+
+    if (tabElement) tabElement.classList.add('active');
+    if (buttonElement) buttonElement.classList.add('active');
+
+    // --- ⭐️ تفعيل التبويب الجديد ⭐️ ---
+    if (tabName === 'weekly') {
+        refreshWeeklyTracking(); // تحديث البيانات عند فتح التبويب
+    }
+    // --- نهاية التفعيل ---
+    
+    if (tabName === 'teacher') {
+        updateTeacherSelect();
+    }
+    if (tabName === 'manage') {
+        loadLabTeacherSettings();
+    }
+}
+
 
         function loadLabTeacherSettings() {
             const teacher1 = document.getElementById('labTeacher1').value;
