@@ -775,69 +775,89 @@
             font-weight: bold;
         }
 
-        @media print {
-            .firebase-status {
-                display: none;
-            }
-            
-            /* ✅ إخفاء كامل للحصص الوهمية - بدون أي أثر */
-            td[data-dummy="true"] {
-                background: transparent !important;
-                background-image: none !important;
-            }
-            
-            td[data-dummy="true"] select {
-                visibility: hidden !important;
-            }
-            
-            td[data-dummy="true"]::after {
-                content: "";
-                visibility: visible;
-                display: block;
-                text-align: center;
-            }
-            
-            /* إزالة تأثير الخطوط المائلة عند الطباعة */
-            .dummy-cell {
-                background: transparent !important;
-                background-image: none !important;
-            }
-        }
+@media print {
+    /* --- إعدادات عامة للطباعة --- */
+    body {
+        background: white;
+        padding: 5px;
+    }
+    .container {
+        box-shadow: none;
+        padding: 5px;
+    }
+    /* إخفاء العناصر غير المرغوب فيها عند الطباعة */
+    .firebase-status, .buttons, .alert, .tabs {
+        display: none;
+    }
+    .header h1 {
+        font-size: 1.3em;
+    }
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
 
-        @media print {
-            body {
-                background: white;
-                padding: 5px;
-            }
+    /* ============================================
+   إخفاء تبويب الإدارة عند الطباعة
+   ============================================ */
+@media print {
+    #manageTab {
+        display: none !important;
+    }
+    
+    /* إخفاء عناصر الإحصائيات المنبثقة */
+    #waitingStats,
+    #dummyStats,
+    #generalStats {
+        display: none !important;
+    }
+}
 
-            .container {
-                box-shadow: none;
-                padding: 5px;
-            }
+    /* --- ⭐️⭐️ هذا هو التصحيح المهم ⭐️⭐️ --- */
+    /* عند طباعة الجدول الرئيسي، أخفِ قوائم اختيار المعلم/الفصل */
+    body:not(.printing-teacher-schedule):not(.printing-class-schedule) .teacher-schedule-selector {
+        display: none;
+    }
+    /* --- نهاية التصحيح --- */
 
-            .buttons, .alert, .waiting-section, .tabs {
-                display: none;
-            }
 
-            .schedule-table {
-                font-size: 8px;
-                min-width: 100%;
-            }
+    /* --- إعدادات طباعة الجدول الرئيسي --- */
+    .schedule-table {
+        font-size: 8px;
+        min-width: 100%;
+    }
+    .schedule-table th,
+    .schedule-table td {
+        padding: 3px 2px;
+    }
+    .teacher-name {
+        width: 100px;
+        min-width: 100px;
+    }
+    /* إخفاء الحصص الوهمية بشكل احترافي عند الطباعة */
+    td[data-dummy="true"] { background: transparent !important; background-image: none !important; }
+    td[data-dummy="true"] select { visibility: hidden !important; }
+    td[data-dummy="true"]::after { content: ""; visibility: visible; display: block; text-align: center; }
+    .dummy-cell { background: transparent !important; background-image: none !important; }
 
-            .schedule-table th,
-            .schedule-table td {
-                padding: 3px 2px;
-            }
+    /* --- إعدادات طباعة جدول المعلم --- */
+    body.printing-teacher-schedule .schedule-wrapper,
+    body.printing-teacher-schedule #classScheduleView {
+        display: none;
+    }
+    body.printing-teacher-schedule #teacherScheduleView {
+        display: block !important;
+    }
 
-            .teacher-name {
-                width: 100px;
-                min-width: 100px;
-            }
-
-            .header h1 {
-                font-size: 1.3em;
-            }
-
+    /* --- إعدادات طباعة جدول الفصل --- */
+    body.printing-class-schedule .schedule-wrapper,
+    body.printing-class-schedule #teacherScheduleView {
+        display: none;
+    }
+    body.printing-class-schedule #classScheduleView {
+        display: block !important;
+    }
+}
             @page {
                 size: A4 landscape;
                 margin: 10mm;
@@ -1177,102 +1197,141 @@
 <!-- ⭐️⭐️ نهاية محتوى التبويب الجديد ⭐️⭐️ -->
 <!-- ======================================================== -->
 
-                    <!-- قسم مسح حصص الانتظار -->
-                    <div style="background: #f7fafc; padding: 25px; border-radius: 10px; border: 2px solid #cbd5e0;">
-                        <h3 style="color: #2c5282; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                            ⏳ إدارة حصص الانتظار
-                        </h3>
-                        <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.6;">
-                            يمكنك مسح جميع حصص الانتظار من الجدول مع الاحتفاظ بالحصص الدراسية. 
-                            هذا مفيد عند إعادة توزيع الانتظار من جديد.
-                        </p>
-                        <button class="btn" style="background: #ed8936; color: white; width: 100%;" onclick="clearWaitingClasses()">
-                            🗑️ مسح جميع حصص الانتظار
-                        </button>
-                        <div id="waitingStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
-                            <strong style="color: #2d3748;">📊 الإحصائيات:</strong>
-                            <div id="waitingStatsContent" style="margin-top: 10px; color: #4a5568;"></div>
-                        </div>
-                    </div>
+                    <div id="manageTab" class="tab-content">
+    <div style="padding: 20px;">
+        <!-- العنوان الرئيسي -->
+        <h2 style="text-align: center; color: #2d3748; margin-bottom: 30px; border-bottom: 3px solid #4a5568; padding-bottom: 15px;">
+            🔧 إدارة وصيانة الجدول المدرسي
+        </h2>
 
-                    <!-- قسم مسح الحصص الوهمية -->
-                    <div style="background: #f7fafc; padding: 25px; border-radius: 10px; border: 2px solid #cbd5e0;">
-                        <h3 style="color: #805ad5; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                            🚫 إدارة الحصص الوهمية
-                        </h3>
-                        <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.6;">
-                            يمكنك مسح جميع الحصص الوهمية من الجدول. 
-                            الحصص الوهمية تُستخدم لمنع إسناد الانتظار في خلايا معينة.
-                        </p>
-                        <button class="btn" style="background: #9f7aea; color: white; width: 100%;" onclick="clearDummyClasses()">
-                            🗑️ مسح جميع الحصص الوهمية
-                        </button>
-                        <div id="dummyStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
-                            <strong style="color: #2d3748;">📊 الإحصائيات:</strong>
-                            <div id="dummyStatsContent" style="margin-top: 10px; color: #4a5568;"></div>
-                        </div>
-                    </div>
-
-                    <!-- قسم مسح كامل -->
-                    <div style="background: #fff5f5; padding: 25px; border-radius: 10px; border: 2px solid #fc8181;">
-                        <h3 style="color: #c53030; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                            ⚠️ مسح الجدول بالكامل
-                        </h3>
-                        <p style="color: #742a2a; margin-bottom: 20px; line-height: 1.6;">
-                            <strong>تحذير:</strong> سيتم مسح جميع البيانات بما في ذلك أسماء المعلمين والحصص الدراسية. 
-                            هذا الإجراء لا يمكن التراجع عنه!
-                        </p>
-                        <button class="btn btn-clear" style="width: 100%;" onclick="clearSchedule()">
-                            🗑️ مسح الجدول بالكامل
-                        </button>
-                    </div>
-
-                    <!-- إحصائيات عامة -->
-                    <div style="background: #ebf8ff; padding: 25px; border-radius: 10px; border: 2px solid #63b3ed;">
-                        <h3 style="color: #2c5282; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                            📊 إحصائيات الجدول الحالي
-                        </h3>
-                        <button class="btn" style="background: #4299e1; color: white; width: 100%;" onclick="showScheduleStats()">
-                            📈 عرض الإحصائيات التفصيلية
-                        </button>
-                        <div id="generalStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
-                            <div id="generalStatsContent"></div>
-                        </div>
-                    </div>
-
-                    <!-- إعدادات معمل الحاسب -->
-                    <div style="background: #fff7ed; padding: 25px; border-radius: 10px; border: 2px solid #f97316;">
-                        <h3 style="color: #c2410c; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                            💻 إعدادات كشف تعارض معمل الحاسب
-                        </h3>
-                        <p style="color: #9a3412; margin-bottom: 15px; line-height: 1.6;">
-                            النظام يكشف تلقائياً أي تعارض بين معلمي الحاسب (حصص في نفس الوقت) ويظهرها باللون البرتقالي 🟠
-                        </p>
-                        <div style="display: grid; gap: 15px;">
-                            <div>
-                                <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 8px;">
-                                    معلم الحاسب الأول:
-                                </label>
-                                <input type="text" id="labTeacher1Visible" 
-                                       style="width: 100%; padding: 12px; border: 2px solid #fdba74; border-radius: 5px; font-size: 14px;"
-                                       onchange="updateLabTeacher(1, this.value)">
-                            </div>
-                            <div>
-                                <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 8px;">
-                                    معلم الحاسب الثاني:
-                                </label>
-                                <input type="text" id="labTeacher2Visible" 
-                                       style="width: 100%; padding: 12px; border: 2px solid #fdba74; border-radius: 5px; font-size: 14px;"
-                                       onchange="updateLabTeacher(2, this.value)">
-                            </div>
-                        </div>
-                        <p style="color: #9a3412; font-size: 13px; margin-top: 15px; padding: 10px; background: #fed7aa; border-radius: 5px;">
-                            💡 <strong>ملاحظة:</strong> بعد تغيير الأسماء، ارجع للجدول الرئيسي لترى التعارضات باللون البرتقالي
-                        </p>
-                    </div>
+        <div style="display: grid; gap: 25px; max-width: 1200px; margin: 0 auto;">
+            
+            <!-- ============================================ -->
+            <!-- قسم 1: إدارة حصص الانتظار -->
+            <!-- ============================================ -->
+            <div style="background: #f7fafc; padding: 25px; border-radius: 10px; border: 2px solid #cbd5e0;">
+                <h3 style="color: #2c5282; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    ⏳ إدارة حصص الانتظار
+                </h3>
+                <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.6;">
+                    يمكنك مسح جميع حصص الانتظار من الجدول مع الاحتفاظ بالحصص الدراسية. 
+                    هذا مفيد عند إعادة توزيع الانتظار من جديد.
+                </p>
+                <button class="btn" style="background: #ed8936; color: white; width: 100%;" onclick="clearWaitingClasses()">
+                    🗑️ مسح جميع حصص الانتظار
+                </button>
+                <div id="waitingStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
+                    <strong style="color: #2d3748;">📊 الإحصائيات:</strong>
+                    <div id="waitingStatsContent" style="margin-top: 10px; color: #4a5568;"></div>
                 </div>
             </div>
+
+            <!-- ============================================ -->
+            <!-- قسم 2: إدارة الحصص الوهمية -->
+            <!-- ============================================ -->
+            <div style="background: #f7fafc; padding: 25px; border-radius: 10px; border: 2px solid #cbd5e0;">
+                <h3 style="color: #805ad5; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    🚫 إدارة الحصص الوهمية
+                </h3>
+                <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.6;">
+                    يمكنك مسح جميع الحصص الوهمية من الجدول. 
+                    الحصص الوهمية تُستخدم لمنع إسناد الانتظار في خلايا معينة.
+                </p>
+                <button class="btn" style="background: #9f7aea; color: white; width: 100%;" onclick="clearDummyClasses()">
+                    🗑️ مسح جميع الحصص الوهمية
+                </button>
+                <div id="dummyStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
+                    <strong style="color: #2d3748;">📊 الإحصائيات:</strong>
+                    <div id="dummyStatsContent" style="margin-top: 10px; color: #4a5568;"></div>
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- قسم 3: مسح الجدول بالكامل (تحذير) -->
+            <!-- ============================================ -->
+            <div style="background: #fff5f5; padding: 25px; border-radius: 10px; border: 2px solid #fc8181;">
+                <h3 style="color: #c53030; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    ⚠️ مسح الجدول بالكامل
+                </h3>
+                <p style="color: #742a2a; margin-bottom: 20px; line-height: 1.6;">
+                    <strong>تحذير:</strong> سيتم مسح جميع البيانات بما في ذلك أسماء المعلمين والحصص الدراسية. 
+                    هذا الإجراء لا يمكن التراجع عنه!
+                </p>
+                <button class="btn btn-clear" style="width: 100%;" onclick="clearSchedule()">
+                    🗑️ مسح الجدول بالكامل
+                </button>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- قسم 4: إحصائيات الجدول الحالي -->
+            <!-- ============================================ -->
+            <div style="background: #ebf8ff; padding: 25px; border-radius: 10px; border: 2px solid #63b3ed;">
+                <h3 style="color: #2c5282; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    📊 إحصائيات الجدول الحالي
+                </h3>
+                <button class="btn" style="background: #4299e1; color: white; width: 100%;" onclick="showScheduleStats()">
+                    📈 عرض الإحصائيات التفصيلية
+                </button>
+                <div id="generalStats" style="margin-top: 15px; padding: 15px; background: white; border-radius: 8px; display: none;">
+                    <div id="generalStatsContent"></div>
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- قسم 5: إعدادات معمل الحاسب -->
+            <!-- ============================================ -->
+            <div style="background: #fff7ed; padding: 25px; border-radius: 10px; border: 2px solid #f97316;">
+                <h3 style="color: #c2410c; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    💻 إعدادات كشف تعارض معمل الحاسب
+                </h3>
+                <p style="color: #9a3412; margin-bottom: 15px; line-height: 1.6;">
+                    النظام يكشف تلقائياً أي تعارض بين معلمي الحاسب (حصص في نفس الوقت) ويظهرها باللون البرتقالي 🟠 
+                </p>
+                <div style="display: grid; gap: 15px;">
+                    <div>
+                        <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 8px;">
+                            معلم الحاسب الأول:
+                        </label>
+                        <input type="text" id="labTeacher1Visible" 
+                               style="width: 100%; padding: 12px; border: 2px solid #fdba74; border-radius: 5px; font-size: 14px;"
+                               onchange="updateLabTeacher(1, this.value)">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: bold; color: #9a3412; margin-bottom: 8px;">
+                            معلم الحاسب الثاني:
+                        </label>
+                        <input type="text" id="labTeacher2Visible" 
+                               style="width: 100%; padding: 12px; border: 2px solid #fdba74; border-radius: 5px; font-size: 14px;"
+                               onchange="updateLabTeacher(2, this.value)">
+                    </div>
+                </div>
+                <p style="color: #9a3412; font-size: 13px; margin-top: 15px; padding: 10px; background: #fed7aa; border-radius: 5px;">
+                    💡 <strong>ملاحظة:</strong> بعد تغيير الأسماء، ارجع للجدول الرئيسي لترى التعارضات باللون البرتقالي
+                </p>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- قسم 6: نصائح وإرشادات -->
+            <!-- ============================================ -->
+            <div style="background: #f0fff4; padding: 25px; border-radius: 10px; border: 2px solid #68d391;">
+                <h3 style="color: #22543d; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    💡 نصائح للاستخدام الأمثل
+                </h3>
+                <ul style="color: #2d3748; line-height: 2; margin: 0; padding-right: 20px;">
+                    <li><strong>النسخ الاحتياطي:</strong> قم بتصدير الجدول بانتظام قبل إجراء أي تعديلات كبيرة</li>
+                    <li><strong>التوزيع العادل:</strong> استخدم "التوزيع الكامل" لضمان توزيع متوازن للحصص</li>
+                    <li><strong>الحصص الوهمية:</strong> استخدمها لمنع توزيع الانتظار في أوقات محددة</li>
+                    <li><strong>متابعة الإحصائيات:</strong> راجع الإحصائيات بشكل دوري للتأكد من توازن الجدول</li>
+                    <li><strong>معمل الحاسب:</strong> تأكد من ضبط أسماء معلمي الحاسب لكشف التعارضات</li>
+                </ul>
+            </div>
+
         </div>
+    </div>
+</div>
+<!-- ======================================================== -->
+<!-- نهاية تبويب إدارة الجدول -->
+<!-- ======================================================== -->
 
             <!-- حالة الاتصال بـ Firebase -->
         <div id="firebaseStatus" class="firebase-status disconnected">
@@ -2643,114 +2702,160 @@ function switchTab(tabName) {
             alert(`✅ تم مسح ${removedCount} حصة وهمية بنجاح!`);
         }
 
-        function showScheduleStats() {
-            let totalTeachers = 0;
-            let totalClasses = 0;
-            let totalWaiting = 0;
-            let totalDummy = 0;
-            let totalEmpty = 0;
+        // =====================================================
+// دالة عرض جدول الفصل
+// =====================================================
+function showClassSchedule() {
+    const classValue = document.getElementById('classNumberSelect').value;
+    const viewDiv = document.getElementById('classScheduleView');
+    
+    if (!classValue) {
+        viewDiv.innerHTML = '';
+        return;
+    }
 
-            const teacherStats = [];
+    const [grade, classNum] = classValue.split('-');
+    const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
+    const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
+    const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
 
+    let html = `
+        <div class="teacher-schedule-table">
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">جدول ${className}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="day-header">اليوم / الحصة</th>
+                        <th class="period-header">الأولى</th>
+                        <th class="period-header">الثانية</th>
+                        <th class="period-header">الثالثة</th>
+                        <th class="period-header">الرابعة</th>
+                        <th class="period-header">الخامسة</th>
+                        <th class="period-header">السادسة</th>
+                        <th class="period-header">السابعة</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    days.forEach(day => {
+        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
+        
+        for (let period = 1; period <= 7; period++) {
+            let teacherName = '-';
+            let cellStyle = '';
+            
             for (let i = 0; i < 42; i++) {
-                const teacherName = document.getElementById(`teacher_${i}`)?.value;
-                if (!teacherName || !teacherName.trim()) continue;
-
-                totalTeachers++;
-                let classes = 0;
-                let waiting = 0;
-                let dummy = 0;
-                let empty = 0;
-
-                days.forEach(day => {
-                    for (let period = 1; period <= 7; period++) {
-                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                        if (select) {
-                            if (select.value && select.value.startsWith('انتظار')) {
-                                waiting++;
-                            } else if (select.value === 'وهمي') {
-                                dummy++;
-                            } else if (select.value && !select.value.startsWith('انتظار')) {
-                                classes++;
-                            } else {
-                                empty++;
-                            }
-                        }
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    const teacherInput = document.getElementById(`teacher_${i}`);
+                    if (teacherInput) {
+                        teacherName = teacherInput.value.trim();
+                    } else {
+                        teacherName = `معلم ${i + 1}`;
                     }
-                });
-
-                totalClasses += classes;
-                totalWaiting += waiting;
-                totalDummy += dummy;
-                totalEmpty += empty;
-
-                teacherStats.push({
-                    name: teacherName,
-                    classes: classes,
-                    waiting: waiting,
-                    dummy: dummy,
-                    empty: empty,
-                    total: classes + waiting + dummy
-                });
+                    cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
+                    break;
+                }
             }
 
-            // ترتيب المعلمين حسب الإجمالي
-            teacherStats.sort((a, b) => b.total - a.total);
+            // --- ⭐️ بداية المنطق الذكي الجديد ⭐️ ---
+            let subject = null;
+            const assignmentKey = `${day}_${period}`; // مفتاح البحث مثل 'sun_6'
 
-            let statsHTML = `
-                <div style="color: #2d3748; font-size: 14px;">
-                    <div style="background: #edf2f7; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                        <h4 style="margin-bottom: 10px; color: #2c5282;">📊 الإحصائيات العامة:</h4>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                            <div>👥 عدد المعلمين: <strong>${totalTeachers}</strong></div>
-                            <div>📚 حصص دراسية: <strong>${totalClasses}</strong></div>
-                            <div>⏳ حصص انتظار: <strong>${totalWaiting}</strong></div>
-                            <div>🚫 حصص وهمية: <strong>${totalDummy}</strong></div>
-                            <div>⬜ خلايا فارغة: <strong>${totalEmpty}</strong></div>
-                            <div>📈 الإجمالي: <strong>${totalClasses + totalWaiting + totalDummy}</strong></div>
-                        </div>
+            // 1. ابحث أولاً في قائمة الاستثناءات
+            if (specialAssignments[teacherName] && specialAssignments[teacherName][assignmentKey]) {
+                subject = specialAssignments[teacherName][assignmentKey];
+            } else {
+                // 2. إذا لم تجد استثناءً، ابحث في القائمة الأساسية
+                subject = teacherSubjects[teacherName];
+            }
+            // --- ⭐️ نهاية المنطق الذكي الجديد ⭐️ ---
+
+            let displayContent = teacherName;
+            if (teacherName !== '-' && subject) {
+                displayContent = `
+                    <div style="line-height: 1.4;">
+                        <div style="font-weight: bold; font-size: 14px;">${teacherName}</div>
+                        <div style="font-size: 11px; color: #2c7a7b; margin-top: 2px;">📚 ${subject}</div>
                     </div>
-
-                    <h4 style="margin-bottom: 10px; color: #2c5282;">👥 تفاصيل المعلمين:</h4>
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                            <thead style="position: sticky; top: 0; background: #edf2f7;">
-                                <tr>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0; text-align: right;">المعلم</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">دراسية</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">انتظار</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">وهمي</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">فارغة</th>
-                                    <th style="padding: 8px; border: 1px solid #cbd5e0;">المجموع</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-
-            teacherStats.forEach(stat => {
-                const rowColor = stat.total === 20 ? '#c6f6d5' : (stat.total < 20 ? '#fed7d7' : '#fef5e7');
-                statsHTML += `
-                    <tr style="background: ${rowColor};">
-                        <td style="padding: 8px; border: 1px solid #cbd5e0;">${stat.name}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.classes}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.waiting}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.dummy}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center;">${stat.empty}</td>
-                        <td style="padding: 8px; border: 1px solid #cbd5e0; text-align: center; font-weight: bold;">${stat.total}</td>
-                    </tr>
                 `;
-            });
+            } else if (teacherName !== '-') {
+                displayContent = `<div style="font-weight: bold; font-size: 14px;">${teacherName}</div>`;
+            }
 
-            statsHTML += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-
-            document.getElementById('generalStatsContent').innerHTML = statsHTML;
-            document.getElementById('generalStats').style.display = 'block';
+            html += `<td style="${cellStyle} padding: 8px;">${displayContent}</td>`;
         }
+        
+        html += '</tr>';
+    });
+
+    // حساب إجمالي الحصص
+    let totalClasses = 0;
+    days.forEach(day => {
+        for (let period = 1; period <= 7; period++) {
+            for (let i = 0; i < 42; i++) {
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    totalClasses++;
+                    break;
+                }
+            }
+        }
+    });
+
+    html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
+                            📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+
+    viewDiv.innerHTML = html;
+}
+
+// =====================================================
+// دالة طباعة جدول الفصل
+// =====================================================
+function printClassSchedule() {
+    const classValue = document.getElementById('classNumberSelect').value;
+    
+    if (!classValue) {
+        alert('يرجى اختيار فصل أولاً!');
+        return;
+    }
+    
+    document.body.classList.add('printing-class-schedule');
+    window.print();
+    document.body.classList.remove('printing-class-schedule');
+}
+
+// =====================================================
+// دالة طباعة التقرير اليومي
+// =====================================================
+function printDailyReport() {
+    // هذا الكود يقوم بنسخ محتوى التقرير فقط وطباعته
+    const printContents = document.getElementById('waitingResult').innerHTML;
+    const originalContents = document.body.innerHTML;
+    
+    // استبدل محتوى الصفحة بمحتوى التقرير للطباعة
+    document.body.innerHTML = printContents;
+    
+    // استدعاء وظيفة الطباعة في المتصفح
+    window.print();
+    
+    // أعد محتوى الصفحة الأصلي بعد الطباعة
+    document.body.innerHTML = originalContents;
+    
+    // أعد تحميل الصفحة لإعادة بناء أي أحداث جافاسكربت قد تكون فُقدت
+    location.reload(); 
+}
 
         function updateTeacherSelect() {
             const select = document.getElementById('teacherSelect');
@@ -2906,119 +3011,7 @@ function switchTab(tabName) {
             document.getElementById('classScheduleView').innerHTML = '';
         }
 
-        // ✅✅ الخطوة 2: استبدل الدالة القديمة بهذه النسخة المحدثة بالكامل ✅✅
-function showClassSchedule() {
-    const classValue = document.getElementById('classNumberSelect').value;
-    const viewDiv = document.getElementById('classScheduleView');
-    
-    if (!classValue) {
-        viewDiv.innerHTML = '';
-        return;
-    }
-
-    const [grade, classNum] = classValue.split('-');
-    const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
-    const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
-    const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
-
-    let html = `
-        <div class="teacher-schedule-table">
-            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">جدول ${className}</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th class="day-header">اليوم / الحصة</th>
-                        <th class="period-header">الأولى</th><th class="period-header">الثانية</th><th class="period-header">الثالثة</th>
-                        <th class="period-header">الرابعة</th><th class="period-header">الخامسة</th><th class="period-header">السادسة</th>
-                        <th class="period-header">السابعة</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    days.forEach(day => {
-        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
-        
-        for (let period = 1; period <= 7; period++) {
-            let teacherName = '-';
-            let cellStyle = '';
-            
-            for (let i = 0; i < 42; i++) {
-                const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                if (select && select.value === classValue) {
-                    const teacherInput = document.getElementById(`teacher_${i}`);
-                    if (teacherInput) {
-                        teacherName = teacherInput.value.trim();
-                    } else {
-                        teacherName = `معلم ${i + 1}`;
-                    }
-                    cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
-                    break;
-                }
-            }
-            
-            // --- ⭐️ بداية المنطق الذكي الجديد ⭐️ ---
-            let subject = null;
-            const assignmentKey = `${day}_${period}`; // مفتاح البحث مثل 'sun_6'
-
-            // 1. ابحث أولاً في قائمة الاستثناءات
-            if (specialAssignments[teacherName] && specialAssignments[teacherName][assignmentKey]) {
-                subject = specialAssignments[teacherName][assignmentKey];
-            } else {
-                // 2. إذا لم تجد استثناءً، ابحث في القائمة الأساسية
-                subject = teacherSubjects[teacherName];
-            }
-            // --- ⭐️ نهاية المنطق الذكي الجديد ⭐️ ---
-
-            let displayContent = teacherName;
-            if (teacherName !== '-' && subject) {
-                displayContent = `
-                    <div style="line-height: 1.4;">
-                        <div style="font-weight: bold; font-size: 14px;">${teacherName}</div>
-                        <div style="font-size: 11px; color: #2c7a7b; margin-top: 2px;">📚 ${subject}</div>
-                    </div>
-                `;
-            } else if (teacherName !== '-') {
-                displayContent = `<div style="font-weight: bold; font-size: 14px;">${teacherName}</div>`;
-            }
-
-            html += `<td style="${cellStyle} padding: 8px;">${displayContent}</td>`;
-        }
-        
-        html += '</tr>';
-    });
-
-    // باقي الدالة يبقى كما هو
-    let totalClasses = 0;
-    days.forEach(day => {
-        for (let period = 1; period <= 7; period++) {
-            for (let i = 0; i < 42; i++) {
-                const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                if (select && select.value === classValue) {
-                    totalClasses++;
-                    break;
-                }
-            }
-        }
-    });
-
-    html += `
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
-                            📊 إجمالي عدد الحصص: <span style="color: #2c5282;">${totalClasses}</span> حصة
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    `;
-
-    viewDiv.innerHTML = html;
-}
-
-
+   
   // ✅✅✅ النسخة النهائية المبنية على فهمك الصحيح 100% ✅✅✅
 function autoAssignWaiting() {
     if (!confirm('سيتم الآن تطبيق "التوزيع الكامل" لإكمال نصاب جميع المعلمين إلى 20 حصة. هل أنت متأكد؟')) {
@@ -3280,4 +3273,3 @@ function autoAssignWaiting() {
         </script>
 </body>
 </html> 
-
