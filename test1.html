@@ -3,145 +3,930 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>جدول مدرسي كامل - النسخة النهائية</title>
+    <title>جدول مدرسي كامل - محسّن</title>
     <style>
-        /* ... (كل أكواد CSS تبقى كما هي بدون تغيير) ... */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; padding: 15px; }
-        .login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-        .login-box { background: white; padding: 50px 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); text-align: center; max-width: 400px; width: 90%; animation: slideDown 0.5s ease-out; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-50px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideUp { to { opacity: 0; transform: translateY(-50px); } }
-        .login-box h2 { color: #2d3748; margin-bottom: 10px; font-size: 28px; }
-        .login-box .subtitle { color: #718096; margin-bottom: 30px; font-size: 14px; }
-        .login-icon { font-size: 60px; margin-bottom: 20px; }
-        .login-input-group { margin-bottom: 25px; position: relative; }
-        .login-input { width: 100%; padding: 15px 20px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 16px; transition: all 0.3s; text-align: center; letter-spacing: 2px; }
-        .login-input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
-        .login-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
-        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3); }
-        .login-btn:active { transform: translateY(0); }
-        .login-error { background: #fed7d7; color: #742a2a; padding: 12px; border-radius: 8px; margin-top: 15px; display: none; animation: shake 0.5s; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
-        .login-error.show { display: block; }
-        .lock-indicator { position: fixed; top: 20px; left: 20px; background: white; padding: 10px 20px; border-radius: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: none; align-items: center; gap: 10px; z-index: 1001; cursor: pointer; transition: all 0.3s; }
-        .lock-indicator:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-        .lock-indicator .lock-icon { font-size: 20px; }
-        .lock-indicator .lock-text { font-size: 14px; font-weight: bold; color: #2d3748; }
-        .container { max-width: 100%; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 20px; display: none; }
-        .header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #4a5568; }
-        .header h1 { color: #2d3748; font-size: 1.8em; margin-bottom: 5px; }
-        .alert { background: #fff5f5; border-right: 4px solid #fc8181; padding: 12px; margin-bottom: 15px; border-radius: 5px; color: #742a2a; font-weight: bold; }
-        .alert.success { background: #f0fff4; border-right-color: #68d391; color: #22543d; }
-        .alert.warning { background: #fffaf0; border-right-color: #f6ad55; color: #7c2d12; }
-        .alert.info { background: #ebf8ff; border-right-color: #63b3ed; color: #2c5282; }
-        .schedule-wrapper { overflow-x: auto; margin-top: 20px; }
-        .schedule-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1200px; }
-        .schedule-table th, .schedule-table td { border: 1px solid #cbd5e0; padding: 6px 4px; text-align: center; }
-        .schedule-table th { background: #2d3748; color: white; font-weight: bold; padding: 10px 5px; position: sticky; top: 0; z-index: 10; }
-        .teacher-name { background: #edf2f7; font-weight: bold; text-align: right; padding-right: 10px !important; width: 140px; min-width: 140px; position: sticky; right: 0; z-index: 5; }
-        .class-count { background: #e6fffa; font-weight: bold; text-align: center; color: #234e52; font-size: 13px; width: 60px; min-width: 60px; }
-        .period-header { background: #4299e1 !important; font-size: 10px; }
-        .row-even { background-color: #f7fafc; }
-        .row-odd { background-color: #ffffff; }
-        .day-border { border-right: 4px solid #2d3748 !important; }
-        .day-sun { background-color: #fef5e7; } .day-mon { background-color: #ebf8ff; } .day-tue { background-color: #f0fff4; } .day-wed { background-color: #fef5ff; } .day-thu { background-color: #fff5f5; }
-        .conflict { background-color: #fed7d7 !important; border: 2px solid #fc8181 !important; }
-        .lab-conflict { background-color: #fed7aa !important; border: 2px solid #f97316 !important; animation: pulse-orange 1.5s infinite; }
-        @keyframes pulse-orange { 0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); } 50% { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0); } }
-        select { width: 100%; border: 1px solid #cbd5e0; background: white; text-align: center; font-size: 11px; padding: 4px 2px; border-radius: 3px; cursor: pointer; font-weight: bold; color: #2d3748; -webkit-appearance: none; -moz-appearance: none; appearance: none; }
-        select:focus { outline: 2px solid #4299e1; background: #fff; }
-        select option { text-align: center; font-weight: normal; }
-        select option:first-child { color: #a0aec0; }
-        .teacher-input { width: 100%; padding: 6px; border: 1px solid #cbd5e0; border-radius: 5px; font-size: 12px; }
-        .buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
-        .btn { padding: 10px 25px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
-        .btn-print { background: #48bb78; color: white; } .btn-print:hover { background: #38a169; transform: translateY(-2px); }
-        .btn-clear { background: #f56565; color: white; } .btn-clear:hover { background: #e53e3e; transform: translateY(-2px); }
-        .btn-export { background: #9f7aea; color: white; } .btn-export:hover { background: #805ad5; transform: translateY(-2px); }
-        .btn-import { background: #38b2ac; color: white; position: relative; overflow: hidden; } .btn-import:hover { background: #319795; transform: translateY(-2px); }
-        .btn-import input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-        .btn-auto-assign { background: #9f7aea; color: white; } .btn-auto-assign:hover { background: #805ad5; transform: translateY(-2px); }
-        .dummy-cell { background: repeating-linear-gradient( 45deg, #fed7d7, #fed7d7 10px, #feebc8 10px, #feebc8 20px ) !important; font-weight: bold; color: #742a2a; }
-        .btn-save { background: #4299e1; color: white; } .btn-save:hover { background: #3182ce; transform: translateY(-2px); }
-        .waiting-section { margin-top: 20px; padding: 25px; background: #f7fafc; border-radius: 10px; border: 2px solid #cbd5e0; }
-        .waiting-section h2 { color: #2d3748; margin-bottom: 20px; text-align: center; font-size: 1.5em; }
-        .waiting-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; padding: 20px; background: white; border-radius: 8px; }
-        .form-group { display: flex; flex-direction: column; }
-        .form-group label { font-weight: bold; margin-bottom: 5px; color: #4a5568; font-size: 14px; }
-        .form-group input, .form-group select { padding: 10px; border: 2px solid #cbd5e0; border-radius: 5px; font-size: 14px; width: 100%; background: white; min-height: 42px; cursor: pointer; }
-        .form-group input:focus, .form-group select:focus { outline: none; border-color: #4299e1; }
-        .btn-distribute { background: #ed8936; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
-        .btn-distribute:hover { background: #dd6b20; transform: translateY(-2px); }
-        .waiting-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; border-radius: 8px; overflow: hidden; }
-        .waiting-table th, .waiting-table td { border: 1px solid #cbd5e0; padding: 12px; text-align: center; }
-        .waiting-table th { background: #4a5568; color: white; font-weight: bold; }
-        .waiting-table tr:nth-child(even) { background: #f7fafc; }
-        .waiting-assigned { background: #c6f6d5 !important; font-weight: bold; }
-        .waiting-unassigned { background: #fed7d7 !important; font-weight: bold; }
-        .signature-section { margin-top: 30px; padding: 20px; background: white; border-radius: 8px; border: 2px solid #cbd5e0; }
-        .signature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 15px; }
-        .signature-box { text-align: center; padding: 15px; border: 2px dashed #cbd5e0; border-radius: 8px; }
-        .signature-box label { display: block; font-weight: bold; color: #4a5568; margin-bottom: 10px; }
-        .signature-box input { width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 5px; text-align: center; }
-        .firebase-status { position: fixed; bottom: 20px; left: 20px; background: white; padding: 15px 20px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 10px; z-index: 1000; }
-        .firebase-status.connected { border-left: 4px solid #48bb78; } .firebase-status.disconnected { border-left: 4px solid #fc8181; }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; animation: pulse 2s infinite; }
-        .status-dot.green { background: #48bb78; } .status-dot.red { background: #fc8181; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 3px solid #e2e8f0; }
-        .tab { padding: 12px 30px; background: #edf2f7; border: none; border-radius: 8px 8px 0 0; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; color: #4a5568; }
-        .tab:hover { background: #e2e8f0; }
-        .tab.active { background: #4299e1; color: white; transform: translateY(3px); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .teacher-schedule-selector { background: #f7fafc; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        .teacher-schedule-selector h3 { color: #2d3748; margin-bottom: 15px; }
-        .teacher-schedule-selector select { width: 100%; max-width: 400px; padding: 12px; font-size: 16px; border: 2px solid #cbd5e0; border-radius: 8px; background: white; }
-        .teacher-schedule-table { margin-top: 20px; }
-        .teacher-schedule-table table { width: 100%; border-collapse: collapse; background: white; }
-        .teacher-schedule-table th, .teacher-schedule-table td { border: 2px solid #cbd5e0; padding: 12px; text-align: center; }
-        .teacher-schedule-table th { background: #4299e1; color: white; font-weight: bold; }
-        .teacher-schedule-table .day-header { background: #2d3748; color: white; font-weight: bold; }
-        .teacher-schedule-table .period-header { background: #4a5568; color: white; font-weight: bold; }
-        @media print { .firebase-status, .buttons, .alert, .tabs { display: none; } body { background: white; padding: 5px; } .container { box-shadow: none; padding: 5px; } .schedule-table { font-size: 8px; min-width: 100%; } .schedule-table th, .schedule-table td { padding: 3px 2px; } .teacher-name { width: 100px; min-width: 100px; } .header h1 { font-size: 1.3em; } @page { size: A4 landscape; margin: 10mm; } td[data-dummy="true"] { background: transparent !important; background-image: none !important; } td[data-dummy="true"] select { visibility: hidden !important; } td[data-dummy="true"]::after { content: ""; visibility: visible; display: block; text-align: center; } .dummy-cell { background: transparent !important; background-image: none !important; } }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            padding: 15px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           🔐 نظام الحماية - شاشة تسجيل الدخول
+           ═══════════════════════════════════════════════════════════════ */
+        
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-box {
+            background: white;
+            padding: 50px 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideUp {
+            to {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+        }
+
+        .login-box h2 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .login-box .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .login-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .login-input-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-error {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .login-error.show {
+            display: block;
+        }
+
+        .lock-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1001;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .lock-indicator:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .lock-indicator .lock-icon {
+            font-size: 20px;
+        }
+
+        .lock-indicator .lock-text {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #4a5568;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .alert {
+            background: #fff5f5;
+            border-right: 4px solid #fc8181;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            color: #742a2a;
+            font-weight: bold;
+        }
+
+        .alert.success {
+            background: #f0fff4;
+            border-right-color: #68d391;
+            color: #22543d;
+        }
+
+        .alert.warning {
+            background: #fffaf0;
+            border-right-color: #f6ad55;
+            color: #7c2d12;
+        }
+
+        .alert.info {
+            background: #ebf8ff;
+            border-right-color: #63b3ed;
+            color: #2c5282;
+        }
+
+        .schedule-wrapper {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            min-width: 1200px;
+        }
+
+        .schedule-table th,
+        .schedule-table td {
+            border: 1px solid #cbd5e0;
+            padding: 6px 4px;
+            text-align: center;
+        }
+
+        .schedule-table th {
+            background: #2d3748;
+            color: white;
+            font-weight: bold;
+            padding: 10px 5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .teacher-name {
+            background: #edf2f7;
+            font-weight: bold;
+            text-align: right;
+            padding-right: 10px !important;
+            width: 140px;
+            min-width: 140px;
+            position: sticky;
+            right: 0;
+            z-index: 5;
+        }
+
+        .class-count {
+            background: #e6fffa;
+            font-weight: bold;
+            text-align: center;
+            color: #234e52;
+            font-size: 13px;
+            width: 60px;
+            min-width: 60px;
+        }
+
+        .period-header {
+            background: #4299e1 !important;
+            font-size: 10px;
+        }
+
+        .row-even {
+            background-color: #f7fafc;
+        }
+
+        .row-odd {
+            background-color: #ffffff;
+        }
+
+        .day-border {
+            border-right: 4px solid #2d3748 !important;
+        }
+
+        .day-sun { background-color: #fef5e7; }
+        .day-mon { background-color: #ebf8ff; }
+        .day-tue { background-color: #f0fff4; }
+        .day-wed { background-color: #fef5ff; }
+        .day-thu { background-color: #fff5f5; }
+
+        .conflict {
+            background-color: #fed7d7 !important;
+            border: 2px solid #fc8181 !important;
+        }
+
+        .lab-conflict {
+            background-color: #fed7aa !important;
+            border: 2px solid #f97316 !important;
+            animation: pulse-orange 1.5s infinite;
+        }
+
+        @keyframes pulse-orange {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+            }
+            50% { 
+                box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
+            }
+        }
+
+        select {
+            width: 100%;
+            border: 1px solid #cbd5e0;
+            background: white;
+            text-align: center;
+            font-size: 11px;
+            padding: 4px 2px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #2d3748;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        select:focus {
+            outline: 2px solid #4299e1;
+            background: #fff;
+        }
+
+        select option {
+            text-align: center;
+            font-weight: normal;
+        }
+
+        select option:first-child {
+            color: #a0aec0;
+        }
+
+        .teacher-input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #cbd5e0;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-print {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-print:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .btn-clear {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+        }
+
+        .btn-export {
+            background: #9f7aea;
+            color: white;
+        }
+
+        .btn-export:hover {
+            background: #805ad5;
+            transform: translateY(-2px);
+        }
+
+        .btn-import {
+            background: #38b2ac;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-import:hover {
+            background: #319795;
+            transform: translateY(-2px);
+        }
+
+        .btn-import input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .btn-auto-assign {
+            background: #9f7aea;
+            color: white;
+        }
+
+        .btn-auto-assign:hover {
+            background: #805ad5;
+            transform: translateY(-2px);
+        }
+
+        .waiting-rules {
+            background: #ebf8ff;
+            border-right: 4px solid #3182ce;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+        }
+
+        .waiting-rules h4 {
+            color: #2c5282;
+            margin-bottom: 10px;
+        }
+
+        .waiting-rules ul {
+            margin: 10px 0;
+            padding-right: 20px;
+        }
+
+        .waiting-rules li {
+            margin: 5px 0;
+            color: #2d3748;
+        }
+
+        .dummy-cell {
+            background: repeating-linear-gradient(
+                45deg,
+                #fed7d7,
+                #fed7d7 10px,
+                #feebc8 10px,
+                #feebc8 20px
+            ) !important;
+            font-weight: bold;
+            color: #742a2a;
+        }
+
+        .btn-save {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: #3182ce;
+            transform: translateY(-2px);
+        }
+
+        .waiting-section {
+            margin-top: 40px;
+            padding: 25px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 2px solid #cbd5e0;
+        }
+
+        .waiting-section h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+
+        .waiting-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px;
+            border: 2px solid #cbd5e0;
+            border-radius: 5px;
+            font-size: 14px;
+            width: 100%;
+            background: white;
+            min-height: 42px;
+            cursor: pointer;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+
+        .btn-distribute {
+            background: #ed8936;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-distribute:hover {
+            background: #dd6b20;
+            transform: translateY(-2px);
+        }
+
+        .waiting-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .waiting-table th,
+        .waiting-table td {
+            border: 1px solid #cbd5e0;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .waiting-table th {
+            background: #4a5568;
+            color: white;
+            font-weight: bold;
+        }
+
+        .waiting-table tr:nth-child(even) {
+            background: #f7fafc;
+        }
+
+        .waiting-assigned {
+            background: #c6f6d5 !important;
+            font-weight: bold;
+        }
+
+        .waiting-unassigned {
+            background: #fed7d7 !important;
+            font-weight: bold;
+        }
+
+        .signature-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #cbd5e0;
+        }
+
+        .signature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .signature-box {
+            text-align: center;
+            padding: 15px;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+        }
+
+        .signature-box label {
+            display: block;
+            font-weight: bold;
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+
+        .signature-box input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #cbd5e0;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .firebase-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .firebase-status.connected {
+            border-left: 4px solid #48bb78;
+        }
+
+        .firebase-status.disconnected {
+            border-left: 4px solid #fc8181;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.green {
+            background: #48bb78;
+        }
+
+        .status-dot.red {
+            background: #fc8181;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #e2e8f0;
+        }
+
+        .tab {
+            padding: 12px 30px;
+            background: #edf2f7;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #4a5568;
+        }
+
+        .tab:hover {
+            background: #e2e8f0;
+        }
+
+        .tab.active {
+            background: #4299e1;
+            color: white;
+            transform: translateY(3px);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .teacher-schedule-selector {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .teacher-schedule-selector h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .teacher-schedule-selector select {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .teacher-schedule-table {
+            margin-top: 20px;
+        }
+
+        .teacher-schedule-table table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        .teacher-schedule-table th,
+        .teacher-schedule-table td {
+            border: 2px solid #cbd5e0;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .teacher-schedule-table th {
+            background: #4299e1;
+            color: white;
+            font-weight: bold;
+        }
+
+        .teacher-schedule-table .day-header {
+            background: #2d3748;
+            color: white;
+            font-weight: bold;
+        }
+
+        .teacher-schedule-table .period-header {
+            background: #4a5568;
+            color: white;
+            font-weight: bold;
+        }
+
+        @media print {
+            .firebase-status {
+                display: none;
+            }
+            
+            /* ✅ إخفاء كامل للحصص الوهمية - بدون أي أثر */
+            td[data-dummy="true"] {
+                background: transparent !important;
+                background-image: none !important;
+            }
+            
+            td[data-dummy="true"] select {
+                visibility: hidden !important;
+            }
+            
+            td[data-dummy="true"]::after {
+                content: "";
+                visibility: visible;
+                display: block;
+                text-align: center;
+            }
+            
+            /* إزالة تأثير الخطوط المائلة عند الطباعة */
+            .dummy-cell {
+                background: transparent !important;
+                background-image: none !important;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 5px;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 5px;
+            }
+
+            .buttons, .alert, .waiting-section, .tabs {
+                display: none;
+            }
+
+            .schedule-table {
+                font-size: 8px;
+                min-width: 100%;
+            }
+
+            .schedule-table th,
+            .schedule-table td {
+                padding: 3px 2px;
+            }
+
+            .teacher-name {
+                width: 100px;
+                min-width: 100px;
+            }
+
+            .header h1 {
+                font-size: 1.3em;
+            }
+
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+
+            body.printing-teacher-schedule .schedule-wrapper {
+                display: none;
+            }
+
+            body.printing-teacher-schedule .waiting-section {
+                display: none;
+            }
+
+            body.printing-teacher-schedule #teacherScheduleView {
+                display: block !important;
+            }
+
+            body.printing-teacher-schedule #classScheduleView {
+                display: block !important;
+            }
+        }
     </style>
     
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-        const firebaseConfig = { apiKey: "AIzaSyCDoL-couGVgC_IaXK3vuy5CIju42tVwHA", authDomain: "school-schedule-4fb85.firebaseapp.com", projectId: "school-schedule-4fb85", storageBucket: "school-schedule-4fb85.firebasestorage.app", messagingSenderId: "497127591768", appId: "1:497127591768:web:8c9f5ae5f6ff9d75565f2d", measurementId: "G-980R6L9J57" };
-        const app = initializeApp(firebaseConfig );
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDoL-couGVgC_IaXK3vuy5CIju42tVwHA",
+            authDomain: "school-schedule-4fb85.firebaseapp.com",
+            projectId: "school-schedule-4fb85",
+            storageBucket: "school-schedule-4fb85.firebasestorage.app",
+            messagingSenderId: "497127591768",
+            appId: "1:497127591768:web:8c9f5ae5f6ff9d75565f2d",
+            measurementId: "G-980R6L9J57"
+        };
+
+        const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        window.firebaseDB = db; window.firestoreDoc = doc; window.firestoreSetDoc = setDoc; window.firestoreGetDoc = getDoc; window.firestoreOnSnapshot = onSnapshot;
+        
+        window.firebaseDB = db;
+        window.firestoreDoc = doc;
+        window.firestoreSetDoc = setDoc;
+        window.firestoreGetDoc = getDoc;
+        window.firestoreOnSnapshot = onSnapshot;
         window.firebaseReady = true;
+        
         document.dispatchEvent(new Event('firebaseReady'));
     </script>
 </head>
 <body>
-    <!-- شاشة تسجيل الدخول -->
+    <!-- ═══════════════════════════════════════════════════════════════
+         🔐 شاشة تسجيل الدخول
+         ═══════════════════════════════════════════════════════════════ -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-box">
             <div class="login-icon">🔐</div>
             <h2>تسجيل الدخول</h2>
             <p class="subtitle">يرجى إدخال الرقم السري للوصول إلى المنصة</p>
+            
             <div class="login-input-group">
-                <input type="password" id="passwordInput" class="login-input" placeholder="الرقم السري" maxlength="20" autocomplete="off">
+                <input type="password" 
+                       id="passwordInput" 
+                       class="login-input" 
+                       placeholder="الرقم السري"
+                       maxlength="20"
+                       autocomplete="off">
             </div>
-            <button class="login-btn" onclick="checkPassword()">🔓 دخول</button>
-            <div id="loginError" class="login-error">❌ الرقم السري غير صحيح! يرجى المحاولة مرة أخرى</div>
+            
+            <button class="login-btn" onclick="checkPassword()">
+                🔓 دخول
+            </button>
+            
+            <div id="loginError" class="login-error">
+                ❌ الرقم السري غير صحيح! يرجى المحاولة مرة أخرى
+            </div>
         </div>
     </div>
 
-    <!-- مؤشر الحالة -->
-    <div id="lockIndicator" class="lock-indicator" onclick="logout()" title="اضغط لتسجيل الخروج">
+    <!-- ═══════════════════════════════════════════════════════════════
+         🔓 مؤشر الحالة (متصل/غير متصل)
+         ═══════════════════════════════════════════════════════════════ -->
+    <div id="lockIndicator" class="lock-indicator" onclick="logout()" style="display: none;" title="اضغط لتسجيل الخروج">
         <span class="lock-icon">🔓</span>
         <span class="lock-text">متصل</span>
     </div>
-
-    <!-- الحاوية الرئيسية للتطبيق -->
     <div class="container" id="mainContainer">
+
         <div class="header">
             <h1>📚 الجدول المدرسي الأسبوعي الكامل</h1>
             <p style="color: #718096; margin-top: 5px;">العام الدراسي 1447 هـ - المرحلة المتوسطة</p>
@@ -149,7 +934,6 @@
 
         <div id="alertBox"></div>
 
-        <!-- ✅✅✅ قسم التبويبات الصحيح ✅✅✅ -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('main')">📋 الجدول الرئيسي</button>
             <button class="tab" onclick="switchTab('teacher')">👨‍🏫 جدول معلم</button>
@@ -159,42 +943,83 @@
             <button class="tab" onclick="switchTab('manage')">🔧 إدارة الجدول</button>
         </div>
 
-        <!-- ✅✅✅ محتوى التبويبات بالترتيب الصحيح ✅✅✅ -->
         <div id="mainTab" class="tab-content active">
-            <div class="schedule-wrapper">
-                <table class="schedule-table">
-                    <thead>
-                        <tr>
-                            <th rowspan="2" style="background: #1a202c;">اسم المعلم</th>
-                            <th rowspan="2" style="background: #2c7a7b; width: 60px;">عدد  
-الحصص</th>
-                            <th colspan="7" style="background: #d69e2e;">الأحد</th>
-                            <th colspan="7" style="background: #3182ce;" class="day-border">الإثنين</th>
-                            <th colspan="7" style="background: #38a169;" class="day-border">الثلاثاء</th>
-                            <th colspan="7" style="background: #805ad5;" class="day-border">الأربعاء</th>
-                            <th colspan="7" style="background: #e53e3e;" class="day-border">الخميس</th>
-                        </tr>
-                        <tr>
-                            <th class="period-header">1</th><th class="period-header">2</th><th class="period-header">3</th><th class="period-header">4</th><th class="period-header">5</th><th class="period-header">6</th><th class="period-header">7</th>
-                            <th class="period-header day-border">1</th><th class="period-header">2</th><th class="period-header">3</th><th class="period-header">4</th><th class="period-header">5</th><th class="period-header">6</th><th class="period-header">7</th>
-                            <th class="period-header day-border">1</th><th class="period-header">2</th><th class="period-header">3</th><th class="period-header">4</th><th class="period-header">5</th><th class="period-header">6</th><th class="period-header">7</th>
-                            <th class="period-header day-border">1</th><th class="period-header">2</th><th class="period-header">3</th><th class="period-header">4</th><th class="period-header">5</th><th class="period-header">6</th><th class="period-header">7</th>
-                            <th class="period-header day-border">1</th><th class="period-header">2</th><th class="period-header">3</th><th class="period-header">4</th><th class="period-header">5</th><th class="period-header">6</th><th class="period-header">7</th>
-                        </tr>
-                    </thead>
-                    <tbody id="scheduleBody"></tbody>
-                </table>
-            </div>
-            <div class="buttons">
-                <button class="btn btn-save" onclick="saveData()">💾 حفظ البيانات</button>
-                <button class="btn btn-auto-assign" onclick="autoAssignWaiting()">⚡ توزيع الانتظار الأساسي</button>
-                <button class="btn btn-export" onclick="exportSchedule()">📤 تصدير الجدول</button>
-                <button class="btn btn-import">📥 استيراد الجدول<input type="file" id="importFile" accept=".json" onchange="importSchedule(event)"></button>
-                <button class="btn btn-print" onclick="window.print()">🖨️ طباعة الجدول</button>
-            </div>
-            <div style="display: none;">
-                <input type="text" id="labTeacher1" value="عبدالله القرني"><input type="text" id="labTeacher2" value="عبدالمجيد الرشيدي">
-            </div>
+
+        <div class="schedule-wrapper">
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="background: #1a202c;">اسم المعلم</th>
+                        <th rowspan="2" style="background: #2c7a7b; width: 60px;">عدد<br>الحصص</th>
+                        <th colspan="7" style="background: #d69e2e;">الأحد</th>
+                        <th colspan="7" style="background: #3182ce;" class="day-border">الإثنين</th>
+                        <th colspan="7" style="background: #38a169;" class="day-border">الثلاثاء</th>
+                        <th colspan="7" style="background: #805ad5;" class="day-border">الأربعاء</th>
+                        <th colspan="7" style="background: #e53e3e;" class="day-border">الخميس</th>
+                    </tr>
+                    <tr>
+                        <th class="period-header">1</th>
+                        <th class="period-header">2</th>
+                        <th class="period-header">3</th>
+                        <th class="period-header">4</th>
+                        <th class="period-header">5</th>
+                        <th class="period-header">6</th>
+                        <th class="period-header">7</th>
+                        <th class="period-header day-border">1</th>
+                        <th class="period-header">2</th>
+                        <th class="period-header">3</th>
+                        <th class="period-header">4</th>
+                        <th class="period-header">5</th>
+                        <th class="period-header">6</th>
+                        <th class="period-header">7</th>
+                        <th class="period-header day-border">1</th>
+                        <th class="period-header">2</th>
+                        <th class="period-header">3</th>
+                        <th class="period-header">4</th>
+                        <th class="period-header">5</th>
+                        <th class="period-header">6</th>
+                        <th class="period-header">7</th>
+                        <th class="period-header day-border">1</th>
+                        <th class="period-header">2</th>
+                        <th class="period-header">3</th>
+                        <th class="period-header">4</th>
+                        <th class="period-header">5</th>
+                        <th class="period-header">6</th>
+                        <th class="period-header">7</th>
+                        <th class="period-header day-border">1</th>
+                        <th class="period-header">2</th>
+                        <th class="period-header">3</th>
+                        <th class="period-header">4</th>
+                        <th class="period-header">5</th>
+                        <th class="period-header">6</th>
+                        <th class="period-header">7</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleBody"></tbody>
+            </table>
+        </div>
+
+        <div class="buttons">
+            <button class="btn btn-save" onclick="saveData()">💾 حفظ البيانات</button>
+            <button class="btn btn-auto-assign" onclick="autoAssignWaiting()">⚡ توزيع الانتظار تلقائياً</button>
+            <button class="btn btn-export" onclick="exportSchedule()">📤 تصدير الجدول</button>
+            <button class="btn btn-import">
+                📥 استيراد الجدول
+                <input type="file" id="importFile" accept=".json" onchange="importSchedule(event)">
+            </button>
+            <button class="btn btn-print" onclick="window.print()">🖨️ طباعة الجدول</button>
+            <button class="btn btn-clear" onclick="clearSchedule()">🗑️ مسح الجدول</button>
+        </div>
+
+        <!-- ✅ تم إخفاء قواعد الانتظار وإعدادات المعمل - لكنها تعمل في الخلفية -->
+        <!-- يمكن للمدير الوصول إليها من تبويب "إدارة الجدول" إذا لزم الأمر -->
+        
+        <!-- ✅ حقول مخفية لإعدادات معمل الحاسب - تعمل في الخلفية -->
+        <div style="display: none;">
+            <input type="text" id="labTeacher1" value="عبدالله القرني">
+            <input type="text" id="labTeacher2" value="عبدالمجيد الرشيدي">
+        </div>
+
         </div>
 
         <div id="teacherTab" class="tab-content">
