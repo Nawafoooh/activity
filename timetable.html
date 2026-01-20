@@ -2280,6 +2280,9 @@ function createSchedule() {
 
     // --- جلب بيانات التتبع الأسبوعي ---
     const weeklyData = getWeeklyTrackingData();
+    
+    // ✅ الحد الأقصى الأسبوعي لكل معلم
+    const WEEKLY_MAX_LIMIT = 5;
 
     // --- جمع الحصص الشاغرة ---
     const vacantClasses = [];
@@ -2314,6 +2317,7 @@ function createSchedule() {
     // --- نظام الإسناد الذكي المرتب ---
     const waitingTypes = ['انتظار1', 'انتظار2', 'انتظار3', 'انتظار4', 'انتظار5'];
     const dailyAssignmentsCount = {}; // عداد للحصص المسندة اليوم لكل معلم
+    const tempWeeklyData = JSON.parse(JSON.stringify(weeklyData)); // نسخة مؤقتة للتحديث
 
     // معالجة كل حصة شاغرة بالترتيب
     vacantClasses.forEach((vacant, index) => {
@@ -2341,7 +2345,7 @@ function createSchedule() {
 
         console.log(`🎯 المطلوب: ${requiredWaitingType} للحصة ${period}`);
 
-        // --- الخطوة 2: البحث عن البديل من معلمي الانتظار فقط ---
+        // --- الخطوة 2: البحث عن البديل من معلمي الانتظار ---
         const potentialSubstitutes = [];
 
         for (let i = 0; i < 42; i++) {
@@ -2355,36 +2359,41 @@ function createSchedule() {
 
             const cellValue = substituteSelect.value;
 
-            // ✅ الشرط الأساسي: يجب أن يكون عنده انتظار في هذه الحصة
+            // ✅ الشرط 1: يجب أن يكون عنده انتظار في هذه الحصة
             if (!cellValue.startsWith('انتظار')) continue;
 
-            // ✅ الشرط: لم يأخذ حصة انتظار اليوم بعد
+            // ✅ الشرط 2: لم يأخذ حصة انتظار اليوم بعد
             if (!dailyAssignmentsCount[substituteName]) {
                 dailyAssignmentsCount[substituteName] = 0;
             }
-            if (dailyAssignmentsCount[substituteName] >= 1) continue;
+            if (dailyAssignmentsCount[substituteName] >= 1) {
+                console.log(`⏭️ ${substituteName} - تخطي (أخذ حصة اليوم)`);
+                continue;
+            }
+
+            // ✅ الشرط 3 (الجديد): التحقق من الحد الأقصى الأسبوعي
+            const currentWeeklyCount = tempWeeklyData[substituteName] || 0;
+            if (currentWeeklyCount >= WEEKLY_MAX_LIMIT) {
+                console.log(`🚫 ${substituteName} - تخطي (وصل للحد الأقصى الأسبوعي: ${currentWeeklyCount}/${WEEKLY_MAX_LIMIT})`);
+                continue;
+            }
 
             // ✅ حساب الأولوية
-            const weeklyCount = weeklyData[substituteName] || 0;
-            
-            // ✅ الأولوية القصوى: من عنده النوع المطلوب بالضبط
             const isExactMatch = (cellValue === requiredWaitingType);
             
             potentialSubstitutes.push({
                 name: substituteName,
                 index: i,
                 waitingType: cellValue,
-                weeklyCount: weeklyCount,
+                weeklyCount: currentWeeklyCount,
                 isExactMatch: isExactMatch
             });
         }
 
-        // ✅ ترتيب البدلاء: الأولوية للمطابقة التامة، ثم الأقل أسبوعياً
+        // ✅ ترتيب البدلاء: المطابقة التامة أولاً، ثم الأقل أسبوعياً
         potentialSubstitutes.sort((a, b) => {
-            // أولاً: المطابقة التامة لها الأولوية
             if (a.isExactMatch && !b.isExactMatch) return -1;
             if (!a.isExactMatch && b.isExactMatch) return 1;
-            // ثانياً: الأقل حصص أسبوعية
             return a.weeklyCount - b.weeklyCount;
         });
 
@@ -2396,20 +2405,27 @@ function createSchedule() {
             vacant.status = 'تم الإسناد';
             
             if (bestSubstitute.isExactMatch) {
-                vacant.assignmentReason = `بديل ${requiredWaitingType} (أسبوعياً: ${bestSubstitute.weeklyCount})`;
+                vacant.assignmentReason = `بديل ${requiredWaitingType} (أسبوعياً: ${bestSubstitute.weeklyCount}/${WEEKLY_MAX_LIMIT})`;
             } else {
-                vacant.assignmentReason = `بديل ${bestSubstitute.waitingType} بدلاً من ${requiredWaitingType} (أسبوعياً: ${bestSubstitute.weeklyCount})`;
+                vacant.assignmentReason = `بديل ${bestSubstitute.waitingType} بدلاً من ${requiredWaitingType} (أسبوعياً: ${bestSubstitute.weeklyCount}/${WEEKLY_MAX_LIMIT})`;
             }
             
             dailyAssignmentsCount[bestSubstitute.name]++;
+            
+            // ✅ تحديث العداد المؤقت
+            if (!tempWeeklyData[bestSubstitute.name]) {
+                tempWeeklyData[bestSubstitute.name] = 0;
+            }
+            tempWeeklyData[bestSubstitute.name]++;
+            
             assigned = true;
             console.log(`✅ تم الإسناد لمعلم انتظار: ${bestSubstitute.name} - ${bestSubstitute.waitingType}`);
         }
 
-        // --- الخطوة 3: فقط إذا لم يتم العثور على أي معلم انتظار، ابحث عن معلم فارغ ---
+        // --- الخطوة 3: فقط إذا لم يتم العثور على معلم انتظار، ابحث عن معلم فارغ ---
         if (!assigned) {
-            console.log(`⚠️ لم يتم العثور على معلم انتظار متاح`);
-            console.log(`🔄 البحث عن معلم فارغ كحل أخير...`);
+            console.log(`⚠️ لم يتم العثور على معلم انتظار متاح (ضمن الحد الأسبوعي)`);
+            console.log(`🔄 البحث عن معلم فارغ...`);
             
             const emptyTeachers = [];
             for (let i = 0; i < 42; i++) {
@@ -2421,21 +2437,30 @@ function createSchedule() {
                 const substituteName = document.getElementById(`teacher_${i}`).value.trim();
                 if (!substituteName) continue;
 
-                // التحقق من عدم تجاوز الحد اليومي
+                // ✅ التحقق من عدم تجاوز الحد اليومي
                 if (!dailyAssignmentsCount[substituteName]) {
                     dailyAssignmentsCount[substituteName] = 0;
                 }
-                if (dailyAssignmentsCount[substituteName] >= 1) continue;
+                if (dailyAssignmentsCount[substituteName] >= 1) {
+                    console.log(`⏭️ ${substituteName} - تخطي (أخذ حصة اليوم)`);
+                    continue;
+                }
+
+                // ✅ التحقق من الحد الأقصى الأسبوعي
+                const currentWeeklyCount = tempWeeklyData[substituteName] || 0;
+                if (currentWeeklyCount >= WEEKLY_MAX_LIMIT) {
+                    console.log(`🚫 ${substituteName} - تخطي (وصل للحد الأقصى الأسبوعي: ${currentWeeklyCount}/${WEEKLY_MAX_LIMIT})`);
+                    continue;
+                }
 
                 // حساب النصاب
                 const totalClasses = parseInt(document.getElementById(`count_${i}`).textContent) || 0;
-                const weeklyCount = weeklyData[substituteName] || 0;
 
                 emptyTeachers.push({
                     name: substituteName,
                     index: i,
                     totalClasses: totalClasses,
-                    weeklyCount: weeklyCount
+                    weeklyCount: currentWeeklyCount
                 });
             }
 
@@ -2448,22 +2473,29 @@ function createSchedule() {
                 const bestSubstitute = emptyTeachers[0];
                 vacant.assignedTo = bestSubstitute.name;
                 vacant.status = 'تم الإسناد';
-                vacant.assignmentReason = `⚠️ معلم فارغ (لا يوجد انتظار متاح) - نصاب: ${bestSubstitute.totalClasses}, أسبوعياً: ${bestSubstitute.weeklyCount}`;
+                vacant.assignmentReason = `⚠️ معلم فارغ (لا انتظار متاح) - نصاب: ${bestSubstitute.totalClasses}, أسبوعياً: ${bestSubstitute.weeklyCount}/${WEEKLY_MAX_LIMIT}`;
                 dailyAssignmentsCount[bestSubstitute.name]++;
+                
+                // ✅ تحديث العداد المؤقت
+                if (!tempWeeklyData[bestSubstitute.name]) {
+                    tempWeeklyData[bestSubstitute.name] = 0;
+                }
+                tempWeeklyData[bestSubstitute.name]++;
+                
                 assigned = true;
-                console.log(`✅ تم الإسناد لمعلم فارغ (حل أخير): ${bestSubstitute.name}`);
+                console.log(`✅ تم الإسناد لمعلم فارغ: ${bestSubstitute.name}`);
             }
         }
 
         // --- إذا لم يتم الإسناد ---
         if (!assigned) {
             vacant.status = 'لم تسند تلقائياً';
-            vacant.assignmentReason = '❌ لا يوجد بديل متاح (لا انتظار ولا معلمين فارغين)';
-            console.log(`❌ لم يتم الإسناد - لا يوجد أي بديل`);
+            vacant.assignmentReason = '❌ لا يوجد بديل متاح (الكل وصل للحد الأقصى الأسبوعي أو لا توجد خلايا فارغة)';
+            console.log(`❌ لم يتم الإسناد - جميع المعلمين وصلوا للحد الأقصى`);
         }
     });
 
-    // --- تحديث الذاكرة الأسبوعية ---
+    // --- تحديث الذاكرة الأسبوعية الحقيقية ---
     vacantClasses.forEach(vacant => {
         if (vacant.assignedTo) {
             if (!weeklyData[vacant.assignedTo]) {
@@ -2482,11 +2514,13 @@ function createSchedule() {
     const assignedCount = vacantClasses.filter(v => v.assignedTo).length;
     const unassignedCount = vacantClasses.length - assignedCount;
     const emptyAssignedCount = vacantClasses.filter(v => v.assignmentReason.includes('معلم فارغ')).length;
+    const maxLimitReached = Object.keys(weeklyData).filter(teacher => weeklyData[teacher] >= WEEKLY_MAX_LIMIT).length;
     
     console.log(`\n📊 النتائج النهائية:`);
     console.log(`✅ تم الإسناد: ${assignedCount}`);
     console.log(`⚠️ منها لمعلمين فارغين: ${emptyAssignedCount}`);
     console.log(`❌ لم يتم الإسناد: ${unassignedCount}`);
+    console.log(`🚫 معلمون وصلوا للحد الأقصى الأسبوعي: ${maxLimitReached}`);
     
     let message = `✅ تم توزيع الانتظار!\n\n📊 الإحصائيات:\n✅ تم إسناد: ${assignedCount} حصة`;
     if (emptyAssignedCount > 0) {
@@ -2494,6 +2528,9 @@ function createSchedule() {
     }
     if (unassignedCount > 0) {
         message += `\n❌ لم يسند: ${unassignedCount} حصة`;
+    }
+    if (maxLimitReached > 0) {
+        message += `\n\n🚫 ${maxLimitReached} معلم وصل للحد الأقصى (${WEEKLY_MAX_LIMIT} حصص/أسبوع)`;
     }
     
     alert(message);
