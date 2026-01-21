@@ -22,7 +22,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Tajawal', sans-serif;
-            background-color: var(--light-bg );
+            background-color: var(--light-bg);
             color: var(--secondary-color);
             line-height: 1.8;
         }
@@ -110,8 +110,11 @@
             border-radius: 8px;
             font-size: 1em;
             background-color: #f8f9fa;
+            font-family: 'Tajawal', sans-serif;
         }
-        .form-group input:focus, .form-group select:focus { outline: 2px solid var(--primary-color); }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { 
+            outline: 2px solid var(--primary-color); 
+        }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .btn {
             background-color: var(--primary-color);
@@ -122,6 +125,7 @@
             font-size: 1.05em;
             cursor: pointer;
             transition: background-color 0.3s;
+            font-family: 'Tajawal', sans-serif;
         }
         .btn-success { background-color: var(--success-color); }
         .btn-danger { background-color: var(--danger-color); }
@@ -138,10 +142,14 @@
         }
         .stat-card .value { font-size: 2.5em; font-weight: 800; }
         .stat-card .label { font-size: 1em; margin-top: 5px; }
-        .stat-card.violations { border-color: var(--danger-color); } .stat-card.violations .value { color: var(--danger-color); }
-        .stat-card.positives { border-color: var(--success-color); } .stat-card.positives .value { color: var(--success-color); }
-        .stat-card.recoveries { border-color: var(--primary-color); } .stat-card.recoveries .value { color: var(--primary-color); }
-        .stat-card.commitment { border-color: var(--warning-color); } .stat-card.commitment .value { color: var(--warning-color); }
+        .stat-card.violations { border-color: var(--danger-color); } 
+        .stat-card.violations .value { color: var(--danger-color); }
+        .stat-card.positives { border-color: var(--success-color); } 
+        .stat-card.positives .value { color: var(--success-color); }
+        .stat-card.recoveries { border-color: var(--primary-color); } 
+        .stat-card.recoveries .value { color: var(--primary-color); }
+        .stat-card.commitment { border-color: var(--warning-color); } 
+        .stat-card.commitment .value { color: var(--warning-color); }
 
         /* --- Alerts & Governance Page --- */
         .alert { padding: 15px; border-radius: 8px; margin: 20px 0; border-right: 5px solid; }
@@ -151,7 +159,7 @@
         #governance ul { padding-right: 25px; }
         #governance li { margin-bottom: 10px; }
 
-        /* --- New Styles for Reports Page --- */
+        /* --- Reports Page --- */
         #reports-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         #reports-table th, #reports-table td { padding: 12px; border: 1px solid var(--border-color); text-align: right; }
         #reports-table th { background-color: #f2f2f2; font-weight: 700; }
@@ -162,8 +170,22 @@
         .report-controls { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-bottom: 20px; }
         .btn-print { background-color: var(--warning-color); }
 
+        /* --- Success Message --- */
+        .success-message {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
         /* --- Responsive & Print --- */
-        @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { 
+            .form-row { grid-template-columns: 1fr; } 
+            .header h1 { font-size: 1.5em; }
+        }
         @media print {
             body { background-color: var(--white-bg); }
             .nav, .btn, .form-group, .report-controls, .content > .card:not(#printable-area) { display: none; }
@@ -204,9 +226,7 @@
                     <div class="alert alert-info">
                         <strong>مبدأ الرصد:</strong> هذه اللوحة تعرض "الاستثناءات" المسجلة فقط (المخالفات والسلوكيات الإيجابية المميزة)، ولا تعرض بيانات الطلاب الملتزمين افتراضيًا.
                     </div>
-                    <div class="dashboard-grid" id="dashboard-grid">
-                        <!-- سيتم ملء الإحصائيات هنا عبر JavaScript -->
-                    </div>
+                    <div class="dashboard-grid" id="dashboard-grid"></div>
                 </div>
             </section>
 
@@ -214,6 +234,7 @@
             <section id="violation" class="section">
                 <div class="card">
                     <h2>رصد مخالفة سلوكية</h2>
+                    <div class="success-message" id="violation-success"></div>
                     <form id="violationForm">
                         <div class="form-row">
                             <div class="form-group">
@@ -254,6 +275,7 @@
             <section id="positive" class="section">
                 <div class="card">
                     <h2>رصد سلوك إيجابي مميز (حدثي)</h2>
+                    <div class="success-message" id="positive-success"></div>
                     <form id="positiveForm">
                         <div class="form-row">
                             <div class="form-group">
@@ -298,7 +320,7 @@
                 </div>
             </section>
 
-            <!-- 4. صفحة تقارير الأداء (الجديدة) -->
+            <!-- 4. صفحة تقارير الأداء -->
             <section id="reports" class="section">
                 <div class="card" id="printable-area">
                     <h2>تقارير الأداء الشهري (مساعد رصد درجات نظام نور)</h2>
@@ -321,16 +343,14 @@
                                 <th>درجة نور المقترحة (من 20)</th>
                             </tr>
                         </thead>
-                        <tbody id="reports-tbody">
-                            <!-- سيتم ملء التقرير هنا عبر JavaScript -->
-                        </tbody>
+                        <tbody id="reports-tbody"></tbody>
                     </table>
                 </div>
             </section>
 
             <!-- 5. صفحة الحوكمة والشفافية -->
             <section id="governance" class="section">
-                <div class="card" id="governance-card">
+                <div class="card">
                     <h2>فلسفة وحوكمة نظام السلوك الطلابي</h2>
                     <div class="alert alert-info">
                         <strong>للمشرف التربوي وولي الأمر:</strong> هذه الصفحة توضح المبادئ التي يقوم عليها النظام لضمان العدالة والشفافية وتقليل العبء الإداري.
@@ -381,11 +401,21 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         // --- CONFIGURATION ---
-        const POSITIVE_BEHAVIOR_POINTS = { 'مبادرة شخصية': 2, 'سلوك داعم': 3, 'إنجاز مركزي': 5 };
-        const VIOLATION_POINTS = { 'تأخر صباحي': -2, 'مخالفة زي مدرسي': -1, 'إخلال بنظام الحصة': -3, 'إهمال الواجبات': -1, 'أخرى': -2 };
+        const POSITIVE_BEHAVIOR_POINTS = { 
+            'مبادرة شخصية': 2, 
+            'سلوك داعم': 3, 
+            'إنجاز مركزي': 5 
+        };
+        const VIOLATION_POINTS = { 
+            'تأخر صباحي': -2, 
+            'مخالفة زي مدرسي': -1, 
+            'إخلال بنظام الحصة': -3, 
+            'إهمال الواجبات': -1, 
+            'أخرى': -2 
+        };
         const POSITIVE_BEHAVIOR_CAP = 10;
         const RECOVERY_PERIOD_DAYS = 7;
-        const STORAGE_KEY = 'student_behavior_data_v3'; // Updated version key
+        const STORAGE_KEY = 'student_behavior_data_v3';
 
         // --- DOM ELEMENTS ---
         const sections = document.querySelectorAll('.section');
@@ -456,19 +486,40 @@
             const weeklyRecoveries = data.filter(r => r.status === 'mustaradda' && new Date(r.timestamp) >= startOfWeek).length;
 
             const violationTypes = {};
-            weeklyViolations.forEach(v => { violationTypes[v.violationType] = (violationTypes[v.violationType] || 0) + 1; });
-            const mostCommonViolation = Object.keys(violationTypes).length > 0 ? Object.keys(violationTypes).reduce((a, b) => violationTypes[a] > violationTypes[b] ? a : b) : 'لا يوجد';
+            weeklyViolations.forEach(v => { 
+                violationTypes[v.violationType] = (violationTypes[v.violationType] || 0) + 1; 
+            });
+            const mostCommonViolation = Object.keys(violationTypes).length > 0 ? 
+                Object.keys(violationTypes).reduce((a, b) => violationTypes[a] > violationTypes[b] ? a : b) : 'لا يوجد';
 
             const positiveCategories = {};
-            weeklyPositives.forEach(p => { positiveCategories[p.category] = (positiveCategories[p.category] || 0) + 1; });
-            const mostCommonPositive = Object.keys(positiveCategories).length > 0 ? Object.keys(positiveCategories).reduce((a, b) => positiveCategories[a] > positiveCategories[b] ? a : b) : 'لا يوجد';
+            weeklyPositives.forEach(p => { 
+                positiveCategories[p.category] = (positiveCategories[p.category] || 0) + 1; 
+            });
+            const mostCommonPositive = Object.keys(positiveCategories).length > 0 ? 
+                Object.keys(positiveCategories).reduce((a, b) => positiveCategories[a] > positiveCategories[b] ? a : b) : 'لا يوجد';
 
             dashboardGrid.innerHTML = `
-                <div class="stat-card violations"><div class="value">${weeklyViolations.length}</div><div class="label">مخالفة مسجلة هذا الأسبوع</div></div>
-                <div class="stat-card positives"><div class="value">${weeklyPositives.length}</div><div class="label">سلوك إيجابي مميز هذا الأسبوع</div></div>
-                <div class="stat-card recoveries"><div class="value">${weeklyRecoveries}</div><div class="label">حالة استرداد درجات هذا الأسبوع</div></div>
-                <div class="stat-card commitment"><div class="value">${mostCommonViolation}</div><div class="label">أكثر المخالفات تكرارًا</div></div>
-                <div class="stat-card commitment" style="border-color: var(--success-color);"><div class="value" style="color: var(--success-color);">${mostCommonPositive}</div><div class="label">أكثر السلوكيات الإيجابية ظهورًا</div></div>
+                <div class="stat-card violations">
+                    <div class="value">${weeklyViolations.length}</div>
+                    <div class="label">مخالفة مسجلة هذا الأسبوع</div>
+                </div>
+                <div class="stat-card positives">
+                    <div class="value">${weeklyPositives.length}</div>
+                    <div class="label">سلوك إيجابي مميز هذا الأسبوع</div>
+                </div>
+                <div class="stat-card recoveries">
+                    <div class="value">${weeklyRecoveries}</div>
+                    <div class="label">حالة استرداد درجات هذا الأسبوع</div>
+                </div>
+                <div class="stat-card commitment">
+                    <div class="value">${mostCommonViolation}</div>
+                    <div class="label">أكثر المخالفات تكرارًا</div>
+                </div>
+                <div class="stat-card commitment" style="border-color: var(--success-color);">
+                    <div class="value" style="color: var(--success-color);">${mostCommonPositive}</div>
+                    <div class="label">أكثر السلوكيات الإيجابية ظهورًا</div>
+                </div>
             `;
         }
 
@@ -502,7 +553,7 @@
             populateMonthSelector();
             const selectedMonthKey = monthSelector.value;
             if (!selectedMonthKey) {
-                reportsTbody.innerHTML = `<tr><td colspan="6">لا توجد بيانات لعرضها.</td></tr>`;
+                reportsTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">لا توجد بيانات لعرضها.</td></tr>`;
                 return;
             }
 
@@ -516,11 +567,18 @@
             const studentScores = {};
             monthlyData.forEach(r => {
                 if (!studentScores[r.studentName]) {
-                    studentScores[r.studentName] = { name: r.studentName, grade: r.grade, positivePoints: 0, violationCount: 0, recoveredCount: 0 };
+                    studentScores[r.studentName] = { 
+                        name: r.studentName, 
+                        grade: r.grade, 
+                        positivePoints: 0, 
+                        violationCount: 0, 
+                        recoveredCount: 0 
+                    };
                 }
                 const student = studentScores[r.studentName];
-                if (r.type === 'positive') student.positivePoints += r.points;
-                else if (r.type === 'violation') {
+                if (r.type === 'positive') {
+                    student.positivePoints += r.points;
+                } else if (r.type === 'violation') {
                     student.violationCount++;
                     if (r.status === 'mustaradda') student.recoveredCount++;
                 }
@@ -548,10 +606,17 @@
                 if (student.excellenceIndex > 10) noorGrade = 20;
                 else if (student.excellenceIndex > 5) noorGrade = 18;
                 else if (student.excellenceIndex > 0) noorGrade = 16;
-                else if (student.excellenceIndex <= 0 && student.violationCount === 0) noorGrade = 15; // No violations, no positives
+                else if (student.excellenceIndex <= 0 && student.violationCount === 0) noorGrade = 15;
                 else noorGrade = 10;
 
-                return `<tr><td>${index + 1}</td><td><strong>${student.name}</strong></td><td>${student.grade}</td><td>${student.excellenceIndex}</td><td>${details}</td><td><strong>${noorGrade}</strong></td></tr>`;
+                return `<tr>
+                    <td>${index + 1}</td>
+                    <td><strong>${student.name}</strong></td>
+                    <td>${student.grade}</td>
+                    <td>${student.excellenceIndex}</td>
+                    <td>${details}</td>
+                    <td><strong>${noorGrade}</strong></td>
+                </tr>`;
             }).join('');
         }
 
@@ -559,7 +624,73 @@
         violationForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const data = getData();
-            data.push({
-                id: `v_${Date.now()}`, type: 'vi
+            
+            const newViolation = {
+                id: `v_${Date.now()}`,
+                type: 'violation',
+                studentName: document.getElementById('vio_student_name').value.trim(),
+                grade: document.getElementById('vio_grade').value,
+                violationType: document.getElementById('vio_type').value,
+                points: VIOLATION_POINTS[document.getElementById('vio_type').value] || -2,
+                recorder: document.getElementById('vio_recorder').value,
+                timestamp: Date.now(),
+                status: 'makhsouma'
+            };
+            
+            data.push(newViolation);
+            saveData(data);
+            
+            const successMsg = document.getElementById('violation-success');
+            successMsg.textContent = `تم تسجيل المخالفة للطالب: ${newViolation.studentName} بنجاح`;
+            successMsg.style.display = 'block';
+            
+            violationForm.reset();
+            
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 5000);
+        });
+
+        positiveForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const data = getData();
+            
+            const category = document.getElementById('pos_category').value;
+            const newPositive = {
+                id: `p_${Date.now()}`,
+                type: 'positive',
+                studentName: document.getElementById('pos_student_name').value.trim(),
+                grade: document.getElementById('pos_grade').value,
+                category: category,
+                impact: document.getElementById('pos_impact').value.trim(),
+                nominator: document.getElementById('pos_nominator').value.trim(),
+                approver: document.getElementById('pos_approver').value,
+                points: POSITIVE_BEHAVIOR_POINTS[category] || 2,
+                timestamp: Date.now()
+            };
+            
+            data.push(newPositive);
+            saveData(data);
+            
+            const successMsg = document.getElementById('positive-success');
+            successMsg.textContent = `تم توثيق السلوك الإيجابي للطالب: ${newPositive.studentName} بنجاح`;
+            successMsg.style.display = 'block';
+            
+            positiveForm.reset();
+            
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 5000);
+        });
+
+        // --- EVENT LISTENERS ---
+        monthSelector.addEventListener('change', generateReport);
+
+        // --- INITIAL LOAD ---
+        updateDashboard();
+    });
+    </script>
+</body>
+</html>
 
 
