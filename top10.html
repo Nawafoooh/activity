@@ -327,6 +327,7 @@
                         <label for="month-selector">اختر الشهر لعرض التقرير:</label>
                         <select id="month-selector"></select>
                         <button class="btn btn-print" onclick="window.print()">طباعة التقرير</button>
+                        <button class="btn btn-danger" id="delete-all-btn">حذف جميع السجلات</button>
                     </div>
                     <div class="alert alert-info">
                         <strong>كيفية الاستخدام:</strong> هذه الصفحة تساعدك في نهاية كل شهر على تحديد الطلاب المرشحين لدرجات السلوك الإيجابي في نظام نور. التقرير يرتب الطلاب تنازليًا بناءً على "مؤشر التميز السلوكي".
@@ -398,7 +399,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js';
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyB7mn5gg8LDOwnYsqmxd2UwdiDWNRPuoAQ",
@@ -468,6 +469,50 @@
                 console.error("خطأ في حفظ البيانات:", error);
                 alert('حدث خطأ في حفظ البيانات: ' + error.message);
                 return false;
+            }
+        }
+
+        async function deleteAllRecords() {
+            if (!confirm('⚠️ تحذير: هل أنت متأكد من حذف جميع السجلات؟ هذا الإجراء لا يمكن التراجع عنه!')) {
+                return;
+            }
+            
+            if (!confirm('⚠️ تأكيد نهائي: سيتم حذف جميع المخالفات والسلوكيات الإيجابية نهائيًا. هل تريد المتابعة؟')) {
+                return;
+            }
+
+            try {
+                const deleteBtn = document.getElementById('delete-all-btn');
+                deleteBtn.disabled = true;
+                deleteBtn.innerHTML = '<span class="loading"></span> جاري الحذف...';
+                
+                const querySnapshot = await getDocs(collection(db, 'behavior_records'));
+                
+                let deleteCount = 0;
+                const deletePromises = [];
+                
+                querySnapshot.forEach((document) => {
+                    deletePromises.push(deleteDoc(doc(db, 'behavior_records', document.id)));
+                    deleteCount++;
+                });
+                
+                await Promise.all(deletePromises);
+                
+                allRecords = [];
+                updateDashboard();
+                generateReport();
+                
+                alert(`✅ تم حذف ${deleteCount} سجل بنجاح`);
+                
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = 'حذف جميع السجلات';
+            } catch (error) {
+                console.error("خطأ في حذف البيانات:", error);
+                alert('حدث خطأ في حذف البيانات: ' + error.message);
+                
+                const deleteBtn = document.getElementById('delete-all-btn');
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = 'حذف جميع السجلات';
             }
         }
 
@@ -741,6 +786,9 @@
         });
 
         monthSelector.addEventListener('change', generateReport);
+
+        const deleteAllBtn = document.getElementById('delete-all-btn');
+        deleteAllBtn.addEventListener('click', deleteAllRecords);
 
         async function initialize() {
             await loadDataFromFirebase();
