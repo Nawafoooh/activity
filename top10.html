@@ -130,6 +130,10 @@
         .btn-success { background-color: var(--success-color); }
         .btn-danger { background-color: var(--danger-color); }
         .btn:hover { filter: brightness(110%); }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
 
         /* --- Dashboard --- */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
@@ -155,6 +159,7 @@
         .alert { padding: 15px; border-radius: 8px; margin: 20px 0; border-right: 5px solid; }
         .alert-info { background-color: #eaf5fc; border-color: var(--primary-color); color: #084298; }
         .alert-success { background-color: #eafaf1; border-color: var(--success-color); color: #0f5132; }
+        .alert-warning { background-color: #fff3cd; border-color: var(--warning-color); color: #856404; }
         #governance h3 { font-size: 1.4em; color: var(--primary-color); margin-top: 25px; margin-bottom: 10px; }
         #governance ul { padding-right: 25px; }
         #governance li { margin-bottom: 10px; }
@@ -179,6 +184,20 @@
             border-radius: 8px;
             margin-bottom: 15px;
             display: none;
+        }
+
+        /* --- Loading Spinner --- */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         /* --- Responsive & Print --- */
@@ -219,6 +238,11 @@
         </nav>
 
         <main class="content">
+            <!-- Loading Alert -->
+            <div class="alert alert-warning" id="loading-alert" style="display:none;">
+                جاري تحميل البيانات من Firebase...
+            </div>
+
             <!-- 1. لوحة المتابعة الذكية (Dashboard) -->
             <section id="dashboard" class="section active">
                 <div class="card">
@@ -266,7 +290,7 @@
                             <label for="vio_recorder">اسم المسجل (المعتمد) *</label>
                             <input type="text" id="vio_recorder" value="أ. نواف الصبحي" required readonly>
                         </div>
-                        <button type="submit" class="btn btn-danger">تسجيل المخالفة</button>
+                        <button type="submit" class="btn btn-danger" id="violation-submit-btn">تسجيل المخالفة</button>
                     </form>
                 </div>
             </section>
@@ -315,7 +339,7 @@
                                 <input type="text" id="pos_approver" value="أ. نواف الصبحي" required readonly>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-success">توثيق السلوك الإيجابي</button>
+                        <button type="submit" class="btn btn-success" id="positive-submit-btn">توثيق السلوك الإيجابي</button>
                     </form>
                 </div>
             </section>
@@ -398,37 +422,56 @@
         </main>
     </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // --- CONFIGURATION ---
-        const POSITIVE_BEHAVIOR_POINTS = { 
-            'مبادرة شخصية': 2, 
-            'سلوك داعم': 3, 
-            'إنجاز مركزي': 5 
-        };
-        const VIOLATION_POINTS = { 
-            'تأخر صباحي': -2, 
-            'مخالفة زي مدرسي': -1, 
-            'إخلال بنظام الحصة': -3, 
-            'إهمال الواجبات': -1, 
-            'أخرى': -2 
-        };
-        const POSITIVE_BEHAVIOR_CAP = 10;
-        const RECOVERY_PERIOD_DAYS = 7;
-        const STORAGE_KEY = 'student_behavior_data_v3';
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Global data cache
+        let allRecords = [];
 
-        // --- DOM ELEMENTS ---
-        const sections = document.querySelectorAll('.section');
-        const navButtons = document.querySelectorAll('.nav button');
-        const dashboardGrid = document.getElementById('dashboard-grid');
-        const violationForm = document.getElementById('violationForm');
-        const positiveForm = document.getElementById('positiveForm');
-        const monthSelector = document.getElementById('month-selector');
-        const reportsTbody = document.getElementById('reports-tbody');
+        // --- FIREBASE DATA FUNCTIONS ---
+        async function loadDataFromFirebase() {
+            try {
+                loadingAlert.style.display = 'block';
+                const q = query(collection(db, 'behavior_records'), orderBy('timestamp', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                allRecords = [];
+                querySnapshot.forEach((doc) => {
+                    allRecords.push({ id: doc.id, ...doc.data() });
+                });
+                
+                loadingAlert.style.display = 'none';
+                return allRecords;
+            } catch (error) {
+                console.error("خطأ في تحميل البيانات:", error);
+                loadingAlert.style.display = 'none';
+                alert('حدث خطأ في تحميل البيانات من Firebase');
+                return [];
+            }
+        }
 
-        // --- DATA HANDLING ---
-        const getData = () => JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-        const saveData = (data) => localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        async function saveToFirebase(record) {
+            try {
+                const docRef = await addDoc(collection(db, 'behavior_records'), record);
+                console.log("تم حفظ السجل بنجاح:", docRef.id);
+                return true;
+            } catch (error) {
+                console.error("خطأ في حفظ البيانات:", error);
+                alert('حدث خطأ في حفظ البيانات');
+                return false;
+            }
+        }
+
+        // Real-time listener for data updates
+        function setupRealtimeListener() {
+            const q = query(collection(db, 'behavior_records'), orderBy('timestamp', 'desc'));
+            onSnapshot(q, (snapshot) => {
+                allRecords = [];
+                snapshot.forEach((doc) => {
+                    allRecords.push({ id: doc.id, ...doc.data() });
+                });
+                updateDashboard();
+            });
+        }
 
         // --- NAVIGATION ---
         function showSection(sectionId) {
@@ -448,15 +491,13 @@
 
         // --- CORE LOGIC ---
         function processRecoveries() {
-            let data = getData();
             const now = Date.now();
             const recoveryMillis = RECOVERY_PERIOD_DAYS * 24 * 60 * 60 * 1000;
-            let recoveryHappened = false;
 
-            data.forEach(record => {
+            allRecords.forEach(record => {
                 if (record.type === 'violation' && record.status === 'makhsouma') {
                     if (now - record.timestamp > recoveryMillis) {
-                        const hasRepeated = data.some(r => 
+                        const hasRepeated = allRecords.some(r => 
                             r.type === 'violation' &&
                             r.studentName === record.studentName &&
                             r.violationType === record.violationType &&
@@ -465,13 +506,11 @@
                         );
                         if (!hasRepeated) {
                             record.status = 'mustaradda';
-                            recoveryHappened = true;
                         }
                     }
                 }
             });
-            if (recoveryHappened) saveData(data);
-            return data;
+            return allRecords;
         }
 
         function updateDashboard() {
@@ -525,9 +564,8 @@
 
         // --- Reports Page Logic ---
         function populateMonthSelector() {
-            const data = getData();
             const months = new Set();
-            data.forEach(r => {
+            allRecords.forEach(r => {
                 const date = new Date(r.timestamp);
                 months.add(`${date.getFullYear()}-${date.getMonth()}`);
             });
@@ -621,12 +659,14 @@
         }
 
         // --- FORM SUBMISSIONS ---
-        violationForm.addEventListener('submit', function(e) {
+        violationForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const data = getData();
+            
+            const submitBtn = document.getElementById('violation-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> جاري الحفظ...';
             
             const newViolation = {
-                id: `v_${Date.now()}`,
                 type: 'violation',
                 studentName: document.getElementById('vio_student_name').value.trim(),
                 grade: document.getElementById('vio_grade').value,
@@ -637,27 +677,33 @@
                 status: 'makhsouma'
             };
             
-            data.push(newViolation);
-            saveData(data);
+            const success = await saveToFirebase(newViolation);
             
-            const successMsg = document.getElementById('violation-success');
-            successMsg.textContent = `تم تسجيل المخالفة للطالب: ${newViolation.studentName} بنجاح`;
-            successMsg.style.display = 'block';
+            if (success) {
+                const successMsg = document.getElementById('violation-success');
+                successMsg.textContent = `تم تسجيل المخالفة للطالب: ${newViolation.studentName} بنجاح`;
+                successMsg.style.display = 'block';
+                
+                violationForm.reset();
+                
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 5000);
+            }
             
-            violationForm.reset();
-            
-            setTimeout(() => {
-                successMsg.style.display = 'none';
-            }, 5000);
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'تسجيل المخالفة';
         });
 
-        positiveForm.addEventListener('submit', function(e) {
+        positiveForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const data = getData();
+            
+            const submitBtn = document.getElementById('positive-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> جاري الحفظ...';
             
             const category = document.getElementById('pos_category').value;
             const newPositive = {
-                id: `p_${Date.now()}`,
                 type: 'positive',
                 studentName: document.getElementById('pos_student_name').value.trim(),
                 grade: document.getElementById('pos_grade').value,
@@ -669,28 +715,79 @@
                 timestamp: Date.now()
             };
             
-            data.push(newPositive);
-            saveData(data);
+            const success = await saveToFirebase(newPositive);
             
-            const successMsg = document.getElementById('positive-success');
-            successMsg.textContent = `تم توثيق السلوك الإيجابي للطالب: ${newPositive.studentName} بنجاح`;
-            successMsg.style.display = 'block';
+            if (success) {
+                const successMsg = document.getElementById('positive-success');
+                successMsg.textContent = `تم توثيق السلوك الإيجابي للطالب: ${newPositive.studentName} بنجاح`;
+                successMsg.style.display = 'block';
+                
+                positiveForm.reset();
+                
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 5000);
+            }
             
-            positiveForm.reset();
-            
-            setTimeout(() => {
-                successMsg.style.display = 'none';
-            }, 5000);
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'توثيق السلوك الإيجابي';
         });
 
         // --- EVENT LISTENERS ---
         monthSelector.addEventListener('change', generateReport);
 
         // --- INITIAL LOAD ---
-        updateDashboard();
-    });
+        async function initialize() {
+            await loadDataFromFirebase();
+            setupRealtimeListener();
+            updateDashboard();
+        }
+
+        initialize();
     </script>
 </body>
-</html>
+</html> Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB7mn5gg8LDOwnYsqmxd2UwdiDWNRPuoAQ",
+            authDomain: "top10-a6e0e.firebaseapp.com",
+            projectId: "top10-a6e0e",
+            storageBucket: "top10-a6e0e.firebasestorage.app",
+            messagingSenderId: "985038639156",
+            appId: "1:985038639156:web:af5c4031f50ddfc85b3a61",
+            measurementId: "G-LXG3X6WXEE"
+        };
 
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- CONFIGURATION ---
+        const POSITIVE_BEHAVIOR_POINTS = { 
+            'مبادرة شخصية': 2, 
+            'سلوك داعم': 3, 
+            'إنجاز مركزي': 5 
+        };
+        const VIOLATION_POINTS = { 
+            'تأخر صباحي': -2, 
+            'مخالفة زي مدرسي': -1, 
+            'إخلال بنظام الحصة': -3, 
+            'إهمال الواجبات': -1, 
+            'أخرى': -2 
+        };
+        const RECOVERY_PERIOD_DAYS = 7;
+
+        // --- DOM ELEMENTS ---
+        const sections = document.querySelectorAll('.section');
+        const navButtons = document.querySelectorAll('.nav button');
+        const dashboardGrid = document.getElementById('dashboard-grid');
+        const violationForm = document.getElementById('violationForm');
+        const positiveForm = document.getElementById('positiveForm');
+        const monthSelector = document.getElementById('month-selector');
+        const reportsTbody = document.getElementById('reports-tbody');
+        const loadingAlert = document.getElementById('loading-alert');
+
+        //
