@@ -2298,6 +2298,7 @@ function createSchedule() {
                     absentTeacher: teacherName,
                     status: 'لم تسند بعد',
                     assignedTo: null,
+                    assignedWaitingType: null, // ✅ جديد: نوع الانتظار المسند
                     assignmentReason: ''
                 });
             }
@@ -2317,7 +2318,7 @@ function createSchedule() {
     // --- نظام الإسناد الذكي المرتب ---
     const waitingTypes = ['انتظار1', 'انتظار2', 'انتظار3', 'انتظار4', 'انتظار5'];
     const dailyAssignmentsCount = {}; // عداد للحصص المسندة اليوم لكل معلم
-    const teacherUsedWaitingTypes = {}; // ✅ جديد: تتبع أنواع الانتظار المستخدمة لكل معلم في هذا اليوم
+    const teacherUsedWaitingTypes = {}; // ✅ تتبع أنواع الانتظار المستخدمة لكل معلم في هذا اليوم
     const tempWeeklyData = JSON.parse(JSON.stringify(weeklyData)); // نسخة مؤقتة للتحديث
 
     // معالجة كل حصة شاغرة بالترتيب
@@ -2379,27 +2380,14 @@ function createSchedule() {
                 continue;
             }
 
-            // ✅ الشرط 4 (الجديد): التحقق من عدم تكرار نوع الانتظار في نفس اليوم
+            // ✅ الشرط 4 (المُصحح): التحقق من عدم تكرار نوع الانتظار في نفس اليوم
             if (!teacherUsedWaitingTypes[substituteName]) {
                 teacherUsedWaitingTypes[substituteName] = new Set();
             }
             
-            // التحقق من جميع الحصص السابقة في هذا اليوم
-            let alreadyUsedThisType = false;
-            for (let p = 1; p <= 7; p++) {
-                const prevSelect = document.getElementById(`cell_${i}_${day}_${p}`);
-                if (prevSelect) {
-                    const prevValue = prevSelect.value;
-                    // إذا كان المعلم قد أُسند له نفس نوع الانتظار في حصة سابقة
-                    if (teacherUsedWaitingTypes[substituteName].has(prevValue) && prevValue === cellValue) {
-                        alreadyUsedThisType = true;
-                        break;
-                    }
-                }
-            }
-
-            if (alreadyUsedThisType) {
-                console.log(`🔁 ${substituteName} - تخطي (استخدم ${cellValue} في حصة سابقة اليوم)`);
+            // ✅ التحقق من قائمة الأنواع المستخدمة بالفعل في الحصص المسندة سابقاً
+            if (teacherUsedWaitingTypes[substituteName].has(cellValue)) {
+                console.log(`🔁 ${substituteName} - تخطي (استخدم ${cellValue} مسبقاً اليوم)`);
                 continue;
             }
 
@@ -2427,6 +2415,7 @@ function createSchedule() {
         if (potentialSubstitutes.length > 0) {
             const bestSubstitute = potentialSubstitutes[0];
             vacant.assignedTo = bestSubstitute.name;
+            vacant.assignedWaitingType = bestSubstitute.waitingType; // ✅ حفظ نوع الانتظار
             vacant.status = 'تم الإسناد';
             
             if (bestSubstitute.isExactMatch) {
@@ -2450,7 +2439,8 @@ function createSchedule() {
             tempWeeklyData[bestSubstitute.name]++;
             
             assigned = true;
-            console.log(`✅ تم الإسناد لمعلم انتظار: ${bestSubstitute.name} - ${bestSubstitute.waitingType}`);
+            console.log(`✅ تم الإسناد لـ: ${bestSubstitute.name} - ${bestSubstitute.waitingType}`);
+            console.log(`   الأنواع المستخدمة لهذا المعلم اليوم: ${Array.from(teacherUsedWaitingTypes[bestSubstitute.name]).join(', ')}`);
         }
 
         // --- الخطوة 3: فقط إذا لم يتم العثور على معلم انتظار، ابحث عن معلم فارغ ---
@@ -2503,6 +2493,7 @@ function createSchedule() {
             if (emptyTeachers.length > 0) {
                 const bestSubstitute = emptyTeachers[0];
                 vacant.assignedTo = bestSubstitute.name;
+                vacant.assignedWaitingType = 'فارغ'; // ✅ تمييز المعلم الفارغ
                 vacant.status = 'تم الإسناد';
                 vacant.assignmentReason = `⚠️ معلم فارغ (لا انتظار متاح) - نصاب: ${bestSubstitute.totalClasses}, أسبوعياً: ${bestSubstitute.weeklyCount}/${WEEKLY_MAX_LIMIT}`;
                 dailyAssignmentsCount[bestSubstitute.name]++;
@@ -2546,6 +2537,25 @@ function createSchedule() {
     const unassignedCount = vacantClasses.length - assignedCount;
     const emptyAssignedCount = vacantClasses.filter(v => v.assignmentReason.includes('معلم فارغ')).length;
     const maxLimitReached = Object.keys(weeklyData).filter(teacher => weeklyData[teacher] >= WEEKLY_MAX_LIMIT).length;
+    
+    // ✅ فحص التكرار في النتائج النهائية
+    console.log(`\n🔍 فحص التكرار في التوزيع النهائي:`);
+    const duplicateCheck = {};
+    vacantClasses.forEach(v => {
+        if (v.assignedTo && v.assignedWaitingType && v.assignedWaitingType !== 'فارغ') {
+            const key = `${v.assignedTo}_${v.assignedWaitingType}`;
+            if (!duplicateCheck[key]) {
+                duplicateCheck[key] = 0;
+            }
+            duplicateCheck[key]++;
+        }
+    });
+    
+    Object.keys(duplicateCheck).forEach(key => {
+        if (duplicateCheck[key] > 1) {
+            console.log(`⚠️ تكرار: ${key} ظهر ${duplicateCheck[key]} مرة`);
+        }
+    });
     
     console.log(`\n📊 النتائج النهائية:`);
     console.log(`✅ تم الإسناد: ${assignedCount}`);
