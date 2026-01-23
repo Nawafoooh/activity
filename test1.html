@@ -502,6 +502,23 @@
             border: 2px solid #cbd5e0;
         }
 
+        @media print {
+            .no-print-select {
+                display: none !important;
+            }
+            .print-only-text {
+                display: inline !important;
+                font-weight: bold;
+            }
+            .btn-print {
+                display: none !important;
+            }
+        }
+        
+        .print-only-text {
+            display: none;
+        }
+
         .waiting-section h2 {
             color: #2d3748;
             margin-bottom: 20px;
@@ -2596,14 +2613,19 @@ function displayWaitingResults(absentTeacherIndexes, day, date, assignments) {
         html += '<tr><td colspan="5" class="alert info">لا توجد حصص دراسية للمعلمين المختارين في هذا اليوم.</td></tr>';
     } else {
         assignments.sort((a, b) => a.period - b.period); // ترتيب حسب الحصة
-        assignments.forEach(assign => {
+        assignments.forEach((assign, idx) => {
             const rowClass = assign.status === 'تم الإسناد' ? 'waiting-assigned' : 'waiting-unassigned';
             html += `
                 <tr class="${rowClass}">
                     <td>${assign.period}</td>
                     <td><strong>${assign.class}</strong></td>
                     <td>${assign.absentTeacher}</td>
-                    <td style="font-weight: bold;">${assign.assignedTo || '---'}</td>
+                    <td style="font-weight: bold;">
+                        <select onchange="updateManualAssignment(${idx}, this.value)" style="width: 100%; padding: 4px; font-size: 12px;">
+                            <option value="">--- اختر معلم ---</option>
+                            ${getTeacherOptions(assign.assignedTo)}
+                        </select>
+                    </td>
                     <td>${assign.assignmentReason}</td>
                 </tr>
             `;
@@ -2620,6 +2642,52 @@ function displayWaitingResults(absentTeacherIndexes, day, date, assignments) {
     `;
 
     resultDiv.innerHTML = html;
+    // حفظ التوزيع الحالي في متغير عالمي للتمكن من تعديله
+    window.currentDailyAssignments = assignments;
+}
+
+function getTeacherOptions(selectedName) {
+    let options = '';
+    for (let i = 0; i < 42; i++) {
+        if (excludedTeachers.includes(i)) continue;
+        const name = document.getElementById(`teacher_${i}`).value.trim();
+        if (name) {
+            const selected = (name === selectedName) ? 'selected' : '';
+            options += `<option value="${name}" ${selected}>${name}</option>`;
+        }
+    }
+    return options;
+}
+
+function updateManualAssignment(index, newTeacherName) {
+    if (!window.currentDailyAssignments || !window.currentDailyAssignments[index]) return;
+    
+    const assignment = window.currentDailyAssignments[index];
+    const oldTeacher = assignment.assignedTo;
+    
+    // تحديث البيانات في الذاكرة الأسبوعية
+    const weeklyData = getWeeklyTrackingData();
+    
+    // خصم من المعلم القديم إذا كان موجوداً
+    if (oldTeacher && weeklyData[oldTeacher]) {
+        weeklyData[oldTeacher] = Math.max(0, weeklyData[oldTeacher] - 1);
+    }
+    
+    // إضافة للمعلم الجديد
+    if (newTeacherName) {
+        if (!weeklyData[newTeacherName]) weeklyData[newTeacherName] = 0;
+        weeklyData[newTeacherName]++;
+        assignment.assignedTo = newTeacherName;
+        assignment.status = 'تم الإسناد';
+        assignment.assignmentReason = 'تعديل يدوي';
+    } else {
+        assignment.assignedTo = null;
+        assignment.status = 'لم تسند بعد';
+        assignment.assignmentReason = 'تم الحذف يدوياً';
+    }
+    
+    saveWeeklyTrackingData(weeklyData);
+    console.log(`🔄 تم تحديث المعلم: ${oldTeacher} -> ${newTeacherName}`);
 }
 
 
@@ -3035,21 +3103,30 @@ function printClassSchedule() {
 // دالة طباعة التقرير اليومي
 // =====================================================
 function printDailyReport() {
-    // هذا الكود يقوم بنسخ محتوى التقرير فقط وطباعته
-    const printContents = document.getElementById('waitingResult').innerHTML;
-    const originalContents = document.body.innerHTML;
+    // تحديث قيم الـ select إلى نص ثابت قبل الطباعة
+    const resultDiv = document.getElementById('waitingResult');
+    const selects = resultDiv.querySelectorAll('select');
+    const originalValues = [];
     
-    // استبدل محتوى الصفحة بمحتوى التقرير للطباعة
-    document.body.innerHTML = printContents;
-    
-    // استدعاء وظيفة الطباعة في المتصفح
+    selects.forEach(select => {
+        originalValues.push({
+            select: select,
+            parent: select.parentElement,
+            value: select.options[select.selectedIndex].text
+        });
+        
+        const span = document.createElement('span');
+        span.className = 'print-only-text';
+        span.textContent = select.options[select.selectedIndex].text;
+        select.parentElement.appendChild(span);
+        select.classList.add('no-print-select');
+    });
+
     window.print();
-    
-    // أعد محتوى الصفحة الأصلي بعد الطباعة
-    document.body.innerHTML = originalContents;
-    
-    // أعد تحميل الصفحة لإعادة بناء أي أحداث جافاسكربت قد تكون فُقدت
-    location.reload(); 
+
+    // إعادة الوضع كما كان
+    resultDiv.querySelectorAll('.print-only-text').forEach(el => el.remove());
+    resultDiv.querySelectorAll('.no-print-select').forEach(el => el.classList.remove('no-print-select'));
 }
 
         function updateTeacherSelect() {
@@ -3714,3 +3791,4 @@ function autoAssignWaiting() {
         </script>
 </body>
 </html> 
+
