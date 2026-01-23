@@ -510,8 +510,16 @@
                 display: inline !important;
                 font-weight: bold;
             }
-            .btn-print {
+            .btn-print, .btn {
                 display: none !important;
+            }
+            .page-break {
+                page-break-after: always;
+                break-after: page;
+            }
+            .teacher-schedule-table {
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
             }
         }
         
@@ -1081,7 +1089,8 @@
             <div id="teacherScheduleView"></div>
 
             <div class="buttons" style="margin-top: 20px;">
-                <button class="btn btn-print" onclick="printTeacherSchedule()">🖨️ طباعة جدول المعلم</button>
+                <button class="btn btn-print" onclick="printTeacherSchedule()">🖨️ طباعة جدول المعلم الحالي</button>
+                <button class="btn" style="background: #2d3748; color: white;" onclick="printAllTeachers()">🖨️ طباعة جميع المعلمين</button>
             </div>
         </div>
 
@@ -1105,7 +1114,8 @@
             <div id="classScheduleView"></div>
 
             <div class="buttons" style="margin-top: 20px;">
-                <button class="btn btn-print" onclick="printClassSchedule()">🖨️ طباعة جدول الفصل</button>
+                <button class="btn btn-print" onclick="printClassSchedule()">🖨️ طباعة جدول الفصل الحالي</button>
+                <button class="btn" style="background: #2d3748; color: white;" onclick="printAllClasses()">🖨️ طباعة جميع الفصول</button>
             </div>
         </div>
 
@@ -3099,6 +3109,143 @@ function printClassSchedule() {
     document.body.classList.remove('printing-class-schedule');
 }
 
+function getClassScheduleHTML(classValue) {
+    const [grade, classNum] = classValue.split('-');
+    const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
+    const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${classNum}`;
+    const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
+
+    let html = `
+        <div class="teacher-schedule-table page-break">
+            <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">جدول ${className}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="day-header">اليوم / الحصة</th>
+                        <th class="period-header">الأولى</th>
+                        <th class="period-header">الثانية</th>
+                        <th class="period-header">الثالثة</th>
+                        <th class="period-header">الرابعة</th>
+                        <th class="period-header">الخامسة</th>
+                        <th class="period-header">السادسة</th>
+                        <th class="period-header">السابعة</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    days.forEach(day => {
+        html += `<tr><td class="day-header">${dayNames[day]}</td>`;
+        for (let period = 1; period <= 7; period++) {
+            let teacherName = '-';
+            let cellStyle = '';
+            for (let i = 0; i < 42; i++) {
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    const teacherInput = document.getElementById(`teacher_${i}`);
+                    teacherName = teacherInput ? teacherInput.value.trim() : `معلم ${i + 1}`;
+                    cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
+                    break;
+                }
+            }
+
+            let subject = null;
+            const assignmentKey = `${day}_${period}`;
+            if (specialAssignments[teacherName] && specialAssignments[teacherName][assignmentKey]) {
+                subject = specialAssignments[teacherName][assignmentKey];
+            } else {
+                subject = teacherSubjects[teacherName];
+            }
+
+            let displayContent = teacherName;
+            if (teacherName !== '-' && subject) {
+                displayContent = `<div style="line-height: 1.4;"><div style="font-weight: bold; font-size: 14px;">${teacherName}</div><div style="font-size: 11px; color: #2c7a7b; margin-top: 2px;">📚 ${subject}</div></div>`;
+            } else if (teacherName !== '-') {
+                displayContent = `<div style="font-weight: bold; font-size: 14px;">${teacherName}</div>`;
+            }
+            html += `<td style="${cellStyle} padding: 8px;">${displayContent}</td>`;
+        }
+        html += '</tr>';
+    });
+
+    let totalClasses = 0;
+    days.forEach(day => {
+        for (let period = 1; period <= 7; period++) {
+            for (let i = 0; i < 42; i++) {
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && select.value === classValue) {
+                    totalClasses++;
+                    break;
+                }
+            }
+        }
+    });
+
+    html += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
+                            📊 إجمالي عدد الحصص: ${totalClasses}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+    return html;
+}
+
+function printAllClasses() {
+    const viewDiv = document.getElementById('classScheduleView');
+    const originalContent = viewDiv.innerHTML;
+    const originalClassSelect = document.getElementById('classNumberSelect').value;
+    
+    let allHTML = '';
+    // المرور على جميع الصفوف (1-3) والفصول (1-6)
+    for (let grade = 1; grade <= 3; grade++) {
+        for (let classNum = 1; classNum <= 6; classNum++) {
+            const classValue = `${grade}-${classNum}`;
+            // التحقق إذا كان الفصل له حصص أصلاً قبل إضافته للطباعة
+            let hasClasses = false;
+            for (let i = 0; i < 42; i++) {
+                for (let d = 0; d < days.length; d++) {
+                    for (let p = 1; p <= 7; p++) {
+                        const select = document.getElementById(`cell_${i}_${days[d]}_${p}`);
+                        if (select && select.value === classValue) {
+                            hasClasses = true;
+                            break;
+                        }
+                    }
+                    if (hasClasses) break;
+                }
+                if (hasClasses) break;
+            }
+            
+            if (hasClasses) {
+                allHTML += getClassScheduleHTML(classValue);
+            }
+        }
+    }
+    
+    if (!allHTML) {
+        alert('لا توجد فصول لها حصص مجدولة للطباعة!');
+        return;
+    }
+
+    viewDiv.innerHTML = allHTML;
+    document.body.classList.add('printing-class-schedule');
+    window.print();
+    document.body.classList.remove('printing-class-schedule');
+    
+    // استعادة المحتوى الأصلي
+    if (originalClassSelect) {
+        showClassSchedule();
+    } else {
+        viewDiv.innerHTML = '';
+    }
+}
+
 // =====================================================
 // دالة طباعة التقرير اليومي
 // =====================================================
@@ -3263,6 +3410,107 @@ function printDailyReport() {
             document.body.classList.add('printing-teacher-schedule');
             window.print();
             document.body.classList.remove('printing-teacher-schedule');
+        }
+
+        function getTeacherScheduleHTML(teacherIndex) {
+            const teacherName = document.getElementById(`teacher_${teacherIndex}`).value;
+            const dayNames = { 'sun': 'الأحد', 'mon': 'الإثنين', 'tue': 'الثلاثاء', 'wed': 'الأربعاء', 'thu': 'الخميس' };
+
+            let html = `
+                <div class="teacher-schedule-table page-break">
+                    <h2 style="text-align: center; color: #2d3748; margin-bottom: 20px;">جدول المعلم: ${teacherName}</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="day-header">اليوم / الحصة</th>
+                                <th class="period-header">الأولى</th>
+                                <th class="period-header">الثانية</th>
+                                <th class="period-header">الثالثة</th>
+                                <th class="period-header">الرابعة</th>
+                                <th class="period-header">الخامسة</th>
+                                <th class="period-header">السادسة</th>
+                                <th class="period-header">السابعة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            days.forEach(day => {
+                html += `<tr><td class="day-header">${dayNames[day]}</td>`;
+                for (let period = 1; period <= 7; period++) {
+                    const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
+                    const value = select ? select.value : '';
+                    let displayValue = value || '-';
+                    let cellStyle = '';
+                    if (value === 'وهمي') {
+                        displayValue = '-';
+                        cellStyle = 'background: #f7fafc; color: #a0aec0;';
+                    } else if (value && value.startsWith('انتظار')) {
+                        cellStyle = 'background: #fef5e7; color: #b7791f; font-weight: bold;';
+                    } else if (value) {
+                        cellStyle = 'background: #e6fffa; color: #234e52; font-weight: bold;';
+                    }
+                    html += `<td style="${cellStyle}">${displayValue}</td>`;
+                }
+                html += '</tr>';
+            });
+
+            let totalClasses = 0, totalWaiting = 0;
+            days.forEach(day => {
+                for (let period = 1; period <= 7; period++) {
+                    const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
+                    if (select && select.value) {
+                        if (select.value.startsWith('انتظار')) totalWaiting++;
+                        else if (select.value !== 'وهمي') totalClasses++;
+                    }
+                }
+            });
+
+            html += `
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="8" style="text-align: center; background: #f7fafc; font-weight: bold; padding: 15px;">
+                                    📊 عدد الحصص الدراسية: ${totalClasses} | ⏳ الانتظار: ${totalWaiting} | 📈 الإجمالي: ${totalClasses + totalWaiting}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+            return html;
+        }
+
+        function printAllTeachers() {
+            const viewDiv = document.getElementById('teacherScheduleView');
+            const originalContent = viewDiv.innerHTML;
+            const originalTeacherSelect = document.getElementById('teacherSelect').value;
+            
+            let allHTML = '';
+            for (let i = 0; i < 42; i++) {
+                if (excludedTeachers.includes(i)) continue;
+                const teacherName = document.getElementById(`teacher_${i}`).value.trim();
+                if (teacherName) {
+                    allHTML += getTeacherScheduleHTML(i);
+                }
+            }
+            
+            if (!allHTML) {
+                alert('لا يوجد معلمين لعرض جداولهم!');
+                return;
+            }
+
+            viewDiv.innerHTML = allHTML;
+            document.body.classList.add('printing-teacher-schedule');
+            window.print();
+            document.body.classList.remove('printing-teacher-schedule');
+            
+            // استعادة المحتوى الأصلي
+            if (originalTeacherSelect) {
+                showTeacherSchedule();
+            } else {
+                viewDiv.innerHTML = '';
+            }
         }
 
         function updateClassList() {
@@ -3791,4 +4039,3 @@ function autoAssignWaiting() {
         </script>
 </body>
 </html> 
-
