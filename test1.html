@@ -3630,7 +3630,14 @@ function autoAssignWaiting() {
                     if (!select || select.value) return false;
                     if (!teacher.needsWaiting) return false;
                     
-                    // ✅ شرط 1: لا تكرار لنفس نوع الانتظار في نفس اليوم
+                    // ✅ شرط 1: المعلم الذي لديه 18 حصة يأخذ فقط انتظار3 أو 4 أو 5
+                    if (teacher.total === 18) {
+                        if (!['انتظار3', 'انتظار4', 'انتظار5'].includes(waitingType)) {
+                            return false;
+                        }
+                    }
+                    
+                    // ✅ شرط 2: لا تكرار لنفس نوع الانتظار في نفس اليوم
                     if (teacher.waitingPerDayType[day].has(waitingType)) {
                         return false;
                     }
@@ -3694,7 +3701,14 @@ function autoAssignWaiting() {
             if (!select || select.value) return false;
             if (!teacher.needsWaiting) return false;
             
-            // ✅ الشرط الوحيد: قاعدة "4 حصص فارغة"
+            // ✅ شرط 1: المعلم الذي لديه 18 حصة يأخذ فقط انتظار3 أو 4 أو 5
+            if (teacher.total === 18) {
+                if (!['انتظار3', 'انتظار4', 'انتظار5'].includes(waitingType)) {
+                    return false;
+                }
+            }
+            
+            // ✅ شرط 2: قاعدة "4 حصص فارغة"
             if (teacher.firstClassPeriod[day] > 0) {
                 const emptyBeforeFirst = teacher.firstClassPeriod[day] - 1;
                 if (emptyBeforeFirst >= 4 && period <= 3) {
@@ -3766,15 +3780,38 @@ function autoAssignWaiting() {
                     // ✅ اختيار نوع غير مكرر في هذا اليوم
                     let bestWaitingType = null;
                     for (const wc of waitingCounts) {
+                        // ✅ شرط: المعلم الذي لديه 18 حصة يأخذ فقط انتظار3 أو 4 أو 5
+                        if (teacher.total === 18) {
+                            if (!['انتظار3', 'انتظار4', 'انتظار5'].includes(wc.type)) {
+                                continue;
+                            }
+                        }
+                        
                         if (!teacher.waitingPerDayType[day].has(wc.type)) {
                             bestWaitingType = wc.type;
                             break;
                         }
                     }
                     
-                    // ✅ إذا لم نجد نوع غير مكرر، نأخذ أي نوع
+                    // ✅ إذا لم نجد نوع غير مكرر، نأخذ أي نوع مناسب
                     if (!bestWaitingType) {
-                        bestWaitingType = waitingCounts[0].type;
+                        for (const wc of waitingCounts) {
+                            // ✅ التحقق من شرط الـ 18 حصة
+                            if (teacher.total === 18) {
+                                if (['انتظار3', 'انتظار4', 'انتظار5'].includes(wc.type)) {
+                                    bestWaitingType = wc.type;
+                                    break;
+                                }
+                            } else {
+                                bestWaitingType = wc.type;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // ✅ إذا لم نجد نوع مناسب (حالة نادرة)، تخطي هذا المعلم
+                    if (!bestWaitingType) {
+                        continue;
                     }
                     
                     select.value = bestWaitingType;
