@@ -3549,11 +3549,11 @@ function autoAssignWaiting() {
 
         let classCount = 0;
         const lastClassPeriod = {};
-        const firstClassPeriod = {};
+        const firstClassPeriod = {}; // ✅ لتتبع أول حصة دراسية
         
         days.forEach(day => {
             lastClassPeriod[day] = 0;
-            firstClassPeriod[day] = 999;
+            firstClassPeriod[day] = 999; // رقم كبير للمقارنة
             
             for (let period = 1; period <= 7; period++) {
                 const select = document.getElementById(`cell_${i}_${day}_${period}`);
@@ -3562,6 +3562,7 @@ function autoAssignWaiting() {
                 if (val && !val.startsWith('انتظار') && val !== 'وهمي') {
                     classCount++;
                     lastClassPeriod[day] = period;
+                    // ✅ تسجيل أول حصة دراسية في اليوم
                     if (period < firstClassPeriod[day]) {
                         firstClassPeriod[day] = period;
                     }
@@ -3571,6 +3572,7 @@ function autoAssignWaiting() {
                 }
             }
             
+            // ✅ إذا لم يكن هناك حصص دراسية في هذا اليوم
             if (firstClassPeriod[day] === 999) {
                 firstClassPeriod[day] = 0;
             }
@@ -3582,7 +3584,6 @@ function autoAssignWaiting() {
             classCount: classCount, 
             waitingAssigned: 0,
             waitingPerDay: { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0 },
-            waitingTypesUsedPerDay: { sun: [], mon: [], tue: [], wed: [], thu: [] }, // ✅ جديد: تتبع الأنواع المستخدمة
             lastClassPeriod: lastClassPeriod,
             firstClassPeriod: firstClassPeriod,
             get total() { return this.classCount + this.waitingAssigned; },
@@ -3597,6 +3598,7 @@ function autoAssignWaiting() {
     let totalAssigned = 0;
     let roundNumber = 1;
 
+    // ✅ نستمر في جولات التوزيع حتى يكتمل نصاب الجميع أو تنفد الخلايا
     while (true) {
         console.log(`🔄 الجولة ${roundNumber} من التوزيع المتوازن...`);
         let assignedInThisRound = 0;
@@ -3605,26 +3607,35 @@ function autoAssignWaiting() {
             for (let period = 1; period <= 7; period++) {
                 if (day === 'thu' && period === 7) continue;
 
+                // ✅ جلب المعلمين المؤهلين مع جميع الشروط
                 const eligibleTeachers = Object.values(teacherData).filter(teacher => {
                     const select = document.getElementById(`cell_${teacher.id}_${day}_${period}`);
                     if (!select || select.value) return false;
                     if (!teacher.needsWaiting) return false;
                     if (teacher.waitingPerDay[day] >= 1) return false;
                     
-                    // الشرط 1: لا انتظار بعد الحصة 3 إلا إذا كان له حصص بعدها
+                    // ✅ الشرط 1: لا انتظار بعد الحصة 3 إلا إذا كان له حصص بعدها
                     if (period > 3 && teacher.lastClassPeriod[day] > 0 && teacher.lastClassPeriod[day] <= 3) {
                         return false;
                     }
                     
-                    // الشرط 2: لا انتظار في أول 4 حصص فارغة قبل أول حصة دراسية
+                    // ✅ الشرط 2 (المُصحح): لا انتظار في أول 4 حصص فارغة قبل أول حصة دراسية
                     if (teacher.firstClassPeriod[day] > 0 && teacher.firstClassPeriod[day] < 999) {
+                        // حساب عدد الحصص الفارغة قبل أول حصة دراسية
                         const emptyPeriodsBeforeFirstClass = teacher.firstClassPeriod[day] - 1;
+                        
+                        // إذا كانت الحصص الفارغة 4 أو أكثر
                         if (emptyPeriodsBeforeFirstClass >= 4) {
+                            // لا تسند انتظار في أول 4 حصص فارغة فقط
+                            // مثال: أول حصة دراسية = 6، عدد الفارغة = 5
+                            // نمنع الحصص: 1، 2، 3، 4 (أول 4)
+                            // نسمح بـ: 5 (الحصة الفارغة الخامسة)
                             const blockedPeriods = teacher.firstClassPeriod[day] - 4;
                             if (period <= blockedPeriods) {
                                 return false;
                             }
                         } else {
+                            // إذا كانت أقل من 4، امنع الانتظار في كل الحصص الفارغة
                             if (period < teacher.firstClassPeriod[day]) {
                                 return false;
                             }
@@ -3633,47 +3644,24 @@ function autoAssignWaiting() {
                     
                     return true;
                 }).sort((a, b) => {
+                    // ✅ الأولوية: الأقل إجمالياً، ثم الأقل حصص دراسية
                     return a.total - b.total || a.classCount - b.classCount;
                 });
 
+                // ✅ توزيع أنواع الانتظار بشكل متوازن
                 for (let i = 0; i < waitingTypes.length; i++) {
                     if (eligibleTeachers.length > 0) {
                         const teacher = eligibleTeachers.shift();
                         const select = document.getElementById(`cell_${teacher.id}_${day}_${period}`);
                         
-                        // ✅ التوزيع الدوري مع منع التكرار في نفس اليوم
-                        let assignedType = null;
+                        // ✅ توزيع دوري: نضمن أن كل معلم يأخذ من كل نوع بشكل متساوٍ
+                        const waitingType = waitingTypes[teacher.waitingAssigned % waitingTypes.length];
                         
-                        // نحاول إيجاد نوع انتظار لم يستخدمه المعلم في هذا اليوم
-                        for (let typeIndex = 0; typeIndex < waitingTypes.length; typeIndex++) {
-                            const candidateType = waitingTypes[(teacher.waitingAssigned + typeIndex) % waitingTypes.length];
-                            
-                            // ✅ شرط جديد: المعلم الذي لديه 18 حصة فأكثر لا يأخذ انتظار 1 أو انتظار 2
-                            if (teacher.classCount >= 18 && (candidateType === 'انتظار1' || candidateType === 'انتظار2')) {
-                                continue;
-                            }
-
-                            // ✅ التحقق: هل استخدم هذا النوع في هذا اليوم؟
-                            if (!teacher.waitingTypesUsedPerDay[day].includes(candidateType)) {
-                                assignedType = candidateType;
-                                break;
-                            }
-                        }
-                        
-                        // إذا لم نجد نوع غير مستخدم (نادر جداً)، نستخدم التوزيع الدوري العادي
-                        if (!assignedType) {
-                            assignedType = waitingTypes[teacher.waitingAssigned % waitingTypes.length];
-                            console.log(`⚠️ ${teacher.name} - استخدم جميع الأنواع في ${day}، سيتم استخدام ${assignedType}`);
-                        }
-                        
-                        select.value = assignedType;
+                        select.value = waitingType;
                         teacher.waitingAssigned++;
                         teacher.waitingPerDay[day]++;
-                        teacher.waitingTypesUsedPerDay[day].push(assignedType); // ✅ تسجيل النوع المستخدم
                         totalAssigned++;
                         assignedInThisRound++;
-                        
-                        console.log(`✅ ${teacher.name} - ${day} - حصة ${period}: ${assignedType} (الأنواع المستخدمة في ${day}: ${teacher.waitingTypesUsedPerDay[day].join(', ')})`);
                     }
                 }
             }
@@ -3681,8 +3669,10 @@ function autoAssignWaiting() {
 
         console.log(`✅ الجولة ${roundNumber}: تم إسناد ${assignedInThisRound} حصة`);
         
+        // ✅ إذا لم يتم إسناد أي شيء في هذه الجولة، توقف
         if (assignedInThisRound === 0) break;
         
+        // ✅ تحقق: هل اكتمل نصاب الجميع؟
         const allComplete = Object.values(teacherData).every(t => !t.needsWaiting);
         if (allComplete) {
             console.log('🎉 اكتمل نصاب جميع المعلمين!');
@@ -3691,6 +3681,7 @@ function autoAssignWaiting() {
         
         roundNumber++;
         
+        // حماية من الحلقات اللانهائية
         if (roundNumber > 20) {
             console.log('⚠️ تم الوصول للحد الأقصى من الجولات');
             break;
@@ -3699,15 +3690,14 @@ function autoAssignWaiting() {
 
     console.log(`✅ اكتملت المرحلة 1. تم إسناد ${totalAssigned} حصة بشكل متوازن.`);
 
-    // --- المرحلة الثانية: ملء الفراغات الإلزامية (ضمان 5 انتظارات لكل حصة) ---
-    console.log('--- المرحلة 2: ملء الفراغات الإلزامية (ضمان 5 انتظارات لكل حصة) ---');
+    // --- المرحلة الثانية: ملء الفراغات المتبقية ---
+    console.log('--- المرحلة 2: ملء الفراغات المتبقية ---');
     let phase2Assigned = 0;
 
     days.forEach(day => {
         for (let period = 1; period <= 7; period++) {
-            // ملاحظة: إذا كان المستخدم يريد 175 حصة، يجب شمول الخميس الحصة 7
-            // إذا كان يريد 174، ربما هناك حصة واحدة مستثناة. سنفترض شمول الكل لضمان الـ 5 انتظارات.
-            
+            if (day === 'thu' && period === 7) continue;
+
             const assignedWaitingTypes = new Set();
             for (let i = 0; i < 42; i++) {
                 if (excludedTeachers.includes(i)) continue;
@@ -3720,45 +3710,44 @@ function autoAssignWaiting() {
             const missingWaitingTypes = waitingTypes.filter(wt => !assignedWaitingTypes.has(wt));
             if (missingWaitingTypes.length === 0) continue;
 
-            missingWaitingTypes.forEach(waitingType => {
-                // محاولة العثور على معلم بأقل القيود الممكنة لضمان ملء الخانة
-                const availableTeachers = Object.values(teacherData).filter(teacher => {
-                    const select = document.getElementById(`cell_${teacher.id}_${day}_${period}`);
-                    if (!select || select.value) return false;
-                    
-                    // قيود أساسية لا يمكن تجاوزها (عدم وجود حصة أصلاً في هذا الوقت)
-                    if (teacher.waitingPerDay[day] >= 1) return false; // معلم واحد لا يأخذ انتظارين في يوم واحد
-                    
-                    // قيد الـ 18 حصة لانتظار 1 و 2
-                    if (teacher.classCount >= 18 && (waitingType === 'انتظار1' || waitingType === 'انتظار2')) return false;
-
-                    return true;
-                }).sort((a, b) => {
-                    // ترتيب المعلمين: الأقل نصاباً أولاً، ثم الذين يحققون الشروط التربوية
-                    let scoreA = a.total;
-                    let scoreB = b.total;
-                    
-                    // تفضيل المعلمين الذين لديهم حصص بعد هذه الحصة (إذا كانت بعد الحصة 3)
-                    if (period > 3) {
-                        if (a.lastClassPeriod[day] > period) scoreA -= 10;
-                        if (b.lastClassPeriod[day] > period) scoreB -= 10;
+            // ✅ المعلمون المتاحون مع تطبيق نفس الشروط
+            const availableTeachers = Object.values(teacherData).filter(teacher => {
+                const select = document.getElementById(`cell_${teacher.id}_${day}_${period}`);
+                if (!select || select.value) return false;
+                if (!teacher.needsWaiting) return false;
+                
+                // ✅ تطبيق نفس الشروط
+                // الشرط 1: لا انتظار بعد الحصة 3 إذا لم يكن له حصص بعدها
+                if (period > 3 && teacher.lastClassPeriod[day] > 0 && teacher.lastClassPeriod[day] <= 3) {
+                    return false;
+                }
+                
+                // ✅ الشرط 2 (المُصحح): لا انتظار في أول 4 حصص فارغة
+                if (teacher.firstClassPeriod[day] > 0 && teacher.firstClassPeriod[day] < 999) {
+                    const emptyPeriodsBeforeFirstClass = teacher.firstClassPeriod[day] - 1;
+                    if (emptyPeriodsBeforeFirstClass >= 4) {
+                        const blockedPeriods = teacher.firstClassPeriod[day] - 4;
+                        if (period <= blockedPeriods) {
+                            return false;
+                        }
+                    } else {
+                        if (period < teacher.firstClassPeriod[day]) {
+                            return false;
+                        }
                     }
-                    
-                    return scoreA - scoreB;
-                });
+                }
+                
+                return true;
+            }).sort((a, b) => a.total - b.total || a.classCount - b.classCount);
 
+            missingWaitingTypes.forEach(waitingType => {
                 if (availableTeachers.length > 0) {
-                    const selectedTeacher = availableTeachers[0];
-                    const select = document.getElementById(`cell_${selectedTeacher.id}_${day}_${period}`);
+                    const teacher = availableTeachers.shift();
+                    const select = document.getElementById(`cell_${teacher.id}_${day}_${period}`);
                     select.value = waitingType;
-                    selectedTeacher.waitingAssigned++;
-                    selectedTeacher.waitingPerDay[day]++;
-                    selectedTeacher.waitingTypesUsedPerDay[day].push(waitingType);
+                    teacher.waitingAssigned++;
                     totalAssigned++;
                     phase2Assigned++;
-                    console.log(`✅ إلزامي: ${selectedTeacher.name} - ${day} - حصة ${period}: ${waitingType}`);
-                } else {
-                    console.log(`❌ فشل في إيجاد معلم لـ ${waitingType} في ${day} حصة ${period}`);
                 }
             });
         }
@@ -3766,8 +3755,8 @@ function autoAssignWaiting() {
 
     console.log(`✅ اكتملت المرحلة 2. تم إسناد ${phase2Assigned} حصة إضافية.`);
 
-    // --- المرحلة الثالثة: إكمال النصاب ---
-    console.log('--- المرحلة 3: إكمال النصاب النهائي ---');
+    // --- المرحلة الثالثة: إكمال النصاب للمعلمين الذين لم يصلوا 20 ---
+    console.log('--- المرحلة 3: إكمال النصاب النهائي (بدون قيود صارمة) ---');
     let phase3Assigned = 0;
 
     let maxIterations = 10;
@@ -3789,36 +3778,24 @@ function autoAssignWaiting() {
                     const select = document.getElementById(`cell_${teacher.id}_${day}_${period}`);
                     if (!select || select.value) continue;
                     
+                    // ✅ في المرحلة 3، نحافظ على الشرط الأهم
+                    // الشرط: لا انتظار في أول 4 حصص فارغة
                     if (teacher.firstClassPeriod[day] > 0 && teacher.firstClassPeriod[day] < 999) {
                         const emptyPeriodsBeforeFirstClass = teacher.firstClassPeriod[day] - 1;
                         if (emptyPeriodsBeforeFirstClass >= 4) {
                             const blockedPeriods = teacher.firstClassPeriod[day] - 4;
                             if (period <= blockedPeriods) {
-                                continue;
+                                continue; // تخطي هذه الخلية
                             }
                         } else {
                             if (period < teacher.firstClassPeriod[day]) {
-                                continue;
+                                continue; // تخطي هذه الخلية
                             }
                         }
                     }
                     
-                    // ✅ اختيار أقل نوع انتظار تم استخدامه ولم يُستخدم في هذا اليوم
-                    let bestWaitingType = null;
-                    let minCount = Infinity;
-                    
-                    waitingTypes.forEach(wt => {
-                        // هل استخدمه في هذا اليوم؟
-                        if (teacher.waitingTypesUsedPerDay[day].includes(wt)) {
-                            return; // تخطي
-                        }
-                        
-                        // ✅ شرط جديد: المعلم الذي لديه 18 حصة فأكثر لا يأخذ انتظار 1 أو انتظار 2
-                        if (teacher.classCount >= 18 && (wt === 'انتظار1' || wt === 'انتظار2')) {
-                            return;
-                        }
-
-                        // حساب عدد مرات استخدامه في جميع الأيام
+                    // ✅ اختيار أقل نوع انتظار تم إسناده لهذا المعلم
+                    const waitingCounts = waitingTypes.map(wt => {
                         let count = 0;
                         days.forEach(d => {
                             for (let p = 1; p <= 7; p++) {
@@ -3826,38 +3803,17 @@ function autoAssignWaiting() {
                                 if (s && s.value === wt) count++;
                             }
                         });
-                        
-                        if (count < minCount) {
-                            minCount = count;
-                            bestWaitingType = wt;
-                        }
+                        return { type: wt, count };
                     });
                     
-                    // إذا لم نجد نوع غير مستخدم، نستخدم الأقل عموماً
-                    if (!bestWaitingType) {
-                        const waitingCounts = waitingTypes.map(wt => {
-                            let count = 0;
-                            days.forEach(d => {
-                                for (let p = 1; p <= 7; p++) {
-                                    const s = document.getElementById(`cell_${teacher.id}_${d}_${p}`);
-                                    if (s && s.value === wt) count++;
-                                }
-                            });
-                            return { type: wt, count };
-                        });
-                        
-                        waitingCounts.sort((a, b) => a.count - b.count);
-                        bestWaitingType = waitingCounts[0].type;
-                    }
+                    waitingCounts.sort((a, b) => a.count - b.count);
+                    const bestWaitingType = waitingCounts[0].type;
                     
                     select.value = bestWaitingType;
                     teacher.waitingAssigned++;
-                    teacher.waitingTypesUsedPerDay[day].push(bestWaitingType);
                     totalAssigned++;
                     phase3Assigned++;
                     assignedInIteration++;
-                    
-                    console.log(`✅ ${teacher.name} - ${day} - حصة ${period}: ${bestWaitingType}`);
                     break;
                 }
             }
@@ -3868,25 +3824,6 @@ function autoAssignWaiting() {
 
     console.log(`✅ اكتملت المرحلة 3. تم إسناد ${phase3Assigned} حصة نهائية.`);
 
-    // --- فحص نهائي للتكرار ---
-    console.log('\n🔍 فحص نهائي للتكرار في كل يوم:');
-    let foundDuplicates = false;
-    
-    Object.values(teacherData).forEach(teacher => {
-        days.forEach(day => {
-            const types = teacher.waitingTypesUsedPerDay[day];
-            const uniqueTypes = [...new Set(types)];
-            if (types.length > uniqueTypes.length) {
-                console.log(`⚠️ تكرار: ${teacher.name} في ${day} - ${types.join(', ')}`);
-                foundDuplicates = true;
-            }
-        });
-    });
-    
-    if (!foundDuplicates) {
-        console.log('✅ ممتاز! لا يوجد أي تكرار في التوزيع');
-    }
-
     // --- التقرير والعرض ---
     saveData();
     updateClassCounts();
@@ -3894,7 +3831,7 @@ function autoAssignWaiting() {
     checkUnassignedClasses();
     displayAutoAssignReport(Object.values(teacherData), totalRemoved, totalAssigned);
     
-    alert(`✅ اكتمل "التوزيع الكامل" بنجاح!\n\n📊 إجمالي حصص الانتظار: ${totalAssigned}\n✨ تم التأكد من وجود 5 انتظارات لكل حصة دراسية.\n⚖️ تم التوزيع بشكل عادل مع مراعاة نصاب المعلمين.`);
+    alert(`✅ اكتمل "التوزيع الكامل" بنجاح!\n\n📊 إجمالي الحصص المسندة: ${totalAssigned}\n✨ تم التوزيع بشكل عادل ومتوازن`);
 }
             function displayAutoAssignReport(teacherData, removedCount, assignedCount) {
             // حساب الانتظار الفعلي بعد التوزيع
