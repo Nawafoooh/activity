@@ -116,14 +116,10 @@
             box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
         }
 
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-            margin-left: 10px;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .alert {
@@ -237,9 +233,25 @@
             color: #155724;
         }
 
-        .time-format {
-            font-size: 13px;
+        .loading {
+            text-align: center;
+            padding: 40px;
             color: #6c757d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2d5f3f;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         @media (max-width: 768px) {
@@ -278,13 +290,6 @@
             padding: 40px;
             color: #6c757d;
         }
-
-        .empty-state svg {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 15px;
-            opacity: 0.3;
-        }
     </style>
 </head>
 <body>
@@ -294,143 +299,172 @@
             <p>وكالة شؤون الطلاب - المرحلة المتوسطة</p>
         </div>
 
-        <div class="main-grid">
-            <div class="card">
-                <h2>تسجيل استئذان جديد</h2>
-                
-                <div id="successMessage" class="alert alert-success" style="display: none;">
-                    ✅ تم تسجيل الاستئذان بنجاح
-                </div>
-
-                <form id="leaveForm">
-                    <div class="form-group">
-                        <label>وقت الانصراف الرسمي اليوم</label>
-                        <input type="time" id="endTime" value="13:30" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>اسم ولي الأمر</label>
-                        <input type="text" id="guardianName" placeholder="أدخل اسم ولي الأمر" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>اسم الطالب</label>
-                        <input type="text" id="studentName" placeholder="أدخل اسم الطالب" required>
-                    </div>
-
-                    <div class="row-group">
-                        <div class="form-group">
-                            <label>الصف الدراسي</label>
-                            <select id="grade" required>
-                                <option value="">اختر الصف</option>
-                                <option value="أول متوسط">أول متوسط</option>
-                                <option value="ثاني متوسط">ثاني متوسط</option>
-                                <option value="ثالث متوسط">ثالث متوسط</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label>الشعبة</label>
-                            <select id="section" required>
-                                <option value="">اختر الشعبة</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>وقت الاستئذان</label>
-                        <input type="time" id="leaveTime" required>
-                    </div>
-
-                    <div class="time-display" id="minutesDisplay" style="display: none;">
-                        <strong id="calculatedMinutes">0</strong>
-                        <span>دقيقة متبقية حتى نهاية اليوم</span>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">تسجيل الاستئذان</button>
-                </form>
-            </div>
-
-            <div class="card">
-                <h2>إحصائيات اليوم</h2>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalLeaves">0</div>
-                        <div class="stat-label">إجمالي الاستئذانات</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalStudents">0</div>
-                        <div class="stat-label">عدد الطلاب</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalMinutes">0</div>
-                        <div class="stat-label">إجمالي الوقت</div>
-                    </div>
-                </div>
-
-                <div class="alert alert-info">
-                    💡 يتم حفظ البيانات محليًا في المتصفح
-                </div>
-            </div>
+        <div id="loadingScreen" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>جاري التحميل...</p>
         </div>
 
-        <div class="card">
-            <h2>التقارير والسجلات</h2>
-            
-            <div class="filter-section">
-                <select id="filterGrade">
-                    <option value="">جميع الصفوف</option>
-                    <option value="أول متوسط">أول متوسط</option>
-                    <option value="ثاني متوسط">ثاني متوسط</option>
-                    <option value="ثالث متوسط">ثالث متوسط</option>
-                </select>
+        <div id="mainContent">
+            <div class="main-grid">
+                <div class="card">
+                    <h2>تسجيل استئذان جديد</h2>
+                    
+                    <div id="successMessage" class="alert alert-success" style="display: none;">
+                        ✅ تم تسجيل الاستئذان بنجاح
+                    </div>
 
-                <select id="filterSection">
-                    <option value="">جميع الشعب</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6">6</option>
-                </select>
+                    <form id="leaveForm">
+                        <div class="form-group">
+                            <label>وقت الانصراف الرسمي اليوم</label>
+                            <input type="time" id="endTime" value="13:30" required>
+                        </div>
 
-                <select id="sortBy">
-                    <option value="time">الأحدث أولاً</option>
-                    <option value="minutes">الأكثر دقائق</option>
-                    <option value="student">اسم الطالب</option>
-                </select>
+                        <div class="form-group">
+                            <label>اسم ولي الأمر</label>
+                            <input type="text" id="guardianName" placeholder="أدخل اسم ولي الأمر" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>اسم الطالب</label>
+                            <input type="text" id="studentName" placeholder="أدخل اسم الطالب" required>
+                        </div>
+
+                        <div class="row-group">
+                            <div class="form-group">
+                                <label>الصف الدراسي</label>
+                                <select id="grade" required>
+                                    <option value="">اختر الصف</option>
+                                    <option value="أول متوسط">أول متوسط</option>
+                                    <option value="ثاني متوسط">ثاني متوسط</option>
+                                    <option value="ثالث متوسط">ثالث متوسط</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>الشعبة</label>
+                                <select id="section" required>
+                                    <option value="">اختر الشعبة</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>وقت الاستئذان</label>
+                            <input type="time" id="leaveTime" required>
+                        </div>
+
+                        <div class="time-display" id="minutesDisplay" style="display: none;">
+                            <strong id="calculatedMinutes">0</strong>
+                            <span>دقيقة متبقية حتى نهاية اليوم</span>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="submitBtn">تسجيل الاستئذان</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>إحصائيات اليوم</h2>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalLeaves">0</div>
+                            <div class="stat-label">إجمالي الاستئذانات</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalStudents">0</div>
+                            <div class="stat-label">عدد الطلاب</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalMinutes">0</div>
+                            <div class="stat-label">إجمالي الوقت</div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        🔥 متصل بـ Firebase - البيانات محفوظة سحابياً
+                    </div>
+                </div>
             </div>
 
-            <div class="table-container" id="reportsContainer">
-                <div class="empty-state">
-                    <p>لا توجد سجلات حتى الآن</p>
-                    <p style="font-size: 12px; margin-top: 10px;">ابدأ بتسجيل أول استئذان</p>
+            <div class="card">
+                <h2>التقارير والسجلات</h2>
+                
+                <div class="filter-section">
+                    <select id="filterGrade">
+                        <option value="">جميع الصفوف</option>
+                        <option value="أول متوسط">أول متوسط</option>
+                        <option value="ثاني متوسط">ثاني متوسط</option>
+                        <option value="ثالث متوسط">ثالث متوسط</option>
+                    </select>
+
+                    <select id="filterSection">
+                        <option value="">جميع الشعب</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                    </select>
+
+                    <select id="sortBy">
+                        <option value="time">الأحدث أولاً</option>
+                        <option value="minutes">الأكثر دقائق</option>
+                        <option value="student">اسم الطالب</option>
+                    </select>
+                </div>
+
+                <div class="table-container" id="reportsContainer">
+                    <div class="empty-state">
+                        <p>لا توجد سجلات حتى الآن</p>
+                        <p style="font-size: 12px; margin-top: 10px;">ابدأ بتسجيل أول استئذان</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAgPP3MvSjiOTJG2PSFrWm2_ihtTxTwQDU",
+            authDomain: "pre2030-68446.firebaseapp.com",
+            projectId: "pre2030-68446",
+            storageBucket: "pre2030-68446.firebasestorage.app",
+            messagingSenderId: "288435212404",
+            appId: "1:288435212404:web:65a55b89e77caddd2cc121",
+            measurementId: "G-WFHHBD2SF0"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
         let leaves = [];
         
-        // تحميل البيانات عند بدء الصفحة
+        // الاستماع للتغييرات في الوقت الفعلي
+        const q = query(collection(db, "leaves"), orderBy("timestamp", "desc"));
+        onSnapshot(q, (snapshot) => {
+            leaves = [];
+            snapshot.forEach((doc) => {
+                leaves.push({ id: doc.id, ...doc.data() });
+            });
+            updateStats();
+            renderReports();
+        });
+
+        // تعيين الوقت الحالي
         window.addEventListener('load', () => {
-            const saved = localStorage.getItem('studentLeaves');
-            if (saved) {
-                leaves = JSON.parse(saved);
-                updateStats();
-                renderReports();
-            }
-            
-            // تعيين الوقت الحالي
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
@@ -464,8 +498,12 @@
         }
 
         // معالجة النموذج
-        document.getElementById('leaveForm').addEventListener('submit', (e) => {
+        document.getElementById('leaveForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'جاري الحفظ...';
             
             const leaveTime = document.getElementById('leaveTime').value;
             const endTime = document.getElementById('endTime').value;
@@ -475,11 +513,12 @@
             
             if (minutes <= 0) {
                 alert('وقت الاستئذان يجب أن يكون قبل وقت الانصراف');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'تسجيل الاستئذان';
                 return;
             }
             
             const leave = {
-                id: Date.now(),
                 guardianName: document.getElementById('guardianName').value,
                 studentName: document.getElementById('studentName').value,
                 grade: document.getElementById('grade').value,
@@ -491,34 +530,30 @@
                 timestamp: Date.now()
             };
             
-            leaves.push(leave);
-            localStorage.setItem('studentLeaves', JSON.stringify(leaves));
+            try {
+                await addDoc(collection(db, "leaves"), leave);
+                
+                // إظهار رسالة النجاح
+                const msg = document.getElementById('successMessage');
+                msg.style.display = 'block';
+                setTimeout(() => msg.style.display = 'none', 3000);
+                
+                // إعادة تعيين النموذج
+                document.getElementById('leaveForm').reset();
+                document.getElementById('endTime').value = endTime;
+                const now = new Date();
+                document.getElementById('leaveTime').value = 
+                    `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                document.getElementById('minutesDisplay').style.display = 'none';
+                
+            } catch (error) {
+                console.error("خطأ في الحفظ:", error);
+                alert('حدث خطأ في حفظ البيانات');
+            }
             
-            // إظهار رسالة النجاح
-            const msg = document.getElementById('successMessage');
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 3000);
-            
-            // إعادة تعيين النموذج
-            document.getElementById('leaveForm').reset();
-            document.getElementById('endTime').value = endTime;
-            const now = new Date();
-            document.getElementById('leaveTime').value = 
-                `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            document.getElementById('minutesDisplay').style.display = 'none';
-            
-            updateStats();
-            renderReports();
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'تسجيل الاستئذان';
         });
-
-        function updateStats() {
-            const uniqueStudents = new Set(leaves.map(l => l.studentName)).size;
-            const totalMins = leaves.reduce((sum, l) => sum + l.minutes, 0);
-            
-            document.getElementById('totalLeaves').textContent = leaves.length;
-            document.getElementById('totalStudents').textContent = uniqueStudents;
-            document.getElementById('totalMinutes').textContent = formatMinutesToTime(totalMins);
-        }
 
         function formatMinutesToTime(minutes) {
             const hours = Math.floor(minutes / 60);
@@ -528,6 +563,15 @@
                 return `${hours} س ${mins} د`;
             }
             return `${mins} د`;
+        }
+
+        function updateStats() {
+            const uniqueStudents = new Set(leaves.map(l => l.studentName)).size;
+            const totalMins = leaves.reduce((sum, l) => sum + l.minutes, 0);
+            
+            document.getElementById('totalLeaves').textContent = leaves.length;
+            document.getElementById('totalStudents').textContent = uniqueStudents;
+            document.getElementById('totalMinutes').textContent = formatMinutesToTime(totalMins);
         }
 
         function renderReports() {
