@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة السلوك الطلابي المحدثة | متوسطة المنذر بن عمرو الأنصاري</title>
+    <title>منصة السلوك الطلابي  | متوسطة المنذر بن عمرو الأنصاري</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -253,7 +253,7 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>منصة السلوك الطلابي الذكية</h1>
+            <h1>منصة السلوك الطلابي </h1>
             <p>متوسطة المنذر بن عمرو الأنصاري - المدينة المنورة</p>
         </header>
 
@@ -477,7 +477,25 @@
 
     <datalist id="studentList"></datalist>
 
-    <script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB7mn5gg8LDOwnYsqmxd2UwdiDWNRPuoAQ",
+            authDomain: "top10-a6e0e.firebaseapp.com",
+            projectId: "top10-a6e0e",
+            storageBucket: "top10-a6e0e.firebasestorage.app",
+            messagingSenderId: "985038639156",
+            appId: "1:985038639156:web:af5c4031f50ddfc85b3a61",
+            measurementId: "G-LXG3X6WXEE"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const behaviorCollection = collection(db, "behavior_records");
+
         // --- DATA ---
         const STUDENT_DATABASE = [
             {"name": "أحمد فواز بن سعدون الحربي", "grade": "أول متوسط"},
@@ -537,10 +555,8 @@
             cat4: { points: 0, items: ["سلوك متميز آخر (يتطلب توصية لجنة التوجيه)"] }
         };
 
-        const STORAGE_KEY = 'student_behavior_data_v6';
-
-        // --- CORE FUNCTIONS ---
-        function showSection(id) {
+        // --- GLOBAL FUNCTIONS ---
+        window.showSection = function(id) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
             document.getElementById(id).classList.add('active');
@@ -548,9 +564,9 @@
             if(btn) btn.classList.add('active');
             if(id === 'dashboard') updateDashboard();
             if(id === 'reports') generateMainReport();
-        }
+        };
 
-        function updateSubCategories() {
+        window.updateSubCategories = function() {
             const cat = document.getElementById('pos_category').value;
             const subGroup = document.getElementById('sub_category_group');
             const subSelect = document.getElementById('pos_sub_category');
@@ -577,71 +593,75 @@
                     badge.style.display = 'block';
                 }
             }
-        }
+        };
 
-        function handleSubCategoryChange() {
+        window.handleSubCategoryChange = function() {
             const badge = document.getElementById('points_display');
             badge.style.animation = 'none';
             badge.offsetHeight; 
             badge.style.animation = 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        };
+
+        // --- DATA FETCHING ---
+        async function fetchAllData() {
+            const q = query(behaviorCollection, orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            const data = [];
+            querySnapshot.forEach((doc) => {
+                data.push({ id: doc.id, ...doc.data() });
+            });
+            return data;
         }
 
-        // --- DATA PERSISTENCE ---
-        const getData = () => JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-        const saveData = (data) => localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-
         // --- RECOVERY LOGIC ---
-        function processRecoveries(data) {
+        async function processRecoveries(data) {
             const now = new Date();
             const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
             
-            // Group violations by student
             const studentViolations = {};
-            data.forEach((r, index) => {
+            data.forEach((r) => {
                 if (r.type === 'violation') {
                     if (!studentViolations[r.studentName]) studentViolations[r.studentName] = [];
-                    studentViolations[r.studentName].push({ ...r, originalIndex: index });
+                    studentViolations[r.studentName].push(r);
                 }
             });
 
-            let changed = false;
-            Object.keys(studentViolations).forEach(studentName => {
+            for (const studentName of Object.keys(studentViolations)) {
                 const violations = studentViolations[studentName].sort((a, b) => new Date(a.date) - new Date(b.date));
                 
-                violations.forEach((v, i) => {
+                for (const v of violations) {
                     if (v.status === 'makhsouma') {
                         const vDate = new Date(v.date);
                         const timeDiff = now - vDate;
                         
                         if (timeDiff >= oneWeekMs) {
-                            // Check if any NEW violation occurred after this one but before it was recovered
                             const hasNewerViolation = violations.some(otherV => {
                                 const otherDate = new Date(otherV.date);
                                 return otherDate > vDate && otherDate <= new Date(vDate.getTime() + oneWeekMs);
                             });
 
                             if (!hasNewerViolation) {
-                                data[v.originalIndex].status = 'mustaradda';
-                                data[v.originalIndex].points = 0;
-                                changed = true;
+                                const docRef = doc(db, "behavior_records", v.id);
+                                await updateDoc(docRef, {
+                                    status: 'mustaradda',
+                                    points: 0
+                                });
+                                v.status = 'mustaradda';
+                                v.points = 0;
                             }
                         }
                     }
-                });
-            });
-            
-            if (changed) saveData(data);
+                }
+            }
             return data;
         }
 
         // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // Set default date to today
+        document.addEventListener('DOMContentLoaded', async () => {
             const today = new Date().toISOString().split('T')[0];
             if(document.getElementById('vio_date')) document.getElementById('vio_date').value = today;
             if(document.getElementById('pos_date')) document.getElementById('pos_date').value = today;
 
-            // Populate Datalist
             const list = document.getElementById('studentList');
             STUDENT_DATABASE.forEach(s => {
                 const opt = document.createElement('option');
@@ -649,7 +669,6 @@
                 list.appendChild(opt);
             });
 
-            // Auto-fill Grade
             ['vio_student_name', 'pos_student_name'].forEach(id => {
                 const el = document.getElementById(id);
                 if(el) {
@@ -663,65 +682,70 @@
                 }
             });
 
-            // Form Submissions
             const vioForm = document.getElementById('violationForm');
             if(vioForm) {
-                vioForm.onsubmit = function(e) {
+                vioForm.onsubmit = async function(e) {
                     e.preventDefault();
-                    const data = getData();
-                    data.push({
-                        type: 'violation',
-                        timestamp: Date.now(),
-                        date: document.getElementById('vio_date').value,
-                        studentName: document.getElementById('vio_student_name').value,
-                        grade: document.getElementById('vio_grade').value,
-                        violationType: document.getElementById('vio_type').value,
-                        points: -2,
-                        status: 'makhsouma'
-                    });
-                    saveData(data);
-                    alert('تم تسجيل المخالفة بنجاح');
-                    this.reset();
-                    document.getElementById('vio_date').value = today;
-                    showSection('dashboard');
+                    try {
+                        await addDoc(behaviorCollection, {
+                            type: 'violation',
+                            timestamp: Date.now(),
+                            date: document.getElementById('vio_date').value,
+                            studentName: document.getElementById('vio_student_name').value,
+                            grade: document.getElementById('vio_grade').value,
+                            violationType: document.getElementById('vio_type').value,
+                            points: -2,
+                            status: 'makhsouma'
+                        });
+                        alert('تم تسجيل المخالفة بنجاح في قاعدة البيانات');
+                        this.reset();
+                        document.getElementById('vio_date').value = today;
+                        showSection('dashboard');
+                    } catch (error) {
+                        console.error("Error adding document: ", error);
+                        alert('حدث خطأ أثناء الحفظ');
+                    }
                 };
             }
 
             const posForm = document.getElementById('positiveForm');
             if(posForm) {
-                posForm.onsubmit = function(e) {
+                posForm.onsubmit = async function(e) {
                     e.preventDefault();
                     const cat = document.getElementById('pos_category').value;
                     const points = cat === 'cat4' ? parseInt(document.getElementById('pos_custom_points').value) : BEHAVIOR_MAP[cat].points;
                     
-                    const data = getData();
-                    data.push({
-                        type: 'positive',
-                        timestamp: Date.now(),
-                        date: document.getElementById('pos_date').value,
-                        studentName: document.getElementById('pos_student_name').value,
-                        grade: document.getElementById('pos_grade').value,
-                        category: document.getElementById('pos_sub_category').value,
-                        points: points,
-                        impact: document.getElementById('pos_impact').value,
-                        nominator: document.getElementById('pos_nominator').value
-                    });
-                    saveData(data);
-                    alert('تم توثيق السلوك المتميز بنجاح');
-                    this.reset();
-                    document.getElementById('pos_date').value = today;
-                    document.getElementById('sub_category_group').style.display = 'none';
-                    document.getElementById('custom_points_group').style.display = 'none';
-                    showSection('dashboard');
+                    try {
+                        await addDoc(behaviorCollection, {
+                            type: 'positive',
+                            timestamp: Date.now(),
+                            date: document.getElementById('pos_date').value,
+                            studentName: document.getElementById('pos_student_name').value,
+                            grade: document.getElementById('pos_grade').value,
+                            category: document.getElementById('pos_sub_category').value,
+                            points: points,
+                            impact: document.getElementById('pos_impact').value,
+                            nominator: document.getElementById('pos_nominator').value
+                        });
+                        alert('تم توثيق السلوك المتميز بنجاح في قاعدة البيانات');
+                        this.reset();
+                        document.getElementById('pos_date').value = today;
+                        document.getElementById('sub_category_group').style.display = 'none';
+                        document.getElementById('custom_points_group').style.display = 'none';
+                        showSection('dashboard');
+                    } catch (error) {
+                        console.error("Error adding document: ", error);
+                        alert('حدث خطأ أثناء الحفظ');
+                    }
                 };
             }
 
             showSection('dashboard');
         });
 
-        function updateDashboard() {
-            let data = getData();
-            data = processRecoveries(data);
+        async function updateDashboard() {
+            let data = await fetchAllData();
+            data = await processRecoveries(data);
             const grid = document.getElementById('dashboard-grid');
             const violations = data.filter(r => r.type === 'violation').length;
             const positives = data.filter(r => r.type === 'positive').length;
@@ -735,9 +759,9 @@
             `;
         }
 
-        function generateMainReport() {
-            let data = getData();
-            data = processRecoveries(data);
+        async function generateMainReport() {
+            let data = await fetchAllData();
+            data = await processRecoveries(data);
             const tbody = document.getElementById('reports-tbody');
             const studentStats = {};
 
@@ -752,7 +776,6 @@
                 }
                 studentStats[r.studentName].netPoints += r.points;
                 if (r.type === 'violation') {
-                    // We count the original deduction even if recovered for the "total deduction" alert logic
                     studentStats[r.studentName].totalDeduction += 2; 
                 }
             });
@@ -772,8 +795,8 @@
             `).join('') || '<tr><td colspan="6" style="text-align:center">لا توجد بيانات مسجلة</td></tr>';
         }
 
-        function viewStudentReport(studentName) {
-            const data = getData();
+        window.viewStudentReport = async function(studentName) {
+            const data = await fetchAllData();
             const studentData = data.filter(r => r.studentName === studentName).sort((a, b) => new Date(a.date) - new Date(b.date));
             const student = STUDENT_DATABASE.find(s => s.name === studentName) || { name: studentName, grade: 'غير محدد' };
             
@@ -838,20 +861,19 @@
 
             document.getElementById('modalBody').innerHTML = html;
             document.getElementById('studentModal').style.display = "block";
-        }
+        };
 
-        function closeModal() {
+        window.closeModal = function() {
             document.getElementById('studentModal').style.display = "none";
-        }
+        };
 
         window.onclick = function(event) {
             const modal = document.getElementById('studentModal');
             if (event.target == modal) {
                 closeModal();
             }
-        }
+        };
     </script>
 </body>
 </html>
-
 
