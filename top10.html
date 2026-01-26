@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة السلوك الطلابي | متوسطة المنذر بن عمرو الأنصاري</title>
+    <title>منصة السلوك الطلابي المحدثة | متوسطة المنذر بن عمرو الأنصاري</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -164,6 +164,7 @@
         }
         .btn-success { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; }
         .btn-danger { background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%); color: white; }
+        .btn-info { background: linear-gradient(135deg, #2980b9 0%, #3498db 100%); color: white; }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); filter: brightness(1.05); }
 
         /* --- Dashboard --- */
@@ -190,6 +191,7 @@
         .alert { padding: 20px; border-radius: 12px; margin: 25px 0; border-right: 6px solid; display: flex; align-items: center; gap: 15px; }
         .alert-info { background: #ebf8ff; border-color: #3182ce; color: #2c5282; }
         .alert-warning { background: #fffaf0; border-color: #dd6b20; color: #7b341e; }
+        .alert-danger { background: #fff5f5; border-color: #e53e3e; color: #c53030; }
 
         /* --- Reports --- */
         .table-container { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border-color); }
@@ -197,6 +199,39 @@
         th { background: #f8fafc; padding: 18px; text-align: right; font-weight: 700; color: #4a5568; border-bottom: 2px solid #edf2f7; }
         td { padding: 18px; border-bottom: 1px solid #edf2f7; font-size: 0.95em; }
         tr:hover { background: #f7fafc; }
+
+        /* --- Modal for Student Report --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .close { font-size: 28px; font-weight: bold; cursor: pointer; }
 
         /* --- Responsive --- */
         @media (max-width: 768px) {
@@ -207,9 +242,11 @@
         }
 
         @media print {
-            .nav, .btn, .form-group, .report-controls, .no-print { display: none !important; }
-            .container { box-shadow: none; border: none; }
+            .nav, .btn, .form-group, .report-controls, .no-print, .close { display: none !important; }
+            .container { box-shadow: none; border: none; margin: 0; width: 100%; max-width: 100%; }
             .section { display: block !important; opacity: 1 !important; }
+            .modal { position: relative; display: block !important; background: none; backdrop-filter: none; }
+            .modal-content { margin: 0; width: 100%; max-width: 100%; box-shadow: none; border: none; }
         }
     </style>
 </head>
@@ -263,23 +300,37 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>نوع المخالفة *</label>
-                            <select id="vio_type" required>
-                                <option value="" disabled selected>اختر نوع المخالفة</option>
-                                <option value="تأخر صباحي">تأخر صباحي</option>
-                                <option value="مخالفة زي مدرسي">مخالفة زي مدرسي</option>
-                                <option value="إخلال بنظام الحصة">إخلال بنظام الحصة</option>
-                                <option value="إهمال الواجبات">إهمال الواجبات المدرسية</option>
-                                <option value="أخرى">أخرى</option>
-                            </select>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>نوع المخالفة *</label>
+                                <select id="vio_type" required>
+                                    <option value="" disabled selected>اختر نوع المخالفة</option>
+                                    <optgroup label="مخالفات الدرجة الأولى">
+                                        <option value="الدخول والخروج من الصف بدون استئذان">الدخول والخروج من الصف بدون استئذان</option>
+                                        <option value="التأخر عن الحصه">التأخر عن الحصه</option>
+                                        <option value="اللعب في الممرات أثناء الفسحه">اللعب في الممرات أثناء الفسحه</option>
+                                        <option value="التأخر عن الطابور الصباحي">التأخر عن الطابور الصباحي</option>
+                                        <option value="الهروب عن الحصه">الهروب عن الحصه</option>
+                                    </optgroup>
+                                    <optgroup label="مخالفات أخرى">
+                                        <option value="مخالفة زي مدرسي">مخالفة زي مدرسي</option>
+                                        <option value="إخلال بنظام الحصة">إخلال بنظام الحصة</option>
+                                        <option value="إهمال الواجبات">إهمال الواجبات المدرسية</option>
+                                        <option value="أخرى">أخرى</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>تاريخ المخالفة *</label>
+                                <input type="date" id="vio_date" required>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-danger">تسجيل المخالفة</button>
                     </form>
                 </div>
             </section>
 
-            <!-- 3. Positive Behavior (Updated) -->
+            <!-- 3. Positive Behavior -->
             <section id="positive" class="section">
                 <div class="card">
                     <h2>رصد ممارسات السلوك المتميز</h2>
@@ -302,22 +353,27 @@
                                 </select>
                             </div>
                         </div>
-                        
-                        <div class="form-group">
-                            <label>فئة السلوك المتميز *</label>
-                            <select id="pos_category" required onchange="updateSubCategories()">
-                                <option value="" disabled selected>اختر الفئة</option>
-                                <option value="cat1">الفئة الأولى والثانية (6 درجات)</option>
-                                <option value="cat2">مهارات الأنشطة المدرسية (4 درجات)</option>
-                                <option value="cat3">المشاركة المدرسية (درجتان)</option>
-                                <option value="cat4">سلوكيات متميزة أخرى (مرن حتى 6 درجات)</option>
-                            </select>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>الفئة *</label>
+                                <select id="pos_category" required onchange="updateSubCategories()">
+                                    <option value="" disabled selected>اختر الفئة</option>
+                                    <option value="cat1">الفئة الأولى (6 درجات)</option>
+                                    <option value="cat2">الفئة الثانية (4 درجات)</option>
+                                    <option value="cat3">الفئة الثالثة (2 درجة)</option>
+                                    <option value="cat4">أخرى (تقديرية)</option>
+                                </select>
+                                <div id="points_display" class="points-badge"></div>
+                            </div>
+                            <div class="form-group">
+                                <label>تاريخ السلوك *</label>
+                                <input type="date" id="pos_date" required>
+                            </div>
                         </div>
 
                         <div class="form-group" id="sub_category_group" style="display:none;">
                             <label>الممارسة المحددة *</label>
-                            <div id="points_display" class="points-badge"></div>
-                            <select id="pos_sub_category" required onchange="handleSubCategoryChange()">
+                            <select id="pos_sub_category" onchange="handleSubCategoryChange()">
                                 <option value="" disabled selected>اختر الممارسة</option>
                             </select>
                         </div>
@@ -350,10 +406,9 @@
             <!-- 4. Reports -->
             <section id="reports" class="section">
                 <div class="card">
-                    <h2>تقارير الأداء الشهري</h2>
-                    <div class="report-controls no-print">
-                        <select id="month-selector"></select>
-                        <button class="btn btn-success" style="width:auto" onclick="window.print()">طباعة التقرير</button>
+                    <h2>تقارير الأداء العام</h2>
+                    <div class="report-controls no-print" style="margin-bottom: 20px; display: flex; gap: 10px;">
+                        <button class="btn btn-success" style="width:auto" onclick="window.print()">طباعة القائمة العامة</button>
                     </div>
                     <div class="table-container">
                         <table>
@@ -362,9 +417,9 @@
                                     <th>الترتيب</th>
                                     <th>الطالب</th>
                                     <th>الصف</th>
-                                    <th>مؤشر التميز</th>
-                                    <th>التفاصيل</th>
-                                    <th>درجة نور (20)</th>
+                                    <th>صافي النقاط</th>
+                                    <th>إجمالي الخصم</th>
+                                    <th>الإجراء</th>
                                 </tr>
                             </thead>
                             <tbody id="reports-tbody"></tbody>
@@ -376,9 +431,12 @@
             <!-- 5. Governance -->
             <section id="governance" class="section">
                 <div class="card">
-                    <h2>حوكمة النظام واللوائح</h2>
+                    <h2>حوكمة النظام واللوائح المحدثة</h2>
                     <div class="alert alert-info">
-                        <strong>نظام النقاط المحدث:</strong> تم برمجة هذا النظام ليتوافق مع أحدث لوائح وزارة التعليم لتشجيع السلوك الإيجابي.
+                        <strong>نظام الاسترداد التلقائي:</strong> يتم استرداد درجة المخالفة تلقائياً بعد مرور 7 أيام في حال لم يسجل الطالب أي مخالفة جديدة خلال هذه الفترة.
+                    </div>
+                    <div class="alert alert-danger">
+                        <strong>إشعار ولي الأمر:</strong> يتم إصدار تقرير مفصل لولي الأمر في حال تجاوز إجمالي الخصم 15 درجة.
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
                         <div>
@@ -387,12 +445,12 @@
                                 <li><strong>6 درجات:</strong> الفئة الأولى (الانضباط) والثانية (المشاركات النوعية).</li>
                                 <li><strong>4 درجات:</strong> مهارات الأنشطة (القيادة، المهارات الرقمية، إدارة الوقت).</li>
                                 <li><strong>2 درجة:</strong> المشاركة المدرسية (الإذاعة، رسائل الشكر، التعاون).</li>
-                                <li><strong>حتى 6 درجات:</strong> ممارسات أخرى بتوصية لجنة التوجيه.</li>
+                                <li><strong>مخالفات الدرجة الأولى:</strong> خصم درجتين عن كل مخالفة.</li>
                             </ul>
                         </div>
                         <div>
                             <h3>متطلبات التوثيق</h3>
-                            <p>لا يتم اعتماد أي درجة للسلوك المتميز إلا بوجود دليل مادي (شهادة، خطاب شكر، تقرير فعالية) يتم الاحتفاظ به في ملف الطالب لدى وكيل شؤون الطلاب.</p>
+                            <p>لا يتم اعتماد أي درجة للسلوك المتميز إلا بوجود دليل مادي. يتم تسجيل تاريخ كل مخالفة لضمان دقة نظام الاسترداد التلقائي.</p>
                         </div>
                     </div>
                 </div>
@@ -400,2192 +458,96 @@
         </main>
     </div>
 
+    <!-- Student Report Modal -->
+    <div id="studentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header no-print">
+                <h2 id="modalStudentName">تقرير الطالب</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modalBody">
+                <!-- Report content will be injected here -->
+            </div>
+            <div class="no-print" style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-info" onclick="window.print()">تحميل / طباعة التقرير</button>
+                <button class="btn btn-danger" id="sendToParentBtn" style="display:none;">إرسال لولي الأمر</button>
+            </div>
+        </div>
+    </div>
+
     <datalist id="studentList"></datalist>
 
     <script>
         // --- DATA ---
         const STUDENT_DATABASE = [
-            {
-                        "name": "أحمد فواز بن سعدون الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "أسامه سعود حاجر الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "اسامه ماجد ضيف الله الزويكي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "باسم سيف بن عبيد الرويثي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ثامر تركي النشمي الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ثامر رائد مرزوق المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حمد عبدالرحمن بن حمد الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ساير ثامر بن سائر العتيبي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سعود عماد سعود الحازمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سلطان ساطي سمران الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سلطان فهد بن حاسن العمري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالاله عوض نويفع الزويكي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالرحمن خلوي بن نافع الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالعزيز فهد عامر الغنام",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالمجيد ربيع مرزوق العمري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عساف بدر بشير الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمر اسامه بن منور العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمر منصور بن سعود الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "فيصل فواز محمد الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "محمد عبدالمجيد بشير الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "مشاري عبدالله علي المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "مصعب عبدالهادي بن مرزوق العمري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "نادر سعود بن حميد العمري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "نايف عيد حميد العمري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "هايل صالح عائض المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "وسام جابر عيد الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "وسام عبدالله حامد الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ياسر خالد معجل المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يزيد فواز خليوي المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يعقوب محمد عايد المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "احمد حسين علوي حسين الحارثي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "أسامه عبدالرحمن بن سعيد العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "البراء محمد عزيز العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "بتال موسى عمار المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "تركي محمد بن سالم الجهني",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حازم عبدالهادي بن سعد الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "خالد عبدالرب عبد ربه الكحيلي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "خالد منصور بن مناور السحيمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ريان ماجد عيد الرشيدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "زياد فؤاد محمد العتيبي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سعد فهد مسعد العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سعود فيصل محمد الخريف",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سلطان ماجد بن معتاد المولد",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "شامخ نادر سمار الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عادل محمد غازي الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالرحمن عبدالعزيز بن النشمي الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عصام عبدالستار سالم العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عقاب محمد عايد المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمر عبدالعزيز بن حباب الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمر محمد مسلم الرائقي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "فهد صالح ربيع المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "قصي ناصر عايض الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "محمد علي محمد لبدان",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ناصر محمد قطيم البدراني",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "نايف تركي مهل الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "نواف مصلح فالح المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "هذال فرحان هديبان الرشيدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "وسام عبدالكريم عزيز العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يوسف ابراهيم بن محمد هوساوي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يوسف بن بندر بن فهد بن زبن الرحيمي المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يوسف عبدالأله بن ماثل السحيمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "اسامه معيض ابن محمد المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "اصيل رائد حمود الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ايمن بندر بن عايض الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "بلال يحي محمد علي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حازم سيف عايض الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "خالد يوسف عوض المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "رياض بن عبدالله بن صنت الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "زياد فهد زياد المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سعود عبدالرحمن قبل المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سليمان عيد حامد السحيمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عادل سنيد بن عائض الجابري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالاله هيازع حجر البارقي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالرحمن صالح بن فرح المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالرحمن محمد بن عيد العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالعزيز مخلد عشق الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالله زاعم مقبل العمري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالملك ابراهيم شلوه الشاماني",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عزام عيد عويد المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عزام عيسى بن نغيمش الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عصام عبدالمجيد بن اغويزي الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمار احمد بن حمود الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمر مالك دخيل الله المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمر يحيى نشمي الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ماجد حزام غائث المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "محمد غلام سخي عبدالحفيظ",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "نواف مشعل متعب الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "نواف نايف بن حمود الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "وسام نواف بن عايض الرشيدى",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يوسف راشد بن عبدالله الصاعدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يوسف مدني عابد رحيم بخش",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "اصيل خالد فرح المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "أنس مالك عويض المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "باسل عامر سفر المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "جميل قاسم مجلي النمري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "خالد عيسى بن سالم الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "راشد محمد خضران المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "راشد نادر سعد المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "رضا سعد عايد الرشيدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "زياد محمد خلف الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سلطان عبدالله سالم السحيمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عاصم محمد بن سعود العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عالي ناصر بن معلا المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالرحمن رشيد بن مرشود المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالرحمن ماجد بن حضيض المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالرحمن منصور ناصر الوسيدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالرحمن نواف دحيم الرشيدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالعزيز ثامر معلا المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالله جهز سالم المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالله حاتم بن عبيد السحيمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالله خالد غالي الصاعدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالملك فلاح عمر الذويبي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "علي سالم حمود الحايطي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عوض محمد عوض المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "فارس محمد بن حميد بن دخيل المحمادي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "قصي مجدي سلمان الحبيشي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "مالك ماجد مجدي السويسى",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "محمد فهمي بن محسن المهري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "مساعد موسى بن مساعد السحيمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "منذر عابد بن عايض الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "وسام سعود بن نور السحيمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "الياس يوسف عزيز العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "باسل نايف عبلان المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ثامر مطير عائش الشاماني",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حاتم عبدالحكيم منصور سلام",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حاتم ماجد مريشيد المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حازم ماجد على مهدى",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حمزه صفوان عبدالعظيم قباني",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "خالد عادل بن عزيز المولد",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "خالد مخلد نور السحيمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "طلال مخلد بن عوض العمري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدألاله عمر ضيف الله العلوي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالعزيز محمد عبدالعزيز العتيبي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالله ابراهيم عقيل المحمدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمر صديق محمد ابوالقاسم",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمر عبدالرحمن بن هادي المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمر فيصل علي العواجي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "فراس علي بن سالم الحيدري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "فهد موسى بن ثابت المهيمزي رشيدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "مازن خالد عوض العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "محمد احمد ضيف الله الصاعدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "محمد رابح بن حطيحط الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "محمد علي بن رزقان الشاماني",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "مؤيد ابراهيم بن عيد الذيابي الرشيدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "نواف سند مغيث المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "نواف فيصل غلاب المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "وسام عبدالله سعد الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "وليد مدني محمد امين عبدالودود",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يامن عبدالرحمن محمد الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يزيد عبدالمجيد بعيجان الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يوسف سليمان سمير الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "أحمد عبدالعزيز حمود المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "اصيل بندر ماطر الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "الوليد فواز عواد الرشيدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "أوس سليمان ابراهيم العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "اياد عبداللطيف عويض الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "تركي فالح بن مرزوق المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "جهاد صالح بن عتقان المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حسن شجاع مطلع المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حسن مروان بن حسن القرني",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "حفظ الله مهيوب حفظ الله المشرقي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سعدي عمر بن سعدي السحيمي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "سعود فهد نائف الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "طارق بشير رزيق السهلي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عالي عبدالعزيز عالي المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالعزيز احمد محمد المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالعزيز فهد عوض العوفي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالعزيز ماجد عبدالله العمري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عبدالملك عبدالله صالح الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عزام متعب ماطر الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عماد عمر ضيف الله العلوي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "عمار علي عبدالله صالح",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "فارس فيصل بن عبدالرحمن الحيسوني",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "فايز بن محمد بن فرح بن نحيان",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "ماجد رباح مرزوق المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "محمد عبدالله غنام المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "نواف ياسر سعود المطيري",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "وسام عادل عزيز الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "وسام يوسف نور الحربي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "يوسف عذال عبدالمحي الصاعدي",
-                        "grade": "أول متوسط"
-            },
-            {
-                        "name": "أحمد دعيج عويض المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "باسل حامد بن حضيرم الجابري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "بدر الحميدي بن حليوان الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "تركي نشمي دخيل الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ثامر صقر عزيز العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "زياد سعد بن مزيد الحنيني",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سرور فهد بن سرور العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سعد عبدالرحمن بن سعد الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سلطان نادر بدير المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "طلال نواف نشمي الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عادل محمد ذعار العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبد الكريم محمد عبد القوي علي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالرحمن عبدالله بن عسكر الجابري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالعزيز فهد صالح السراني",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالله فواز منديل المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عدي سطام سهل العتيبي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عمر عبدالهادي ابراهيم المحضار",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "فهد عبدالمحسن بن عويضه المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "فيصل عبدالعزيز بن مفلح الرويثي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ماجد نشمي بن شويهين الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد وجدي بن محمدحبيب عبدالله",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مشعل بن فهد بن مسعد العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "معاذ طلال مسفر العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مويد وليد زهيميل المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نايف شلوه عيد العمري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نايف عبدالرحمن بن ضيف الله الجابري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نواف سمران طماح الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "هتان محمد سماح الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "وسام محمد عائض المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "يوسف ثامر منزل الرويلي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "احمد صلاح عبدالعزيز اباالخيل",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "اسامه عبدالرحمن بن سعد الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "أنس محمد مثري الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "بدر محمد ظافر الشهري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "جاسر خالد رشيدان الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "جاسم تركي بن شريد المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "حامد احمد حامد الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "حسام عبدالرحمن شلوه الشاماني",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "زياد ناصر مطلق الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سلطان عبدالرحمن سمير الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سلطان مناور بن سمار الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سيف فهد سعود العجمي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالرحمن حمود بن سريحان المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالعزيز عامر عويض المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالله سيف عايد الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالله متعب بجاد العمري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عمر حاتم ابراهيم حامد",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "فهد صالح سعد الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد سلطان بن سمير الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد عبدالرحمن مصري الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد فايز بن صالح المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مروان محمد شريد المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مشاري حمد عايض العمري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مشعل ابن عيد بن نغيمش المهيمزي الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "معاذ ماجد جازي الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "معوض ايمن بن معوض المحياوي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نايف تركي عاقل المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نواف شري ثويبت المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "وليد سعد دحيم الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "يزيد مطلق بن شباب الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ابراهيم عادل بن محمد شيحه",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "باسم محمد بن موسى مروعي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "جاسر شاهر عاتق المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "حاتم مقرن سلطان الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "خالد بندر بشير الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "داوود سليمان - حسين",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "راشد حجاج حجيج المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "راكان سند عتيق المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ريان شقير سليمان المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "زيد خالد محمد الحبيشي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "طلال محمد عتقان المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عامر ناصر علوش الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عساف عايض بن عوض العمري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عمر عبدالله حمد المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عيسى مرزوق سويرح السحيمي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "غياث احمد عبدالقادر العلوان",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "فيصل مشعان مقحم العمري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "متعب بن سلطان بن متعب العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد سعود بن نور السحيمي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد عهد بن محمد الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مروان رشدان علي الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مشاري منصور عائض المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "معاذ عوض هليل المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "منير مشاري منير الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نادر بن شافي بن سعود السهلي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نايف حمود عويض المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نواف فيصل بن ناير الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "وسيم محمد سامي شاكر",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "يامن فواز حمود الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "يوسف قاسم بن مصلح السحيمي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "الوليد لافي حامد السهلي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "انس نايف بن محمد العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "بسام ماجد عبدالله الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "حاتم منصور بن مناور السحيمي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "حسام بن عبدالله بن غويزي الجعفري المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ريان يوسف مصلح العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سعود محمد بن عيد العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سلطان موسى مسعود الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "صالح يحي محمد حطاب",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "طلال ماجد عيد الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالرحمن بن سعد بن صنت المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالرحمن سلطان بن عواده المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالله ابراهيم عيد الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالله ساطي فيحان الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالله عبدالكريم سلمان المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالله محمد بن عثمان الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عزام محمد قطيم الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عمر بدر سليم العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "فيصل ساير بن فيصل المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مازن عادل عتقان المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مالك بن عمر بن ناشي الجهني",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مجاهد عبدالكريم نايف المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد خليف بن حييان الصاعدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد عاصم سالم الوهاشي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "منصور شرار عزيز العنزي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "مهند سلطان ميشع المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نايف فهد بن هليل الجهني",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "يزيد عيسى سعد المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "يوسف محمد فريج بن حمد",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "احمد            محضار           احمد            مول الدويله",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "اسامه ذعار بن سالم الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "اسامه محمد ابراهيم علي ابو الحياء",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "أنس عبدالكريم محيسن الحسيني",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "اياد حسن محمد العمري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "اياد عبدالله صلاح الرحيلي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "باسم سليمان - كرم حسين",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "بندر احمد رجب الزهراني",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "تميم عبدالله سطام الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "توفيق عايض حمدان الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "حسام بدر علي الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ريان بن طلال بن فهد المعدوي العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ساري عبدالرحمن شعوان الحيسوني",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سامي كايد معزي الصاعدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سعود عيسى مطلق المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سلطان منصور بن صيفي العمري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سليمان حامد سريحان المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالرحمن عبدالعزيز بن محسن الحارثي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالغني عبدالقادر مصطفى ماهر",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عزام عمران بن ابراهيم فلاته",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عمر محمد بن ابراهيم فلاته",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عوض قاسم مجلي النمري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد باسم محمد المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد يوسف عويد المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نايف عبدالله شباب الرويثي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نواف ماجد عبدالله الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ياسر منصور محيا المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "يزيد عمران عميره المرعشي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ابراهيم سعود مرشد الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "الهادي محي الدين الهادي محمد",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "الوليد عبدالرحمن حماد الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "أنس سلمي بن سعد العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "اياد نادر سعدي السحيمي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "باسل عيد بن عبدالله العنزي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "باسم بدر عواض السحيمي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "تميم عبدالسلام ابن عبدالله رحمةالله",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "حازم مساعد بن جازي العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "حسام رائد مرزوق المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "حسام فهد معيض المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "خالد طلال عطاالله السهلي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "خالد محمد عواض الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "راكان صالح بن منهض المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "راكان عيسى نويفع الشاماني",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ريان سلطان ابن محارب الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سعود ثواب هلال المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "سلطان عبدالعزيز عايض الرشيدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ضاري مشاري فايح المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالرحمن عبدالسلام بن عبدالهادي التمبكتي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "عبدالمحسن خالد بن حميد الحميد",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "فيصل تركي سطام الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد احمد محمد المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد سلطان بن مطلع المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "محمد سلمان ابراهيم العوفي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "نايف عبدالهادي بن عبدالكريم الحربي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "ياسر عبدالله مسفر الاحمدي",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "يزن عبدالمحسن بن خلف المطيري",
-                        "grade": "ثاني متوسط"
-            },
-            {
-                        "name": "أحمد عبدالعزيز شداد الحيسوني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "أصيل عبدالهادي بن سكات الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "انس مسير مطلق المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "تركي فهد بن مرزوق السحيمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "حاتم احمد حميد الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "خالد وليد زهيميل المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "رامي ماجد صقر الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "رائد ابراهيم بن عتقان المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "رائد فواز هندي الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ريان عبيدالله صقر الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "زياد محمد سفر المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "سعود فهد سعود العجمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "سلمان ملفي بن محمد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عادل محمد بدري المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالرحيم فايز بن نفاع الجابري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالكريم مسعود قباس المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالله مشاري عبدالله العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالمجيد ماجد غلاب الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "علي محمد الحاج الكوار",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عمر عارف راشد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عمرو عبدالعزيز عبدالحفيظ حاجي كريم جان",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "فهد غازي سعود المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "فواز عبدالسلام ناصر الرشيدى",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مالك جميل أحمد عبده قائد",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد إبراهيم عيسى الهوسة",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد عثمان بن ملحان العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد ماجد بن غالي الحسيني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "معاذ عبدالله خضران الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "نبيل علي بن محمدنبيل تاج الدين",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "يوسف عبدالكريم محيسن الحسيني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ابراهيم سطام ابراهيم الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "أنس يعقوب عويد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "باسم حميد محمد الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "تركي مشعل عائض الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "جاسر خالد فرح المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "حمزه محمد عبدالفتاح قاسم",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ريان سامي بن دحيم السحيمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "سهل سطام بن سهل العتيبي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عاصم عبيد بطيحان العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالجليل عبدالكريم عبدالله الجابري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالرحمن عبدالله بن ملحان العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالعزيز عبدالله سليمان الشريف",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالعزيز ناصر علوش الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالمجيد مسلط عواده المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عصام فرحان بن حامد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عمار حمود بن سريحان المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عيسي محمد بن مرزوق الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "فواز عبدالله دويلان السناح المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "فيصل عبدالرحمن عويض الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ماهر سلطان بن ضيف الله الجابري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مجدي مطلق محمد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد تركي بن عبدالله الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد محياء بن عواضه المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مروان خالد عوض العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مهند عبدالله بن غلاب السهلي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "نواف فواز هليل الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "هشام بندر بن فرح المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "وسيم عبدالله عيد العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "وليد مجدي بن احمد محبت",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "يزيد حمد بن نفاع الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ابراهيم حامد الحميدي الجابري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "حازم معيش معيض العلوي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "خالد عبدالله بن حسن المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "راكان محمد بن غرمان العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ريان عيسى نويفع الشاماني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "زين العابدين أحمد عا بد عابد حسين",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "سلطان خلوي بن نافع الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "صالح عناد عويض المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالعزيز حاتم محمد العتيبي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالملك محمد رزيق السهلي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عثمان خالد مزيد العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عزام حمدي بن مزيد العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عماد فهد بن صالح الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عمر حجاج بن سمار الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "فهد محمد مسلط المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "فيصل ابن محمد بن كامل بن محمد الذيابي الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ماجد فريح فرحان السحيمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد خالد بن عائض السحيمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد خلف نافع الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد عبدالرحمن مريبد الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد عيسى بن شباب المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مشاري احمد بن فرح المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مطر علي بن صلبي العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "معاذ عبدالله ابن غرم الله الزهراني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "معاذ مسري بن عطاالله العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "معتز بن عبدالرحمن بن مناور العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "معن أحمد محمد الجابري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "نادر عبدالأله بن عبدالله العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "نايف علي نفيع الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "يوسف ياسر بن فيحان العتيبي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ابراهيم عيسى بن عويد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "أحمد خالد بن لافي الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "أحمد سعود بن نور السحيمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "احمد عبدالرحمن محمد الحازمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "احمد عبدالقادر  محمد",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "اسامه ناصر سعيد القحطاني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "البراء نواف سياف النحياني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "اياد سعود بن منور الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "باسل احمد عياد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "باسل عبدالمحسن ابن طائع المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "بندر محمد بن فارس التوم",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "جاسم نهار محمد الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "حسان تركي النشمي الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عاصم عبدالعزيز بن عبيد الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالرحمن ابراهيم بن حمود الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالله ماجد عبدالله العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالله محمد مسلم الرائقي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالله نور فالح العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عمار عبدالله مستور المخلفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "فهد عبدالسلام غريب العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "فيصل سعد عبدالرحمن العنزي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ماجد سلمان بن مستور العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد بندر بن مرشد الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد حمد محمد الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد عوض بن سعد الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مساعد فيصل بن هليل المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مشاري متعب بن رجاءالله المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مشعل فهيد معجل المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "نواف غانم بن غنام الردادي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ابراهيم فؤاد ابراهيم حملي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "احمد سعود بن سعد الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "احمد عماد بن عبداللطيف قاره",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ادهم عبدالمجيد بن محمود الهندي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "أصيل حاتم بن شباب الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "انس فهد حجاج الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "أنس نايف محسن الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "اياد غويزي بخيت الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "تركي عبدالله حسين الردادي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "حسام احمد بن حامد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "حمد أحمد حمد الرشيد",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "راكان فيصل معزي الصاعدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "زياد حمدان بن حامد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "زياد حمود بن سريحان المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "زياد خالد بن نهار المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "زياد نايف سليمان العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "سعد سالم صايغ الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "سعود عبدالعزيز بن سعود المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالرحمن تركي عبدالرحمن الحائطى",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالعزيز حمزه بن طلعت كرعلي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عمر محمد بن سعود العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "فراس فيحان بشير المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مازن سعيد بن بادي العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد حامد بن محمد الرويثي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد سلطان محارب الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مشعل ياسر بن عائض السحيمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "معاذ بندر غالب الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مناور سلطان مناور الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مؤيد مرضي عقاب العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "نايف بدر عبيد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "احمد رائد عايض العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "الحسن محمد بن سودان الزهراني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "أنس حمود عياد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "اياد ناصر بن عويلي الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "باسل سالم بن مرزوق الصاعدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "باسم عبدالعزيز مسلم الحيسوني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ثامر ماجد بن عبدالرحمن الحيسوني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ثامر معيبد صنت الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "ذياب علي عائض الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "طاهر احمد علي الشاطري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالرحمن سلطان عبدالرحمن النجم",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالرحمن مطر محمد الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالرحمن مقرن عبدالاله الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبداللطيف سلطان بن حامد الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عبدالمجيد سعود سمير الحربي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عزام بندر علي العمري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عمار مشعان بن رزيق البركاني",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عمر مبروك ساعد المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "عمر منصور بن دحيم الرشيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مجاهد احمد علي الغامدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد توفيق ماهل العوفي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد صالح عوض السلمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد عثمان محمد صوفان",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد علي بن خلف العلوي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد منصور ناصر الوسيدي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "محمد يوسف معلا المطيري",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مشعل عبدالقادر احمد المصعبي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "معاذ عبدالله بن خلف العلوي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "مهند صباح مناور السحيمي",
-                        "grade": "ثالث متوسط"
-            },
-            {
-                        "name": "يزيد عمر بن شبيب العوفي",
-                        "grade": "ثالث متوسط"
-            }
-];
+            {"name": "أحمد فواز بن سعدون الحربي", "grade": "أول متوسط"},
+            {"name": "أسامه سعود حاجر الحربي", "grade": "أول متوسط"},
+            {"name": "اسامه ماجد ضيف الله الزويكي", "grade": "أول متوسط"},
+            {"name": "باسم سيف بن عبيد الرويثي", "grade": "أول متوسط"},
+            {"name": "ثامر تركي النشمي الحربي", "grade": "أول متوسط"},
+            {"name": "ثامر رائد مرزوق المطيري", "grade": "أول متوسط"},
+            {"name": "حمد عبدالرحمن بن حمد الحربي", "grade": "أول متوسط"},
+            {"name": "ساير ثامر بن سائر العتيبي", "grade": "أول متوسط"},
+            {"name": "سعود عماد سعود الحازمي", "grade": "أول متوسط"},
+            {"name": "سلطان ساطي سمران الحربي", "grade": "أول متوسط"},
+            {"name": "سلطان فهد بن حاسن العمري", "grade": "أول متوسط"},
+            {"name": "عبدالاله عوض نويفع الزويكي", "grade": "أول متوسط"},
+            {"name": "عبدالرحمن خلوي بن نافع الحربي", "grade": "أول متوسط"},
+            {"name": "عبدالعزيز فهد عامر الغنام", "grade": "أول متوسط"},
+            {"name": "عبدالمجيد ربيع مرزوق العمري", "grade": "أول متوسط"},
+            {"name": "عساف بدر بشير الحربي", "grade": "أول متوسط"},
+            {"name": "عمر اسامه بن منور العوفي", "grade": "أول متوسط"},
+            {"name": "عمر منصور بن سعود الحربي", "grade": "أول متوسط"},
+            {"name": "فيصل فواز محمد الحربي", "grade": "أول متوسط"},
+            {"name": "محمد عبدالمجيد بشير الحربي", "grade": "أول متوسط"},
+            {"name": "مشاري عبدالله علي المطيري", "grade": "أول متوسط"},
+            {"name": "مصعب عبدالهادي بن مرزوق العمري", "grade": "أول متوسط"},
+            {"name": "نادر سعود بن حميد العمري", "grade": "أول متوسط"},
+            {"name": "نايف عيد حميد العمري", "grade": "أول متوسط"},
+            {"name": "هايل صالح عائض المطيري", "grade": "أول متوسط"},
+            {"name": "وسام جابر عيد الحربي", "grade": "أول متوسط"},
+            {"name": "وسام عبدالله حامد الحربي", "grade": "أول متوسط"},
+            {"name": "ياسر خالد معجل المطيري", "grade": "أول متوسط"},
+            {"name": "يزيد فواز خليوي المطيري", "grade": "أول متوسط"},
+            {"name": "يعقوب محمد عايد المطيري", "grade": "أول متوسط"},
+            {"name": "احمد حسين علوي حسين الحارثي", "grade": "أول متوسط"},
+            {"name": "أسامه عبدالرحمن بن سعيد العوفي", "grade": "أول متوسط"},
+            {"name": "البراء محمد عزيز العوفي", "grade": "أول متوسط"},
+            {"name": "بتال موسى عمار المطيري", "grade": "أول متوسط"},
+            {"name": "تركي محمد بن سالم الجهني", "grade": "أول متوسط"},
+            {"name": "حازم عبدالهادي بن سعد الحربي", "grade": "أول متوسط"},
+            {"name": "خالد عبدالرب عبد ربه الكحيلي", "grade": "أول متوسط"},
+            {"name": "خالد منصور بن مناور السحيمي", "grade": "أول متوسط"},
+            {"name": "ريان ماجد عيد الرشيدي", "grade": "أول متوسط"},
+            {"name": "زياد فؤاد محمد العتيبي", "grade": "أول متوسط"},
+            {"name": "سعد فهد مسعد العوفي", "grade": "أول متوسط"},
+            {"name": "سعود فيصل محمد الخريف", "grade": "أول متوسط"},
+            {"name": "سلطان ماجد بن معتاد المولد", "grade": "أول متوسط"},
+            {"name": "شامخ نادر سمار الحربي", "grade": "أول متوسط"},
+            {"name": "عادل محمد غازي الحربي", "grade": "أول متوسط"},
+            {"name": "عبدالرحمن عبدالعزيز بن النشمي الحربي", "grade": "أول متوسط"},
+            {"name": "عصام عبدالستار سالم العوفي", "grade": "أول متوسط"},
+            {"name": "عقاب محمد عايد المطيري", "grade": "أول متوسط"}
+        ];
 
         const BEHAVIOR_MAP = {
-            cat1: {
-                points: 6,
-                items: [
-                    "انضباط الطالب وعدم غيابه بدون عذر خلال الفصل",
-                    "المشاركة في الخدمة المجتمعية خارج المدرسة",
-                    "تقديم فعالية حوارية",
-                    "المشاركة في حملة توعوية",
-                    "عرض تجارب شخصية ناجحة",
-                    "الالتحاق ببرنامج أو دورة"
-                ]
-            },
-            cat2: {
-                points: 4,
-                items: [
-                    "مهارات الاتصال (العمل الجماعي، التعلم بالأقران...)",
-                    "مهارات القيادة والمسؤولية (التخطيط، التحفيز...)",
-                    "المهارات الرقمية (إعداد العروض، تصميم المحتوى)",
-                    "مهارة إدارة الوقت"
-                ]
-            },
-            cat3: {
-                points: 2,
-                items: [
-                    "كتابة رسالة شكر (للوطن، للقيادة، للمعلم...)",
-                    "المشاركة في الإذاعة المدرسية",
-                    "تقديم مقترح لصالح المجتمع المدرسي",
-                    "التعاون مع الزملاء والمعلمين والإدارة"
-                ]
-            },
+            cat1: { points: 6, items: ["انضباط الطالب وعدم غيابه بدون عذر خلال الفصل", "المشاركة في الخدمة المجتمعية خارج المدرسة", "تقديم فعالية حوارية", "المشاركة في حملة توعوية", "عرض تجارب شخصية ناجحة", "الالتحاق ببرنامج أو دورة"] },
+            cat2: { points: 4, items: ["مهارات الاتصال (العمل الجماعي، التعلم بالأقران...)", "مهارات القيادة والمسؤولية (التخطيط، التحفيز...)", "المهارات الرقمية (إعداد العروض، تصميم المحتوى)", "مهارة إدارة الوقت"] },
+            cat3: { points: 2, items: ["كتابة رسالة شكر (للوطن، للقيادة، للمعلم...)", "المشاركة في الإذاعة المدرسية", "تقديم مقترح لصالح المجتمع المدرسي", "التعاون مع الزملاء والمعلمين والإدارة"] },
             cat4: { points: 0, items: ["سلوك متميز آخر (يتطلب توصية لجنة التوجيه)"] }
         };
 
-        const STORAGE_KEY = 'student_behavior_data_v5';
+        const STORAGE_KEY = 'student_behavior_data_v6';
 
         // --- CORE FUNCTIONS ---
         function showSection(id) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            document.querySelector(`button[onclick="showSection('${id}')"]`).classList.add('active');
+            const btn = document.querySelector(`button[onclick="showSection('${id}')"]`);
+            if(btn) btn.classList.add('active');
             if(id === 'dashboard') updateDashboard();
-            if(id === 'reports') generateReport();
+            if(id === 'reports') generateMainReport();
         }
 
         function updateSubCategories() {
@@ -2618,10 +580,9 @@
         }
 
         function handleSubCategoryChange() {
-            // Animation effect
             const badge = document.getElementById('points_display');
             badge.style.animation = 'none';
-            badge.offsetHeight; /* trigger reflow */
+            badge.offsetHeight; 
             badge.style.animation = 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
         }
 
@@ -2629,8 +590,57 @@
         const getData = () => JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
         const saveData = (data) => localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 
+        // --- RECOVERY LOGIC ---
+        function processRecoveries(data) {
+            const now = new Date();
+            const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+            
+            // Group violations by student
+            const studentViolations = {};
+            data.forEach((r, index) => {
+                if (r.type === 'violation') {
+                    if (!studentViolations[r.studentName]) studentViolations[r.studentName] = [];
+                    studentViolations[r.studentName].push({ ...r, originalIndex: index });
+                }
+            });
+
+            let changed = false;
+            Object.keys(studentViolations).forEach(studentName => {
+                const violations = studentViolations[studentName].sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                violations.forEach((v, i) => {
+                    if (v.status === 'makhsouma') {
+                        const vDate = new Date(v.date);
+                        const timeDiff = now - vDate;
+                        
+                        if (timeDiff >= oneWeekMs) {
+                            // Check if any NEW violation occurred after this one but before it was recovered
+                            const hasNewerViolation = violations.some(otherV => {
+                                const otherDate = new Date(otherV.date);
+                                return otherDate > vDate && otherDate <= new Date(vDate.getTime() + oneWeekMs);
+                            });
+
+                            if (!hasNewerViolation) {
+                                data[v.originalIndex].status = 'mustaradda';
+                                data[v.originalIndex].points = 0;
+                                changed = true;
+                            }
+                        }
+                    }
+                });
+            });
+            
+            if (changed) saveData(data);
+            return data;
+        }
+
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Set default date to today
+            const today = new Date().toISOString().split('T')[0];
+            if(document.getElementById('vio_date')) document.getElementById('vio_date').value = today;
+            if(document.getElementById('pos_date')) document.getElementById('pos_date').value = today;
+
             // Populate Datalist
             const list = document.getElementById('studentList');
             STUDENT_DATABASE.forEach(s => {
@@ -2641,99 +651,207 @@
 
             // Auto-fill Grade
             ['vio_student_name', 'pos_student_name'].forEach(id => {
-                document.getElementById(id).addEventListener('input', function() {
-                    const student = STUDENT_DATABASE.find(s => s.name === this.value);
-                    if(student) {
-                        const gradeId = id.startsWith('vio') ? 'vio_grade' : 'pos_grade';
-                        document.getElementById(gradeId).value = student.grade;
-                    }
-                });
+                const el = document.getElementById(id);
+                if(el) {
+                    el.addEventListener('input', function() {
+                        const student = STUDENT_DATABASE.find(s => s.name === this.value);
+                        if(student) {
+                            const gradeId = id.startsWith('vio') ? 'vio_grade' : 'pos_grade';
+                            document.getElementById(gradeId).value = student.grade;
+                        }
+                    });
+                }
             });
 
             // Form Submissions
-            document.getElementById('violationForm').onsubmit = function(e) {
-                e.preventDefault();
-                const data = getData();
-                data.push({
-                    type: 'violation',
-                    timestamp: Date.now(),
-                    studentName: document.getElementById('vio_student_name').value,
-                    grade: document.getElementById('vio_grade').value,
-                    violationType: document.getElementById('vio_type').value,
-                    points: -2, // Default violation points
-                    status: 'makhsouma'
-                });
-                saveData(data);
-                alert('تم تسجيل المخالفة');
-                this.reset();
-                showSection('dashboard');
-            };
+            const vioForm = document.getElementById('violationForm');
+            if(vioForm) {
+                vioForm.onsubmit = function(e) {
+                    e.preventDefault();
+                    const data = getData();
+                    data.push({
+                        type: 'violation',
+                        timestamp: Date.now(),
+                        date: document.getElementById('vio_date').value,
+                        studentName: document.getElementById('vio_student_name').value,
+                        grade: document.getElementById('vio_grade').value,
+                        violationType: document.getElementById('vio_type').value,
+                        points: -2,
+                        status: 'makhsouma'
+                    });
+                    saveData(data);
+                    alert('تم تسجيل المخالفة بنجاح');
+                    this.reset();
+                    document.getElementById('vio_date').value = today;
+                    showSection('dashboard');
+                };
+            }
 
-            document.getElementById('positiveForm').onsubmit = function(e) {
-                e.preventDefault();
-                const cat = document.getElementById('pos_category').value;
-                const points = cat === 'cat4' ? parseInt(document.getElementById('pos_custom_points').value) : BEHAVIOR_MAP[cat].points;
-                
-                const data = getData();
-                data.push({
-                    type: 'positive',
-                    timestamp: Date.now(),
-                    studentName: document.getElementById('pos_student_name').value,
-                    grade: document.getElementById('pos_grade').value,
-                    category: document.getElementById('pos_sub_category').value,
-                    points: points,
-                    impact: document.getElementById('pos_impact').value,
-                    nominator: document.getElementById('pos_nominator').value
-                });
-                saveData(data);
-                alert('تم توثيق السلوك المتميز بنجاح');
-                this.reset();
-                document.getElementById('sub_category_group').style.display = 'none';
-                document.getElementById('custom_points_group').style.display = 'none';
-                showSection('dashboard');
-            };
+            const posForm = document.getElementById('positiveForm');
+            if(posForm) {
+                posForm.onsubmit = function(e) {
+                    e.preventDefault();
+                    const cat = document.getElementById('pos_category').value;
+                    const points = cat === 'cat4' ? parseInt(document.getElementById('pos_custom_points').value) : BEHAVIOR_MAP[cat].points;
+                    
+                    const data = getData();
+                    data.push({
+                        type: 'positive',
+                        timestamp: Date.now(),
+                        date: document.getElementById('pos_date').value,
+                        studentName: document.getElementById('pos_student_name').value,
+                        grade: document.getElementById('pos_grade').value,
+                        category: document.getElementById('pos_sub_category').value,
+                        points: points,
+                        impact: document.getElementById('pos_impact').value,
+                        nominator: document.getElementById('pos_nominator').value
+                    });
+                    saveData(data);
+                    alert('تم توثيق السلوك المتميز بنجاح');
+                    this.reset();
+                    document.getElementById('pos_date').value = today;
+                    document.getElementById('sub_category_group').style.display = 'none';
+                    document.getElementById('custom_points_group').style.display = 'none';
+                    showSection('dashboard');
+                };
+            }
 
             showSection('dashboard');
         });
 
         function updateDashboard() {
-            const data = getData();
+            let data = getData();
+            data = processRecoveries(data);
             const grid = document.getElementById('dashboard-grid');
             const violations = data.filter(r => r.type === 'violation').length;
             const positives = data.filter(r => r.type === 'positive').length;
+            const recoveries = data.filter(r => r.status === 'mustaradda').length;
             
             grid.innerHTML = `
                 <div class="stat-card violations"><div class="value">${violations}</div><div class="label">مخالفات مسجلة</div></div>
                 <div class="stat-card positives"><div class="value">${positives}</div><div class="label">سلوكيات متميزة</div></div>
-                <div class="stat-card recoveries"><div class="value">${data.filter(r => r.status === 'mustaradda').length}</div><div class="label">حالات استرداد</div></div>
-                <div class="stat-card commitment"><div class="value">100%</div><div class="label">مؤشر الانضباط العام</div></div>
+                <div class="stat-card recoveries"><div class="value">${recoveries}</div><div class="label">حالات استرداد</div></div>
+                <div class="stat-card commitment"><div class="value">${Math.max(0, 100 - (violations-recoveries)*2)}%</div><div class="label">مؤشر الانضباط</div></div>
             `;
         }
 
-        function generateReport() {
-            const data = getData();
+        function generateMainReport() {
+            let data = getData();
+            data = processRecoveries(data);
             const tbody = document.getElementById('reports-tbody');
-            const studentScores = {};
+            const studentStats = {};
 
             data.forEach(r => {
-                if(!studentScores[r.studentName]) studentScores[r.studentName] = { name: r.studentName, grade: r.grade, score: 0, details: [] };
-                studentScores[r.studentName].score += r.points;
-                studentScores[r.studentName].details.push(r.type === 'positive' ? `+${r.points}` : `${r.points}`);
+                if(!studentStats[r.studentName]) {
+                    studentStats[r.studentName] = { 
+                        name: r.studentName, 
+                        grade: r.grade, 
+                        netPoints: 0, 
+                        totalDeduction: 0 
+                    };
+                }
+                studentStats[r.studentName].netPoints += r.points;
+                if (r.type === 'violation') {
+                    // We count the original deduction even if recovered for the "total deduction" alert logic
+                    studentStats[r.studentName].totalDeduction += 2; 
+                }
             });
 
-            const ranked = Object.values(studentScores).sort((a,b) => b.score - a.score);
-            tbody.innerHTML = ranked.map((s, i) => `
+            const students = Object.values(studentStats).sort((a,b) => b.netPoints - a.netPoints);
+            tbody.innerHTML = students.map((s, i) => `
                 <tr>
                     <td>${i+1}</td>
                     <td><strong>${s.name}</strong></td>
                     <td>${s.grade}</td>
-                    <td>${s.score}</td>
-                    <td>${s.details.join(', ')}</td>
-                    <td><strong>${Math.min(20, 15 + s.score)}</strong></td>
+                    <td style="color: ${s.netPoints >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${s.netPoints}</td>
+                    <td>${s.totalDeduction} درجة</td>
+                    <td>
+                        <button class="btn btn-info" style="padding: 8px 15px; font-size: 0.85em;" onclick="viewStudentReport('${s.name}')">عرض التقرير</button>
+                    </td>
                 </tr>
             `).join('') || '<tr><td colspan="6" style="text-align:center">لا توجد بيانات مسجلة</td></tr>';
+        }
+
+        function viewStudentReport(studentName) {
+            const data = getData();
+            const studentData = data.filter(r => r.studentName === studentName).sort((a, b) => new Date(a.date) - new Date(b.date));
+            const student = STUDENT_DATABASE.find(s => s.name === studentName) || { name: studentName, grade: 'غير محدد' };
+            
+            let netPoints = 0;
+            let totalDeduction = 0;
+            
+            let html = `
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h3 style="font-size: 1.5em; color: var(--primary-color);">${student.name}</h3>
+                    <p>الصف: ${student.grade} | تاريخ التقرير: ${new Date().toLocaleDateString('ar-SA')}</p>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>النوع</th>
+                                <th>التفاصيل</th>
+                                <th>النقاط</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            studentData.forEach(r => {
+                netPoints += r.points;
+                const isViolation = r.type === 'violation';
+                if (isViolation) totalDeduction += 2;
+
+                html += `
+                    <tr>
+                        <td>${r.date}</td>
+                        <td>${isViolation ? 'مخالفة' : 'سلوك إيجابي'}</td>
+                        <td>${isViolation ? r.violationType : r.category}</td>
+                        <td style="color: ${r.points >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${r.points > 0 ? '+' + r.points : r.points}</td>
+                        <td>${isViolation ? (r.status === 'mustaradda' ? '<span style="color:var(--success-color)">مستردة</span>' : '<span style="color:var(--danger-color)">مخصومة</span>') : '-'}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 20px; padding: 20px; background: #f8fafc; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div><strong>صافي نقاط السلوك:</strong> <span style="font-size: 1.2em; color: ${netPoints >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${netPoints}</span></div>
+                    <div><strong>إجمالي الخصومات:</strong> <span style="font-size: 1.2em; color: var(--danger-color)">${totalDeduction} درجة</span></div>
+                </div>
+            `;
+
+            if (totalDeduction > 15) {
+                html += `
+                    <div class="alert alert-danger" style="margin-top: 20px;">
+                        <strong>تنبيه هام:</strong> تجاوز الطالب الحد المسموح به من الخصومات (15 درجة). يجب إشعار ولي الأمر فوراً.
+                    </div>
+                `;
+                document.getElementById('sendToParentBtn').style.display = 'block';
+            } else {
+                document.getElementById('sendToParentBtn').style.display = 'none';
+            }
+
+            document.getElementById('modalBody').innerHTML = html;
+            document.getElementById('studentModal').style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById('studentModal').style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('studentModal');
+            if (event.target == modal) {
+                closeModal();
+            }
         }
     </script>
 </body>
 </html>
+
 
