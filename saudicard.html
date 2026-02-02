@@ -6,6 +6,7 @@
     <title>نموذج موافقة ولي الأمر - نظام نور</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
+        /* ... (نفس كود CSS السابق ) ... */
         * {
             margin: 0;
             padding: 0;
@@ -20,7 +21,7 @@
             --noor-white: #FFFFFF;
             --noor-text: #1a1a1a;
             --noor-border: #A5D6A7;
-            --shadow-soft: 0 4px 20px rgba(46, 125, 50, 0.08 );
+            --shadow-soft: 0 4px 20px rgba(46, 125, 50, 0.08);
             --shadow-medium: 0 8px 32px rgba(46, 125, 50, 0.12);
         }
 
@@ -219,6 +220,13 @@
 
         input::placeholder {
             color: #999;
+        }
+        
+        .input-note {
+            font-size: 13px;
+            color: #555;
+            margin-top: 6px;
+            padding-right: 5px;
         }
 
         .consent-section {
@@ -487,7 +495,8 @@
 
                     <div class="form-group">
                         <label>السجل المدني للطالب: <span class="required">*</span></label>
-                        <input type="text" id="studentId" required placeholder="أدخل رقم الهوية" pattern="[0-9۰-۹]{10}" maxlength="10">
+                        <input type="text" id="studentId" required placeholder="أدخل رقم الهوية" pattern="[0-9]{10}" maxlength="10">
+                        <p class="input-note">الرجاء إدخال الأرقام باللغة الإنجليزية (مثل: 1234567890)</p>
                     </div>
 
                     <div class="form-group">
@@ -515,7 +524,8 @@
 
                     <div class="form-group full-width">
                         <label>رقم جوال ولي الأمر: <span class="required">*</span></label>
-                        <input type="tel" id="parentPhone" required placeholder="05xxxxxxxx" pattern="[0-9۰-۹]{10}" maxlength="10">
+                        <input type="tel" id="parentPhone" required placeholder="05xxxxxxxx" pattern="[0-9]{10}" maxlength="10">
+                        <p class="input-note">الرجاء إدخال الأرقام باللغة الإنجليزية (مثل: 0512345678)</p>
                     </div>
                 </div>
 
@@ -584,7 +594,7 @@
     </div>
 
     <script>
-        // تحويل الأرقام العربية إلى إنجليزية
+        // لا حاجة لدالة التحويل الآن، ولكن يمكن إبقاؤها كإجراء احتياطي
         function convertArabicToEnglish(str) {
             const arabicNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
             const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -596,10 +606,10 @@
             return result;
         }
 
-        // إضافة مستمع للحقول الرقمية
         ['studentId', 'parentPhone'].forEach(id => {
             const input = document.getElementById(id);
             input.addEventListener('input', function(e) {
+                // التحويل التلقائي للأرقام لضمان التوافق
                 this.value = convertArabicToEnglish(this.value);
             });
         });
@@ -629,24 +639,21 @@
 
             const formData = {
                 studentName: document.getElementById('studentName').value,
-                studentId: convertArabicToEnglish(document.getElementById('studentId').value),
+                studentId: document.getElementById('studentId').value,
                 grade: document.getElementById('grade').value,
                 classroom: document.getElementById('classroom').value,
-                parentPhone: convertArabicToEnglish(document.getElementById('parentPhone').value),
+                parentPhone: document.getElementById('parentPhone').value,
                 consent: consent.value,
                 timestamp: window.serverTimestamp(),
                 timestampLocal: new Date().toLocaleString('ar-SA')
             };
 
             try {
-                // حفظ في Firebase
                 await window.addDoc(window.collection(window.db, 'approvals'), formData);
                 
-                // إخفاء النموذج وإظهار رسالة النجاح
                 document.getElementById('parentForm').style.display = 'none';
                 document.getElementById('successMessage').style.display = 'block';
 
-                // إعادة تعيين النموذج بعد 8 ثوانٍ
                 setTimeout(() => {
                     document.getElementById('parentForm').reset();
                     document.getElementById('parentForm').style.display = 'block';
@@ -664,8 +671,7 @@
 
         // التحقق من صحة رقم الهوية
         document.getElementById('studentId').addEventListener('blur', function() {
-            const value = convertArabicToEnglish(this.value);
-            if (value.length > 0 && value.length !== 10) {
+            if (this.value.length > 0 && this.value.length !== 10) {
                 alert('رقم الهوية يجب أن يكون 10 أرقام');
                 this.focus();
             }
@@ -673,12 +679,11 @@
 
         // التحقق من صحة رقم الجوال
         document.getElementById('parentPhone').addEventListener('blur', function() {
-            const value = convertArabicToEnglish(this.value);
-            if (value.length > 0 && value.length !== 10) {
+            if (this.value.length > 0 && this.value.length !== 10) {
                 alert('رقم الجوال يجب أن يكون 10 أرقام');
                 this.focus();
             }
-            if (value.length === 10 && !value.startsWith('05')) {
+            if (this.value.length === 10 && !this.value.startsWith('05')) {
                 alert('رقم الجوال يجب أن يبدأ بـ 05');
                 this.focus();
             }
@@ -686,3 +691,4 @@
     </script>
 </body>
 </html>
+
