@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إضافة البيانات التجريبية</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #4F46E5;
+            margin-bottom: 20px;
+        }
+        .warning {
+            background: #FEF3C7;
+            border: 2px solid #F59E0B;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background: #D1FAE5;
+            border: 2px solid #10B981;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error {
+            background: #FEE2E2;
+            border: 2px solid #EF4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        button {
+            background: #4F46E5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 10px 10px 10px 0;
+        }
+        button:hover {
+            background: #4338CA;
+        }
+        button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #F3F4F6;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+            margin-top: 20px;
+            display: none;
+        }
+        .log-item {
+            padding: 5px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        .log-item:last-child {
+            border-bottom: none;
+        }
+        .progress {
+            background: #E5E7EB;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-bar {
+            background: #10B981;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 إضافة البيانات التجريبية</h1>
+        
+        <div class="warning">
+            ⚠️ <strong>تحذير:</strong> هذا السكريبت سيضيف بيانات تجريبية إلى قاعدة بياناتك في Firestore. 
+            تأكد من تكوين Firebase بشكل صحيح قبل البدء.
+        </div>
+
+        <div id="success-message" class="success"></div>
+        <div id="error-message" class="error"></div>
+
+        <div style="margin: 20px 0;">
+            <h3>الخطوات:</h3>
+            <ol>
+                <li>تأكد من تحديث <code>firebaseConfig</code> في ملف app.js</li>
+                <li>افتح Firebase Console وتأكد من أن Firestore تم إنشاؤه</li>
+                <li>اضغط على الزر أدناه لإضافة البيانات</li>
+            </ol>
+        </div>
+
+        <button id="add-all-btn" onclick="addAllData()">إضافة جميع البيانات</button>
+        <button id="add-subjects-btn" onclick="addSubjects()">إضافة المواد فقط</button>
+        <button id="add-lessons-btn" onclick="addLessons()">إضافة الدروس فقط</button>
+        <button id="clear-btn" onclick="clearData()">مسح البيانات</button>
+
+        <div id="progress" class="progress">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+
+        <div id="log" class="log"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            setDoc,
+            getDocs,
+            deleteDoc
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // تكوين Firebase من مشروعك
+        const firebaseConfig = {
+            apiKey: "AIzaSyBaY75jwos44EbgZMlhIcU_YfrGeKY7r3w",
+            authDomain: "naj7-7da9d.firebaseapp.com",
+            projectId: "naj7-7da9d",
+            storageBucket: "naj7-7da9d.firebasestorage.app",
+            messagingSenderId: "72751584563",
+            appId: "1:72751584563:web:8562f042882919d2c4da46"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // بيانات تجريبية
+        const sampleData = {
+            subjects: [
+                {
+                    id: "math",
+                    name: "الرياضيات",
+                    description: "حساب، جبر، هندسة للمرحلة المتوسطة",
+                    icon: "🔢",
+                    lessonsCount: 10,
+                    isFree: true,
+                    order: 1
+                },
+                {
+                    id: "science",
+                    name: "العلوم",
+                    description: "فيزياء، كيمياء، أحياء",
+                    icon: "🔬",
+                    lessonsCount: 12,
+                    isFree: false,
+                    order: 2
+                },
+                {
+                    id: "arabic",
+                    name: "اللغة العربية",
+                    description: "نحو، صرف، بلاغة، قراءة",
+                    icon: "📖",
+                    lessonsCount: 15,
+                    isFree: true,
+                    order: 3
+                }
+            ],
+            lessons: [
+                {
+                    id: "math-lesson-1",
+                    subjectId: "math",
+                    title: "الأعداد الصحيحة",
+                    description: "تعلم مفهوم الأعداد الصحيحة والعمليات عليها",
+                    icon: "➕",
+                    content: "الأعداد الصحيحة هي مجموعة من الأعداد تشمل الأعداد الطبيعية وأضدادها والصفر.",
+                    videoUrl: "lessons/math/integers.mp4",
+                    images: ["lessons/math/integers-number-line.jpg"],
+                    isFree: true,
+                    order: 1,
+                    duration: 15
+                },
+                {
+                    id: "math-lesson-2",
+                    subjectId: "math",
+                    title: "العمليات الحسابية على الكسور",
+                    description: "جمع وطرح وضرب وقسمة الكسور",
+                    icon: "🔢",
+                    content: "الكسور هي أعداد تمثل جزءاً من الكل.",
+                    videoUrl: "lessons/math/fractions.mp4",
+                    images: ["lessons/math/fractions-addition.jpg"],
+                    isFree: true,
+                    order: 2,
+                    duration: 20
+                },
+                {
+                    id: "arabic-lesson-1",
+                    subjectId: "arabic",
+                    title: "المبتدأ والخبر",
+                    description: "تعلم أركان الجملة الاسمية",
+                    icon: "✍️",
+                    content: "الجملة الاسمية تتكون من ركنين أساسيين: المبتدأ والخبر.",
+                    videoUrl: "lessons/arabic/mubtada.mp4",
+                    images: ["lessons/arabic/mubtada-examples.jpg"],
+                    isFree: true,
+                    order: 1,
+                    duration: 12
+                }
+            ]
+        };
+
+        // دوال مساعدة
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            logDiv.style.display = 'block';
+            
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.textContent = `${new Date().toLocaleTimeString('ar-SA')} - ${message}`;
+            
+            if (type === 'error') item.style.color = '#EF4444';
+            if (type === 'success') item.style.color = '#10B981';
+            
+            logDiv.appendChild(item);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function showProgress(percent) {
+            const progress = document.getElementById('progress');
+            const progressBar = document.getElementById('progress-bar');
+            
+            progress.style.display = 'block';
+            progressBar.style.width = percent + '%';
+        }
+
+        function showMessage(message, type) {
+            const successDiv = document.getElementById('success-message');
+            const errorDiv = document.getElementById('error-message');
+            
+            if (type === 'success') {
+                successDiv.textContent = message;
+                successDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+            } else {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+                successDiv.style.display = 'none';
+            }
+        }
+
+        function disableButtons(disabled) {
+            document.querySelectorAll('button').forEach(btn => {
+                btn.disabled = disabled;
+            });
+        }
+
+        // إضافة المواد
+        async function addSubjects() {
+            disableButtons(true);
+            log('بدء إضافة المواد...');
+            
+            try {
+                let completed = 0;
+                const total = sampleData.subjects.length;
+                
+                for (const subject of sampleData.subjects) {
+                    const { id, ...data } = subject;
+                    await setDoc(doc(db, 'subjects', id), data);
+                    
+                    completed++;
+                    showProgress((completed / total) * 100);
+                    log(`تمت إضافة: ${data.name}`, 'success');
+                }
+                
+                showMessage('✅ تمت إضافة جميع المواد بنجاح!', 'success');
+            } catch (error) {
+                log(`خطأ: ${error.message}`, 'error');
+                showMessage('❌ حدث خطأ أثناء إضافة المواد', 'error');
+            } finally {
+                disableButtons(false);
+            }
+        }
+
+        // إضافة الدروس
+        async function addLessons() {
+            disableButtons(true);
+            log('بدء إضافة الدروس...');
+            
+            try {
+                let completed = 0;
+                const total = sampleData.lessons.length;
+                
+                for (const lesson of sampleData.lessons) {
+                    const { id, ...data } = lesson;
+                    await setDoc(doc(db, 'lessons', id), data);
+                    
+                    completed++;
+                    showProgress((completed / total) * 100);
+                    log(`تمت إضافة: ${data.title}`, 'success');
+                }
+                
+                showMessage('✅ تمت إضافة جميع الدروس بنجاح!', 'success');
+            } catch (error) {
+                log(`خطأ: ${error.message}`, 'error');
+                showMessage('❌ حدث خطأ أثناء إضافة الدروس', 'error');
+            } finally {
+                disableButtons(false);
+            }
+        }
+
+        // إضافة جميع البيانات
+        async function addAllData() {
+            disableButtons(true);
+            log('========== بدء إضافة جميع البيانات ==========');
+            
+            try {
+                // إضافة المواد
+                await addSubjects();
+                
+                // انتظار قصير
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // إضافة الدروس
+                await addLessons();
+                
+                log('========== اكتملت العملية بنجاح ==========', 'success');
+                showMessage('🎉 تمت إضافة جميع البيانات بنجاح!', 'success');
+            } catch (error) {
+                log(`خطأ عام: ${error.message}`, 'error');
+                showMessage('❌ حدث خطأ أثناء العملية', 'error');
+            } finally {
+                disableButtons(false);
+            }
+        }
+
+        // مسح البيانات
+        async function clearData() {
+            if (!confirm('هل أنت متأكد من مسح جميع البيانات؟')) {
+                return;
+            }
+            
+            disableButtons(true);
+            log('بدء مسح البيانات...');
+            
+            try {
+                // مسح المواد
+                const subjectsSnapshot = await getDocs(collection(db, 'subjects'));
+                for (const document of subjectsSnapshot.docs) {
+                    await deleteDoc(doc(db, 'subjects', document.id));
+                    log(`تم مسح مادة: ${document.id}`, 'info');
+                }
+                
+                // مسح الدروس
+                const lessonsSnapshot = await getDocs(collection(db, 'lessons'));
+                for (const document of lessonsSnapshot.docs) {
+                    await deleteDoc(doc(db, 'lessons', document.id));
+                    log(`تم مسح درس: ${document.id}`, 'info');
+                }
+                
+                showMessage('✅ تم مسح جميع البيانات', 'success');
+            } catch (error) {
+                log(`خطأ: ${error.message}`, 'error');
+                showMessage('❌ حدث خطأ أثناء المسح', 'error');
+            } finally {
+                disableButtons(false);
+            }
+        }
+
+        // تصدير الدوال للاستخدام العام
+        window.addSubjects = addSubjects;
+        window.addLessons = addLessons;
+        window.addAllData = addAllData;
+        window.clearData = clearData;
+
+        // تحقق من الاتصال عند التحميل
+        window.addEventListener('load', () => {
+            if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+                showMessage('⚠️ يرجى تحديث firebaseConfig في هذا الملف أولاً!', 'error');
+                disableButtons(true);
+            } else {
+                log('✅ Firebase متصل بنجاح');
+            }
+        });
+    </script>
+</body>
+</html>
