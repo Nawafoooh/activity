@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار اتصال Firebase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #4F46E5;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .test-item {
+            background: #F9FAFB;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border-left: 4px solid #E5E7EB;
+        }
+        
+        .test-item.success {
+            border-left-color: #10B981;
+            background: #D1FAE5;
+        }
+        
+        .test-item.error {
+            border-left-color: #EF4444;
+            background: #FEE2E2;
+        }
+        
+        .test-item.pending {
+            border-left-color: #F59E0B;
+            background: #FEF3C7;
+        }
+        
+        .test-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .test-message {
+            color: #6B7280;
+            font-size: 14px;
+        }
+        
+        .status-icon {
+            font-size: 24px;
+            margin-left: 10px;
+        }
+        
+        .project-info {
+            background: #EEF2FF;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .project-info h2 {
+            color: #4F46E5;
+            margin-bottom: 10px;
+        }
+        
+        .project-info p {
+            color: #6B7280;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #4F46E5;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #4338CA;
+        }
+        
+        button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="project-info">
+            <h2>🎓 منصة التعليم الذكي</h2>
+            <p>المشروع: <strong>naj7-7da9d</strong></p>
+            <p>اختبار الاتصال بـ Firebase</p>
+        </div>
+
+        <h1>🔌 حالة الاتصال</h1>
+
+        <div id="firebase-test" class="test-item pending">
+            <div class="test-title">
+                <span class="status-icon">⏳</span>
+                1. Firebase SDK
+            </div>
+            <div class="test-message">جاري التحقق...</div>
+        </div>
+
+        <div id="auth-test" class="test-item pending">
+            <div class="test-title">
+                <span class="status-icon">⏳</span>
+                2. Authentication
+            </div>
+            <div class="test-message">جاري التحقق...</div>
+        </div>
+
+        <div id="firestore-test" class="test-item pending">
+            <div class="test-title">
+                <span class="status-icon">⏳</span>
+                3. Firestore Database
+            </div>
+            <div class="test-message">جاري التحقق...</div>
+        </div>
+
+        <div id="storage-test" class="test-item pending">
+            <div class="test-title">
+                <span class="status-icon">⏳</span>
+                4. Storage
+            </div>
+            <div class="test-message">جاري التحقق...</div>
+        </div>
+
+        <button id="test-btn" onclick="runTests()">
+            <span id="btn-text">🧪 إعادة الاختبار</span>
+        </button>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getStorage, ref, listAll } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBaY75jwos44EbgZMlhIcU_YfrGeKY7r3w",
+            authDomain: "naj7-7da9d.firebaseapp.com",
+            projectId: "naj7-7da9d",
+            storageBucket: "naj7-7da9d.firebasestorage.app",
+            messagingSenderId: "72751584563",
+            appId: "1:72751584563:web:8562f042882919d2c4da46"
+        };
+
+        let app, auth, db, storage;
+
+        function updateStatus(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            element.className = `test-item ${status}`;
+            
+            const icon = status === 'success' ? '✅' : status === 'error' ? '❌' : '⏳';
+            element.querySelector('.status-icon').textContent = icon;
+            element.querySelector('.test-message').textContent = message;
+        }
+
+        async function runTests() {
+            const btn = document.getElementById('test-btn');
+            const btnText = document.getElementById('btn-text');
+            
+            btn.disabled = true;
+            btnText.innerHTML = '<span class="spinner"></span> جاري الاختبار...';
+
+            try {
+                // Test 1: Firebase SDK
+                updateStatus('firebase-test', 'pending', 'جاري تهيئة Firebase...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                app = initializeApp(firebaseConfig);
+                updateStatus('firebase-test', 'success', 'تم الاتصال بنجاح! ✓');
+
+                // Test 2: Authentication
+                updateStatus('auth-test', 'pending', 'جاري التحقق من Authentication...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                auth = getAuth(app);
+                if (auth) {
+                    updateStatus('auth-test', 'success', 'Authentication جاهز! تأكد من تفعيل Email/Password في Console');
+                } else {
+                    updateStatus('auth-test', 'error', 'فشل في تهيئة Authentication');
+                }
+
+                // Test 3: Firestore
+                updateStatus('firestore-test', 'pending', 'جاري التحقق من Firestore...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                db = getFirestore(app);
+                
+                try {
+                    // محاولة قراءة collection
+                    const subjectsRef = collection(db, 'subjects');
+                    const snapshot = await getDocs(subjectsRef);
+                    
+                    if (snapshot.empty) {
+                        updateStatus('firestore-test', 'success', 
+                            'Firestore متصل! ⚠️ لا توجد بيانات - استخدم add-sample-data.html لإضافتها');
+                    } else {
+                        updateStatus('firestore-test', 'success', 
+                            `Firestore جاهز! وجدنا ${snapshot.size} مواد دراسية ✓`);
+                    }
+                } catch (error) {
+                    if (error.code === 'permission-denied') {
+                        updateStatus('firestore-test', 'error', 
+                            'Firestore موجود لكن الصلاحيات مرفوضة - غيّر Rules إلى Test Mode');
+                    } else {
+                        updateStatus('firestore-test', 'error', 
+                            'تأكد من إنشاء Firestore Database في Console');
+                    }
+                }
+
+                // Test 4: Storage
+                updateStatus('storage-test', 'pending', 'جاري التحقق من Storage...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                storage = getStorage(app);
+                
+                try {
+                    const storageRef = ref(storage, 'lessons');
+                    await listAll(storageRef);
+                    updateStatus('storage-test', 'success', 'Storage جاهز! ارفع الفيديوهات والصور');
+                } catch (error) {
+                    if (error.code === 'storage/unauthorized') {
+                        updateStatus('storage-test', 'error', 
+                            'Storage موجود لكن الصلاحيات مرفوضة - غيّر Rules إلى Test Mode');
+                    } else {
+                        updateStatus('storage-test', 'success', 
+                            'Storage متصل! مجلد lessons غير موجود بعد');
+                    }
+                }
+
+            } catch (error) {
+                console.error('Test error:', error);
+                updateStatus('firebase-test', 'error', `خطأ: ${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = '🔄 إعادة الاختبار';
+            }
+        }
+
+        // تشغيل الاختبار عند التحميل
+        window.addEventListener('load', runTests);
+        window.runTests = runTests;
+    </script>
+</body>
+</html>
