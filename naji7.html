@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة التعليم الذكي - المرحلة المتوسطة</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Firebase SDK v9+ (Modular) -->
+    <script type="module">
+        // سيتم تهيئة Firebase في app.js
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getStorage } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+        
+        window.firebaseModules = { initializeApp, getAuth, getFirestore, getStorage };
+    </script>
+</head>
+<body>
+    <!-- شاشة التحميل -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="spinner"></div>
+        <p>جاري التحميل...</p>
+    </div>
+
+    <!-- صفحة تسجيل الدخول -->
+    <div id="auth-page" class="page active">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h1>🎓 منصة التعليم الذكي</h1>
+                <p>رحلتك التعليمية تبدأ هنا</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="tab-btn active" data-tab="login">تسجيل الدخول</button>
+                <button class="tab-btn" data-tab="register">حساب جديد</button>
+            </div>
+
+            <!-- نموذج تسجيل الدخول -->
+            <form id="login-form" class="auth-form active">
+                <div class="input-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" id="login-email" required placeholder="example@email.com">
+                </div>
+                <div class="input-group">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="login-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary">دخول</button>
+                <p class="error-message" id="login-error"></p>
+            </form>
+
+            <!-- نموذج التسجيل -->
+            <form id="register-form" class="auth-form">
+                <div class="input-group">
+                    <label>الاسم الكامل</label>
+                    <input type="text" id="register-name" required placeholder="أدخل اسمك">
+                </div>
+                <div class="input-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" id="register-email" required placeholder="example@email.com">
+                </div>
+                <div class="input-group">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="register-password" required placeholder="8 أحرف على الأقل">
+                </div>
+                <div class="input-group">
+                    <label>الصف الدراسي</label>
+                    <select id="register-grade" required>
+                        <option value="">اختر الصف</option>
+                        <option value="7">الصف الأول متوسط</option>
+                        <option value="8">الصف الثاني متوسط</option>
+                        <option value="9">الصف الثالث متوسط</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">إنشاء حساب</button>
+                <p class="error-message" id="register-error"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- الصفحة الرئيسية -->
+    <div id="home-page" class="page">
+        <nav class="navbar">
+            <div class="nav-content">
+                <h2>🎓 منصة التعليم</h2>
+                <div class="nav-actions">
+                    <span id="user-name" class="user-name"></span>
+                    <button id="logout-btn" class="btn btn-secondary">تسجيل الخروج</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+            <!-- شريط التقدم العام -->
+            <div class="progress-overview">
+                <div class="stats-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-info">
+                        <h3 id="total-points">0</h3>
+                        <p>النقاط الكلية</p>
+                    </div>
+                </div>
+                <div class="stats-card">
+                    <div class="stat-icon">🏆</div>
+                    <div class="stat-info">
+                        <h3 id="user-level">1</h3>
+                        <p>المستوى</p>
+                    </div>
+                </div>
+                <div class="stats-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-info">
+                        <h3 id="completed-lessons">0</h3>
+                        <p>الدروس المكتملة</p>
+                    </div>
+                </div>
+                <div class="stats-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-info">
+                        <h3 id="streak-days">0</h3>
+                        <p>أيام متتالية</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- خطة الاشتراك -->
+            <div id="subscription-banner" class="subscription-banner">
+                <div class="subscription-content">
+                    <h3>🌟 اشترك في الخطة المميزة</h3>
+                    <p>احصل على وصول كامل لجميع الدروس والتمارين</p>
+                    <button class="btn btn-premium" id="upgrade-btn">اشترك الآن - 29 ريال/شهر</button>
+                </div>
+            </div>
+
+            <!-- المواد الدراسية -->
+            <div class="subjects-section">
+                <h2>📚 المواد الدراسية</h2>
+                <div id="subjects-grid" class="subjects-grid">
+                    <!-- سيتم ملؤها ديناميكياً -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- صفحة المادة (الدروس) -->
+    <div id="subject-page" class="page">
+        <nav class="navbar">
+            <div class="nav-content">
+                <button class="btn btn-back" id="back-to-home">← الرجوع</button>
+                <h2 id="subject-title"></h2>
+            </div>
+        </nav>
+
+        <div class="container">
+            <div id="lessons-grid" class="lessons-grid">
+                <!-- سيتم ملؤها ديناميكياً -->
+            </div>
+        </div>
+    </div>
+
+    <!-- صفحة الدرس -->
+    <div id="lesson-page" class="page">
+        <nav class="navbar">
+            <div class="nav-content">
+                <button class="btn btn-back" id="back-to-subject">← الرجوع</button>
+                <h2 id="lesson-title"></h2>
+            </div>
+        </nav>
+
+        <div class="container">
+            <div class="lesson-content">
+                <!-- فيديو الدرس -->
+                <div id="video-container" class="video-container">
+                    <video id="lesson-video" controls></video>
+                </div>
+
+                <!-- محتوى الدرس -->
+                <div class="lesson-text">
+                    <h3>📝 ملخص الدرس</h3>
+                    <div id="lesson-summary" class="lesson-summary">
+                        <div class="ai-loading">
+                            <div class="spinner-small"></div>
+                            <p>جاري توليد الملخص بواسطة الذكاء الاصطناعي...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- صور الدرس -->
+                <div id="lesson-images" class="lesson-images">
+                    <!-- سيتم ملؤها ديناميكياً -->
+                </div>
+
+                <!-- التمارين -->
+                <div class="exercises-section">
+                    <h3>🎯 تمارين تفاعلية</h3>
+                    <div id="exercises-container">
+                        <div class="ai-loading">
+                            <div class="spinner-small"></div>
+                            <p>جاري إنشاء التمارين بواسطة الذكاء الاصطناعي...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- صفحة التقدم -->
+    <div id="progress-page" class="page">
+        <nav class="navbar">
+            <div class="nav-content">
+                <button class="btn btn-back" id="back-from-progress">← الرجوع</button>
+                <h2>📈 تقدمك الدراسي</h2>
+            </div>
+        </nav>
+
+        <div class="container">
+            <div class="achievements-section">
+                <h3>🏆 الإنجازات</h3>
+                <div id="achievements-grid" class="achievements-grid">
+                    <!-- سيتم ملؤها ديناميكياً -->
+                </div>
+            </div>
+
+            <div class="detailed-progress">
+                <h3>📊 تفاصيل التقدم</h3>
+                <div id="progress-chart"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة الاشتراك -->
+    <div id="subscription-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>⭐ الخطة المميزة</h2>
+            <div class="pricing-details">
+                <div class="price">29 ريال/شهر</div>
+                <ul class="features-list">
+                    <li>✅ وصول كامل لجميع الدروس</li>
+                    <li>✅ بنك أسئلة شامل</li>
+                    <li>✅ تمارين غير محدودة مولدة بالذكاء الاصطناعي</li>
+                    <li>✅ تقارير تقدم مفصلة</li>
+                    <li>✅ شهادات إنجاز</li>
+                    <li>✅ دعم فني مباشر</li>
+                </ul>
+                <button class="btn btn-premium btn-large" id="subscribe-btn">اشترك الآن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- السكريبت الرئيسي -->
+    <script src="app.js" type="module"></script>
+</body>
+</html>
