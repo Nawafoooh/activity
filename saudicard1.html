@@ -295,6 +295,28 @@
             box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
         }
 
+        .btn-whatsapp {
+            background: #25D366;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+            margin-left: 5px;
+        }
+
+        .btn-whatsapp:hover {
+            background: #1DA851;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+        }
+
+        .action-cell {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
         .table-container {
             background: var(--noor-white);
             border-radius: 16px;
@@ -850,7 +872,19 @@
                     <td></td>
                 `;
                 
-                // إنشاء زر الحذف بشكل منفصل
+                // إنشاء container للأزرار
+                const actionCell = document.createElement('div');
+                actionCell.className = 'action-cell';
+                
+                // إنشاء زر الواتساب
+                const whatsappBtn = document.createElement('button');
+                whatsappBtn.className = 'btn btn-whatsapp';
+                whatsappBtn.innerHTML = '💬 تواصل';
+                whatsappBtn.onclick = function() {
+                    openWhatsApp(approval.parentPhone, approval.studentName);
+                };
+                
+                // إنشاء زر الحذف
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'btn btn-danger';
                 deleteBtn.textContent = '🗑️ حذف';
@@ -858,11 +892,56 @@
                     openDeleteModal(approval.id, approval.studentName);
                 };
                 
-                // إضافة الزر للخلية الأخيرة
-                row.cells[8].appendChild(deleteBtn);
+                // إضافة الأزرار للـ container
+                actionCell.appendChild(whatsappBtn);
+                actionCell.appendChild(deleteBtn);
+                
+                // إضافة الـ container للخلية الأخيرة
+                row.cells[8].appendChild(actionCell);
                 
                 tbody.appendChild(row);
             });
+        }
+
+        // فتح واتساب للتواصل مع ولي الأمر
+        function openWhatsApp(phoneNumber, studentName) {
+            // رقم المدرسة (يمكنك تغييره)
+            const schoolPhone = '966500000000'; // ضع رقم المدرسة هنا بصيغة دولية بدون + أو 00
+            
+            // تنسيق رقم الجوال (إزالة المسافات والرموز)
+            let formattedPhone = phoneNumber.replace(/\s+/g, '').replace(/\+/g, '').replace(/-/g, '');
+            
+            // إذا كان الرقم يبدأ بـ 05، نحوله إلى 9665
+            if (formattedPhone.startsWith('05')) {
+                formattedPhone = '966' + formattedPhone.substring(1);
+            }
+            // إذا كان يبدأ بـ 5، نضيف 966
+            else if (formattedPhone.startsWith('5') && formattedPhone.length === 9) {
+                formattedPhone = '966' + formattedPhone;
+            }
+            
+            // الرسالة المرسلة
+            const message = `السلام عليكم ورحمة الله وبركاته
+
+ولي أمر الطالب/ة: ${studentName}
+
+نود إبلاغكم بأن هناك بعض المستندات الناقصة في نموذج موافقة مبادرة الأحوال المدنية.
+
+يرجى استكمال المستندات المطلوبة في أقرب وقت ممكن.
+
+للاستفسار، يمكنكم التواصل معنا على الرقم: ${schoolPhone}
+
+شكراً لتعاونكم
+متوسطة المنذر بن عمرو الأنصاري`;
+            
+            // ترميز الرسالة للـ URL
+            const encodedMessage = encodeURIComponent(message);
+            
+            // فتح واتساب
+            const whatsappURL = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+            
+            // فتح في نافذة جديدة
+            window.open(whatsappURL, '_blank');
         }
 
         // فتح نافذة التأكيد
