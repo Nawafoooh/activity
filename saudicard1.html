@@ -20,6 +20,7 @@
             --noor-white: #FFFFFF;
             --noor-text: #1a1a1a;
             --noor-border: #A5D6A7;
+            --noor-danger: #d32f2f;
             --shadow-soft: 0 4px 20px rgba(46, 125, 50, 0.08);
             --shadow-medium: 0 8px 32px rgba(46, 125, 50, 0.12);
         }
@@ -280,6 +281,20 @@
             border-color: var(--noor-primary);
         }
 
+        .btn-danger {
+            background: var(--noor-danger);
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(211, 47, 47, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: #b71c1c;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(211, 47, 47, 0.4);
+        }
+
         .table-container {
             background: var(--noor-white);
             border-radius: 16px;
@@ -381,6 +396,81 @@
             font-size: 16px;
         }
 
+        /* نافذة التأكيد */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .modal-icon {
+            font-size: 48px;
+        }
+
+        .modal-header h3 {
+            font-size: 24px;
+            color: var(--noor-danger);
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .modal-body {
+            margin-bottom: 25px;
+            line-height: 1.8;
+            color: #666;
+        }
+
+        .modal-body strong {
+            color: var(--noor-text);
+            display: block;
+            margin-top: 10px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
         .footer {
             text-align: center;
             margin-top: 40px;
@@ -396,7 +486,8 @@
 
             .controls,
             .action-buttons,
-            .footer {
+            .footer,
+            .btn-danger {
                 display: none;
             }
 
@@ -441,6 +532,11 @@
             .stat-card .number {
                 font-size: 32px;
             }
+
+            .modal-content {
+                margin: 50% auto;
+                width: 95%;
+            }
         }
 
         .refresh-animation {
@@ -451,11 +547,48 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+
+        /* رسالة النجاح */
+        .success-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #4caf50;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 2000;
+            animation: slideInDown 0.5s ease, slideOutUp 0.5s ease 2.5s;
+        }
+
+        @keyframes slideInDown {
+            from {
+                transform: translate(-50%, -100px);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutUp {
+            from {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+            to {
+                transform: translate(-50%, -100px);
+                opacity: 0;
+            }
+        }
     </style>
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         
         const firebaseConfig = {
             apiKey: "AIzaSyAVFtPQyyDtbdt5VlivumLhgI4whVU3FS4",
@@ -476,6 +609,8 @@
         window.orderBy = orderBy;
         window.onSnapshot = onSnapshot;
         window.getDocs = getDocs;
+        window.doc = doc;
+        window.deleteDoc = deleteDoc;
     </script>
 </head>
 <body>
@@ -565,11 +700,12 @@
                             <th>رقم جوال ولي الأمر</th>
                             <th>الحالة</th>
                             <th>التاريخ</th>
+                            <th>الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
                         <tr>
-                            <td colspan="8" class="empty-state">
+                            <td colspan="9" class="empty-state">
                                 <svg viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                                 </svg>
@@ -588,9 +724,29 @@
         </div>
     </div>
 
+    <!-- نافذة التأكيد -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-icon">⚠️</span>
+                <h3>تأكيد الحذف</h3>
+            </div>
+            <div class="modal-body">
+                <p>هل أنت متأكد من حذف موافقة الطالب؟</p>
+                <strong id="studentNameToDelete"></strong>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">إلغاء</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">حذف</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let allApprovals = [];
         let filteredApprovals = [];
+        let deleteId = null;
+        let deleteStudentName = null;
 
         // تحميل البيانات من Firebase
         async function loadApprovals() {
@@ -666,7 +822,7 @@
             if (filteredApprovals.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="empty-state">
+                        <td colspan="9" class="empty-state">
                             <svg viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                             </svg>
@@ -688,8 +844,60 @@
                     <td dir="ltr">${approval.parentPhone}</td>
                     <td><span class="status-badge status-approved">${approval.consent}</span></td>
                     <td>${approval.timestamp}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="openDeleteModal('${approval.id}', '${approval.studentName}')">
+                            🗑️ حذف
+                        </button>
+                    </td>
                 </tr>
             `).join('');
+        }
+
+        // فتح نافذة التأكيد
+        function openDeleteModal(id, studentName) {
+            deleteId = id;
+            deleteStudentName = studentName;
+            document.getElementById('studentNameToDelete').textContent = studentName;
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+
+        // إغلاق نافذة التأكيد
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+            deleteId = null;
+            deleteStudentName = null;
+        }
+
+        // تأكيد الحذف
+        async function confirmDelete() {
+            if (!deleteId) return;
+
+            try {
+                await window.deleteDoc(window.doc(window.db, 'approvals', deleteId));
+                
+                // إغلاق النافذة
+                closeDeleteModal();
+                
+                // إظهار رسالة نجاح
+                showSuccessMessage('تم حذف الموافقة بنجاح');
+                
+                // التحديث سيتم تلقائياً من خلال onSnapshot
+            } catch (error) {
+                console.error('Error deleting approval:', error);
+                alert('حدث خطأ أثناء الحذف. يرجى المحاولة مرة أخرى.');
+            }
+        }
+
+        // إظهار رسالة النجاح
+        function showSuccessMessage(message) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'success-message';
+            msgDiv.textContent = message;
+            document.body.appendChild(msgDiv);
+            
+            setTimeout(() => {
+                msgDiv.remove();
+            }, 3000);
         }
 
         // تطبيق الفلاتر
@@ -756,6 +964,14 @@
         document.getElementById('searchInput').addEventListener('input', applyFilters);
         document.getElementById('gradeFilter').addEventListener('change', applyFilters);
         document.getElementById('classFilter').addEventListener('change', applyFilters);
+
+        // إغلاق النافذة عند النقر خارجها
+        window.onclick = function(event) {
+            const modal = document.getElementById('deleteModal');
+            if (event.target == modal) {
+                closeDeleteModal();
+            }
+        }
 
         // تحميل البيانات والاستماع للتحديثات الفورية عند فتح الصفحة
         window.addEventListener('load', () => {
