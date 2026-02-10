@@ -756,7 +756,6 @@
                     <tbody>
             `;
 
-            let hasAnyHomework = false;
             const subjectsWithHomework = Object.keys(data.subjects).filter(subject => 
                 data.subjects[subject].homework || data.subjects[subject].examDate
             );
@@ -774,7 +773,6 @@
 
             subjectsWithHomework.forEach(subject => {
                 const subjectData = data.subjects[subject];
-                hasAnyHomework = true;
                 
                 const remainingDaysInfo = getRemainingDays(subjectData.dueDate);
                 const examRemainingDaysInfo = getRemainingDays(subjectData.examDate);
@@ -818,4 +816,31 @@
             today.setHours(0, 0, 0, 0);
             const dueDate = new Date(dateString);
             dueDate.setHours(0, 0, 0, 0);
-            const diffTime = dueDate.getTime() -
+            const diffTime = dueDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) return { days: diffDays, text: 'فات موعده' };
+            if (diffDays === 0) return { days: 0, text: 'اليوم' };
+            if (diffDays === 1) return { days: 1, text: 'غدًا' };
+            return { days: diffDays, text: `${diffDays} أيام` };
+        }
+
+        // ========== تبديل حالة الإنجاز ==========
+        function toggleDone(day, grade, section, subject) {
+            const data = getAllData(day, grade, section);
+            if (data.subjects[subject]) {
+                data.subjects[subject].done = !data.subjects[subject].done;
+                saveData(day, grade, section, data);
+                loadHomeworkForParent();
+            }
+        }
+
+        // ========== التحميل التلقائي عند تغيير الاختيارات ==========
+        function autoLoadHomework() {
+            loadHomeworkForParent();
+        }
+    </script>
+
+</body>
+</html>
+
