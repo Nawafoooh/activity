@@ -650,9 +650,11 @@
             const dayOfWeek = selectedDate.getDay();
             const sunday = new Date(selectedDate);
             sunday.setDate(selectedDate.getDate() - dayOfWeek);
+            sunday.setHours(0, 0, 0, 0);
             
             const thursday = new Date(sunday);
             thursday.setDate(sunday.getDate() + 4);
+            thursday.setHours(23, 59, 59, 999);
 
             const formatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
             const hijriFormatOptions = { ...formatOptions, calendar: 'islamic-umalqura' };
@@ -674,16 +676,24 @@
                 const dayKey = DAY_KEYS[i];
                 
                 const data = getDataForDay(dayKey, grade, section);
-                const subjectsWithHomework = Object.keys(data.subjects).filter(subject => 
-                    data.subjects[subject].homework || data.subjects[subject].examDate
-                );
+                
+                const subjectsInWeek = Object.keys(data.subjects).filter(subject => {
+                    const subjectData = data.subjects[subject];
+                    const dueDate = subjectData.dueDate ? new Date(subjectData.dueDate) : null;
+                    const examDate = subjectData.examDate ? new Date(subjectData.examDate) : null;
+                    
+                    const isDueInWeek = dueDate && dueDate >= sunday && dueDate <= thursday;
+                    const isExamInWeek = examDate && examDate >= sunday && examDate <= thursday;
 
-                if (subjectsWithHomework.length > 0) {
+                    return isDueInWeek || isExamInWeek;
+                });
+
+                if (subjectsInWeek.length > 0) {
                     weeklyHomeworkFound = true;
                     const dayDate = currentDay.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
                     tableHTML += `<tr class="day-header-row"><th colspan="6">${DAYS_AR[dayKey]} - ${dayDate}</th></tr>`;
 
-                    subjectsWithHomework.forEach(subject => {
+                    subjectsInWeek.forEach(subject => {
                         const subjectData = data.subjects[subject];
                         const remainingDaysInfo = getRemainingDays(subjectData.dueDate);
                         const examRemainingDaysInfo = getRemainingDays(subjectData.examDate);
@@ -724,7 +734,7 @@
                 contentDiv.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">📭</div>
-                        <p>لا توجد واجبات أو اختبارات مسجلة لهذا الأسبوع</p>
+                        <p>لا توجد واجبات أو اختبارات مستحقة في هذا الأسبوع</p>
                     </div>`;
             }
             displayDiv.style.display = 'block';
