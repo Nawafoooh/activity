@@ -17,6 +17,7 @@
             --danger-red: #d32f2f;
             --warning-orange: #f57c00;
             --success-green: #388e3c;
+            --whatsapp-green: #25D366;
         }
 
         /* ========== إعادة تعيين وإعدادات أساسية ========== */
@@ -78,6 +79,10 @@
             font-weight: 500;
             transition: all 0.3s ease;
             font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            justify-content: center;
         }
 
         .btn-primary {
@@ -108,6 +113,20 @@
 
         .btn-success:hover {
             background-color: #2e7d32;
+        }
+
+        .btn-whatsapp {
+            background-color: var(--whatsapp-green);
+            color: white;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.8rem;
+        }
+
+        .btn-whatsapp:hover {
+            background-color: #128C7E;
+            transform: scale(1.02);
         }
         
         .btn-sm {
@@ -444,6 +463,10 @@
                     <button class="btn btn-success" onclick="saveHomework()">
                         💾 حفظ بيانات المادة
                     </button>
+                    
+                    <button class="btn btn-whatsapp" onclick="sendToWhatsApp()">
+                        <span>📱 إرسال الواجب إلى واتساب الفصل</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -484,6 +507,29 @@
         const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday"];
         const DAYS_AR = {
             sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء", wednesday: "الأربعاء", thursday: "الخميس"
+        };
+
+        // روابط مجموعات الواتساب (يمكنك استبدالها بالروابط الفعلية)
+        // الصيغة: "grade_section": "link"
+        const WHATSAPP_GROUPS = {
+            "1_1": "https://chat.whatsapp.com/EXAMPLE_LINK_1_1",
+            "1_2": "https://chat.whatsapp.com/EXAMPLE_LINK_1_2",
+            "1_3": "https://chat.whatsapp.com/EXAMPLE_LINK_1_3",
+            "1_4": "https://chat.whatsapp.com/EXAMPLE_LINK_1_4",
+            "1_5": "https://chat.whatsapp.com/EXAMPLE_LINK_1_5",
+            "1_6": "https://chat.whatsapp.com/EXAMPLE_LINK_1_6",
+            "2_1": "https://chat.whatsapp.com/EXAMPLE_LINK_2_1",
+            "2_2": "https://chat.whatsapp.com/EXAMPLE_LINK_2_2",
+            "2_3": "https://chat.whatsapp.com/EXAMPLE_LINK_2_3",
+            "2_4": "https://chat.whatsapp.com/EXAMPLE_LINK_2_4",
+            "2_5": "https://chat.whatsapp.com/EXAMPLE_LINK_2_5",
+            "2_6": "https://chat.whatsapp.com/EXAMPLE_LINK_2_6",
+            "3_1": "https://chat.whatsapp.com/EXAMPLE_LINK_3_1",
+            "3_2": "https://chat.whatsapp.com/EXAMPLE_LINK_3_2",
+            "3_3": "https://chat.whatsapp.com/EXAMPLE_LINK_3_3",
+            "3_4": "https://chat.whatsapp.com/EXAMPLE_LINK_3_4",
+            "3_5": "https://chat.whatsapp.com/EXAMPLE_LINK_3_5",
+            "3_6": "https://chat.whatsapp.com/EXAMPLE_LINK_3_6"
         };
 
         let isTeacherLoggedIn = false;
@@ -631,6 +677,65 @@
             alert('✅ تم حفظ بيانات المادة بنجاح!');
         }
 
+        // ========== إرسال إلى واتساب ==========
+        function sendToWhatsApp() {
+            const day = document.getElementById('teacherDay').value;
+            const grade = document.getElementById('teacherGrade').value;
+            const section = document.getElementById('teacherSection').value;
+            const subject = document.getElementById('subject-select').value;
+
+            if (!subject) { alert('الرجاء اختيار المادة أولاً.'); return; }
+
+            const homework = document.getElementById('homework_input').value;
+            const page = document.getElementById('page_input').value;
+            const dueDate = document.getElementById('dueDate_input').value;
+            const examDate = document.getElementById('examDate_input').value;
+            const notes = document.getElementById('notes_input').value;
+
+            if (!homework && !examDate) {
+                alert('الرجاء إدخال واجب أو موعد اختبار للإرسال.');
+                return;
+            }
+
+            // تنسيق الرسالة
+            let message = `*🏫 متوسطة المنذر بن عمرو الأنصاري*\n`;
+            message += `*📅 واجبات يوم ${DAYS_AR[day]}*\n`;
+            message += `*📍 الصف:* ${grade} المتوسط / *شعبة:* ${section}\n`;
+            message += `----------------------------------\n`;
+            message += `*📚 المادة:* ${subject}\n`;
+            
+            if (homework) {
+                message += `*📝 الواجب:* ${homework}\n`;
+                if (page) message += `*📖 الصفحة:* ${page}\n`;
+                if (dueDate) message += `*⏰ موعد التسليم:* ${dueDate}\n`;
+            }
+
+            if (examDate) {
+                message += `*⚠️ تنبيه اختبار:* ${examDate}\n`;
+            }
+
+            if (notes) {
+                message += `*💡 ملاحظات:* ${notes}\n`;
+            }
+
+            message += `----------------------------------\n`;
+            message += `_تم الإرسال عبر نظام التواصل المدرسي_`;
+
+            // ترميز الرسالة للرابط
+            const encodedMessage = encodeURIComponent(message);
+            
+            // الحصول على رابط المجموعة
+            const groupKey = `${grade}_${section}`;
+            const groupLink = WHATSAPP_GROUPS[groupKey];
+
+            // فتح واتساب
+            // ملاحظة: روابط المجموعات لا تدعم النص المسبق مباشرة، لذا سنفتح واتساب ويب مع النص
+            // أو نفتح الرابط المباشر للدردشة إذا كان هناك رقم، لكن هنا سنستخدم الطريقة العامة
+            const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+            
+            window.open(whatsappUrl, '_blank');
+        }
+
         function setupParentInterface() {
             const weekPicker = document.getElementById('week-picker');
             const today = new Date();
@@ -660,8 +765,7 @@
             const hijriFormatOptions = { ...formatOptions, calendar: 'islamic-umalqura' };
             
             weekDatesInfoDiv.innerHTML = `
-                الأسبوع من: ${sunday.toLocaleDateString('ar-EG', formatOptions)} (${sunday.toLocaleDateString('ar-SA', hijriFormatOptions)})  
-
+                الأسبوع من: ${sunday.toLocaleDateString('ar-EG', formatOptions)} (${sunday.toLocaleDateString('ar-SA', hijriFormatOptions)})<br>
                 إلى: ${thursday.toLocaleDateString('ar-EG', formatOptions)} (${thursday.toLocaleDateString('ar-SA', hijriFormatOptions)})
             `;
 
@@ -712,8 +816,7 @@
                                 <td>${subjectData.page || '-'}</td>
                                 <td>
                                     ${subjectData.dueDate ? `<span class="${deadlineAlertClass}">تسليم الواجب: ${remainingDaysInfo.text}</span>` : ''}
-                                    ${subjectData.examDate ? `  
-<span class="exam-badge ${examAlertClass}">اختبار بعد: ${examRemainingDaysInfo.text}</span>` : ''}
+                                    ${subjectData.examDate ? `<br><span class="exam-badge ${examAlertClass}">اختبار بعد: ${examRemainingDaysInfo.text}</span>` : ''}
                                 </td>
                                 <td>${subjectData.notes || '-'}</td>
                                 <td>
@@ -767,5 +870,4 @@
 
 </body>
 </html>
-
 
