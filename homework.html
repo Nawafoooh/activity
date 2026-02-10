@@ -194,6 +194,13 @@
             color: var(--white);
             font-weight: 600;
         }
+        
+        .homework-table .day-header-row th {
+            background-color: var(--light-green);
+            color: white;
+            text-align: center;
+            font-size: 1.1rem;
+        }
 
         .homework-table tr:hover {
             background-color: #f9f9f9;
@@ -217,11 +224,6 @@
             0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7); }
             70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); }
             100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); }
-        }
-
-        .no-exam {
-            color: var(--text-gray);
-            font-size: 0.9rem;
         }
 
         /* ========== نموذج المعلم ========== */
@@ -273,15 +275,6 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
 
-        .modal-header {
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-title {
-            font-size: 1.3rem;
-            color: var(--primary-green);
-        }
-
         /* ========== الأدوات المساعدة ========== */
         .hidden {
             display: none !important;
@@ -291,10 +284,6 @@
             text-align: center;
         }
 
-        .mt-2 {
-            margin-top: 1rem;
-        }
-
         .alert {
             padding: 1rem;
             border-radius: 4px;
@@ -302,25 +291,17 @@
             font-weight: 500;
         }
 
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
         .alert-danger {
             background-color: #f8d7da;
             color: #721c24;
-            border: 1px solid #f5c6cb;
         }
         
         .alert-warning {
             background-color: #fff3cd;
             color: #856404;
-            border: 1px solid #ffeeba;
         }
 
-        .done > td {
+        .done > td:not(:last-child) {
             text-decoration: line-through;
             color: #999;
             background-color: #e8f5e9;
@@ -335,22 +316,8 @@
                 flex-direction: column;
                 align-items: flex-start;
             }
-
-            .school-name {
-                font-size: 1.2rem;
-            }
-
             .form-row {
                 grid-template-columns: 1fr;
-            }
-
-            .homework-table {
-                font-size: 0.9rem;
-            }
-
-            .homework-table th,
-            .homework-table td {
-                padding: 0.75rem 0.5rem;
             }
         }
     </style>
@@ -385,18 +352,12 @@
         <!-- ========== واجهة ولي الأمر ========== -->
         <div id="parentView">
             <div class="card">
-                <h2 class="card-title">📋 عرض الواجبات والاختبارات</h2>
+                <h2 class="card-title">📋 عرض الواجبات الأسبوعية</h2>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">اليوم</label>
-                        <select class="form-control" id="parentDay">
-                            <option value="sunday">الأحد</option>
-                            <option value="monday">الإثنين</option>
-                            <option value="tuesday">الثلاثاء</option>
-                            <option value="wednesday">الأربعاء</option>
-                            <option value="thursday">الخميس</option>
-                        </select>
+                        <label class="form-label">اختر أي يوم في الأسبوع</label>
+                        <input type="date" class="form-control" id="week-picker">
                     </div>
 
                     <div class="form-group">
@@ -420,17 +381,12 @@
                         </select>
                     </div>
                 </div>
-
-                <div style="text-align: center; margin-top: 1rem;">
-                    <button class="btn btn-success" onclick="loadHomeworkForParent()">
-                        عرض الواجبات
-                    </button>
-                </div>
             </div>
 
             <!-- جدول عرض الواجبات -->
             <div class="card" id="homeworkDisplay" style="display: none;">
                 <h2 class="card-title" id="homeworkTitle">الواجبات والاختبارات</h2>
+                <div id="week-dates-info" class="text-center" style="font-weight: bold; margin-bottom: 1rem;"></div>
                 <div id="homeworkContent"></div>
             </div>
         </div>
@@ -476,13 +432,11 @@
                 
                 <hr style="border: 1px solid var(--border-gray); margin: 2rem 0;">
 
-                <!-- اختيار المادة -->
                 <div class="form-group">
                     <label for="subject-select" class="form-label">اختر المادة</label>
                     <select id="subject-select" class="form-control"></select>
                 </div>
 
-                <!-- حاوية إدخال بيانات المادة -->
                 <div id="subject-input-container"></div>
 
                 <div id="save-button-container" class="text-center mt-2 hidden">
@@ -518,52 +472,41 @@
     <!-- ========== JavaScript ========== -->
     <script>
         // ========== إعدادات النظام ==========
-        const TEACHER_PASSWORD = "teacher123"; // كلمة مرور المعلم (قابلة للتعديل)
-        const STORAGE_KEY = "school_homework_data";
+        const TEACHER_PASSWORD = "teacher123";
+        const STORAGE_KEY_PREFIX = "school_homework_data";
 
-        // المواد الدراسية
         const SUBJECTS = [
-            "التربية الإسلامية",
-            "اللغة العربية",
-            "الرياضيات",
-            "العلوم",
-            "الاجتماعيات",
-            "اللغة الإنجليزية",
-            "التربية الفنية",
-            "التربية البدنية",
-            "الحاسب الآلي"
+            "التربية الإسلامية", "اللغة العربية", "الرياضيات", "العلوم", 
+            "الاجتماعيات", "اللغة الإنجليزية", "التربية الفنية", "التربية البدنية", "الحاسب الآلي"
         ];
 
-        // الأيام بالعربية
+        const DAYS_MAP = {
+            sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6
+        };
+        const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday"];
         const DAYS_AR = {
-            sunday: "الأحد",
-            monday: "الإثنين",
-            tuesday: "الثلاثاء",
-            wednesday: "الأربعاء",
-            thursday: "الخميس"
+            sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء", wednesday: "الأربعاء", thursday: "الخميس"
         };
 
-        // متغيرات الحالة
         let isTeacherLoggedIn = false;
 
         // ========== التهيئة عند تحميل الصفحة ==========
         window.onload = function() {
             displayCurrentDate();
             setupTeacherInterface();
+            setupParentInterface();
             
-            // تحديث العرض عند تغيير الاختيارات في واجهة ولي الأمر
-            document.getElementById('parentDay').addEventListener('change', autoLoadHomework);
-            document.getElementById('parentGrade').addEventListener('change', autoLoadHomework);
-            document.getElementById('parentSection').addEventListener('change', autoLoadHomework);
+            // مستمعات الأحداث
+            document.getElementById('week-picker').addEventListener('change', loadWeeklyHomeworkForParent);
+            document.getElementById('parentGrade').addEventListener('change', loadWeeklyHomeworkForParent);
+            document.getElementById('parentSection').addEventListener('change', loadWeeklyHomeworkForParent);
 
-            // تحديث النموذج عند تغيير الاختيارات في واجهة المعلم
             document.getElementById('teacherDay').addEventListener('change', setupTeacherInterface);
             document.getElementById('teacherGrade').addEventListener('change', setupTeacherInterface);
             document.getElementById('teacherSection').addEventListener('change', setupTeacherInterface);
             document.getElementById('subject-select').addEventListener('change', displaySubjectInput);
 
-            // تحميل تلقائي لواجهة ولي الأمر
-            loadHomeworkForParent();
+            loadWeeklyHomeworkForParent();
         };
 
         // ========== عرض التاريخ الحالي ==========
@@ -571,7 +514,6 @@
             const today = new Date();
             const gregorianDate = today.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             const hijriDate = today.toLocaleDateString('ar-SA-u-ca-islamic', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
             document.getElementById('gregorian-date').textContent = `الميلادي: ${gregorianDate}`;
             document.getElementById('hijri-date').textContent = `الهجري: ${hijriDate}`;
         }
@@ -601,8 +543,7 @@
         }
 
         function attemptLogin() {
-            const password = document.getElementById('teacherPassword').value;
-            if (password === TEACHER_PASSWORD) {
+            if (document.getElementById('teacherPassword').value === TEACHER_PASSWORD) {
                 isTeacherLoggedIn = true;
                 closeLoginModal();
                 document.getElementById('parentView').classList.add('hidden');
@@ -614,27 +555,25 @@
             }
         }
 
-        document.getElementById('teacherPassword')?.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') attemptLogin();
-        });
+        document.getElementById('teacherPassword')?.addEventListener('keypress', (e) => e.key === 'Enter' && attemptLogin());
 
         // ========== إدارة البيانات ==========
         function getStorageKey(day, grade, section) {
-            return `${STORAGE_KEY}_${day}_${grade}_${section}`;
+            return `${STORAGE_KEY_PREFIX}_${day}_${grade}_${section}`;
         }
 
-        function getAllData(day, grade, section) {
+        function getDataForDay(day, grade, section) {
             const key = getStorageKey(day, grade, section);
             const data = localStorage.getItem(key);
             return data ? JSON.parse(data) : { subjects: {} };
         }
 
-        function saveData(day, grade, section, data) {
+        function saveDataForDay(day, grade, section, data) {
             const key = getStorageKey(day, grade, section);
             localStorage.setItem(key, JSON.stringify(data));
         }
 
-        // ========== واجهة المعلم (النظام الجديد) ==========
+        // ========== واجهة المعلم ==========
         function setupTeacherInterface() {
             const subjectSelect = document.getElementById('subject-select');
             subjectSelect.innerHTML = '<option value="">-- اختر المادة --</option>';
@@ -662,40 +601,21 @@
             const day = document.getElementById('teacherDay').value;
             const grade = document.getElementById('teacherGrade').value;
             const section = document.getElementById('teacherSection').value;
-            const existingData = getAllData(day, grade, section);
+            const existingData = getDataForDay(day, grade, section);
             const subjectData = existingData.subjects[subject] || {
                 homework: '', page: '', dueDate: '', examDate: '', notes: ''
             };
 
             container.innerHTML = `
                 <div class="subject-input-card">
-                    <div class="form-group">
-                        <label class="form-label">الواجب</label>
-                        <input type="text" class="form-control" id="homework_input" 
-                               value="${subjectData.homework}" placeholder="مثال: حل التمارين">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">الصفحة / رقم التمرين</label>
-                        <input type="text" class="form-control" id="page_input" 
-                               value="${subjectData.page}" placeholder="مثال: ص 45">
-                    </div>
+                    <div class="form-group"><label class="form-label">الواجب</label><input type="text" class="form-control" id="homework_input" value="${subjectData.homework}" placeholder="مثال: حل التمارين"></div>
+                    <div class="form-group"><label class="form-label">الصفحة / رقم التمرين</label><input type="text" class="form-control" id="page_input" value="${subjectData.page}" placeholder="مثال: ص 45"></div>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">موعد تسليم الواجب</label>
-                            <input type="date" class="form-control" id="dueDate_input" value="${subjectData.dueDate}">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">موعد الاختبار</label>
-                            <input type="date" class="form-control" id="examDate_input" value="${subjectData.examDate}">
-                        </div>
+                        <div class="form-group"><label class="form-label">موعد تسليم الواجب</label><input type="date" class="form-control" id="dueDate_input" value="${subjectData.dueDate}"></div>
+                        <div class="form-group"><label class="form-label">موعد الاختبار</label><input type="date" class="form-control" id="examDate_input" value="${subjectData.examDate}"></div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">ملاحظات</label>
-                        <input type="text" class="form-control" id="notes_input" 
-                               value="${subjectData.notes}" placeholder="ملاحظات إضافية (اختياري)">
-                    </div>
-                </div>
-            `;
+                    <div class="form-group"><label class="form-label">ملاحظات</label><input type="text" class="form-control" id="notes_input" value="${subjectData.notes}" placeholder="ملاحظات إضافية (اختياري)"></div>
+                </div>`;
             saveBtnContainer.classList.remove('hidden');
         }
 
@@ -705,142 +625,61 @@
             const section = document.getElementById('teacherSection').value;
             const subject = document.getElementById('subject-select').value;
 
-            if (!subject) {
-                alert('الرجاء اختيار المادة أولاً.');
-                return;
-            }
+            if (!subject) { alert('الرجاء اختيار المادة أولاً.'); return; }
 
-            const homeworkData = getAllData(day, grade, section);
-
+            const homeworkData = getDataForDay(day, grade, section);
             homeworkData.subjects[subject] = {
                 homework: document.getElementById('homework_input').value,
                 page: document.getElementById('page_input').value,
                 dueDate: document.getElementById('dueDate_input').value,
                 examDate: document.getElementById('examDate_input').value,
                 notes: document.getElementById('notes_input').value,
-                done: homeworkData.subjects[subject]?.done || false // الحفاظ على حالة الإنجاز
+                done: homeworkData.subjects[subject]?.done || false
             };
             homeworkData.timestamp = new Date().toISOString();
-
-            saveData(day, grade, section, homeworkData);
-            
+            saveDataForDay(day, grade, section, homeworkData);
             alert('✅ تم حفظ بيانات المادة بنجاح!');
         }
 
-        // ========== تحميل الواجبات (ولي الأمر) ==========
-        function loadHomeworkForParent() {
-            const day = document.getElementById('parentDay').value;
+        // ========== واجهة ولي الأمر (العرض الأسبوعي) ==========
+        function setupParentInterface() {
+            const weekPicker = document.getElementById('week-picker');
+            const today = new Date();
+            // تحويل التاريخ إلى صيغة YYYY-MM-DD
+            weekPicker.value = today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2);
+        }
+
+        function loadWeeklyHomeworkForParent() {
             const grade = document.getElementById('parentGrade').value;
             const section = document.getElementById('parentSection').value;
-
-            const data = getAllData(day, grade, section);
+            const selectedDate = new Date(document.getElementById('week-picker').value || new Date());
 
             const displayDiv = document.getElementById('homeworkDisplay');
             const contentDiv = document.getElementById('homeworkContent');
             const titleDiv = document.getElementById('homeworkTitle');
+            const weekDatesInfoDiv = document.getElementById('week-dates-info');
 
-            titleDiv.textContent = `الواجبات والاختبارات - ${DAYS_AR[day]} - الصف ${grade}/شعبة ${section}`;
+            // حساب بداية الأسبوع (الأحد)
+            const dayOfWeek = selectedDate.getDay(); // 0 for Sunday, 1 for Monday...
+            const sunday = new Date(selectedDate);
+            sunday.setDate(selectedDate.getDate() - dayOfWeek);
+            
+            const thursday = new Date(sunday);
+            thursday.setDate(sunday.getDate() + 4);
 
-            let tableHTML = `
-                <table class="homework-table">
-                    <thead>
-                        <tr>
-                            <th>المادة</th>
-                            <th>الواجب</th>
-                            <th>الصفحة</th>
-                            <th>التسليم/الاختبار</th>
-                            <th>ملاحظات</th>
-                            <th>الحالة</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            const formatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+            const hijriFormatOptions = { ...formatOptions, calendar: 'islamic-umalqura' };
+            
+            weekDatesInfoDiv.innerHTML = `
+                الأسبوع من: ${sunday.toLocaleDateString('ar-EG', formatOptions)} (${sunday.toLocaleDateString('ar-SA', hijriFormatOptions)})  
+
+                إلى: ${thursday.toLocaleDateString('ar-EG', formatOptions)} (${thursday.toLocaleDateString('ar-SA', hijriFormatOptions)})
             `;
 
-            const subjectsWithHomework = Object.keys(data.subjects).filter(subject => 
-                data.subjects[subject].homework || data.subjects[subject].examDate
-            );
+            titleDiv.textContent = `الواجبات الأسبوعية للصف ${grade}/شعبة ${section}`;
+            
+            let tableHTML = `<table class="homework-table"><thead><tr><th>المادة</th><th>الواجب</th><th>الصفحة</th><th>التسليم/الاختبار</th><th>ملاحظات</th><th>الحالة</th></tr></thead><tbody>`;
+            let weeklyHomeworkFound = false;
 
-            if (subjectsWithHomework.length === 0) {
-                displayDiv.style.display = 'block';
-                contentDiv.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
-                        <p>لا توجد واجبات أو اختبارات مسجلة لهذا اليوم</p>
-                    </div>
-                `;
-                return;
-            }
-
-            subjectsWithHomework.forEach(subject => {
-                const subjectData = data.subjects[subject];
-                
-                const remainingDaysInfo = getRemainingDays(subjectData.dueDate);
-                const examRemainingDaysInfo = getRemainingDays(subjectData.examDate);
-
-                let deadlineAlertClass = '';
-                if (remainingDaysInfo.days === 1) deadlineAlertClass = 'alert-danger';
-                else if (remainingDaysInfo.days === 2) deadlineAlertClass = 'alert-warning';
-                
-                let examAlertClass = '';
-                if (examRemainingDaysInfo.days >= 0 && examRemainingDaysInfo.days <= 3) examAlertClass = 'alert-exam';
-
-                tableHTML += `
-                    <tr class="${subjectData.done ? 'done' : ''}">
-                        <td><strong>${subject}</strong></td>
-                        <td>${subjectData.homework || '-'}</td>
-                        <td>${subjectData.page || '-'}</td>
-                        <td>
-                            ${subjectData.dueDate ? `<span class="${deadlineAlertClass}">تسليم الواجب: ${remainingDaysInfo.text}</span>` : ''}
-                            ${subjectData.examDate ? `  
-<span class="exam-badge ${examAlertClass}">اختبار بعد: ${examRemainingDaysInfo.text}</span>` : ''}
-                        </td>
-                        <td>${subjectData.notes || '-'}</td>
-                        <td>
-                            <button class="btn btn-sm ${subjectData.done ? 'btn-secondary' : 'btn-success'}" onclick="toggleDone('${day}', '${grade}', '${section}', '${subject}')">
-                                ${subjectData.done ? 'إلغاء الإنجاز' : 'تم الإنجاز'}
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            tableHTML += `</tbody></table>`;
-            contentDiv.innerHTML = tableHTML;
-            displayDiv.style.display = 'block';
-        }
-
-        // ========== حساب الأيام المتبقية ==========
-        function getRemainingDays(dateString) {
-            if (!dateString) return { days: Infinity, text: '-' };
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const dueDate = new Date(dateString);
-            dueDate.setHours(0, 0, 0, 0);
-            const diffTime = dueDate.getTime() - today.getTime();
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            if (diffDays < 0) return { days: diffDays, text: 'فات موعده' };
-            if (diffDays === 0) return { days: 0, text: 'اليوم' };
-            if (diffDays === 1) return { days: 1, text: 'غدًا' };
-            return { days: diffDays, text: `${diffDays} أيام` };
-        }
-
-        // ========== تبديل حالة الإنجاز ==========
-        function toggleDone(day, grade, section, subject) {
-            const data = getAllData(day, grade, section);
-            if (data.subjects[subject]) {
-                data.subjects[subject].done = !data.subjects[subject].done;
-                saveData(day, grade, section, data);
-                loadHomeworkForParent();
-            }
-        }
-
-        // ========== التحميل التلقائي عند تغيير الاختيارات ==========
-        function autoLoadHomework() {
-            loadHomeworkForParent();
-        }
-    </script>
-
-</body>
-</html>
+            for (let i = 0; i < 5; i
 
