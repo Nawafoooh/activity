@@ -5,29 +5,87 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>نظام الاستئذان – متوسطة المنذر بن عمرو الأنصاري</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet"/>
+
+<!-- Firebase SDK (v9 compat - يعمل مباشرة في HTML بدون bundler) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+
 <style>
+/* ══ DESIGN SYSTEM ══ */
 :root{
-  --navy:#0B2545;--navy2:#13375B;--blue:#1A6FC4;--sky:#E8F4FD;
-  --white:#fff;--bg:#F2F6FB;--brd:#D0DCE9;
+  --navy:#0B2545;--navy2:#13375B;--blue:#1A6FC4;--blue2:#2E8BE6;--sky:#E8F4FD;
+  --w:#fff;--bg:#F2F6FB;--brd:#D0DCE9;
   --g:#0E9F6E;--gb:#ECFDF5;--gbd:#A7F3D0;
   --a:#D97706;--ab:#FFFBEB;--abd:#FCD34D;
   --r:#DC2626;--rb:#FEF2F2;--rbd:#FECACA;
   --p:#7C3AED;--pb:#F5F3FF;
-  --txt:#1A2B3C;--mu:#64748B;
+  --tx:#1A2B3C;--mu:#64748B;
   --rd:10px;--rs:6px;
+  --sh:0 1px 4px rgba(11,37,69,.08),0 4px 14px rgba(11,37,69,.07);
+  --shb:0 8px 32px rgba(0,0,0,.25);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--txt);font-size:14px;min-height:100vh}
+body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
 
-/* HEADER */
-header{background:linear-gradient(135deg,var(--navy),var(--navy2));padding:0 18px;position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+/* ══ LOGIN SCREEN ══ */
+#login-screen{
+  position:fixed;inset:0;background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);
+  display:flex;align-items:center;justify-content:center;z-index:9999;
+}
+.login-box{
+  background:rgba(255,255,255,.06);backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.15);border-radius:20px;
+  padding:40px 36px;width:340px;text-align:center;
+  box-shadow:var(--shb);
+}
+.login-logo{font-size:52px;margin-bottom:12px}
+.login-title{color:#fff;font-size:20px;font-weight:900;margin-bottom:4px}
+.login-sub{color:rgba(255,255,255,.6);font-size:12px;margin-bottom:28px}
+.login-box input{
+  width:100%;padding:12px 14px;border-radius:var(--rs);border:1.5px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.1);color:#fff;font-family:'Tajawal',sans-serif;
+  font-size:16px;letter-spacing:4px;text-align:center;outline:none;margin-bottom:14px;
+  direction:ltr;
+}
+.login-box input::placeholder{letter-spacing:normal;color:rgba(255,255,255,.4)}
+.login-box input:focus{border-color:var(--blue2)}
+.login-err{color:#f87171;font-size:13px;margin-top:-6px;margin-bottom:10px;display:none}
+.login-err.on{display:block}
+.btn-login{
+  width:100%;padding:13px;border:none;border-radius:var(--rs);
+  background:var(--blue2);color:#fff;font-family:'Tajawal',sans-serif;
+  font-size:16px;font-weight:800;cursor:pointer;transition:all .2s;
+}
+.btn-login:hover{background:var(--blue);transform:translateY(-1px)}
+.login-note{color:rgba(255,255,255,.4);font-size:11px;margin-top:14px}
+
+/* ══ CLOUD STATUS BAR ══ */
+#cloud-bar{
+  background:var(--navy);padding:5px 18px;display:flex;align-items:center;gap:10px;
+  font-size:12px;color:rgba(255,255,255,.7);
+}
+#cloud-dot{width:8px;height:8px;border-radius:50%;background:#6b7280;transition:background .3s;flex-shrink:0}
+#cloud-dot.connected{background:var(--g)}
+#cloud-dot.syncing{background:var(--a);animation:blink .8s infinite}
+#cloud-dot.error{background:var(--r)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+#cloud-label{flex:1}
+#cloud-users{margin-right:auto;font-size:11px;color:rgba(255,255,255,.5)}
+
+/* ══ HEADER ══ */
+header{
+  background:linear-gradient(135deg,var(--navy),var(--navy2));
+  padding:0 18px;position:sticky;top:0;z-index:200;box-shadow:0 2px 16px rgba(0,0,0,.3);
+}
 .hdr{max-width:1400px;margin:auto;display:flex;align-items:center;gap:12px;padding:9px 0}
 .hlogo{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.htitle h1{color:#fff;font-size:16px;font-weight:800;line-height:1.3}
-.htitle p{color:rgba(255,255,255,.6);font-size:11px;margin-top:1px}
 .htitle{flex:1}
+.htitle h1{color:#fff;font-size:16px;font-weight:800}
+.htitle p{color:rgba(255,255,255,.55);font-size:11px;margin-top:1px}
 .hclock-box{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:var(--rs);padding:7px 14px;text-align:center;flex-shrink:0}
 #hclock{font-size:22px;font-weight:900;color:#fff;letter-spacing:2px}
 #hdate{font-size:10px;color:rgba(255,255,255,.6);margin-top:1px}
@@ -39,83 +97,75 @@ header{background:linear-gradient(135deg,var(--navy),var(--navy2));padding:0 18p
 .hcv{font-size:18px;font-weight:900;color:#fff;line-height:1}
 .hcl{font-size:10px;color:rgba(255,255,255,.6);margin-top:2px}
 
-/* NAV */
-nav{background:var(--navy);border-bottom:2px solid rgba(255,255,255,.08);position:sticky;top:64px;z-index:200}
-.nav-inner{max-width:1400px;margin:auto;display:flex;padding:0 18px}
+/* ══ NAV ══ */
+nav{background:var(--navy);border-bottom:2px solid rgba(255,255,255,.08);position:sticky;top:64px;z-index:190}
+.nav-i{max-width:1400px;margin:auto;display:flex;padding:0 18px}
 .nb{padding:10px 18px;border:none;background:none;cursor:pointer;font-family:'Tajawal',sans-serif;font-size:13px;font-weight:600;color:rgba(255,255,255,.5);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;display:flex;align-items:center;gap:5px}
 .nb:hover{color:rgba(255,255,255,.85)}
-.nb.on{color:#fff;border-bottom-color:#2E8BE6}
+.nb.on{color:#fff;border-bottom-color:var(--blue2)}
 
-/* PAGES */
+/* ══ PAGES ══ */
 .pg{display:none;max-width:1400px;margin:18px auto;padding:0 14px}
 .pg.on{display:block}
 
-/* CARD */
-.card{background:var(--white);border-radius:var(--rd);border:1px solid var(--brd);box-shadow:0 1px 4px rgba(11,37,69,.07),0 4px 12px rgba(11,37,69,.05);overflow:hidden;margin-bottom:14px}
+/* ══ CARD ══ */
+.card{background:var(--w);border-radius:var(--rd);border:1px solid var(--brd);box-shadow:var(--sh);overflow:hidden;margin-bottom:14px}
 .ch{padding:11px 15px;background:var(--navy);color:#fff;display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
-.ch.gh{background:var(--g)}
-.ch.rh{background:var(--r)}
-.ch.ah{background:var(--a)}
-.ch .cbadge{margin-right:auto;background:rgba(255,255,255,.2);border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700}
+.ch.gh{background:var(--g)}.ch.rh{background:var(--r)}.ch.ah{background:var(--a)}
+.ch .cbg{margin-right:auto;background:rgba(255,255,255,.2);border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700}
 .cb{padding:13px}
 
-/* GRID */
-.teacher-grid{display:grid;grid-template-columns:350px 1fr;gap:14px;align-items:start}
+/* ══ TEACHER GRID ══ */
+.tgrid{display:grid;grid-template-columns:350px 1fr;gap:14px;align-items:start}
 
-/* FORM */
+/* ══ FORM ══ */
 .fg{margin-bottom:10px}
 .fg label{display:block;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:4px}
-.fg input,.fg select{width:100%;padding:9px 11px;border:1.5px solid var(--brd);border-radius:var(--rs);font-family:'Tajawal',sans-serif;font-size:14px;color:var(--txt);background:#fff;outline:none;direction:rtl;transition:border-color .2s}
+.fg input,.fg select{width:100%;padding:9px 11px;border:1.5px solid var(--brd);border-radius:var(--rs);font-family:'Tajawal',sans-serif;font-size:14px;color:var(--tx);background:#fff;outline:none;direction:rtl;transition:border-color .2s}
 .fg input:focus,.fg select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,111,196,.1)}
-.fghint{font-size:11px;color:var(--r);margin-top:3px;display:none}
-.fghint.on{display:block}
+.hint{font-size:11px;color:var(--r);margin-top:3px;display:none}
+.hint.on{display:block}
 
-/* BUTTONS */
+/* ══ BUTTONS ══ */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:9px 16px;border:none;border-radius:var(--rs);font-family:'Tajawal',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .18s;white-space:nowrap}
 .btn:active{transform:scale(.97)}
 .bn{background:var(--navy);color:#fff;width:100%;padding:12px;font-size:15px}
 .bn:hover{background:var(--navy2)}
 .bg{background:var(--g);color:#fff;font-size:12px;padding:6px 12px}
 .bg:hover{background:#0b8a5f}
-.br{background:var(--r);color:#fff;font-size:12px;padding:6px 12px}
-.br:hover{background:#b91c1c}
 .ba{background:var(--a);color:#fff;font-size:12px;padding:6px 12px}
 .ba:hover{background:#b45309}
 .bbl{background:var(--blue);color:#fff;font-size:13px;padding:7px 14px}
-.bbl:hover{opacity:.9}
 .bgh{background:transparent;color:var(--mu);border:1.5px solid var(--brd);font-size:12px;padding:6px 12px}
 .bgh:hover{background:var(--bg)}
 
-/* ALERTS */
+/* ══ ALERTS ══ */
 .al{padding:9px 12px;border-radius:var(--rs);font-size:13px;font-weight:600;display:none;align-items:center;gap:6px;margin-bottom:10px;animation:fup .3s}
 .al.on{display:flex}
 .ae{background:var(--rb);color:var(--r);border:1px solid var(--rbd)}
 .as{background:var(--gb);color:var(--g);border:1px solid var(--gbd)}
 .aw{background:var(--ab);color:var(--a);border:1px solid var(--abd)}
+@keyframes fup{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 
-/* STUDENT CARDS */
+/* ══ STUDENT CARDS ══ */
 #ac-list{display:flex;flex-direction:column;gap:8px}
-.sc{border-radius:var(--rs);border:1.5px solid var(--brd);background:#fff;overflow:hidden;animation:fup .3s}
-.sc.sok {border-color:var(--g)}
+.sc{border-radius:var(--rs);border:1.5px solid var(--brd);background:#fff;overflow:hidden;animation:fup .3s;transition:border-color .3s}
+.sc.sok{border-color:var(--g)}
 .sc.swrn{border-color:var(--a);box-shadow:0 0 0 2px rgba(217,119,6,.1)}
 .sc.slat{border-color:var(--r);animation:plse 2s infinite}
-.sc.sex {border-color:var(--p);box-shadow:0 0 0 2px rgba(124,58,237,.1)}
+.sc.sex{border-color:var(--p)}
 @keyframes plse{0%,100%{box-shadow:0 0 0 2px rgba(220,38,38,.15)}50%{box-shadow:0 0 0 6px rgba(220,38,38,.3)}}
-@keyframes fup{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 .scr1{display:flex;align-items:center;gap:9px;padding:9px 12px}
 .scav{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0}
-.sok  .scav{background:var(--gb);color:var(--g)}
+.sok .scav{background:var(--gb);color:var(--g)}
 .swrn .scav{background:var(--ab);color:var(--a)}
 .slat .scav{background:var(--rb);color:var(--r)}
-.sex  .scav{background:var(--pb);color:var(--p)}
-.scinfo{flex:1;min-width:0}
+.sex .scav{background:var(--pb);color:var(--p)}
+.sci{flex:1;min-width:0}
 .scn{font-weight:800;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .scs{font-size:11px;color:var(--mu);margin-top:1px}
 .sctm{font-size:20px;font-weight:900;letter-spacing:1px;flex-shrink:0}
-.sok  .sctm{color:var(--g)}
-.swrn .sctm{color:var(--a)}
-.slat .sctm{color:var(--r)}
-.sex  .sctm{color:var(--p)}
+.sok .sctm{color:var(--g)}.swrn .sctm{color:var(--a)}.slat .sctm{color:var(--r)}.sex .sctm{color:var(--p)}
 .scr2{display:flex;align-items:center;justify-content:space-between;padding:4px 12px 9px;gap:6px;flex-wrap:wrap}
 .tags{display:flex;gap:4px;flex-wrap:wrap}
 .tg{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}
@@ -123,23 +173,26 @@ nav{background:var(--navy);border-bottom:2px solid rgba(255,255,255,.08);positio
 .tgt{background:#f1f5f9;color:var(--mu)}
 .tgc{background:var(--ab);color:var(--a)}
 .tge{background:var(--pb);color:var(--p)}
-.tgok{background:var(--gb);color:var(--g)}
-.tgl{background:var(--rb);color:var(--r)}
 .tgb{background:#f0fdf4;color:#065f46;font-weight:800}
 
-/* STAT BOXES */
+/* ══ CREDIT WIDGET ══ */
+.crw{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:var(--rs);padding:8px 11px;border:1px solid var(--brd);margin-bottom:10px}
+.cdots{display:flex;gap:4px}
+.cd{width:16px;height:16px;border-radius:50%;background:var(--brd);transition:background .3s}
+.cd.cu{background:var(--r)}.cd.cw{background:var(--a)}.cd.co{background:var(--g)}
+
+/* ══ STAT BOXES ══ */
 .srow{display:grid;gap:12px;margin-bottom:14px}
-.s5{grid-template-columns:repeat(5,1fr)}
-.s4{grid-template-columns:repeat(4,1fr)}
-.s3{grid-template-columns:repeat(3,1fr)}
+.s5{grid-template-columns:repeat(5,1fr)}.s4{grid-template-columns:repeat(4,1fr)}.s3{grid-template-columns:repeat(3,1fr)}
 .sbox{background:#fff;border:1px solid var(--brd);border-radius:var(--rd);padding:13px;text-align:center;position:relative;overflow:hidden}
 .sbox::before{content:'';position:absolute;top:0;right:0;left:0;height:3px}
-.sn::before{background:var(--navy)}.sb::before{background:var(--blue)}.sg::before{background:var(--g)}.sr::before{background:var(--r)}.sa::before{background:var(--a)}.sp::before{background:var(--p)}
+.sn::before{background:var(--navy)}.sb::before{background:var(--blue)}.sg::before{background:var(--g)}
+.sr::before{background:var(--r)}.sa::before{background:var(--a)}.sp::before{background:var(--p)}
 .sbv{font-size:28px;font-weight:900;line-height:1;margin-top:4px}
 .sbl{font-size:11px;color:var(--mu);margin-top:4px;font-weight:600}
 .sbi{font-size:20px;margin-bottom:2px}
 
-/* TABLE */
+/* ══ TABLE ══ */
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 thead th{background:var(--navy);color:#fff;padding:10px 11px;text-align:right;font-weight:700;white-space:nowrap}
@@ -148,97 +201,103 @@ tbody tr:hover{background:var(--sky)}
 tbody tr:last-child{border-bottom:none}
 td{padding:8px 11px;vertical-align:middle}
 .bdg{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700}
-.bok {background:var(--gb);color:var(--g);border:1px solid var(--gbd)}
+.bok{background:var(--gb);color:var(--g);border:1px solid var(--gbd)}
 .bwrn{background:var(--ab);color:var(--a);border:1px solid var(--abd)}
 .blat{background:var(--rb);color:var(--r);border:1px solid var(--rbd)}
-.bdn {background:var(--sky);color:var(--blue);border:1px solid #bfdbfe}
-.bex {background:var(--pb);color:var(--p);border:1px solid #ddd6fe}
-.bnu {background:#f1f5f9;color:var(--mu);border:1px solid var(--brd)}
+.bdn{background:var(--sky);color:var(--blue);border:1px solid #bfdbfe}
+.bex{background:var(--pb);color:var(--p);border:1px solid #ddd6fe}
 
-/* INNER TABS */
+/* ══ INNER TABS ══ */
 .itabs{display:flex;gap:2px;background:var(--bg);border-radius:var(--rs);padding:3px;margin-bottom:13px}
 .it{flex:1;padding:7px;border:none;background:none;cursor:pointer;font-family:'Tajawal',sans-serif;font-size:13px;font-weight:600;color:var(--mu);border-radius:var(--rs);transition:all .2s}
 .it.on{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(11,37,69,.08)}
-.ip{display:none}
-.ip.on{display:block}
+.ip{display:none}.ip.on{display:block}
 
-/* FILTER BAR */
+/* ══ FILTER BAR ══ */
 .fb{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.fb select,.fb input{padding:7px 10px;border:1.5px solid var(--brd);border-radius:var(--rs);font-family:'Tajawal',sans-serif;font-size:13px;color:var(--txt);background:#fff;outline:none;direction:rtl;min-width:120px}
+.fb select,.fb input{padding:7px 10px;border:1.5px solid var(--brd);border-radius:var(--rs);font-family:'Tajawal',sans-serif;font-size:13px;background:#fff;outline:none;direction:rtl;min-width:120px}
 .fb select:focus,.fb input:focus{border-color:var(--blue)}
 
-/* CREDIT WIDGET */
-.crw{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:var(--rs);padding:8px 11px;border:1px solid var(--brd);margin-bottom:10px}
-.cdots{display:flex;gap:4px}
-.cd{width:16px;height:16px;border-radius:50%;background:var(--brd);transition:background .3s}
-.cd.cu{background:var(--r)}
-.cd.cw{background:var(--a)}
-.cd.co{background:var(--g)}
-
-/* ADMIN: heat map cell */
-.hcell{border-radius:var(--rs);padding:10px 6px;text-align:center;font-size:12px;font-weight:700;transition:background .3s}
-.hcell-num{font-size:18px;font-weight:900}
-
-/* CHART BAR */
-.cbar{margin-bottom:10px}
-.cbar-hd{display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:4px}
-.cbar-track{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
-.cbar-fill{height:100%;border-radius:4px;transition:width .5s}
-
-/* PROGRESS ROW (top students) */
+/* ══ ADMIN CARDS ══ */
 .prow{padding:8px;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:9px}
 .prow:last-child{border-bottom:none}
 .pnum{width:22px;height:22px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0}
 .pinfo{flex:1;min-width:0}
 .pn{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ps{font-size:10px;color:var(--mu)}
-.cbar-s{height:4px;background:var(--bg);border-radius:2px;overflow:hidden;margin-top:4px}
-.cbar-sf{height:100%;border-radius:2px}
+.csbar{height:4px;background:var(--bg);border-radius:2px;overflow:hidden;margin-top:4px}
+.csfill{height:100%;border-radius:2px}
 .pval{text-align:left;flex-shrink:0}
-.pv{font-size:16px;font-weight:900;line-height:1}
-.pl{font-size:10px;color:var(--mu)}
+.pvv{font-size:16px;font-weight:900;line-height:1}
+.pvl{font-size:10px;color:var(--mu)}
+.hcell{border-radius:var(--rs);padding:10px 6px;text-align:center;font-size:12px;font-weight:700;transition:background .3s}
+.hcell-n{font-size:18px;font-weight:900}
+.cbar{margin-bottom:10px}
+.cbar-hd{display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:4px}
+.cbar-t{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.cbar-f{height:100%;border-radius:4px;transition:width .5s}
 
-/* MODAL */
+/* ══ MODAL ══ */
 .mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center}
 .mov.on{display:flex}
-.mbox{background:#fff;border-radius:var(--rd);padding:26px;max-width:420px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.25);text-align:center;animation:fup .3s}
+.mbox{background:#fff;border-radius:var(--rd);padding:26px;max-width:420px;width:92%;box-shadow:var(--shb);text-align:center;animation:fup .3s}
 .mico{font-size:50px;margin-bottom:9px}
 .mtit{font-size:19px;font-weight:900;margin-bottom:6px}
 .mmsg{font-size:13px;color:var(--mu);margin-bottom:18px;line-height:1.7;white-space:pre-line}
 .mact{display:flex;gap:10px;justify-content:center}
 
-/* EMPTY */
+/* ══ SYNC INDICATOR ══ */
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--g);display:inline-block;margin-left:6px}
+.sync-dot.syncing{background:var(--a);animation:blink .6s infinite}
+
+/* ══ EMPTY ══ */
 .empty{text-align:center;padding:28px;color:var(--mu)}
 .empi{font-size:36px;margin-bottom:8px}
-.empty p{font-size:13px}
 
 footer{text-align:center;padding:16px;color:var(--mu);font-size:12px;border-top:1px solid var(--brd);margin-top:24px}
 footer strong{color:var(--navy)}
 
 @media(max-width:960px){
-  .teacher-grid{grid-template-columns:1fr}
+  .tgrid{grid-template-columns:1fr}
   .s5,.s4{grid-template-columns:repeat(2,1fr)}
   .hcnts{display:none}
 }
-@media(max-width:560px){
-  .s5,.s4,.s3{grid-template-columns:repeat(2,1fr)}
-}
 @media print{
-  header,nav,aside,.btn,.fb,#modal,#active-card-wrap{display:none!important}
+  #login-screen,#cloud-bar,header,nav,aside,.btn,.fb,#modal{display:none!important}
   .pg{display:block!important;margin:0;padding:0}
-  .card{box-shadow:none}
 }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<header>
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🏫</div>
+    <div class="login-title">متوسطة المنذر بن عمرو الأنصاري</div>
+    <div class="login-sub">نظام إدارة الاستئذان</div>
+    <input type="password" id="pw-input" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <div class="login-err" id="pw-err">❌ كلمة المرور غير صحيحة</div>
+    <button class="btn-login" onclick="doLogin()">دخول ← </button>
+    <div class="login-note">كلمة المرور الافتراضية: school123</div>
+  </div>
+</div>
+
+<!-- ══ CLOUD STATUS ══ -->
+<div id="cloud-bar" style="display:none">
+  <div id="cloud-dot"></div>
+  <span id="cloud-label">جاري الاتصال...</span>
+  <span id="cloud-users"></span>
+  <span id="sync-time" style="font-size:11px;color:rgba(255,255,255,.4)"></span>
+</div>
+
+<!-- ══ HEADER ══ -->
+<header id="main-header" style="display:none">
   <div class="hdr">
     <div class="hlogo">🏫</div>
     <div class="htitle">
       <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
-      <p>نظام إدارة الاستئذان المتقدم — النسخة 2.0</p>
+      <p>نظام إدارة الاستئذان المتقدم — مزامنة سحابية</p>
     </div>
     <div class="hclock-box">
       <div id="hclock">00:00:00</div>
@@ -253,9 +312,9 @@ footer strong{color:var(--navy)}
   </div>
 </header>
 
-<!-- NAV -->
-<nav>
-  <div class="nav-inner">
+<!-- ══ NAV ══ -->
+<nav id="main-nav" style="display:none">
+  <div class="nav-i">
     <button class="nb on" id="nb-teacher"  onclick="goPg('teacher')">🧑‍🏫 واجهة المعلم</button>
     <button class="nb"    id="nb-admin"    onclick="goPg('admin')">🏢 لوحة الإدارة</button>
     <button class="nb"    id="nb-students" onclick="goPg('students')">📋 سجل الطلاب</button>
@@ -263,24 +322,22 @@ footer strong{color:var(--navy)}
   </div>
 </nav>
 
-<!-- MODAL -->
+<!-- ══ MODAL ══ -->
 <div class="mov" id="modal">
   <div class="mbox">
     <div class="mico" id="m-ico">⚠️</div>
     <div class="mtit" id="m-tit">تنبيه</div>
     <div class="mmsg" id="m-msg"></div>
     <div class="mact">
-      <button class="btn bn" id="m-ok"  style="width:auto;padding:9px 28px" onclick="closeModal()">حسناً</button>
-      <button class="btn bgh" id="m-cn" style="display:none"                 onclick="cancelModal()">إلغاء</button>
+      <button class="btn bn" id="m-ok" style="width:auto;padding:9px 28px" onclick="closeModal()">حسناً</button>
+      <button class="btn bgh" id="m-cn" style="display:none" onclick="cancelModal()">إلغاء</button>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════ PAGE: TEACHER ═══════════════════════════ -->
+<!-- ══ PAGE: TEACHER ══ -->
 <div class="pg on" id="pg-teacher">
-  <div class="teacher-grid">
-
-    <!-- FORM PANEL -->
+  <div class="tgrid">
     <aside>
       <div class="card">
         <div class="ch">📋 تسجيل استئذان جديد</div>
@@ -291,7 +348,7 @@ footer strong{color:var(--navy)}
 
           <div class="fg">
             <label>👩‍🏫 المعلم / المعلمة</label>
-            <input type="text" id="f-tchr" placeholder="اسم المعلم..." list="dl-t" onchange="onFormChange()"/>
+            <input type="text" id="f-tchr" placeholder="اسم المعلم..." list="dl-t" onchange="onFC()"/>
             <datalist id="dl-t">
               <option value="أ. أحمد السعيد">
               <option value="أ. محمد الغامدي">
@@ -304,13 +361,13 @@ footer strong{color:var(--navy)}
 
           <div class="fg">
             <label>👤 اسم الطالب الثلاثي</label>
-            <input type="text" id="f-stu" placeholder="الاسم الأول والثاني والثالث..." oninput="onNameInput()"/>
-            <div class="fghint" id="nh">⚠️ يرجى إدخال الاسم الثلاثي كاملاً (3 كلمات على الأقل)</div>
+            <input type="text" id="f-stu" placeholder="الاسم الأول والثاني والثالث..." oninput="onNI()"/>
+            <div class="hint" id="nh">⚠️ يرجى إدخال الاسم الثلاثي (3 كلمات على الأقل)</div>
           </div>
 
           <div class="fg">
             <label>🏷️ الصف</label>
-            <select id="f-cls" onchange="onFormChange()">
+            <select id="f-cls" onchange="onFC()">
               <option value="">— اختر الصف —</option>
               <optgroup label="الأول متوسط">
                 <option value="الأول/1">الأول متوسط – فصل 1</option>
@@ -339,7 +396,7 @@ footer strong{color:var(--navy)}
             </select>
           </div>
 
-          <!-- Credit widget -->
+          <!-- رصيد الخروج -->
           <div class="crw" id="crw" style="display:none">
             <div>
               <div style="font-size:11px;font-weight:700;color:var(--mu);margin-bottom:5px">رصيد الخروج اليومي</div>
@@ -353,7 +410,7 @@ footer strong{color:var(--navy)}
 
           <div class="fg">
             <label>📌 سبب الخروج</label>
-            <select id="f-rsn" onchange="toggleCustom()">
+            <select id="f-rsn" onchange="tglCustom()">
               <option value="">— اختر —</option>
               <option value="دورة المياه">🚿 دورة المياه</option>
               <option value="المقصف">🍽️ المقصف</option>
@@ -367,12 +424,12 @@ footer strong{color:var(--navy)}
           </div>
 
           <button class="btn bn" onclick="doExit()">🚪 تسجيل خروج</button>
-          <p style="font-size:11px;color:var(--mu);text-align:center;margin-top:8px">⚠️ الحد الأقصى 3 طلاب لكل معلم • رصيد الطالب 5 خروجات يومياً</p>
+          <p style="font-size:11px;color:var(--mu);text-align:center;margin-top:8px">⚠️ الحد الأقصى 3 طلاب لكل معلم • رصيد 5 خروجات يومياً للطالب</p>
         </div>
       </div>
 
-      <div class="card" id="active-card-wrap">
-        <div class="ch">🟢 خارج الفصل الآن <span class="cbadge" id="ac-cnt">0</span></div>
+      <div class="card">
+        <div class="ch">🟢 خارج الفصل الآن <span class="cbg" id="ac-cnt">0</span></div>
         <div class="cb" style="padding:10px">
           <div id="ac-list">
             <div class="empty"><div class="empi">🏫</div><p>لا يوجد طلاب خارج الآن</p></div>
@@ -381,7 +438,6 @@ footer strong{color:var(--navy)}
       </div>
     </aside>
 
-    <!-- RIGHT PANEL -->
     <section>
       <div class="srow s5">
         <div class="sbox sn"><div class="sbi">🚶</div><div class="sbv" id="s-o">0</div><div class="sbl">خارج الآن</div></div>
@@ -398,22 +454,20 @@ footer strong{color:var(--navy)}
         </div>
         <div class="cb">
           <div class="itabs">
-            <button class="it on" id="it-c" onclick="switchIT('c')">🟢 الخارجون حالياً</button>
-            <button class="it"    id="it-h" onclick="switchIT('h')">📜 سجل اليوم</button>
+            <button class="it on" id="it-c" onclick="swIT('c')">🟢 الخارجون حالياً</button>
+            <button class="it"    id="it-h" onclick="swIT('h')">📜 سجل اليوم</button>
           </div>
-
-          <!-- Current -->
           <div class="ip on" id="ip-c">
             <div class="fb">
-              <select id="ft-t" onchange="renderCurTable()"><option value="">كل المعلمين</option></select>
-              <select id="ft-c" onchange="renderCurTable()"><option value="">كل الفصول</option></select>
-              <select id="ft-s" onchange="renderCurTable()">
+              <select id="ft-t" onchange="renderCur()"><option value="">كل المعلمين</option></select>
+              <select id="ft-c" onchange="renderCur()"><option value="">كل الفصول</option></select>
+              <select id="ft-s" onchange="renderCur()">
                 <option value="">كل الحالات</option>
                 <option value="ok">في الوقت</option>
                 <option value="wrn">تحذير 7د+</option>
                 <option value="lat">متأخر 10د+</option>
               </select>
-              <input type="text" id="ft-q" placeholder="🔍 بحث..." oninput="renderCurTable()" style="max-width:160px"/>
+              <input type="text" id="ft-q" placeholder="🔍 بحث..." oninput="renderCur()" style="max-width:160px"/>
             </div>
             <div class="tw">
               <table>
@@ -426,13 +480,11 @@ footer strong{color:var(--navy)}
               </table>
             </div>
           </div>
-
-          <!-- History -->
           <div class="ip" id="ip-h">
             <div class="fb">
-              <select id="fh-t" onchange="renderHistTable()"><option value="">كل المعلمين</option></select>
-              <select id="fh-c" onchange="renderHistTable()"><option value="">كل الفصول</option></select>
-              <select id="fh-s" onchange="renderHistTable()">
+              <select id="fh-t" onchange="renderHist()"><option value="">كل المعلمين</option></select>
+              <select id="fh-c" onchange="renderHist()"><option value="">كل الفصول</option></select>
+              <select id="fh-s" onchange="renderHist()">
                 <option value="">كل الحالات</option>
                 <option value="ok">عاد في الوقت</option>
                 <option value="lat">تأخر</option>
@@ -454,16 +506,14 @@ footer strong{color:var(--navy)}
   </div>
 </div>
 
-<!-- ═══════════════════════════ PAGE: ADMIN ═══════════════════════════ -->
+<!-- ══ PAGE: ADMIN ══ -->
 <div class="pg" id="pg-admin">
-
   <div class="srow s4">
     <div class="sbox sn"><div class="sbi">📤</div><div class="sbv" id="ad-tot">0</div><div class="sbl">إجمالي طلبات اليوم</div></div>
     <div class="sbox sr"><div class="sbi">⏰</div><div class="sbv" id="ad-lat">0</div><div class="sbl">حالات التأخر</div></div>
     <div class="sbox sp"><div class="sbi">⚠️</div><div class="sbv" id="ad-exc">0</div><div class="sbl">مفرطو الخروج</div></div>
     <div class="sbox sa"><div class="sbi">⏱️</div><div class="sbv" id="ad-avg">—</div><div class="sbl">متوسط مدة الخروج</div></div>
   </div>
-
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
     <div class="card" style="margin-bottom:0">
       <div class="ch rh">⚠️ أكثر الطلاب خروجاً اليوم</div>
@@ -474,16 +524,14 @@ footer strong{color:var(--navy)}
       <div class="cb" style="padding:0"><div id="ad-tchrs"></div></div>
     </div>
   </div>
-
   <div class="card">
-    <div class="ch">🗂️ خريطة الخروج حسب الفصل (اليوم)</div>
+    <div class="ch">🗂️ خريطة الخروج حسب الفصل</div>
     <div class="cb">
       <div id="ad-hmap" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px"></div>
     </div>
   </div>
-
   <div class="card">
-    <div class="ch rh">🚨 قائمة المراقبة الفورية (متأخر + مفرط)</div>
+    <div class="ch rh">🚨 قائمة المراقبة الفورية</div>
     <div class="cb">
       <div class="tw">
         <table>
@@ -498,14 +546,14 @@ footer strong{color:var(--navy)}
   </div>
 </div>
 
-<!-- ═══════════════════════════ PAGE: STUDENTS ═══════════════════════════ -->
+<!-- ══ PAGE: STUDENTS ══ -->
 <div class="pg" id="pg-students">
   <div class="card">
     <div class="ch">📋 سجل الطلاب اليوم</div>
     <div class="cb">
       <div class="fb">
-        <input  type="text" id="sr-q"   placeholder="🔍 بحث باسم الطالب..." oninput="renderReg()" style="flex:2"/>
-        <select id="sr-c"  onchange="renderReg()"><option value="">كل الفصول</option></select>
+        <input type="text" id="sr-q" placeholder="🔍 بحث..." oninput="renderReg()" style="flex:2"/>
+        <select id="sr-c" onchange="renderReg()"><option value="">كل الفصول</option></select>
         <select id="sr-bh" onchange="renderReg()">
           <option value="">كل التصنيفات</option>
           <option value="n">طبيعي</option>
@@ -516,9 +564,9 @@ footer strong{color:var(--navy)}
       <div class="tw">
         <table>
           <thead><tr>
-            <th>#</th><th>الطالب</th><th>الصف</th><th>عدد الخروجات اليوم</th>
+            <th>#</th><th>الطالب</th><th>الصف</th><th>عدد الخروجات</th>
             <th>الرصيد المتبقي</th><th>إجمالي المدة</th><th>أطول خروج</th>
-            <th>التصنيف السلوكي</th><th>الحالة الآن</th>
+            <th>التصنيف</th><th>الحالة الآن</th>
           </tr></thead>
           <tbody id="tb-reg"></tbody>
         </table>
@@ -527,16 +575,14 @@ footer strong{color:var(--navy)}
   </div>
 </div>
 
-<!-- ═══════════════════════════ PAGE: REPORTS ═══════════════════════════ -->
+<!-- ══ PAGE: REPORTS ══ -->
 <div class="pg" id="pg-reports">
-
   <div class="srow s4">
     <div class="sbox sn"><div class="sbi">📤</div><div class="sbv" id="rp-tot">0</div><div class="sbl">طلبات الاستئذان</div></div>
-    <div class="sbox sg"><div class="sbi">✅</div><div class="sbv" id="rp-ok">0</div><div class="sbl">في الوقت المحدد</div></div>
+    <div class="sbox sg"><div class="sbi">✅</div><div class="sbv" id="rp-ok">0</div><div class="sbl">في الوقت</div></div>
     <div class="sbox sr"><div class="sbi">⏰</div><div class="sbv" id="rp-lat">0</div><div class="sbl">تجاوزوا 10 دقائق</div></div>
     <div class="sbox sp"><div class="sbi">⚠️</div><div class="sbv" id="rp-exc">0</div><div class="sbl">مفرطو الخروج</div></div>
   </div>
-
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
     <div class="card" style="margin-bottom:0">
       <div class="ch">📌 توزيع أسباب الخروج</div>
@@ -547,326 +593,484 @@ footer strong{color:var(--navy)}
       <div class="cb" id="rp-dur"></div>
     </div>
   </div>
-
   <div class="card">
     <div class="ch" style="justify-content:space-between">
       <span>📄 التقرير اليومي الكامل</span>
       <button class="btn bbl" onclick="window.print()">🖨️ طباعة</button>
     </div>
-    <div class="cb">
-      <div class="tw">
-        <table>
-          <thead><tr>
-            <th>#</th><th>الطالب</th><th>الصف</th><th>المعلم</th>
-            <th>الخروج</th><th>العودة</th><th>المدة</th><th>الوجهة</th>
-            <th>الحالة</th><th>التصنيف</th>
-          </tr></thead>
-          <tbody id="tb-rp"></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="cb"><div class="tw">
+      <table>
+        <thead><tr>
+          <th>#</th><th>الطالب</th><th>الصف</th><th>المعلم</th>
+          <th>الخروج</th><th>العودة</th><th>المدة</th><th>الوجهة</th>
+          <th>الحالة</th><th>التصنيف</th>
+        </tr></thead>
+        <tbody id="tb-rp"></tbody>
+      </table>
+    </div></div>
   </div>
 </div>
 
 <footer>نظام إدارة الاستئذان المتقدم — متوسطة المنذر بن عمرو الأنصاري | Created by <strong>wyckoffnawaf</strong></footer>
 
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT — FIREBASE + SYSTEM LOGIC
+══════════════════════════════════════════════ -->
 <script>
-/* ══════════════════════════════════════════
-   CONFIG
-══════════════════════════════════════════ */
+'use strict';
+
+/* ═══ FIREBASE CONFIG ═══ */
+const FB_CFG = {
+  apiKey:            "AIzaSyC24GQX2eHOVPd17VJcePbDiPIVmRl5u80",
+  authDomain:        "school-radio-platform.firebaseapp.com",
+  projectId:         "school-radio-platform",
+  storageBucket:     "school-radio-platform.firebasestorage.app",
+  messagingSenderId: "265406824179",
+  appId:             "1:265406824179:web:39552dd8cfe5ac987a0186",
+  measurementId:     "G-JWRJG982PW",
+  databaseURL:       "https://school-radio-platform-default-rtdb.firebaseio.com"
+};
+
+/* ═══ INIT FIREBASE ═══ */
+firebase.initializeApp(FB_CFG);
+const db   = firebase.firestore();
+const rtdb = firebase.database();
+// const analytics = firebase.analytics(); // uncomment when ready
+
+/* ═══ APP CONFIG ═══ */
 var CFG = { LATE:10, WARN:7, MAX_T:3, MAX_D:5, EXCESS:3 };
+var SCHOOL_PW = 'school123';   // ← غيّر كلمة المرور هنا
 
-/* ══════════════════════════════════════════
-   DATA  (localStorage)
-══════════════════════════════════════════ */
-var TODAY = new Date().toDateString();
-var _saved = localStorage.getItem('noor3_date');
+/* ═══ LOCAL STATE ═══ */
+var active  = [];   // الطلاب خارج الآن (من Realtime DB)
+var hist    = [];   // السجل اليومي  (من Firestore)
+var daily   = {};   // إحصائيات الطلاب اليومية
+var alerted = {};   // منع تكرار التنبيه
 
-var active  = (_saved===TODAY) ? safeJSON('noor3_active',  []) : [];
-var hist    = (_saved===TODAY) ? safeJSON('noor3_hist',    []) : [];
-// daily[key]={count,totalMs,maxMs}
-var daily   = (_saved===TODAY) ? safeJSON('noor3_daily',   {}) : {};
-
-var alerted = {};  // track beep/modal per student id
-
-if (_saved!==TODAY) save();
-
-function safeJSON(k,def){try{var v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;}}
-function save(){
-  localStorage.setItem('noor3_active', JSON.stringify(active));
-  localStorage.setItem('noor3_hist',   JSON.stringify(hist));
-  localStorage.setItem('noor3_daily',  JSON.stringify(daily));
-  localStorage.setItem('noor3_date',   new Date().toDateString());
+/* ═══ TODAY KEY ═══ */
+function todayKey() {
+  return new Date().toISOString().split('T')[0];  // "2025-06-15"
 }
 
-/* ══════════════════════════════════════════
-   UTILS
-══════════════════════════════════════════ */
-function skey(r){ return (r.student+'|'+r.cls).replace(/\s+/g,'_'); }
-
-function getD(key){
-  if(!daily[key]) daily[key]={count:0,totalMs:0,maxMs:0};
-  return daily[key];
-}
-
-function st(exitTime){
-  var m=(Date.now()-exitTime)/60000;
-  return m>=CFG.LATE?'lat':m>=CFG.WARN?'wrn':'ok';
-}
-
-function stBadge(s){
-  if(s==='lat') return '<span class="bdg blat">⏰ متأخر</span>';
-  if(s==='wrn') return '<span class="bdg bwrn">⚠️ تحذير</span>';
-  return '<span class="bdg bok">✓ في الوقت</span>';
-}
-
-function classify(key){
-  var c=getD(key).count;
-  if(c>=CFG.EXCESS) return 'x';
-  if(c>=CFG.EXCESS-1) return 'w';
-  return 'n';
-}
-
-function clsBadge(key){
-  var c=classify(key);
-  if(c==='x') return '<span class="bdg bex">🔴 مفرط</span>';
-  if(c==='w') return '<span class="bdg bwrn">🟡 مراقبة</span>';
-  return '<span class="bdg bok">🟢 طبيعي</span>';
-}
-
-function fmtMs(ms){
-  if(!ms||ms<0) return '0د 0ث';
-  var m=Math.floor(ms/60000), s=Math.floor((ms%60000)/1000);
-  return m+'د '+s+'ث';
-}
-
-function fmtTm(ms){
-  var m=Math.floor(ms/60000), s=Math.floor((ms%60000)/1000);
-  return pad2(m)+':'+pad2(s);
-}
-
-function pad2(n){return n<10?'0'+n:''+n;}
-
-function timeNow(){
-  return new Date().toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
-}
-
-function initials(name){
-  var p=name.trim().split(/\s+/);
-  return (p[0]?p[0][0]:'')+(p[1]?p[1][0]:'');
-}
-
-function creditRem(key){ return Math.max(0, CFG.MAX_D - getD(key).count); }
-
-/* ══════════════════════════════════════════
-   CLOCK
-══════════════════════════════════════════ */
-function tick(){
-  var n=new Date();
-  document.getElementById('hclock').textContent=n.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  document.getElementById('hdate').textContent=n.toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-}
-setInterval(tick,1000); tick();
-
-/* ══════════════════════════════════════════
-   ALERTS
-══════════════════════════════════════════ */
-function showA(id, msg){
-  var el=document.getElementById(id);
-  el.querySelector('span').textContent=msg;
-  el.classList.add('on');
-  setTimeout(function(){ el.classList.remove('on'); }, 4500);
-}
-
-/* ══════════════════════════════════════════
-   FORM HELPERS
-══════════════════════════════════════════ */
-function toggleCustom(){
-  document.getElementById('cw').style.display = document.getElementById('f-rsn').value==='أخرى'?'block':'none';
-}
-
-function onNameInput(){
-  var v=document.getElementById('f-stu').value.trim();
-  var p=v.split(/\s+/).filter(function(x){return x;});
-  document.getElementById('nh').classList.toggle('on', v.length>0 && p.length<3);
-  onFormChange();
-}
-
-function onFormChange(){
-  var stu = document.getElementById('f-stu').value.trim();
-  var cls = document.getElementById('f-cls').value;
-  var crw = document.getElementById('crw');
-  if(!stu||!cls){ crw.style.display='none'; return; }
-  var p=stu.split(/\s+/).filter(function(x){return x;});
-  if(p.length<3){ crw.style.display='none'; return; }
-
-  crw.style.display='flex';
-  var key=skey({student:stu,cls:cls});
-  var d=getD(key);
-  var used=d.count;
-  var rem=Math.max(0,CFG.MAX_D-used);
-
-  var dots='';
-  for(var i=0;i<CFG.MAX_D;i++){
-    var dc=(i<used)?(used===CFG.MAX_D-1?'cd cw':'cd cu'):'cd co';
-    dots+='<div class="'+dc+'"></div>';
+/* ═════════════════════════════════════════
+   LOGIN
+═════════════════════════════════════════ */
+function doLogin() {
+  var pw = document.getElementById('pw-input').value;
+  if (pw === SCHOOL_PW) {
+    document.getElementById('login-screen').style.display    = 'none';
+    document.getElementById('cloud-bar').style.display       = 'flex';
+    document.getElementById('main-header').style.display     = 'block';
+    document.getElementById('main-nav').style.display        = 'block';
+    initFirebase();
+    startClock();
+    startLocalTimer();
+  } else {
+    document.getElementById('pw-err').classList.add('on');
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+    setTimeout(function(){ document.getElementById('pw-err').classList.remove('on'); }, 3000);
   }
-  document.getElementById('cdots').innerHTML=dots;
-
-  var col=rem===0?'var(--r)':rem<=2?'var(--a)':'var(--g)';
-  document.getElementById('cr-text').innerHTML='<span style="color:'+col+'">'+
-    (rem===0?'❌ استنفد الرصيد':rem+' خروجات متبقية')+'</span>';
-  document.getElementById('cr-sub').textContent='خرج اليوم: '+used+' من '+CFG.MAX_D;
 }
 
-/* ══════════════════════════════════════════
-   REGISTER EXIT
-══════════════════════════════════════════ */
-function doExit(){
+/* ═════════════════════════════════════════
+   FIREBASE INIT — Real-time listeners
+═════════════════════════════════════════ */
+function initFirebase() {
+  setCloud('syncing','جاري الاتصال بـ Firebase...');
+
+  var today = todayKey();
+
+  /* ── 1. Realtime DB: الطلاب خارج الآن ── */
+  rtdb.ref('active/' + today).on('value', function(snap) {
+    active = [];
+    snap.forEach(function(child) {
+      active.push(Object.assign({ rtdbKey: child.key }, child.val()));
+    });
+    setCloud('connected','متصل — Firebase Realtime ✓');
+    updateSyncTime();
+    renderAll();
+  }, function(err) {
+    setCloud('error','خطأ في الاتصال: ' + err.message);
+  });
+
+  /* ── 2. Firestore: سجل اليوم ── */
+  db.collection('permissions')
+    .where('date','==', today)
+    .where('status','==','returned')
+    .orderBy('returnTime','desc')
+    .onSnapshot(function(snap) {
+      hist = [];
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        hist.push({
+          id:         doc.id,
+          student:    d.student,
+          cls:        d.class,
+          teacher:    d.teacher,
+          reason:     d.reason,
+          exitStr:    d.exitStr   || '—',
+          returnStr:  d.returnStr || '—',
+          duration:   d.duration  || 0,
+          durStr:     fmtMs(d.duration),
+          wasLate:    d.wasLate   || false
+        });
+      });
+      renderAll();
+    }, function(err) {
+      console.warn('Firestore error:', err);
+    });
+
+  /* ── 3. Firestore: إحصائيات الطلاب ── */
+  db.collection('dailyStats')
+    .where('date','==', today)
+    .onSnapshot(function(snap) {
+      snap.forEach(function(doc) {
+        daily[doc.id] = doc.data();
+      });
+      renderAll();
+    });
+
+  /* ── 4. Realtime DB: عدد المستخدمين المتصلين ── */
+  var connRef = rtdb.ref('.info/connected');
+  connRef.on('value', function(snap) {
+    if (snap.val()) {
+      var myRef = rtdb.ref('presence/' + Date.now());
+      myRef.onDisconnect().remove();
+      myRef.set(true);
+    }
+  });
+  rtdb.ref('presence').on('value', function(snap) {
+    var cnt = snap.numChildren();
+    document.getElementById('cloud-users').textContent = cnt > 0 ? cnt + ' مستخدم متصل' : '';
+  });
+}
+
+/* ═════════════════════════════════════════
+   CLOUD STATUS
+═════════════════════════════════════════ */
+function setCloud(state, label) {
+  document.getElementById('cloud-dot').className   = state;
+  document.getElementById('cloud-label').textContent = label;
+}
+
+function updateSyncTime() {
+  var t = new Date().toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('sync-time').textContent = 'آخر تحديث: ' + t;
+}
+
+/* ═════════════════════════════════════════
+   REGISTER EXIT → Realtime DB + Firestore
+═════════════════════════════════════════ */
+function doExit() {
   var tchr = document.getElementById('f-tchr').value.trim();
   var stu  = document.getElementById('f-stu').value.trim();
   var cls  = document.getElementById('f-cls').value;
   var rsn  = document.getElementById('f-rsn').value;
   var cus  = document.getElementById('f-cus').value.trim();
 
-  if(!tchr){ showA('al-e','يرجى إدخال اسم المعلم'); return; }
-  if(!stu) { showA('al-e','يرجى إدخال اسم الطالب'); return; }
-  var p=stu.split(/\s+/).filter(function(x){return x;});
-  if(p.length<3){ document.getElementById('nh').classList.add('on'); return; }
-  if(!cls){ showA('al-e','يرجى اختيار الصف'); return; }
-  if(!rsn){ showA('al-e','يرجى اختيار سبب الخروج'); return; }
-  if(rsn==='أخرى'&&!cus){ showA('al-e','اكتب سبب الخروج'); return; }
+  if (!tchr){ showA('al-e','يرجى إدخال اسم المعلم'); return; }
+  if (!stu) { showA('al-e','يرجى إدخال اسم الطالب'); return; }
+  var parts = stu.split(/\s+/).filter(function(x){return x;});
+  if (parts.length < 3){ document.getElementById('nh').classList.add('on'); return; }
+  if (!cls) { showA('al-e','يرجى اختيار الصف'); return; }
+  if (!rsn) { showA('al-e','يرجى اختيار سبب الخروج'); return; }
+  if (rsn==='أخرى' && !cus){ showA('al-e','اكتب سبب الخروج'); return; }
 
-  var finalR = rsn==='أخرى'?cus:rsn;
-  var key=skey({student:stu,cls:cls});
+  var finalR = rsn==='أخرى' ? cus : rsn;
+  var key    = skey({student:stu, cls:cls});
 
-  // Already out?
-  for(var i=0;i<active.length;i++){
-    if(active[i].student===stu&&active[i].cls===cls){
+  // Already outside?
+  for (var i=0; i<active.length; i++){
+    if (active[i].student===stu && active[i].cls===cls){
       showA('al-e','الطالب مسجّل خارج الفصل بالفعل'); return;
     }
   }
   // Teacher limit
   var tOut=0;
-  for(var j=0;j<active.length;j++){ if(active[j].teacher===tchr) tOut++; }
-  if(tOut>=CFG.MAX_T){
+  for (var j=0; j<active.length; j++) if (active[j].teacher===tchr) tOut++;
+  if (tOut >= CFG.MAX_T){
     openModal('🚫','تجاوز الحد المسموح',
-      'لا يمكن لـ "'+tchr+'" السماح بخروج أكثر من '+CFG.MAX_T+' طلاب في وقت واحد.\nانتظر عودة أحد الطلاب.',false,null); return;
+      'لا يمكن لـ "'+tchr+'" السماح بخروج أكثر من '+CFG.MAX_T+' طلاب في وقت واحد.',false,null); return;
   }
   // Daily credit
-  var d=getD(key);
-  if(d.count>=CFG.MAX_D){
+  var d = getD(key);
+  if (d.count >= CFG.MAX_D){
     openModal('🔴','انتهى الرصيد اليومي',
-      '"'+stu+'" استنفد الحد اليومي ('+CFG.MAX_D+' خروجات). يجب إحالة الأمر للإدارة.',false,null); return;
+      '"'+stu+'" استنفد الحد اليومي ('+CFG.MAX_D+' خروجات).\nيجب إحالة الأمر للإدارة.',false,null); return;
   }
-  // Warn last credit
-  if(d.count===CFG.MAX_D-1) showA('al-w','تنبيه: هذه آخر خروجة مسموح بها لـ "'+stu+'" اليوم');
-  // Warn excess
-  if(d.count+1===CFG.EXCESS) showA('al-w','⚠️ "'+stu+'" سيصل لحد الإفراط في الخروج');
+  if (d.count === CFG.MAX_D-1) showA('al-w','تنبيه: هذه آخر خروجة مسموح بها لـ "'+stu+'" اليوم');
+  if (d.count+1 === CFG.EXCESS) showA('al-w','⚠️ "'+stu+'" سيصل لحد الإفراط في الخروج');
 
-  d.count++;
+  var now    = Date.now();
+  var today  = todayKey();
+  var exitStr= timeNow();
+  var recId  = 'rec_' + now + '_' + Math.floor(Math.random()*9999);
 
-  var rec={
-    id: Date.now()+(Math.floor(Math.random()*1000)),
-    student:stu, cls:cls, teacher:tchr,
-    reason:finalR,
-    exitTime:Date.now(), exitStr:timeNow(),
-    late:false
-  };
-  active.push(rec);
-  save();
-
-  // Clear form (keep teacher)
-  document.getElementById('f-stu').value='';
-  document.getElementById('f-cls').value='';
-  document.getElementById('f-rsn').value='';
-  document.getElementById('f-cus').value='';
-  document.getElementById('cw').style.display='none';
-  document.getElementById('nh').classList.remove('on');
-  document.getElementById('crw').style.display='none';
-  document.getElementById('f-stu').focus();
-  showA('al-s','تم تسجيل خروج "'+stu+'" بنجاح ✅');
-  renderAll();
+  /* ── كتابة في Realtime DB (الطلاب الخارجون الآن) ── */
+  setCloud('syncing','جاري الحفظ...');
+  rtdb.ref('active/' + today + '/' + recId).set({
+    id:       recId,
+    student:  stu,
+    cls:      cls,
+    teacher:  tchr,
+    reason:   finalR,
+    exitTime: now,
+    exitStr:  exitStr,
+    late:     false
+  }).then(function() {
+    /* ── تحديث إحصائيات الطالب اليومية في Firestore ── */
+    var statRef = db.collection('dailyStats').doc(key + '_' + today);
+    return statRef.get().then(function(doc) {
+      if (doc.exists) {
+        return statRef.update({ count: firebase.firestore.FieldValue.increment(1) });
+      } else {
+        return statRef.set({
+          student: stu, class: cls, date: today,
+          count: 1, totalMs: 0, maxMs: 0
+        });
+      }
+    });
+  }).then(function() {
+    setCloud('connected','متصل — تم الحفظ ✓');
+    updateSyncTime();
+    // Clear form
+    document.getElementById('f-stu').value  = '';
+    document.getElementById('f-cls').value  = '';
+    document.getElementById('f-rsn').value  = '';
+    document.getElementById('f-cus').value  = '';
+    document.getElementById('cw').style.display  = 'none';
+    document.getElementById('nh').classList.remove('on');
+    document.getElementById('crw').style.display = 'none';
+    document.getElementById('f-stu').focus();
+    showA('al-s','تم تسجيل خروج "'+stu+'" بنجاح ✅');
+  }).catch(function(err) {
+    setCloud('error','خطأ في الحفظ');
+    showA('al-e','خطأ في الحفظ: ' + err.message);
+  });
 }
 
-/* ══════════════════════════════════════════
-   REGISTER RETURN
-══════════════════════════════════════════ */
-function doReturn(id){
-  var idx=-1;
-  for(var i=0;i<active.length;i++){ if(active[i].id===id){idx=i;break;} }
-  if(idx===-1) return;
-  var rec=active[idx];
-  var now=Date.now();
-  var ms=now-rec.exitTime;
-  var key=skey(rec);
+/* ═════════════════════════════════════════
+   REGISTER RETURN → move Realtime→Firestore
+═════════════════════════════════════════ */
+function doReturn(rtdbKey, exitTimeMs, student, cls) {
+  var now      = Date.now();
+  var ms       = now - exitTimeMs;
+  var wasLate  = ms >= CFG.LATE * 60000;
+  var today    = todayKey();
+  var sKey     = skey({student:student, cls:cls});
+
+  setCloud('syncing','جاري تسجيل العودة...');
+
+  /* 1. احذف من Realtime DB */
+  rtdb.ref('active/' + today + '/' + rtdbKey).remove()
+  .then(function() {
+    /* 2. أضف للسجل الدائم في Firestore */
+    return db.collection('permissions').add({
+      student:   student,
+      class:     cls,
+      teacher:   findTeacher(rtdbKey) || '—',
+      reason:    findReason(rtdbKey)  || '—',
+      date:      today,
+      status:    'returned',
+      exitStr:   findExitStr(rtdbKey) || '—',
+      returnStr: timeNow(),
+      exitTime:  firebase.firestore.Timestamp.fromMillis(exitTimeMs),
+      returnTime:firebase.firestore.Timestamp.now(),
+      duration:  ms,
+      wasLate:   wasLate
+    });
+  }).then(function() {
+    /* 3. حدّث إجمالي مدة الطالب */
+    var statRef = db.collection('dailyStats').doc(sKey + '_' + today);
+    return statRef.get().then(function(doc) {
+      if (doc.exists) {
+        var old = doc.data();
+        return statRef.update({
+          totalMs: (old.totalMs||0) + ms,
+          maxMs:   Math.max(old.maxMs||0, ms)
+        });
+      }
+    });
+  }).then(function() {
+    setCloud('connected','متصل — تم تسجيل العودة ✓');
+    updateSyncTime();
+  }).catch(function(err) {
+    setCloud('error','خطأ');
+    console.error(err);
+  });
+}
+
+/* helper: find data from active array before deletion */
+function findTeacher(rtdbKey){ for(var i=0;i<active.length;i++) if(active[i].rtdbKey===rtdbKey) return active[i].teacher; return '—'; }
+function findReason(rtdbKey) { for(var i=0;i<active.length;i++) if(active[i].rtdbKey===rtdbKey) return active[i].reason;  return '—'; }
+function findExitStr(rtdbKey){ for(var i=0;i<active.length;i++) if(active[i].rtdbKey===rtdbKey) return active[i].exitStr; return '—'; }
+
+/* ═════════════════════════════════════════
+   RESET TODAY
+═════════════════════════════════════════ */
+function confirmReset() {
+  openModal('🔄','إعادة تعيين اليوم',
+    'سيتم حذف جميع بيانات اليوم من السحابة نهائياً. هل تريد المتابعة؟',true,function(){
+      var today = todayKey();
+      setCloud('syncing','جاري حذف البيانات...');
+      rtdb.ref('active/'+today).remove()
+      .then(function(){
+        return db.collection('dailyStats').where('date','==',today).get();
+      }).then(function(snap){
+        var batch = db.batch();
+        snap.forEach(function(doc){ batch.delete(doc.ref); });
+        return batch.commit();
+      }).then(function(){
+        daily = {}; alerted = {};
+        setCloud('connected','تم إعادة التعيين ✓');
+      }).catch(function(err){ setCloud('error','خطأ في الحذف'); });
+    });
+}
+
+/* ═════════════════════════════════════════
+   UTILS
+═════════════════════════════════════════ */
+function skey(r){ return (r.student+'|'+r.cls).replace(/\s+/g,'_'); }
+function getD(key){
+  if (!daily[key+'_'+todayKey()]) return {count:0,totalMs:0,maxMs:0};
+  return daily[key+'_'+todayKey()];
+}
+function creditRem(key){ return Math.max(0, CFG.MAX_D - getD(key).count); }
+function classify(key){
+  var c=getD(key).count;
+  return c>=CFG.EXCESS?'x':c>=CFG.EXCESS-1?'w':'n';
+}
+function clsBadge(key){
+  var c=classify(key);
+  return c==='x'?'<span class="bdg bex">🔴 مفرط</span>':
+         c==='w'?'<span class="bdg bwrn">🟡 مراقبة</span>':
+                 '<span class="bdg bok">🟢 طبيعي</span>';
+}
+function stCode(exitTimeMs){
+  var m=(Date.now()-exitTimeMs)/60000;
+  return m>=CFG.LATE?'lat':m>=CFG.WARN?'wrn':'ok';
+}
+function stBadge(s){
+  return s==='lat'?'<span class="bdg blat">⏰ متأخر</span>':
+         s==='wrn'?'<span class="bdg bwrn">⚠️ تحذير</span>':
+                  '<span class="bdg bok">✓ في الوقت</span>';
+}
+function fmtMs(ms){
+  if(!ms||ms<0) return '—';
+  return Math.floor(ms/60000)+'د '+Math.floor((ms%60000)/1000)+'ث';
+}
+function fmtTm(ms){
+  return pad2(Math.floor(ms/60000))+':'+pad2(Math.floor((ms%60000)/1000));
+}
+function pad2(n){ return n<10?'0'+n:''+n; }
+function timeNow(){
+  return new Date().toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+}
+function initials(n){
+  var p=n.trim().split(/\s+/);
+  return (p[0]?p[0][0]:'')+(p[1]?p[1][0]:'');
+}
+function set(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; }
+
+/* ═════════════════════════════════════════
+   LIVE TIMER (local 1-second tick)
+═════════════════════════════════════════ */
+function startLocalTimer(){
+  setInterval(function(){
+    for(var i=0;i<active.length;i++){
+      var s  = active[i];
+      var ms = Date.now()-s.exitTime;
+      var mins = ms/60000;
+
+      // Graduated alerts
+      if(!alerted[s.rtdbKey]&&mins>=CFG.LATE){
+        alerted[s.rtdbKey]=2; beep(3);
+        openModal('⏰','تنبيه: طالب متأخر!',
+          '"'+s.student+'" من '+s.cls+'\nتجاوز 10 دقائق خارج الفصل!\nالمعلم: '+s.teacher,false,null);
+      } else if(!alerted[s.rtdbKey]&&mins>=CFG.WARN){
+        alerted[s.rtdbKey]=1; beep(1);
+        showA('al-w','⚠️ "'+s.student+' ('+s.cls+')" قضى 7 دقائق خارج الفصل');
+      }
+
+      // Update inline timer only (no full re-render)
+      var tmEl = document.getElementById('tm-'+s.rtdbKey);
+      if(tmEl) tmEl.textContent = fmtTm(ms);
+      var scEl = document.getElementById('sc-'+s.rtdbKey);
+      if(scEl) scEl.className = 'sc s'+stCode(s.exitTime);
+      var ttEl = document.getElementById('ttm-'+s.rtdbKey);
+      if(ttEl){
+        var sc2=stCode(s.exitTime);
+        ttEl.textContent=fmtTm(ms);
+        ttEl.style.color=sc2==='lat'?'var(--r)':sc2==='wrn'?'var(--a)':'var(--g)';
+      }
+    }
+    updateStats(); updateHdrCtrs();
+  },1000);
+}
+
+/* ═════════════════════════════════════════
+   CLOCK
+═════════════════════════════════════════ */
+function startClock(){
+  function tick(){
+    var n=new Date();
+    set('hclock',n.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+    set('hdate', n.toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
+  }
+  setInterval(tick,1000); tick();
+}
+
+/* ═════════════════════════════════════════
+   FORM HELPERS
+═════════════════════════════════════════ */
+function tglCustom(){
+  document.getElementById('cw').style.display = document.getElementById('f-rsn').value==='أخرى'?'block':'none';
+}
+function onNI(){
+  var v=document.getElementById('f-stu').value.trim();
+  var p=v.split(/\s+/).filter(function(x){return x;});
+  document.getElementById('nh').classList.toggle('on', v.length>0&&p.length<3);
+  onFC();
+}
+function onFC(){
+  var stu=document.getElementById('f-stu').value.trim();
+  var cls=document.getElementById('f-cls').value;
+  var crw=document.getElementById('crw');
+  if(!stu||!cls){ crw.style.display='none'; return; }
+  var p=stu.split(/\s+/).filter(function(x){return x;});
+  if(p.length<3){ crw.style.display='none'; return; }
+  crw.style.display='flex';
+  var key=skey({student:stu,cls:cls});
   var d=getD(key);
-  d.totalMs=(d.totalMs||0)+ms;
-  d.maxMs=Math.max(d.maxMs||0,ms);
-
-  var hr={
-    id:rec.id, student:rec.student, cls:rec.cls, teacher:rec.teacher,
-    reason:rec.reason, exitStr:rec.exitStr,
-    returnStr:timeNow(), duration:ms, durStr:fmtMs(ms),
-    wasLate:rec.late
-  };
-  hist.unshift(hr);
-  active.splice(idx,1);
-  save();
-  renderAll();
+  var used=d.count, rem=Math.max(0,CFG.MAX_D-used);
+  var dots='';
+  for(var i=0;i<CFG.MAX_D;i++){
+    dots+='<div class="cd '+(i<used?(used===CFG.MAX_D-1?'cw':'cu'):'co')+'"></div>';
+  }
+  document.getElementById('cdots').innerHTML=dots;
+  var col=rem===0?'var(--r)':rem<=2?'var(--a)':'var(--g)';
+  document.getElementById('cr-text').innerHTML='<span style="color:'+col+'">'+
+    (rem===0?'❌ استنفد الرصيد':rem+' خروجات متبقية')+'</span>';
+  document.getElementById('cr-sub').textContent='خرج اليوم: '+used+' من '+CFG.MAX_D;
 }
 
-/* ══════════════════════════════════════════
-   LIVE TICK (every second)
-══════════════════════════════════════════ */
-setInterval(function(){
-  var chg=false;
-  for(var i=0;i<active.length;i++){
-    var s=active[i];
-    var ms=Date.now()-s.exitTime;
-    var mins=ms/60000;
-    var was=s.late;
-    s.late=mins>=CFG.LATE;
-    if(s.late&&!was) chg=true;
+/* ═════════════════════════════════════════
+   ALERTS
+═════════════════════════════════════════ */
+function showA(id,msg){
+  var el=document.getElementById(id);
+  el.querySelector('span').textContent=msg;
+  el.classList.add('on');
+  setTimeout(function(){ el.classList.remove('on'); },4500);
+}
 
-    // Alerts (graduated)
-    if(!alerted[s.id]&&mins>=CFG.LATE){
-      alerted[s.id]=2;
-      beep(3);
-      openModal('⏰','تنبيه: طالب متأخر جداً!',
-        '"'+s.student+'" من '+s.cls+'\nتجاوز 10 دقائق خارج الفصل!\n\nالمعلم: '+s.teacher+' | '+s.reason,false,null);
-    } else if(!alerted[s.id]&&mins>=CFG.WARN){
-      alerted[s.id]=1;
-      beep(1);
-      showA('al-w','⚠️ تحذير: "'+s.student+" ("+s.cls+')" قضى 7 دقائق خارج الفصل');
-    }
-
-    // Update inline timers (avoid full re-render)
-    var tmEl=document.getElementById('tm-'+s.id);
-    if(tmEl) tmEl.textContent=fmtTm(ms);
-    var scEl=document.getElementById('sc-'+s.id);
-    if(scEl){
-      var newCls='sc s'+st(s.exitTime);
-      if(scEl.className!==newCls) scEl.className=newCls;
-    }
-    var ttmEl=document.getElementById('ttm-'+s.id);
-    if(ttmEl){
-      var sc2=st(s.exitTime);
-      ttmEl.textContent=fmtTm(ms);
-      ttmEl.style.color=sc2==='lat'?'var(--r)':sc2==='wrn'?'var(--a)':'var(--g)';
-    }
-  }
-  updateHdrCtrs();
-  updateStats();
-  if(chg) save();
-},1000);
-
-/* ══════════════════════════════════════════
-   RENDER: ACTIVE CARDS
-══════════════════════════════════════════ */
+/* ═════════════════════════════════════════
+   RENDER ACTIVE CARDS
+═════════════════════════════════════════ */
 function renderCards(){
   var el=document.getElementById('ac-list');
-  document.getElementById('ac-cnt').textContent=active.length;
+  set('ac-cnt',active.length);
   if(!active.length){
     el.innerHTML='<div class="empty"><div class="empi">🏫</div><p>لا يوجد طلاب خارج الآن</p></div>';
     return;
@@ -875,20 +1079,19 @@ function renderCards(){
   for(var i=0;i<active.length;i++){
     var s=active[i];
     var ms=Date.now()-s.exitTime;
-    var sc=st(s.exitTime);
+    var sc=stCode(s.exitTime);
     var key=skey(s);
     var d=getD(key);
     var rem=creditRem(key);
     var cl=classify(key);
-    var iv=initials(s.student);
-    html+='<div class="sc s'+sc+'" id="sc-'+s.id+'">'+
+    html+='<div class="sc s'+sc+'" id="sc-'+s.rtdbKey+'">'+
       '<div class="scr1">'+
-        '<div class="scav">'+iv+'</div>'+
-        '<div class="scinfo">'+
+        '<div class="scav">'+initials(s.student)+'</div>'+
+        '<div class="sci">'+
           '<div class="scn">'+s.student+'</div>'+
           '<div class="scs">'+s.cls+' — '+s.teacher+'</div>'+
         '</div>'+
-        '<div class="sctm" id="tm-'+s.id+'">'+fmtTm(ms)+'</div>'+
+        '<div class="sctm" id="tm-'+s.rtdbKey+'">'+fmtTm(ms)+'</div>'+
       '</div>'+
       '<div class="scr2">'+
         '<div class="tags">'+
@@ -898,70 +1101,63 @@ function renderCards(){
           (cl==='x'?'<span class="tg tge">🔴 مفرط</span>':cl==='w'?'<span class="tg tgc">🟡 مراقبة</span>':'')+
           '<span class="tg tgb">رصيد:'+rem+'</span>'+
         '</div>'+
-        '<button class="btn bg" onclick="doReturn('+s.id+')">✅ عودة</button>'+
+        '<button class="btn bg" onclick="doReturn(\''+s.rtdbKey+'\','+s.exitTime+',\''+s.student.replace(/'/g,"\\'")+'\',\''+s.cls+'\')">✅ عودة</button>'+
       '</div>'+
     '</div>';
   }
   el.innerHTML=html;
 }
 
-/* ══════════════════════════════════════════
-   RENDER: CURRENT TABLE
-══════════════════════════════════════════ */
-function renderCurTable(){
+/* ═════════════════════════════════════════
+   RENDER CURRENT TABLE
+═════════════════════════════════════════ */
+function renderCur(){
   var ft=document.getElementById('ft-t').value;
   var fc=document.getElementById('ft-c').value;
   var fs=document.getElementById('ft-s').value;
   var fq=document.getElementById('ft-q').value.trim().toLowerCase();
-
   var data=[];
   for(var i=0;i<active.length;i++){
     var s=active[i];
     if(ft&&s.teacher!==ft) continue;
     if(fc&&s.cls!==fc) continue;
     if(fq&&s.student.toLowerCase().indexOf(fq)<0) continue;
-    if(fs){var sc2=st(s.exitTime); if(sc2!==fs) continue;}
+    if(fs){ var sc2=stCode(s.exitTime); if(sc2!==fs) continue; }
     data.push(s);
   }
-
   var body=document.getElementById('tb-c');
-  if(!data.length){
-    body.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--mu);padding:24px">لا توجد نتائج</td></tr>'; return;
-  }
-  var html='';
+  if(!data.length){ body.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--mu);padding:24px">لا توجد نتائج</td></tr>'; return; }
+  var h='';
   for(var j=0;j<data.length;j++){
     var s=data[j];
     var ms=Date.now()-s.exitTime;
-    var sc=st(s.exitTime);
+    var sc=stCode(s.exitTime);
     var key=skey(s);
-    var d=getD(key);
     var rem=creditRem(key);
-    var tcol=sc==='lat'?'var(--r)':sc==='wrn'?'var(--a)':'var(--g)';
-    html+='<tr>'+
+    var tc=sc==='lat'?'var(--r)':sc==='wrn'?'var(--a)':'var(--g)';
+    h+='<tr>'+
       '<td>'+(j+1)+'</td>'+
       '<td><strong>'+s.student+'</strong></td>'+
-      '<td>'+s.cls+'</td>'+
-      '<td>'+s.teacher+'</td>'+
+      '<td>'+s.cls+'</td><td>'+s.teacher+'</td>'+
       '<td>'+s.exitStr+'</td>'+
-      '<td><span id="ttm-'+s.id+'" style="font-weight:800;color:'+tcol+'">'+fmtTm(ms)+'</span></td>'+
+      '<td><span id="ttm-'+s.rtdbKey+'" style="font-weight:800;color:'+tc+'">'+fmtTm(ms)+'</span></td>'+
       '<td>'+s.reason+'</td>'+
       '<td>'+stBadge(sc)+'</td>'+
       '<td>'+clsBadge(key)+'</td>'+
       '<td><span class="bdg '+(rem===0?'blat':rem<=2?'bwrn':'bok')+'">'+rem+'/'+CFG.MAX_D+'</span></td>'+
-      '<td><button class="btn bg" onclick="doReturn('+s.id+')">✅ عودة</button></td>'+
+      '<td><button class="btn bg" onclick="doReturn(\''+s.rtdbKey+'\','+s.exitTime+',\''+s.student.replace(/'/g,"\\'")+'\',\''+s.cls+'\')">✅ عودة</button></td>'+
     '</tr>';
   }
-  body.innerHTML=html;
+  body.innerHTML=h;
 }
 
-/* ══════════════════════════════════════════
-   RENDER: HISTORY TABLE
-══════════════════════════════════════════ */
-function renderHistTable(){
+/* ═════════════════════════════════════════
+   RENDER HISTORY TABLE
+═════════════════════════════════════════ */
+function renderHist(){
   var ft=document.getElementById('fh-t').value;
   var fc=document.getElementById('fh-c').value;
   var fs=document.getElementById('fh-s').value;
-
   var data=[];
   for(var i=0;i<hist.length;i++){
     var s=hist[i];
@@ -972,105 +1168,84 @@ function renderHistTable(){
     data.push(s);
   }
   var body=document.getElementById('tb-h');
-  if(!data.length){
-    body.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--mu);padding:24px">لا يوجد سجلات بعد</td></tr>'; return;
-  }
-  var html='';
+  if(!data.length){ body.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--mu);padding:24px">لا يوجد سجلات بعد</td></tr>'; return; }
+  var h='';
   for(var j=0;j<data.length;j++){
     var s=data[j];
-    html+='<tr>'+
+    h+='<tr>'+
       '<td>'+(j+1)+'</td>'+
       '<td><strong>'+s.student+'</strong></td>'+
-      '<td>'+s.cls+'</td>'+
-      '<td>'+s.teacher+'</td>'+
-      '<td>'+s.exitStr+'</td>'+
-      '<td>'+s.returnStr+'</td>'+
+      '<td>'+s.cls+'</td><td>'+s.teacher+'</td>'+
+      '<td>'+s.exitStr+'</td><td>'+s.returnStr+'</td>'+
       '<td><strong>'+s.durStr+'</strong></td>'+
       '<td>'+s.reason+'</td>'+
       '<td>'+(s.wasLate?'<span class="bdg blat">⏰ تأخر</span>':'<span class="bdg bdn">✓ في الوقت</span>')+'</td>'+
     '</tr>';
   }
-  body.innerHTML=html;
+  body.innerHTML=h;
 }
 
-/* ══════════════════════════════════════════
-   RENDER: STATS
-══════════════════════════════════════════ */
+/* ═════════════════════════════════════════
+   RENDER STATS
+═════════════════════════════════════════ */
 function updateStats(){
   var late=0, ex=0;
-  for(var i=0;i<active.length;i++){ if(active[i].late) late++; }
+  for(var i=0;i<active.length;i++) if(stCode(active[i].exitTime)==='lat') late++;
   var keys=Object.keys(daily);
-  for(var j=0;j<keys.length;j++){ if(daily[keys[j]].count>=CFG.EXCESS) ex++; }
-
-  set('s-o', active.length);
-  set('s-l', late);
-  set('s-e', ex);
-  set('s-r', hist.length);
-  set('s-t', active.length+hist.length);
+  for(var k=0;k<keys.length;k++) if((daily[keys[k]].count||0)>=CFG.EXCESS) ex++;
+  set('s-o',active.length); set('s-l',late); set('s-e',ex);
+  set('s-r',hist.length); set('s-t',active.length+hist.length);
 }
-
 function updateHdrCtrs(){
   var late=0, ex=0;
-  for(var i=0;i<active.length;i++){ if(active[i].late) late++; }
+  for(var i=0;i<active.length;i++) if(stCode(active[i].exitTime)==='lat') late++;
   var keys=Object.keys(daily);
-  for(var j=0;j<keys.length;j++){ if(daily[keys[j]].count>=CFG.EXCESS) ex++; }
-  set('hc-o', active.length);
-  set('hc-l', late);
-  set('hc-e', ex);
-  set('hc-t', active.length+hist.length);
+  for(var k=0;k<keys.length;k++) if((daily[keys[k]].count||0)>=CFG.EXCESS) ex++;
+  set('hc-o',active.length); set('hc-l',late); set('hc-e',ex);
+  set('hc-t',active.length+hist.length);
 }
 
-function set(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; }
-
-/* ══════════════════════════════════════════
-   RENDER: ADMIN
-══════════════════════════════════════════ */
+/* ═════════════════════════════════════════
+   RENDER ADMIN
+═════════════════════════════════════════ */
 function renderAdmin(){
-  var all=[];
-  for(var i=0;i<active.length;i++) all.push(active[i]);
-  for(var j=0;j<hist.length;j++) all.push(hist[j]);
-
+  var all=active.concat(hist);
   var lateC=0;
-  for(var i=0;i<active.length;i++){ if(active[i].late) lateC++; }
-  for(var j=0;j<hist.length;j++){ if(hist[j].wasLate) lateC++; }
+  for(var i=0;i<active.length;i++) if(stCode(active[i].exitTime)==='lat') lateC++;
+  for(var j=0;j<hist.length;j++) if(hist[j].wasLate) lateC++;
   var ex=0;
-  var keys=Object.keys(daily);
-  for(var k=0;k<keys.length;k++){ if(daily[keys[k]].count>=CFG.EXCESS) ex++; }
-  var totalMs=0;
-  for(var j=0;j<hist.length;j++) totalMs+=hist[j].duration;
-  var avgMs=hist.length?Math.round(totalMs/hist.length):0;
+  var dkeys=Object.keys(daily);
+  for(var k=0;k<dkeys.length;k++) if((daily[dkeys[k]].count||0)>=CFG.EXCESS) ex++;
+  var totMs=0;
+  for(var j=0;j<hist.length;j++) totMs+=hist[j].duration;
+  var avgMs=hist.length?Math.round(totMs/hist.length):0;
 
-  set('ad-tot', all.length);
-  set('ad-lat', lateC);
-  set('ad-exc', ex);
-  set('ad-avg', avgMs?fmtMs(avgMs):'—');
+  set('ad-tot',all.length); set('ad-lat',lateC); set('ad-exc',ex);
+  set('ad-avg',avgMs?fmtMs(avgMs):'—');
 
   // Top students
   var tops=[];
-  for(var k=0;k<keys.length;k++){
-    var pk=keys[k].split('|');
-    tops.push({key:keys[k], name:pk[0].replace(/_/g,' '), cls:pk[1]?pk[1].replace(/_/g,' '):'', d:daily[keys[k]]});
+  for(var k=0;k<dkeys.length;k++){
+    var dk=dkeys[k];
+    var pk=dk.split('_')[0].split('|');
+    tops.push({key:dk,name:pk[0].replace(/_/g,' '),cls:pk[1]?pk[1].replace(/_/g,' '):'',d:daily[dk]});
   }
-  tops.sort(function(a,b){return b.d.count-a.d.count;});
+  tops.sort(function(a,b){return (b.d.count||0)-(a.d.count||0);});
   if(tops.length>7) tops=tops.slice(0,7);
-
   var topEl=document.getElementById('ad-tops');
-  if(!tops.length){ topEl.innerHTML='<div class="empty"><p>لا بيانات بعد</p></div>'; }
-  else {
+  if(!tops.length){topEl.innerHTML='<div class="empty"><p>لا بيانات بعد</p></div>';}
+  else{
     var h='';
     for(var i=0;i<tops.length;i++){
-      var t=tops[i];
-      var cl=classify(t.key);
-      var pct=Math.min(100,Math.round(t.d.count/CFG.MAX_D*100));
+      var t=tops[i]; var cnt=t.d.count||0;
+      var cl=cnt>=CFG.EXCESS?'x':cnt>=CFG.EXCESS-1?'w':'n';
+      var pct=Math.min(100,Math.round(cnt/CFG.MAX_D*100));
       var fc=cl==='x'?'var(--r)':cl==='w'?'var(--a)':'var(--g)';
       h+='<div class="prow">'+
         '<div class="pnum">'+(i+1)+'</div>'+
-        '<div class="pinfo">'+
-          '<div class="pn">'+t.name+'</div>'+
-          '<div class="ps">'+t.cls+'</div>'+
-          '<div class="cbar-s"><div class="cbar-sf" style="width:'+pct+'%;background:'+fc+'"></div></div>'+
-        '</div>'+
-        '<div class="pval"><div class="pv" style="color:'+fc+'">'+t.d.count+'</div><div class="pl">من '+CFG.MAX_D+'</div></div>'+
+        '<div class="pinfo"><div class="pn">'+t.name+'</div><div class="ps">'+t.cls+'</div>'+
+        '<div class="csbar"><div class="csfill" style="width:'+pct+'%;background:'+fc+'"></div></div></div>'+
+        '<div class="pval"><div class="pvv" style="color:'+fc+'">'+cnt+'</div><div class="pvl">من '+CFG.MAX_D+'</div></div>'+
       '</div>';
     }
     topEl.innerHTML=h;
@@ -1079,56 +1254,43 @@ function renderAdmin(){
   // Teacher summary
   var tmap={};
   for(var i=0;i<all.length;i++){
-    var s=all[i];
-    if(!tmap[s.teacher]) tmap[s.teacher]={name:s.teacher,cnt:0,lc:0};
+    var s=all[i]; if(!s.teacher) continue;
+    if(!tmap[s.teacher]) tmap[s.teacher]={cnt:0,lc:0};
     tmap[s.teacher].cnt++;
-    if(s.wasLate||s.late) tmap[s.teacher].lc++;
+    if(s.wasLate||(s.exitTime&&stCode(s.exitTime)==='lat')) tmap[s.teacher].lc++;
   }
-  var tlist=[];
-  var tk=Object.keys(tmap);
-  for(var i=0;i<tk.length;i++) tlist.push(tmap[tk[i]]);
+  var tlist=[]; var tk=Object.keys(tmap);
+  for(var i=0;i<tk.length;i++) tlist.push({name:tk[i],cnt:tmap[tk[i]].cnt,lc:tmap[tk[i]].lc});
   tlist.sort(function(a,b){return b.cnt-a.cnt;});
   var tEl=document.getElementById('ad-tchrs');
-  if(!tlist.length){ tEl.innerHTML='<div class="empty"><p>لا بيانات</p></div>'; }
-  else {
+  if(!tlist.length){tEl.innerHTML='<div class="empty"><p>لا بيانات</p></div>';}
+  else{
     var h='';
     for(var i=0;i<tlist.length;i++){
       var t=tlist[i];
-      h+='<div class="prow">'+
-        '<div style="font-size:20px">👩‍🏫</div>'+
-        '<div class="pinfo">'+
-          '<div class="pn">'+t.name+'</div>'+
-          '<div class="ps">'+t.cnt+' طلب | تأخر: '+t.lc+'</div>'+
-        '</div>'+
-        '<span class="bdg '+(t.lc>0?'bwrn':'bok')+'">'+
-          (t.lc>0?'⚠️ '+t.lc+' تأخر':'✓ نظيف')+
-        '</span>'+
+      h+='<div class="prow"><div style="font-size:20px">👩‍🏫</div>'+
+        '<div class="pinfo"><div class="pn">'+t.name+'</div><div class="ps">'+t.cnt+' طلب | تأخر: '+t.lc+'</div></div>'+
+        '<span class="bdg '+(t.lc>0?'bwrn':'bok')+'">'+(t.lc>0?'⚠️ '+t.lc+' تأخر':'✓ نظيف')+'</span>'+
       '</div>';
     }
     tEl.innerHTML=h;
   }
 
   // Heatmap
-  var CLASSES=[
-    'الأول/1','الأول/2','الأول/3','الأول/4','الأول/5','الأول/6',
+  var CLASSES=['الأول/1','الأول/2','الأول/3','الأول/4','الأول/5','الأول/6',
     'الثاني/1','الثاني/2','الثاني/3','الثاني/4','الثاني/5','الثاني/6',
-    'الثالث/1','الثالث/2','الثالث/3','الثالث/4','الثالث/5','الثالث/6'
-  ];
+    'الثالث/1','الثالث/2','الثالث/3','الثالث/4','الثالث/5','الثالث/6'];
   var cmap={};
   for(var i=0;i<all.length;i++) cmap[all[i].cls]=(cmap[all[i].cls]||0)+1;
-  var maxC=1;
-  var ck=Object.keys(cmap);
+  var maxC=1; var ck=Object.keys(cmap);
   for(var i=0;i<ck.length;i++) if(cmap[ck[i]]>maxC) maxC=cmap[ck[i]];
-
   var h='';
   for(var i=0;i<CLASSES.length;i++){
-    var c=CLASSES[i];
-    var cnt=cmap[c]||0;
+    var c=CLASSES[i]; var cnt=cmap[c]||0;
     var pct2=cnt/maxC;
     var bg=cnt===0?'var(--bg)':pct2>0.65?'var(--r)':pct2>0.35?'var(--a)':'var(--g)';
-    var fg=cnt>0?'#fff':'var(--mu)';
-    h+='<div class="hcell" style="background:'+bg+';color:'+fg+'">'+
-      '<div class="hcell-num">'+cnt+'</div>'+
+    h+='<div class="hcell" style="background:'+bg+';color:'+(cnt>0?'#fff':'var(--mu)')+'">'+
+      '<div class="hcell-n">'+cnt+'</div>'+
       '<div style="font-size:10px;opacity:.9">'+c+'</div>'+
     '</div>';
   }
@@ -1137,257 +1299,196 @@ function renderAdmin(){
   // Watch list
   var watch=[];
   for(var i=0;i<active.length;i++){
-    var s=active[i];
-    var sc=st(s.exitTime);
-    var cl=classify(skey(s));
+    var s=active[i]; var sc=stCode(s.exitTime); var cl=classify(skey(s));
     if(sc==='lat'||sc==='wrn'||cl==='x'||cl==='w') watch.push(s);
   }
   var wb=document.getElementById('ad-watch');
-  if(!watch.length){
-    wb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--mu);padding:24px">✅ لا توجد حالات تحتاج مراقبة</td></tr>';
-  } else {
-    var h='';
-    for(var i=0;i<watch.length;i++){
-      var s=watch[i];
-      var ms=Date.now()-s.exitTime;
-      var sc=st(s.exitTime);
-      var key=skey(s);
-      var d=getD(key);
-      h+='<tr>'+
-        '<td><strong>'+s.student+'</strong></td>'+
-        '<td>'+s.cls+'</td>'+
-        '<td>'+s.teacher+'</td>'+
-        '<td style="font-weight:900;color:'+(sc==='lat'?'var(--r)':'var(--a)')+'">'+fmtTm(ms)+'</td>'+
-        '<td style="text-align:center">'+d.count+'</td>'+
-        '<td>'+clsBadge(key)+'</td>'+
-        '<td>'+stBadge(sc)+'</td>'+
-        '<td><button class="btn bg" onclick="doReturn('+s.id+')">✅ تسجيل عودة</button></td>'+
-      '</tr>';
-    }
-    wb.innerHTML=h;
+  if(!watch.length){ wb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--mu);padding:24px">✅ لا توجد حالات تحتاج مراقبة</td></tr>'; return; }
+  var h='';
+  for(var i=0;i<watch.length;i++){
+    var s=watch[i]; var ms=Date.now()-s.exitTime; var sc=stCode(s.exitTime); var key=skey(s); var d=getD(key);
+    h+='<tr>'+
+      '<td><strong>'+s.student+'</strong></td><td>'+s.cls+'</td><td>'+s.teacher+'</td>'+
+      '<td style="font-weight:900;color:'+(sc==='lat'?'var(--r)':'var(--a)')+'">'+fmtTm(ms)+'</td>'+
+      '<td style="text-align:center">'+(d.count||0)+'</td>'+
+      '<td>'+clsBadge(key)+'</td><td>'+stBadge(sc)+'</td>'+
+      '<td><button class="btn bg" onclick="doReturn(\''+s.rtdbKey+'\','+s.exitTime+',\''+s.student.replace(/'/g,"\\'")+'\',\''+s.cls+'\')">✅ عودة</button></td>'+
+    '</tr>';
   }
+  wb.innerHTML=h;
 }
 
-/* ══════════════════════════════════════════
-   RENDER: STUDENT REGISTRY
-══════════════════════════════════════════ */
+/* ═════════════════════════════════════════
+   RENDER REGISTRY
+═════════════════════════════════════════ */
 function renderReg(){
   var sq=document.getElementById('sr-q').value.trim().toLowerCase();
   var sc=document.getElementById('sr-c').value;
   var sbh=document.getElementById('sr-bh').value;
-
-  // Collect all known students from daily + active
   var seen={};
-  var keys=Object.keys(daily);
-  for(var i=0;i<keys.length;i++) seen[keys[i]]=true;
-  for(var i=0;i<active.length;i++){ var k=skey(active[i]); seen[k]=true; }
-
-  var rows=[];
-  var allKeys=Object.keys(seen);
+  var dkeys=Object.keys(daily);
+  for(var k=0;k<dkeys.length;k++) seen[dkeys[k]]=true;
+  for(var i=0;i<active.length;i++){ var k=skey(active[i])+'_'+todayKey(); seen[k]=true; }
+  var rows=[]; var allKeys=Object.keys(seen);
   for(var i=0;i<allKeys.length;i++){
     var key=allKeys[i];
-    var pk=key.split('|');
-    var name=pk[0].replace(/_/g,' ');
-    var cls=pk[1]?pk[1].replace(/_/g,' '):'';
-    var d=getD(key);
-    var cl=classify(key);
-    // Find if currently out
+    var pk=key.split('_')[0].split('|');
+    var name=pk[0].replace(/_/g,' '), cls=pk[1]?pk[1].replace(/_/g,' '):'';
+    var d=getD(key.split('_')[0].split('|').join('|')+'_'+todayKey());
+    var cl=classify(key.split('_')[0].split('|').join('|'));
     var outNow=null;
-    for(var j=0;j<active.length;j++){ if(skey(active[j])===key){outNow=active[j];break;} }
+    for(var j=0;j<active.length;j++) if(skey(active[j])===key.split('_')[0].replace(/\|/g,'|')){outNow=active[j];break;}
     rows.push({key:key,name:name,cls:cls,d:d,cl:cl,outNow:outNow});
   }
-
-  // Filter
-  var filtered=[];
+  var filt=[];
   for(var i=0;i<rows.length;i++){
     var r=rows[i];
     if(sq&&r.name.toLowerCase().indexOf(sq)<0) continue;
     if(sc&&r.cls!==sc) continue;
     if(sbh&&r.cl!==sbh) continue;
-    filtered.push(r);
+    filt.push(r);
   }
-  filtered.sort(function(a,b){return b.d.count-a.d.count;});
-
+  filt.sort(function(a,b){return (b.d.count||0)-(a.d.count||0);});
   var body=document.getElementById('tb-reg');
-  if(!filtered.length){
-    body.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--mu);padding:24px">لا توجد بيانات</td></tr>'; return;
-  }
-  var html='';
-  for(var i=0;i<filtered.length;i++){
-    var r=filtered[i];
-    var rem=creditRem(r.key);
-    var outBadge=r.outNow
-      ? stBadge(st(r.outNow.exitTime))
-      : '<span class="bdg bdn">في الفصل</span>';
-    html+='<tr>'+
+  if(!filt.length){ body.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--mu);padding:24px">لا توجد بيانات</td></tr>'; return; }
+  var h='';
+  for(var i=0;i<filt.length;i++){
+    var r=filt[i]; var rem=Math.max(0,CFG.MAX_D-(r.d.count||0));
+    var outB=r.outNow?stBadge(stCode(r.outNow.exitTime)):'<span class="bdg bdn">في الفصل</span>';
+    h+='<tr>'+
       '<td>'+(i+1)+'</td>'+
-      '<td><strong>'+r.name+'</strong></td>'+
-      '<td>'+r.cls+'</td>'+
-      '<td style="text-align:center;font-weight:800;font-size:16px">'+r.d.count+'</td>'+
+      '<td><strong>'+r.name+'</strong></td><td>'+r.cls+'</td>'+
+      '<td style="text-align:center;font-weight:800;font-size:16px">'+(r.d.count||0)+'</td>'+
       '<td><span class="bdg '+(rem===0?'blat':rem<=2?'bwrn':'bok')+'">'+rem+' / '+CFG.MAX_D+'</span></td>'+
       '<td>'+fmtMs(r.d.totalMs||0)+'</td>'+
       '<td>'+fmtMs(r.d.maxMs||0)+'</td>'+
-      '<td>'+clsBadge(r.key)+'</td>'+
-      '<td>'+outBadge+'</td>'+
+      '<td>'+clsBadge(r.key.split('_')[0].split('|').join('|'))+'</td>'+
+      '<td>'+outB+'</td>'+
     '</tr>';
   }
-  body.innerHTML=html;
+  body.innerHTML=h;
 }
 
-/* ══════════════════════════════════════════
-   RENDER: REPORTS
-══════════════════════════════════════════ */
+/* ═════════════════════════════════════════
+   RENDER REPORTS
+═════════════════════════════════════════ */
 function renderReports(){
-  var all=[];
-  for(var i=0;i<hist.length;i++) all.push(hist[i]);
-  // Add still-out students
+  var all=[]; for(var i=0;i<hist.length;i++) all.push(hist[i]);
   for(var i=0;i<active.length;i++){
     var s=active[i];
-    all.push({
-      student:s.student,cls:s.cls,teacher:s.teacher,reason:s.reason,
-      exitStr:s.exitStr,returnStr:'جارٍ',durStr:'جارٍ',wasLate:s.late,
-      id:s.id
-    });
+    all.push({student:s.student,cls:s.cls,teacher:s.teacher,reason:s.reason,
+      exitStr:s.exitStr,returnStr:'جارٍ',durStr:'جارٍ',wasLate:s.late||false});
   }
+  var lateC=0; for(var j=0;j<hist.length;j++) if(hist[j].wasLate) lateC++;
+  var ex=0; var dkeys=Object.keys(daily);
+  for(var k=0;k<dkeys.length;k++) if((daily[dkeys[k]].count||0)>=CFG.EXCESS) ex++;
+  set('rp-tot',all.length); set('rp-ok',hist.length-lateC);
+  set('rp-lat',lateC); set('rp-exc',ex);
 
-  var lateC=0;
-  for(var i=0;i<hist.length;i++) if(hist[i].wasLate) lateC++;
-  var onTime=hist.length-lateC;
-  var ex=0;
-  var keys=Object.keys(daily);
-  for(var k=0;k<keys.length;k++) if(daily[keys[k]].count>=CFG.EXCESS) ex++;
-
-  set('rp-tot', all.length);
-  set('rp-ok',  onTime);
-  set('rp-lat', lateC);
-  set('rp-exc', ex);
-
-  // Reason chart
   var reasons={};
   for(var i=0;i<all.length;i++) reasons[all[i].reason]=(reasons[all[i].reason]||0)+1;
   var rkeys=Object.keys(reasons);
   var rcEl=document.getElementById('rp-reasons');
   if(!rkeys.length){rcEl.innerHTML='<div class="empty"><p>لا بيانات</p></div>';}
-  else {
+  else{
     var h='';
     for(var i=0;i<rkeys.length;i++){
-      var rk=rkeys[i], n=reasons[rk];
-      var pct=Math.round(n/all.length*100);
-      h+='<div class="cbar">'+
-        '<div class="cbar-hd"><span>'+rk+'</span><span>'+n+' ('+pct+'%)</span></div>'+
-        '<div class="cbar-track"><div class="cbar-fill" style="width:'+pct+'%;background:var(--blue)"></div></div>'+
-      '</div>';
+      var rk=rkeys[i],n=reasons[rk],pct=all.length?Math.round(n/all.length*100):0;
+      h+='<div class="cbar"><div class="cbar-hd"><span>'+rk+'</span><span>'+n+' ('+pct+'%)</span></div>'+
+        '<div class="cbar-t"><div class="cbar-f" style="width:'+pct+'%;background:var(--blue)"></div></div></div>';
     }
     rcEl.innerHTML=h;
   }
 
-  // Duration chart
   var bkt={'0–3 دقائق':0,'3–7 دقائق':0,'7–10 دقائق':0,'+10 دقائق':0};
   for(var i=0;i<hist.length;i++){
     var m=hist[i].duration/60000;
-    if(m<3)       bkt['0–3 دقائق']++;
-    else if(m<7)  bkt['3–7 دقائق']++;
+    if(m<3) bkt['0–3 دقائق']++;
+    else if(m<7) bkt['3–7 دقائق']++;
     else if(m<10) bkt['7–10 دقائق']++;
-    else          bkt['+10 دقائق']++;
+    else bkt['+10 دقائق']++;
   }
   var dEl=document.getElementById('rp-dur');
   if(!hist.length){dEl.innerHTML='<div class="empty"><p>لا بيانات بعد</p></div>';}
-  else {
-    var h='';
-    var bkeys=['0–3 دقائق','3–7 دقائق','7–10 دقائق','+10 دقائق'];
+  else{
+    var h=''; var bkeys=['0–3 دقائق','3–7 دقائق','7–10 دقائق','+10 دقائق'];
     var bcols=['var(--g)','var(--blue)','var(--a)','var(--r)'];
     for(var i=0;i<bkeys.length;i++){
-      var bk=bkeys[i], n=bkt[bk];
-      var pct=hist.length?Math.round(n/hist.length*100):0;
-      h+='<div class="cbar">'+
-        '<div class="cbar-hd"><span>'+bk+'</span><span>'+n+' ('+pct+'%)</span></div>'+
-        '<div class="cbar-track"><div class="cbar-fill" style="width:'+pct+'%;background:'+bcols[i]+'"></div></div>'+
-      '</div>';
+      var bk=bkeys[i],n=bkt[bk],pct=hist.length?Math.round(n/hist.length*100):0;
+      h+='<div class="cbar"><div class="cbar-hd"><span>'+bk+'</span><span>'+n+' ('+pct+'%)</span></div>'+
+        '<div class="cbar-t"><div class="cbar-f" style="width:'+pct+'%;background:'+bcols[i]+'"></div></div></div>';
     }
     dEl.innerHTML=h;
   }
 
-  // Full table
   var body=document.getElementById('tb-rp');
-  if(!all.length){
-    body.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--mu);padding:24px">لا يوجد سجلات</td></tr>'; return;
-  }
-  var html='';
+  if(!all.length){ body.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--mu);padding:24px">لا يوجد سجلات</td></tr>'; return; }
+  var h='';
   for(var i=0;i<all.length;i++){
-    var s=all[i];
-    var key=s.student.replace(/\s+/g,'_')+'|'+s.cls.replace(/\s+/g,'_');
-    html+='<tr>'+
-      '<td>'+(i+1)+'</td>'+
-      '<td><strong>'+s.student+'</strong></td>'+
-      '<td>'+s.cls+'</td>'+
-      '<td>'+s.teacher+'</td>'+
-      '<td>'+s.exitStr+'</td>'+
-      '<td>'+s.returnStr+'</td>'+
-      '<td>'+s.durStr+'</td>'+
-      '<td>'+s.reason+'</td>'+
+    var s=all[i], key=skey({student:s.student,cls:s.cls||s.class});
+    h+='<tr>'+
+      '<td>'+(i+1)+'</td><td><strong>'+s.student+'</strong></td>'+
+      '<td>'+(s.cls||s.class)+'</td><td>'+s.teacher+'</td>'+
+      '<td>'+s.exitStr+'</td><td>'+s.returnStr+'</td>'+
+      '<td>'+s.durStr+'</td><td>'+s.reason+'</td>'+
       '<td>'+(s.wasLate?'<span class="bdg blat">⏰ تأخر</span>':'<span class="bdg bdn">✓ في الوقت</span>')+'</td>'+
       '<td>'+clsBadge(key)+'</td>'+
     '</tr>';
   }
-  body.innerHTML=html;
+  body.innerHTML=h;
 }
 
-/* ══════════════════════════════════════════
+/* ═════════════════════════════════════════
    UPDATE FILTERS
-══════════════════════════════════════════ */
+═════════════════════════════════════════ */
 function updateFilters(){
-  var teachers={};
-  var classes={};
-  var all=[];
-  for(var i=0;i<active.length;i++) all.push(active[i]);
+  var teachers={}, classes={};
+  var all=[]; for(var i=0;i<active.length;i++) all.push(active[i]);
   for(var i=0;i<hist.length;i++) all.push(hist[i]);
   for(var i=0;i<all.length;i++){
     if(all[i].teacher) teachers[all[i].teacher]=true;
-    if(all[i].cls) classes[all[i].cls]=true;
+    var c=all[i].cls||all[i].class; if(c) classes[c]=true;
   }
-  var tlist=Object.keys(teachers);
-  var clist=Object.keys(classes);
-
-  // Update teacher filters
+  var tlist=Object.keys(teachers), clist=Object.keys(classes);
   var tids=['ft-t','fh-t'];
   for(var k=0;k<tids.length;k++){
-    var sel=document.getElementById(tids[k]);
-    var cur=sel.value;
+    var sel=document.getElementById(tids[k]); var cur=sel.value;
     var h='<option value="">كل المعلمين</option>';
     for(var i=0;i<tlist.length;i++) h+='<option value="'+tlist[i]+'"'+(tlist[i]===cur?' selected':'')+'>'+tlist[i]+'</option>';
     sel.innerHTML=h;
   }
-  // Class filters
   var cids=['ft-c','fh-c','sr-c'];
   for(var k=0;k<cids.length;k++){
-    var sel=document.getElementById(cids[k]);
-    var cur=sel.value;
+    var sel=document.getElementById(cids[k]); var cur=sel.value;
     var h='<option value="">كل الفصول</option>';
     for(var i=0;i<clist.length;i++) h+='<option value="'+clist[i]+'"'+(clist[i]===cur?' selected':'')+'>'+clist[i]+'</option>';
     sel.innerHTML=h;
   }
 }
 
-/* ══════════════════════════════════════════
+/* ═════════════════════════════════════════
    RENDER ALL
-══════════════════════════════════════════ */
+═════════════════════════════════════════ */
 function renderAll(){
   updateFilters();
   renderCards();
-  renderCurTable();
-  renderHistTable();
+  renderCur();
+  renderHist();
   updateStats();
   updateHdrCtrs();
-  renderAdmin();
-  renderReg();
-  renderReports();
+  // Admin/Students/Reports render on tab click only (for performance)
+  var ap=document.getElementById('pg-admin');
+  if(ap&&ap.classList.contains('on')) renderAdmin();
+  var sp=document.getElementById('pg-students');
+  if(sp&&sp.classList.contains('on')) renderReg();
+  var rp=document.getElementById('pg-reports');
+  if(rp&&rp.classList.contains('on')) renderReports();
 }
 
-/* ══════════════════════════════════════════
-   PAGE NAVIGATION  ← THE KEY FIX
-══════════════════════════════════════════ */
+/* ═════════════════════════════════════════
+   PAGE NAV
+═════════════════════════════════════════ */
 var PAGES=['teacher','admin','students','reports'];
-
 function goPg(name){
   for(var i=0;i<PAGES.length;i++){
     var id=PAGES[i];
@@ -1396,25 +1497,24 @@ function goPg(name){
     if(pgEl) pgEl.className=(id===name)?'pg on':'pg';
     if(nbEl) nbEl.className=(id===name)?'nb on':'nb';
   }
-  // Re-render the target page
   if(name==='admin')    renderAdmin();
   if(name==='students') renderReg();
   if(name==='reports')  renderReports();
 }
 
-/* ══════════════════════════════════════════
+/* ═════════════════════════════════════════
    INNER TABS
-══════════════════════════════════════════ */
-function switchIT(name){
-  document.getElementById('it-c').className='it'+(name==='c'?' on':'');
-  document.getElementById('it-h').className='it'+(name==='h'?' on':'');
-  document.getElementById('ip-c').className='ip'+(name==='c'?' on':'');
-  document.getElementById('ip-h').className='ip'+(name==='h'?' on':'');
+═════════════════════════════════════════ */
+function swIT(n){
+  document.getElementById('it-c').className='it'+(n==='c'?' on':'');
+  document.getElementById('it-h').className='it'+(n==='h'?' on':'');
+  document.getElementById('ip-c').className='ip'+(n==='c'?' on':'');
+  document.getElementById('ip-h').className='ip'+(n==='h'?' on':'');
 }
 
-/* ══════════════════════════════════════════
+/* ═════════════════════════════════════════
    MODAL
-══════════════════════════════════════════ */
+═════════════════════════════════════════ */
 var _mcb=null;
 function openModal(ico,tit,msg,showCancel,cb){
   document.getElementById('m-ico').textContent=ico;
@@ -1433,21 +1533,9 @@ function cancelModal(){
   _mcb=null;
 }
 
-/* ══════════════════════════════════════════
-   RESET
-══════════════════════════════════════════ */
-function confirmReset(){
-  openModal('🔄','إعادة تعيين اليوم',
-    'سيتم حذف جميع بيانات اليوم نهائياً. هل تريد المتابعة؟',true,
-    function(){ active=[]; hist=[]; daily={}; alerted={}; save(); renderAll(); });
-  // Override ok to confirm
-  document.getElementById('m-ok').onclick=function(){closeModal();};
-  document.getElementById('m-cn').onclick=function(){cancelModal();};
-}
-
-/* ══════════════════════════════════════════
+/* ═════════════════════════════════════════
    BEEP
-══════════════════════════════════════════ */
+═════════════════════════════════════════ */
 function beep(n){
   try{
     var ctx=new(window.AudioContext||window.webkitAudioContext)();
@@ -1463,11 +1551,6 @@ function beep(n){
     }
   }catch(e){}
 }
-
-/* ══════════════════════════════════════════
-   INIT
-══════════════════════════════════════════ */
-renderAll();
 </script>
 </body>
 </html>
