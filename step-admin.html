@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>STEP Admin Panel — Teacher Only</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#0a0a0a;color:#f0f0f0;font-family:'DM Sans',sans-serif;min-height:100vh}
+  .font-syne{font-family:'Syne',sans-serif}
+  ::-webkit-scrollbar{width:5px}
+  ::-webkit-scrollbar-track{background:#111}
+  ::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:999px}
+  ::-webkit-scrollbar-thumb:hover{background:#FFFC00}
+  .card{background:#141414;border:1px solid #1e1e1e;border-radius:20px}
+  .card-inner{background:#1a1a1a;border:1px solid #242424;border-radius:14px}
+  .accent{color:#FFFC00}
+  .inp{background:#111;border:2px solid #1e1e1e;border-radius:12px;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:.9rem;padding:12px 16px;width:100%;outline:none;transition:border-color .2s,box-shadow .2s;resize:vertical}
+  .inp:focus{border-color:#FFFC00;box-shadow:0 0 0 3px rgba(255,252,0,.07)}
+  .inp::placeholder{color:#333}
+  select.inp option{background:#111}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;border:none;outline:none;padding:12px 22px;transition:transform .15s,box-shadow .2s,opacity .2s}
+  .btn:hover{transform:translateY(-1px)}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:#FFFC00;color:#0a0a0a;box-shadow:0 4px 20px rgba(255,252,0,.18)}
+  .btn-primary:hover{box-shadow:0 6px 28px rgba(255,252,0,.32)}
+  .btn-danger{background:#1e0808;color:#f87171;border:1px solid #3a1010}
+  .btn-danger:hover{background:#2a0a0a}
+  .btn-ghost{background:#1a1a1a;color:#aaa;border:1px solid #242424}
+  .btn-ghost:hover{color:#fff;border-color:#333}
+  .btn-sm{padding:7px 13px;font-size:.78rem;border-radius:9px}
+  .btn-green{background:#052010;color:#22c55e;border:1px solid #0a3018}
+  .btn-green:hover{background:#0a3018}
+  .q-block{background:#111;border:1px solid #1a1a1a;border-radius:16px;padding:20px;transition:border-color .2s}
+  .q-block:hover{border-color:#252525}
+  .opt-letter{width:28px;height:28px;border-radius:50%;background:#1e1e1e;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:.78rem;color:#555;flex-shrink:0;transition:background .2s,color .2s}
+  .correct-radio{accent-color:#FFFC00;cursor:pointer}
+  .exp-block{background:#111;border:1px solid #1a1a1a;border-radius:14px;padding:16px;position:relative}
+  .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  #toast{position:fixed;top:22px;left:50%;transform:translateX(-50%);z-index:9999;font-family:'Syne',sans-serif;font-weight:700;font-size:.83rem;padding:9px 22px;border-radius:999px;box-shadow:0 4px 20px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap}
+  .tab-btn{padding:8px 18px;border-radius:10px;font-family:'Syne',sans-serif;font-weight:600;font-size:.83rem;cursor:pointer;border:none;background:transparent;color:#444;transition:background .2s,color .2s}
+  .tab-btn.active{background:#1a1a1a;color:#FFFC00}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:999px;font-size:.73rem;font-family:'Syne',sans-serif;font-weight:600}
+  .badge-green{background:rgba(34,197,94,.08);color:#22c55e;border:1px solid rgba(34,197,94,.18)}
+  .badge-yellow{background:rgba(255,252,0,.07);color:#FFFC00;border:1px solid rgba(255,252,0,.14)}
+  .badge-red{background:rgba(239,68,68,.08);color:#ef4444;border:1px solid rgba(239,68,68,.18)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spinner{width:18px;height:18px;border:2px solid #222;border-top-color:#FFFC00;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+  .spinner-lg{width:32px;height:32px;border-width:3px;margin:0 auto}
+  @keyframes glow-pulse{0%{box-shadow:0 0 0 0 rgba(255,252,0,.4)}100%{box-shadow:0 0 0 16px rgba(255,252,0,0)}}
+  .glow{animation:glow-pulse .6s ease-out}
+  .results-table{width:100%;border-collapse:collapse}
+  .results-table th{text-align:left;padding:10px 14px;font-family:'Syne',sans-serif;font-weight:700;font-size:.72rem;color:#444;border-bottom:1px solid #1a1a1a;text-transform:uppercase;letter-spacing:.05em}
+  .results-table td{padding:11px 14px;font-size:.87rem;border-bottom:1px solid #111}
+  .results-table tr:hover td{background:#0d0d0d}
+</style>
+</head>
+<body>
+
+<!-- ═══════════  LOGIN  ═══════════ -->
+<div id="login-screen" class="login-screen">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="w-14 h-14 bg-[#FFFC00] rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl" style="box-shadow:0 4px 24px rgba(255,252,0,.22)">⚡</div>
+      <h1 class="font-syne font-extrabold text-2xl mb-1">STEP Admin</h1>
+      <p class="text-gray-500 text-sm">Teacher Control Panel · @Elysooo</p>
+    </div>
+    <div class="card p-6">
+      <p class="text-gray-500 text-sm mb-5">Sign in with your teacher account to manage daily quizzes.</p>
+      <label class="text-xs text-gray-500 mb-1 block">Email</label>
+      <input id="login-email" class="inp mb-3" type="email" placeholder="teacher@example.com" autocomplete="email"/>
+      <label class="text-xs text-gray-500 mb-1 block">Password</label>
+      <input id="login-password" class="inp mb-2" type="password" placeholder="••••••••" autocomplete="current-password"/>
+      <p id="login-error" class="text-red-400 text-xs mb-3 hidden"></p>
+      <button class="btn btn-primary w-full mt-2" onclick="loginAdmin()" id="login-btn">Sign In →</button>
+    </div>
+    <p class="text-center text-gray-600 text-xs mt-5">
+      Create your account in Firebase Console → Authentication → Users
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════  ADMIN PANEL  ═══════════ -->
+<div id="admin-panel" class="hidden">
+
+  <!-- NAV -->
+  <nav class="sticky top-0 z-50 border-b border-[#141414]" style="background:rgba(10,10,10,.96);backdrop-filter:blur(14px)">
+    <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-[#FFFC00] rounded-lg flex items-center justify-center text-sm">⚡</div>
+        <div>
+          <span class="font-syne font-bold text-sm">STEP Admin Panel</span>
+          <span class="text-gray-600 text-xs ml-2" id="admin-email-lbl"></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="unsaved-badge" class="badge badge-yellow hidden"><span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>Unsaved</span>
+        <button class="btn btn-ghost btn-sm" onclick="logoutAdmin()">Sign Out</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-5xl mx-auto px-5 py-8">
+
+    <!-- TABS -->
+    <div class="flex gap-1 bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-1 mb-8 w-fit flex-wrap">
+      <button class="tab-btn active" id="tab-editor"  onclick="switchTab('editor')">✏️ Quiz Editor</button>
+      <button class="tab-btn"        id="tab-results" onclick="switchTab('results')">📊 Results</button>
+      <button class="tab-btn"        id="tab-preview" onclick="switchTab('preview')">👁 Preview</button>
+      <button class="tab-btn"        id="tab-share"   onclick="switchTab('share')">📤 Share</button>
+    </div>
+
+    <!-- ════════  EDITOR  ════════ -->
+    <div id="pane-editor">
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="card p-4 text-center">
+          <p class="text-2xl font-syne font-extrabold accent" id="stat-p">—</p>
+          <p class="text-xs text-gray-500 mt-1">Participants</p>
+        </div>
+        <div class="card p-4 text-center">
+          <p class="text-2xl font-syne font-extrabold accent" id="stat-avg">—</p>
+          <p class="text-xs text-gray-500 mt-1">Avg Score</p>
+        </div>
+        <div class="card p-4 text-center">
+          <p class="text-2xl font-syne font-extrabold accent" id="stat-q">—</p>
+          <p class="text-xs text-gray-500 mt-1">Questions</p>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-syne font-bold">⚙️ Basic Settings</h2>
+          <div id="live-badge" class="badge badge-green"><span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>Live</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Quiz Timer (seconds)</label>
+            <input id="f-time" class="inp" type="number" min="10" max="300" value="60" oninput="markUnsaved()"/>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Snapchat Username</label>
+            <input id="f-snap" class="inp" type="text" placeholder="@Elysooo" value="@Elysooo" oninput="markUnsaved()"/>
+          </div>
+          <div class="md:col-span-2">
+            <label class="text-xs text-gray-500 mb-1 block">Quiz Label (shown top-right on student page)</label>
+            <input id="f-label" class="inp" type="text" placeholder="e.g. Week 3 · Day 2" oninput="markUnsaved()"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Passage -->
+      <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-syne font-bold">📖 Reading Passage</h2>
+          <span class="text-xs text-gray-600" id="char-count">0 chars</span>
+        </div>
+        <textarea id="f-passage" class="inp" rows="9" placeholder="Paste the reading passage here. Separate paragraphs with a blank line..." oninput="countChars()"></textarea>
+        <p class="text-xs text-gray-600 mt-2">Blank line between paragraphs = clean formatting on student page.</p>
+      </div>
+
+      <!-- Questions -->
+      <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-syne font-bold">❓ Questions</h2>
+          <button class="btn btn-ghost btn-sm" onclick="addQuestion()">+ Add Question</button>
+        </div>
+        <div id="questions-wrap" class="flex flex-col gap-5"></div>
+      </div>
+
+      <!-- Explanations -->
+      <div class="card p-6 mb-8">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-syne font-bold">💡 Key Explanations</h2>
+          <button class="btn btn-ghost btn-sm" onclick="addExplanation()">+ Add</button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">
+          Shown to students after quiz. Use
+          <code class="text-yellow-400 bg-[#111] px-1 rounded">&lt;span class='vocab'&gt;word&lt;/span&gt;</code>
+          to highlight a vocabulary word in yellow.
+        </p>
+        <div id="explanations-wrap" class="flex flex-col gap-4"></div>
+      </div>
+
+      <!-- Save -->
+      <div class="flex gap-3">
+        <button class="btn btn-primary flex-1 py-4 text-base" onclick="saveQuiz()" id="save-btn">
+          <span id="save-txt">💾 Save &amp; Publish Quiz</span>
+          <div class="spinner hidden" id="save-spin"></div>
+        </button>
+        <button class="btn btn-ghost" onclick="loadQuiz()" title="Reload from Firestore">↺</button>
+      </div>
+      <p class="text-xs text-gray-600 mt-3 text-center">Changes go live instantly for all students.</p>
+
+    </div><!-- /editor -->
+
+    <!-- ════════  RESULTS  ════════ -->
+    <div id="pane-results" class="hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-syne font-bold text-xl">📊 Student Results</h2>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost btn-sm" onclick="loadResults()">↺ Refresh</button>
+          <button class="btn btn-danger btn-sm" onclick="clearResults()">🗑 Clear All</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="card-inner p-4 text-center"><p class="text-xl font-syne font-extrabold accent" id="r-total">0</p><p class="text-xs text-gray-500 mt-1">Total</p></div>
+        <div class="card-inner p-4 text-center"><p class="text-xl font-syne font-extrabold text-green-400" id="r-avg">—</p><p class="text-xs text-gray-500 mt-1">Average</p></div>
+        <div class="card-inner p-4 text-center"><p class="text-xl font-syne font-extrabold text-blue-400" id="r-high">—</p><p class="text-xs text-gray-500 mt-1">Highest</p></div>
+        <div class="card-inner p-4 text-center"><p class="text-xl font-syne font-extrabold text-red-400" id="r-low">—</p><p class="text-xs text-gray-500 mt-1">Lowest</p></div>
+      </div>
+      <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="results-table">
+            <thead><tr><th>#</th><th>Name</th><th>Score</th><th>Level</th><th>Time</th></tr></thead>
+            <tbody id="results-tbody"><tr><td colspan="5" class="text-center text-gray-600 py-8">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /results -->
+
+    <!-- ════════  PREVIEW  ════════ -->
+    <div id="pane-preview" class="hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-syne font-bold text-xl">👁 Live Preview</h2>
+        <button class="btn btn-ghost btn-sm" onclick="buildPreview()">↺ Refresh</button>
+      </div>
+      <div class="card p-6">
+        <div class="flex items-center gap-2 mb-4"><span class="badge badge-yellow">📖 Passage</span></div>
+        <div id="prev-passage" class="text-gray-300 text-sm leading-relaxed mb-6"></div>
+        <hr class="border-[#1e1e1e] mb-6"/>
+        <div id="prev-questions" class="flex flex-col gap-5"></div>
+        <div id="prev-explanations" class="mt-6 flex flex-col gap-3"></div>
+      </div>
+    </div><!-- /preview -->
+
+    <!-- ════════  SHARE  ════════ -->
+    <div id="pane-share" class="hidden">
+      <h2 class="font-syne font-bold text-xl mb-6">📤 Share with Students</h2>
+
+      <!-- Link -->
+      <div class="card p-6 mb-5">
+        <p class="text-xs text-gray-500 mb-2 font-syne font-bold uppercase tracking-wider">Student Quiz Link</p>
+        <div class="flex items-center gap-3 bg-[#0d0d0d] border border-[#1e1e1e] rounded-2xl px-4 py-3 mb-4">
+          <span class="text-[#FFFC00] text-sm flex-1 break-all font-mono select-all" id="share-url-display"></span>
+          <button class="btn btn-primary btn-sm flex-shrink-0" onclick="copyLink()">📋 Copy</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <button class="btn btn-green py-3 text-sm" onclick="openWhatsApp()">
+            <svg width="17" height="17" fill="#22c55e" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.522 5.851L.057 23.985l6.302-1.453A11.954 11.954 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.893 9.893 0 01-5.034-1.378l-.36-.214-3.742.862.939-3.618-.235-.372A9.893 9.893 0 012.106 12C2.106 6.58 6.58 2.106 12 2.106S21.894 6.58 21.894 12 17.42 21.894 12 21.894z"/></svg>
+            WhatsApp
+          </button>
+          <button class="btn btn-ghost py-3 text-sm" onclick="window.open(STUDENT_URL,'_blank')">🔗 Open Quiz</button>
+        </div>
+      </div>
+
+      <!-- QR -->
+      <div class="card p-6 mb-5 text-center">
+        <p class="text-xs text-gray-500 mb-4 font-syne font-bold uppercase tracking-wider">QR Code — Students Scan This</p>
+        <div class="flex justify-center mb-4">
+          <div id="qr-wrap" class="bg-white p-4 rounded-2xl inline-block"></div>
+        </div>
+        <p class="text-gray-600 text-xs mb-4">Students point their camera at the QR — opens quiz instantly</p>
+        <button class="btn btn-ghost btn-sm" onclick="downloadQR()">⬇️ Download QR</button>
+      </div>
+
+      <!-- Message -->
+      <div class="card p-6 mb-5">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs text-gray-500 font-syne font-bold uppercase tracking-wider">Ready-to-send Message</p>
+          <button class="btn btn-ghost btn-sm" onclick="copyMsg()">📋 Copy</button>
+        </div>
+        <div id="share-msg" class="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-4 text-sm text-gray-300 leading-relaxed whitespace-pre-line select-all"></div>
+      </div>
+
+      <!-- Session stats -->
+      <div class="card p-5">
+        <p class="text-xs text-gray-500 mb-3 font-syne font-bold uppercase tracking-wider">Session Summary</p>
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div><p class="font-syne font-extrabold text-xl accent" id="sh-p">—</p><p class="text-xs text-gray-600 mt-1">Participants</p></div>
+          <div><p class="font-syne font-extrabold text-xl text-green-400" id="sh-avg">—</p><p class="text-xs text-gray-600 mt-1">Avg Score</p></div>
+          <div><p class="font-syne font-extrabold text-xl text-blue-400" id="sh-time">—</p><p class="text-xs text-gray-600 mt-1">Timer (s)</p></div>
+        </div>
+      </div>
+
+    </div><!-- /share -->
+
+  </div>
+</div><!-- /admin-panel -->
+
+<div id="toast"></div>
+
+<script>
+/* ── Config ── */
+const STUDENT_URL = 'https://nawafoooh.github.io/activity/step-quiz.html';
+
+firebase.initializeApp({
+  apiKey:"AIzaSyBaY75jwos44EbgZMlhIcU_YfrGeKY7r3w",
+  authDomain:"naj7-7da9d.firebaseapp.com",
+  projectId:"naj7-7da9d",
+  storageBucket:"naj7-7da9d.firebasestorage.app",
+  messagingSenderId:"72751584563",
+  appId:"1:72751584563:web:8562f042882919d2c4da46"
+});
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+/* ── State ── */
+let questions=[], explanations=[], unsaved=false, qrDone=false;
+
+/* ══════════════════════════
+   AUTH
+══════════════════════════ */
+auth.onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    document.getElementById('admin-email-lbl').textContent=user.email;
+    init();
+  } else {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('admin-panel').classList.add('hidden');
+  }
+});
+
+async function loginAdmin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass =document.getElementById('login-password').value;
+  const err  =document.getElementById('login-error');
+  const btn  =document.getElementById('login-btn');
+  if(!email||!pass){err.textContent='Fill in all fields.';err.classList.remove('hidden');return;}
+  btn.textContent='Signing in...';btn.disabled=true;
+  try{await auth.signInWithEmailAndPassword(email,pass);}
+  catch(e){
+    const map={'auth/user-not-found':'No account found.','auth/wrong-password':'Wrong password.','auth/invalid-email':'Invalid email.','auth/too-many-requests':'Too many attempts. Try later.'};
+    err.textContent=map[e.code]||'Sign-in failed.';err.classList.remove('hidden');
+    btn.textContent='Sign In →';btn.disabled=false;
+  }
+}
+
+function logoutAdmin(){
+  if(unsaved&&!confirm('Unsaved changes. Sign out anyway?'))return;
+  auth.signOut();
+}
+
+document.getElementById('login-password')?.addEventListener('keydown',e=>{if(e.key==='Enter')loginAdmin();});
+
+/* ══════════════════════════
+   INIT
+══════════════════════════ */
+async function init(){ await loadQuiz(); await loadStats(); }
+
+/* ══════════════════════════
+   LOAD QUIZ
+══════════════════════════ */
+async function loadQuiz(){
+  try{
+    const doc=await db.collection('quiz').doc('today').get();
+    if(doc.exists){
+      const d=doc.data();
+      document.getElementById('f-time').value   = d.quizTime||60;
+      document.getElementById('f-snap').value   = d.snapchat||'@Elysooo';
+      document.getElementById('f-label').value  = d.dateLabel||'';
+      document.getElementById('f-passage').value= d.passage||'';
+      countChars();
+      questions    = d.questions    || [];
+      explanations = d.explanations || [];
+    } else {
+      questions=[{question:'',options:['','','',''],correct:0}];
+      explanations=[{text:'',note:''}];
+    }
+    renderQs(); renderExps(); markSaved();
+    showToast('✅ Loaded from Firestore');
+  }catch(e){
+    console.error(e);showToast('⚠️ Load failed','red');
+    questions=[{question:'',options:['','','',''],correct:0}];
+    explanations=[{text:'',note:''}];
+    renderQs();renderExps();
+  }
+}
+
+/* ══════════════════════════
+   SAVE QUIZ
+══════════════════════════ */
+async function saveQuiz(){
+  const btn=document.getElementById('save-btn');
+  const txt=document.getElementById('save-txt');
+  const spin=document.getElementById('save-spin');
+
+  const payload={
+    quizTime:   parseInt(document.getElementById('f-time').value)||60,
+    snapchat:   document.getElementById('f-snap').value.trim()||'@Elysooo',
+    dateLabel:  document.getElementById('f-label').value.trim(),
+    passage:    document.getElementById('f-passage').value.trim(),
+    questions:  collectQs(),
+    explanations: collectExps(),
+    updatedAt:  firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy:  auth.currentUser?.email||'admin'
+  };
+
+  if(!payload.passage){showToast('⚠️ Passage is required!','red');return;}
+  if(!payload.questions.length){showToast('⚠️ Add at least one question!','red');return;}
+  for(let i=0;i<payload.questions.length;i++){
+    const q=payload.questions[i];
+    if(!q.question.trim()){showToast(`⚠️ Q${i+1}: Question text empty!`,'red');return;}
+    if(q.options.some(o=>!o.trim())){showToast(`⚠️ Q${i+1}: Fill all 4 options!`,'red');return;}
+  }
+
+  txt.classList.add('hidden');spin.classList.remove('hidden');btn.disabled=true;
+  try{
+    await db.collection('quiz').doc('today').set(payload);
+    markSaved();showToast('🚀 Quiz published!');
+    btn.classList.add('glow');setTimeout(()=>btn.classList.remove('glow'),700);
+  }catch(e){showToast('❌ Save failed: '+e.message,'red');}
+  finally{txt.classList.remove('hidden');spin.classList.add('hidden');btn.disabled=false;}
+}
+
+/* ══════════════════════════
+   COLLECT FROM DOM
+══════════════════════════ */
+function collectQs(){
+  return questions.map((_,i)=>{
+    const b=document.getElementById(`qb-${i}`);if(!b)return null;
+    return{
+      question:b.querySelector(`#qt-${i}`)?.value||'',
+      options:['A','B','C','D'].map(l=>b.querySelector(`#op-${i}-${l}`)?.value||''),
+      correct:parseInt(b.querySelector(`[name="cr-${i}"]:checked`)?.value??0)
+    };
+  }).filter(Boolean);
+}
+
+function collectExps(){
+  return explanations.map((_,i)=>{
+    const b=document.getElementById(`eb-${i}`);if(!b)return null;
+    return{text:b.querySelector(`#et-${i}`)?.value||'',note:b.querySelector(`#en-${i}`)?.value||''};
+  }).filter(Boolean);
+}
+
+/* ══════════════════════════
+   RENDER QUESTIONS
+══════════════════════════ */
+function renderQs(){
+  const wrap=document.getElementById('questions-wrap');wrap.innerHTML='';
+  questions.forEach((q,i)=>{
+    const letters=['A','B','C','D'];
+    const div=document.createElement('div');div.className='q-block';div.id=`qb-${i}`;
+    div.innerHTML=`
+      <div class="flex items-center gap-3 mb-4">
+        <span class="font-syne font-bold text-sm accent">Q${i+1}</span>
+        <div class="flex-1"></div>
+        <button class="btn btn-danger btn-sm" onclick="removeQ(${i})">✕ Remove</button>
+      </div>
+      <label class="text-xs text-gray-500 mb-1 block">Question Text</label>
+      <input id="qt-${i}" class="inp mb-4" type="text" placeholder="Type the question..." value="${esc(q.question||'')}" oninput="markUnsaved()"/>
+      <label class="text-xs text-gray-500 mb-2 block">Options <span class="text-yellow-400">(tap ✓ to mark correct answer)</span></label>
+      ${letters.map((l,j)=>`
+        <div class="flex items-center gap-2 mb-2">
+          <div class="opt-letter" id="ol-${i}-${j}" style="${q.correct===j?'background:#FFFC00;color:#0a0a0a':''}">${l}</div>
+          <input id="op-${i}-${l}" class="inp flex-1" type="text" placeholder="Option ${l}..." value="${esc(q.options?.[j]||'')}" oninput="markUnsaved()"/>
+          <label style="cursor:pointer;display:flex;align-items:center;gap:4px;margin-left:4px">
+            <input type="radio" name="cr-${i}" value="${j}" class="correct-radio" ${q.correct===j?'checked':''} onchange="markUnsaved();updateOptColor(${i})"/>
+            <span class="text-xs text-gray-500">✓</span>
+          </label>
+        </div>
+      `).join('')}
+    `;
+    wrap.appendChild(div);
+  });
+  document.getElementById('stat-q').textContent=questions.length;
+}
+
+function addQuestion(){
+  questions.push({question:'',options:['','','',''],correct:0});
+  renderQs();markUnsaved();
+  document.querySelectorAll('.q-block').forEach((b,i,arr)=>{if(i===arr.length-1)b.scrollIntoView({behavior:'smooth',block:'center'});});
+}
+function removeQ(i){
+  if(questions.length<=1){showToast('⚠️ Need at least one question.','red');return;}
+  if(!confirm(`Remove Q${i+1}?`))return;
+  questions.splice(i,1);renderQs();markUnsaved();
+}
+function updateOptColor(i){
+  const b=document.getElementById(`qb-${i}`);
+  const checked=parseInt(b.querySelector(`[name="cr-${i}"]:checked`)?.value??0);
+  for(let j=0;j<4;j++){
+    const el=document.getElementById(`ol-${i}-${j}`);
+    if(!el)continue;
+    el.style.background=j===checked?'#FFFC00':'';
+    el.style.color=j===checked?'#0a0a0a':'';
+  }
+}
+
+/* ══════════════════════════
+   RENDER EXPLANATIONS
+══════════════════════════ */
+function renderExps(){
+  const wrap=document.getElementById('explanations-wrap');wrap.innerHTML='';
+  explanations.forEach((ex,i)=>{
+    const div=document.createElement('div');div.className='exp-block';div.id=`eb-${i}`;
+    div.innerHTML=`
+      <div class="flex items-center justify-between mb-3">
+        <span class="font-syne font-bold text-xs accent">Explanation ${i+1}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeExp(${i})">✕</button>
+      </div>
+      <label class="text-xs text-gray-500 mb-1 block">Sentence (HTML ok for vocab highlights)</label>
+      <input id="et-${i}" class="inp mb-2" type="text" placeholder="e.g. Students who read <span class='vocab'>consistently</span> perform better." value="${esc(ex.text||'')}" oninput="markUnsaved()"/>
+      <label class="text-xs text-gray-500 mb-1 block">Note</label>
+      <input id="en-${i}" class="inp" type="text" placeholder="e.g. consistently = regularly, without stopping." value="${esc(ex.note||'')}" oninput="markUnsaved()"/>
+    `;
+    wrap.appendChild(div);
+  });
+}
+function addExplanation(){explanations.push({text:'',note:''});renderExps();markUnsaved();}
+function removeExp(i){explanations.splice(i,1);renderExps();markUnsaved();}
+
+/* ══════════════════════════
+   STATS
+══════════════════════════ */
+async function loadStats(){
+  try{
+    const snap=await db.collection('results').get();
+    const docs=snap.docs.map(d=>d.data());
+    document.getElementById('stat-p').textContent=docs.length;
+    if(docs.length){
+      const avg=(docs.reduce((s,d)=>s+d.score/(d.total||5),0)/docs.length*100).toFixed(0)+'%';
+      document.getElementById('stat-avg').textContent=avg;
+    }
+  }catch(e){console.warn(e);}
+}
+
+/* ══════════════════════════
+   RESULTS TAB
+══════════════════════════ */
+async function loadResults(){
+  const tbody=document.getElementById('results-tbody');
+  tbody.innerHTML='<tr><td colspan="5" class="text-center py-8"><div class="spinner spinner-lg"></div></td></tr>';
+  try{
+    const snap=await db.collection('results').orderBy('score','desc').limit(100).get();
+    const docs=snap.docs.map(d=>d.data());
+    document.getElementById('r-total').textContent=docs.length;
+    if(docs.length){
+      const scores=docs.map(d=>d.score);
+      const pcts=docs.map(d=>d.score/(d.total||5));
+      document.getElementById('r-avg').textContent=(pcts.reduce((a,b)=>a+b,0)/docs.length*100).toFixed(0)+'%';
+      document.getElementById('r-high').textContent=Math.max(...scores);
+      document.getElementById('r-low').textContent=Math.min(...scores);
+    }
+    if(!docs.length){tbody.innerHTML='<tr><td colspan="5" class="text-center text-gray-600 py-8">No results yet.</td></tr>';return;}
+    tbody.innerHTML=docs.map((d,i)=>{
+      const pct=d.score/(d.total||5);
+      const level=pct<=0.2?'Beginner':pct<=0.6?'Intermediate':'Advanced';
+      const lc=pct<=0.2?'text-red-400':pct<=0.6?'text-yellow-400':'text-green-400';
+      const dt=d.date?new Date(d.date).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+      return`<tr><td class="text-gray-600">${i+1}</td><td class="font-medium">${san(d.name||'—')}</td><td><span class="font-syne font-bold accent">${d.score}</span><span class="text-gray-500">/${d.total||5}</span></td><td class="${lc} text-sm font-syne font-semibold">${level}</td><td class="text-gray-500 text-xs">${dt}</td></tr>`;
+    }).join('');
+  }catch(e){tbody.innerHTML=`<tr><td colspan="5" class="text-center text-red-400 py-8">Error: ${e.message}</td></tr>`;}
+}
+
+async function clearResults(){
+  if(!confirm('⚠️ Delete ALL student results from Firestore?'))return;
+  if(!confirm('Last warning — this cannot be undone!'))return;
+  try{
+    const snap=await db.collection('results').get();
+    const batch=db.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    await batch.commit();
+    showToast('🗑 All results cleared.');
+    loadResults();loadStats();
+  }catch(e){showToast('❌ '+e.message,'red');}
+}
+
+/* ══════════════════════════
+   PREVIEW TAB
+══════════════════════════ */
+function buildPreview(){
+  const passage=document.getElementById('f-passage').value.trim();
+  const qs=collectQs(),exps=collectExps();
+  const letters=['A','B','C','D'];
+  document.getElementById('prev-passage').innerHTML=passage.split('\n\n').map(p=>`<p class="mb-3">${p.trim()}</p>`).join('');
+  document.getElementById('prev-questions').innerHTML=qs.map((q,i)=>`
+    <div class="card-inner p-4">
+      <p class="font-syne font-semibold text-sm mb-3 accent">Q${i+1}: ${san(q.question)}</p>
+      ${q.options.map((o,j)=>`
+        <div class="flex items-center gap-2 mb-2 ${j===q.correct?'text-green-400':'text-gray-500'} text-sm">
+          <span class="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${j===q.correct?'bg-green-500 text-white':'bg-[#1e1e1e] text-gray-500'}">${letters[j]}</span>
+          ${san(o)}${j===q.correct?' ✓':''}
+        </div>`).join('')}
+    </div>`).join('');
+  document.getElementById('prev-explanations').innerHTML=exps.length?`
+    <p class="font-syne font-semibold text-sm text-gray-400 mb-2">💡 Explanations</p>
+    ${exps.map(ex=>`<div class="card-inner p-4"><p class="text-sm text-gray-200 mb-1">${ex.text}</p><p class="text-xs text-gray-500 italic">${ex.note}</p></div>`).join('')}`:'';
+}
+
+/* ══════════════════════════
+   SHARE TAB
+══════════════════════════ */
+async function initShare(){
+  // URL
+  document.getElementById('share-url-display').textContent=STUDENT_URL;
+
+  // QR (generate once)
+  if(!qrDone){
+    document.getElementById('qr-wrap').innerHTML='';
+    new QRCode(document.getElementById('qr-wrap'),{text:STUDENT_URL,width:180,height:180,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+    qrDone=true;
+  }
+
+  // Message
+  const label=document.getElementById('f-label')?.value.trim()||new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const timer=document.getElementById('f-time')?.value||'60';
+  const snap=document.getElementById('f-snap')?.value||'@Elysooo';
+  const msg=`⚡ STEP Daily Challenge\n📅 ${label}\n⏱ ${timer} seconds\n\n🔗 ${STUDENT_URL}\n\nScan the QR code or tap the link!\nGood luck 💪\n\n— by ${snap}`;
+  document.getElementById('share-msg').textContent=msg;
+
+  // Stats
+  document.getElementById('sh-time').textContent=timer;
+  try{
+    const snap2=await db.collection('results').get();
+    const docs=snap2.docs.map(d=>d.data());
+    document.getElementById('sh-p').textContent=docs.length;
+    if(docs.length){
+      const avg=(docs.reduce((s,d)=>s+d.score/(d.total||5),0)/docs.length*100).toFixed(0)+'%';
+      document.getElementById('sh-avg').textContent=avg;
+    }
+  }catch(e){console.warn(e);}
+}
+
+function copyLink(){navigator.clipboard.writeText(STUDENT_URL).then(()=>showToast('✅ Link copied!')).catch(()=>showToast('⚠️ Copy failed','red'));}
+function copyMsg(){const m=document.getElementById('share-msg').textContent;navigator.clipboard.writeText(m).then(()=>showToast('✅ Message copied!')).catch(()=>showToast('⚠️ Copy failed','red'));}
+function openWhatsApp(){const m=document.getElementById('share-msg').textContent;window.open(`https://wa.me/?text=${encodeURIComponent(m)}`,'_blank');}
+function downloadQR(){
+  const canvas=document.querySelector('#qr-wrap canvas');
+  if(!canvas){showToast('⚠️ QR not ready','red');return;}
+  const a=document.createElement('a');a.download='step-quiz-qr.png';a.href=canvas.toDataURL('image/png');a.click();
+  showToast('⬇️ QR downloaded!');
+}
+
+/* ══════════════════════════
+   TABS
+══════════════════════════ */
+function switchTab(tab){
+  ['editor','results','preview','share'].forEach(t=>{
+    document.getElementById(`tab-${t}`).classList.toggle('active',t===tab);
+    document.getElementById(`pane-${t}`).classList.toggle('hidden',t!==tab);
+  });
+  if(tab==='results')loadResults();
+  if(tab==='preview')buildPreview();
+  if(tab==='share')initShare();
+}
+
+/* ══════════════════════════
+   HELPERS
+══════════════════════════ */
+function markUnsaved(){unsaved=true;document.getElementById('unsaved-badge').classList.remove('hidden');}
+function markSaved(){unsaved=false;document.getElementById('unsaved-badge').classList.add('hidden');}
+function countChars(){document.getElementById('char-count').textContent=document.getElementById('f-passage').value.length+' chars';markUnsaved();}
+function showToast(msg,color='yellow'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.style.background=color==='red'?'#ef4444':'#FFFC00';
+  t.style.color=color==='red'?'#fff':'#0a0a0a';
+  t.style.opacity='1';setTimeout(()=>t.style.opacity='0',3000);
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function san(s){return String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+window.addEventListener('beforeunload',e=>{if(unsaved){e.preventDefault();e.returnValue='';}});
+</script>
+</body>
+</html>
