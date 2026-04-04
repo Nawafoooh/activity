@@ -2,1161 +2,407 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>STEP Admin Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>STEP Daily Challenge — Student</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet"/>
-
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0;
-    background: #0a0a0a;
-    color: #f0f0f0;
-    font-family: 'DM Sans', sans-serif;
-    min-height: 100vh;
-  }
-
-  .font-syne { font-family: 'Syne', sans-serif; }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #111; }
-  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 999px; }
-  ::-webkit-scrollbar-thumb:hover { background: #FFFC00; }
-
-  /* Cards */
-  .card {
-    background: #141414;
-    border: 1px solid #222;
-    border-radius: 20px;
-  }
-  .card-inner {
-    background: #1a1a1a;
-    border: 1px solid #252525;
-    border-radius: 14px;
-  }
-
-  /* Accent */
-  .accent { color: #FFFC00; }
-  .bg-accent { background: #FFFC00; }
-
-  /* Inputs */
-  .inp {
-    background: #111;
-    border: 2px solid #222;
-    border-radius: 12px;
-    color: #f0f0f0;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.9rem;
-    padding: 12px 16px;
-    width: 100%;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    resize: vertical;
-  }
-  .inp:focus {
-    border-color: #FFFC00;
-    box-shadow: 0 0 0 3px rgba(255,252,0,0.08);
-  }
-  .inp::placeholder { color: #3a3a3a; }
-
-  select.inp option { background: #111; }
-
-  /* Buttons */
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    border-radius: 12px;
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: 0.9rem;
-    cursor: pointer;
-    border: none;
-    outline: none;
-    padding: 12px 22px;
-    transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
-  }
-  .btn:hover { transform: translateY(-1px); }
-  .btn:active { transform: scale(0.97); }
-
-  .btn-primary {
-    background: #FFFC00;
-    color: #0a0a0a;
-    box-shadow: 0 4px 20px rgba(255,252,0,0.2);
-  }
-  .btn-primary:hover { box-shadow: 0 6px 28px rgba(255,252,0,0.35); }
-
-  .btn-danger {
-    background: #1e0808;
-    color: #f87171;
-    border: 1px solid #3a1010;
-  }
-  .btn-danger:hover { background: #2a0a0a; }
-
-  .btn-ghost {
-    background: #1a1a1a;
-    color: #aaa;
-    border: 1px solid #252525;
-  }
-  .btn-ghost:hover { color: #fff; border-color: #3a3a3a; }
-
-  .btn-sm { padding: 8px 14px; font-size: 0.8rem; border-radius: 10px; }
-
-  /* Question block */
-  .q-block {
-    background: #111;
-    border: 1px solid #1e1e1e;
-    border-radius: 16px;
-    padding: 20px;
-    position: relative;
-    transition: border-color 0.2s;
-  }
-  .q-block:hover { border-color: #2a2a2a; }
-
-  /* Option row */
-  .opt-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-  }
-  .opt-letter {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    background: #1e1e1e;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Syne', sans-serif;
-    font-weight: 700; font-size: 0.78rem;
-    color: #666;
-    flex-shrink: 0;
-  }
-  .correct-radio:checked + label .opt-letter {
-    background: #FFFC00;
-    color: #0a0a0a;
-  }
-
-  /* Correct radio custom */
-  .correct-wrap {
-    display: flex; align-items: center; gap: 6px;
-    cursor: pointer;
-  }
-  .correct-radio { accent-color: #FFFC00; cursor: pointer; }
-
-  /* Explanation block */
-  .exp-block {
-    background: #111;
-    border: 1px solid #1e1e1e;
-    border-radius: 14px;
-    padding: 16px;
-    position: relative;
-  }
-
-  /* Login screen */
-  .login-screen {
-    min-height: 100vh;
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px;
-  }
-
-  /* Toast */
-  #toast {
-    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
-    z-index: 9999;
-    background: #FFFC00; color: #0a0a0a;
-    font-family: 'Syne', sans-serif; font-weight: 700;
-    font-size: 0.85rem;
-    padding: 10px 22px;
-    border-radius: 999px;
-    box-shadow: 0 4px 20px rgba(255,252,0,0.3);
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.3s;
-    white-space: nowrap;
-  }
-
-  /* Tab */
-  .tab-btn {
-    padding: 8px 18px;
-    border-radius: 10px;
-    font-family: 'Syne', sans-serif;
-    font-weight: 600;
-    font-size: 0.85rem;
-    cursor: pointer;
-    border: none;
-    background: transparent;
-    color: #555;
-    transition: background 0.2s, color 0.2s;
-  }
-  .tab-btn.active { background: #1e1e1e; color: #FFFC00; }
-
-  /* Status badge */
-  .badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-family: 'Syne', sans-serif;
-    font-weight: 600;
-  }
-  .badge-green { background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
-  .badge-yellow { background: rgba(255,252,0,0.08); color: #FFFC00; border: 1px solid rgba(255,252,0,0.15); }
-  .badge-red { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
-
-  /* Loader */
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner {
-    width: 20px; height: 20px;
-    border: 2px solid #222;
-    border-top-color: #FFFC00;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    display: inline-block;
-  }
-
-  /* Drag handle */
-  .drag-handle { cursor: grab; color: #333; }
-  .drag-handle:active { cursor: grabbing; }
-
-  /* Glow on save */
-  @keyframes glow-pulse {
-    0% { box-shadow: 0 0 0 0 rgba(255,252,0,0.4); }
-    100% { box-shadow: 0 0 0 16px rgba(255,252,0,0); }
-  }
-  .glow { animation: glow-pulse 0.6s ease-out; }
-
-  /* Results table */
-  .results-table { width: 100%; border-collapse: collapse; }
-  .results-table th {
-    text-align: left; padding: 10px 14px;
-    font-family: 'Syne', sans-serif; font-weight: 700;
-    font-size: 0.75rem; color: #555;
-    border-bottom: 1px solid #1e1e1e;
-    text-transform: uppercase; letter-spacing: 0.05em;
-  }
-  .results-table td {
-    padding: 12px 14px;
-    font-size: 0.88rem;
-    border-bottom: 1px solid #141414;
-  }
-  .results-table tr:hover td { background: #111; }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{height:100%;margin:0;padding:0;background:#0f0f0f;color:#fff;font-family:'DM Sans',sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  .font-syne{font-family:'Syne',sans-serif}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;opacity:0;pointer-events:none;transition:opacity .35s ease,transform .35s ease;transform:translateY(16px)}
+  .screen.active{opacity:1;pointer-events:all;transform:translateY(0)}
+  .accent{color:#FFFC00}
+  .card{background:#1a1a1a;border-radius:20px;border:1px solid #242424}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;cursor:pointer;border:none;outline:none;transition:transform .15s,box-shadow .15s}
+  .btn:active{transform:scale(.96)}
+  .btn-primary{background:#FFFC00;color:#0f0f0f;padding:16px 32px;box-shadow:0 4px 24px rgba(255,252,0,.2)}
+  .btn-ghost{background:#222;color:#ccc;padding:14px 28px}
+  .option-card{background:#1e1e1e;border:2px solid #2a2a2a;border-radius:16px;padding:14px 16px;cursor:pointer;transition:border-color .2s,background .2s,transform .12s;display:flex;align-items:center;gap:12px}
+  .option-card:active{transform:scale(.98)}
+  .option-card.selected{border-color:#FFFC00;background:rgba(255,252,0,.05)}
+  .option-card.correct{border-color:#22c55e;background:rgba(34,197,94,.08)}
+  .option-card.wrong{border-color:#ef4444;background:rgba(239,68,68,.08)}
+  .opt-letter{width:30px;height:30px;border-radius:50%;background:#2a2a2a;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:.82rem;flex-shrink:0;transition:background .2s,color .2s}
+  .option-card.selected .opt-letter{background:#FFFC00;color:#0f0f0f}
+  .option-card.correct .opt-letter{background:#22c55e;color:#fff}
+  .option-card.wrong .opt-letter{background:#ef4444;color:#fff}
+  .timer-ring{transition:stroke-dashoffset 1s linear}
+  .prog-bar{height:4px;background:#222;border-radius:999px;overflow:hidden}
+  .prog-fill{height:100%;background:#FFFC00;border-radius:999px;transition:width .4s ease}
+  .score-circle{width:130px;height:130px;border-radius:50%;border:4px solid #FFFC00;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 40px rgba(255,252,0,.15)}
+  .vocab{color:#FFFC00;font-weight:600;border-bottom:1px dashed rgba(255,252,0,.4)}
+  .lb-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:#1e1e1e;margin-bottom:8px}
+  .lb-rank{width:28px;height:28px;border-radius:50%;background:#2a2a2a;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:.78rem;flex-shrink:0}
+  .lb-rank.gold{background:#FFFC00;color:#0f0f0f}
+  .lb-rank.silver{background:#a0a0a0;color:#0f0f0f}
+  .lb-rank.bronze{background:#cd7f32;color:#fff}
+  .snap-fab{position:fixed;bottom:20px;right:14px;z-index:999;background:#FFFC00;color:#0f0f0f;border-radius:999px;padding:9px 16px;font-family:'Syne',sans-serif;font-weight:700;font-size:.8rem;display:flex;align-items:center;gap:7px;box-shadow:0 4px 18px rgba(255,252,0,.28);cursor:pointer;border:none;text-decoration:none;transition:transform .2s}
+  .snap-fab:active{transform:scale(.95)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spinner{width:36px;height:36px;border-radius:50%;border:3px solid #222;border-top-color:#FFFC00;animation:spin .8s linear infinite;margin:0 auto}
+  @keyframes bounce-in{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+  .bounce-in{animation:bounce-in .5s ease forwards}
+  @keyframes pulse-y{0%,100%{box-shadow:0 0 0 0 rgba(255,252,0,.3)}50%{box-shadow:0 0 0 12px rgba(255,252,0,0)}}
+  .pulse{animation:pulse-y 2s infinite}
+  .inp{background:#1e1e1e;border:2px solid #2a2a2a;border-radius:16px;color:#fff;font-family:'DM Sans',sans-serif;font-size:1rem;padding:16px 20px;width:100%;outline:none;transition:border-color .2s}
+  .inp:focus{border-color:#FFFC00}
+  .inp::placeholder{color:#444}
+  ::-webkit-scrollbar{width:0}
+  #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;background:#FFFC00;color:#0f0f0f;font-family:'Syne',sans-serif;font-weight:700;font-size:.83rem;padding:9px 20px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap}
+  img,p,span,h1,h2,h3{user-select:none;-webkit-user-select:none}
 </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════
-     LOGIN SCREEN
-════════════════════════════════════════════ -->
-<div id="login-screen" class="login-screen">
-  <div class="w-full max-w-sm">
-    <!-- Logo -->
-    <div class="text-center mb-8">
-      <div class="w-14 h-14 bg-accent rounded-2xl flex items-center justify-center mx-auto mb-4" style="box-shadow:0 4px 24px rgba(255,252,0,0.25)">
-        <span style="font-size:1.6rem">⚡</span>
-      </div>
-      <h1 class="font-syne font-extrabold text-2xl mb-1">STEP Admin</h1>
-      <p class="text-gray-500 text-sm">Control Panel · @Elysooo</p>
-    </div>
-
-    <!-- Login card -->
-    <div class="card p-6">
-      <p class="text-gray-400 text-sm mb-5">Sign in with your admin account to manage daily quizzes.</p>
-
-      <label class="text-xs text-gray-500 mb-1 block">Email</label>
-      <input id="login-email" class="inp mb-3" type="email" placeholder="admin@example.com" autocomplete="email"/>
-
-      <label class="text-xs text-gray-500 mb-1 block">Password</label>
-      <input id="login-password" class="inp mb-2" type="password" placeholder="••••••••" autocomplete="current-password"/>
-
-      <p id="login-error" class="text-red-400 text-xs mb-4 hidden"></p>
-
-      <button class="btn btn-primary w-full mt-2" onclick="loginAdmin()" id="login-btn">
-        Sign In →
-      </button>
-    </div>
+<!-- LOADING -->
+<div id="screen-loading" class="screen active">
+  <div class="flex flex-col items-center justify-center h-full gap-5">
+    <div class="w-14 h-14 bg-[#FFFC00] rounded-2xl flex items-center justify-center text-3xl pulse">⚡</div>
+    <div class="spinner"></div>
+    <p class="text-gray-500 text-sm">Loading today's challenge...</p>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     MAIN ADMIN PANEL (hidden until login)
-════════════════════════════════════════════ -->
-<div id="admin-panel" class="hidden">
+<!-- ERROR -->
+<div id="screen-error" class="screen">
+  <div class="flex flex-col items-center justify-center h-full px-8 text-center gap-4">
+    <span class="text-5xl">⚠️</span>
+    <h2 class="font-syne font-bold text-xl">Quiz Not Available</h2>
+    <p class="text-gray-400 text-sm" id="error-msg">No quiz has been published yet.</p>
+    <button class="btn btn-ghost mt-2 px-8 py-3" onclick="location.reload()">↺ Try Again</button>
+  </div>
+</div>
 
-  <!-- ── TOP NAV ── -->
-  <nav class="sticky top-0 z-50 border-b border-[#1a1a1a]" style="background:rgba(10,10,10,0.95);backdrop-filter:blur(12px)">
-    <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 bg-accent rounded-lg flex items-center justify-center text-sm">⚡</div>
-        <div>
-          <span class="font-syne font-bold text-sm">STEP Admin</span>
-          <span class="text-gray-600 text-xs ml-2" id="admin-email-display"></span>
-        </div>
+<!-- LANDING -->
+<div id="screen-landing" class="screen">
+  <div class="flex flex-col min-h-full px-6 py-8">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-xs text-gray-500" id="today-date"></span>
+      <span class="text-xs text-gray-500" id="date-label-display"></span>
+    </div>
+    <div class="flex-1 flex flex-col justify-center mt-2">
+      <div class="w-16 h-16 bg-[#FFFC00] rounded-2xl flex items-center justify-center mb-6 text-3xl pulse">⚡</div>
+      <h1 class="font-syne font-extrabold text-4xl leading-tight mb-2">
+        STEP<br/><span class="accent">Daily</span><br/>Challenge
+      </h1>
+      <p class="text-gray-400 text-base mt-2 mb-8">
+        Test your English in <span class="accent font-semibold" id="landing-timer">60</span> seconds ⏱
+      </p>
+      <div class="inline-flex items-center gap-2 bg-[#1a1a1a] px-4 py-2 rounded-full mb-8 w-fit border border-[#242424]">
+        <span style="color:#FFFC00">👥</span>
+        <span class="text-sm text-gray-300"><span id="participants-count">0</span> students participated</span>
       </div>
-      <div class="flex items-center gap-2">
-        <div id="save-status" class="badge badge-yellow hidden">
-          <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span> Unsaved
+      <label class="text-sm text-gray-400 mb-2 font-medium">Your Name</label>
+      <input id="student-name" class="inp mb-2" type="text" placeholder="e.g. Ahmed Al-Rashid" maxlength="40" autocomplete="off"/>
+      <p id="name-error" class="text-red-400 text-xs mb-4 hidden">Please enter your name.</p>
+      <button class="btn btn-primary w-full text-lg py-5 mt-2" onclick="startQuiz()">Start Challenge 🚀</button>
+    </div>
+    <p class="text-center text-gray-600 text-xs mt-6 mb-2">Made with ❤️ by <span class="accent" id="snap-footer">@Elysooo</span></p>
+  </div>
+</div>
+
+<!-- READING -->
+<div id="screen-reading" class="screen">
+  <div class="flex flex-col px-5 py-6 h-full">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <p class="font-syne font-bold text-base">Read Carefully</p>
+        <p class="text-gray-500 text-xs">You'll be tested after</p>
+      </div>
+      <div class="relative w-14 h-14">
+        <svg class="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="24" stroke="#222" stroke-width="4" fill="none"/>
+          <circle id="timer-circle" cx="28" cy="28" r="24" stroke="#FFFC00" stroke-width="4" fill="none"
+            stroke-dasharray="150.8" stroke-dashoffset="0" stroke-linecap="round" class="timer-ring"/>
+        </svg>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <span id="timer-display" class="font-syne font-bold text-sm accent"></span>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="logoutAdmin()">Sign Out</button>
       </div>
     </div>
-  </nav>
-
-  <div class="max-w-5xl mx-auto px-5 py-8">
-
-    <!-- ── TAB BAR ── -->
-    <div class="flex gap-1 bg-[#0f0f0f] border border-[#1a1a1a] rounded-xl p-1 mb-8 w-fit">
-      <button class="tab-btn active" id="tab-editor" onclick="switchTab('editor')">✏️ Quiz Editor</button>
-      <button class="tab-btn" id="tab-results" onclick="switchTab('results')">📊 Results</button>
-      <button class="tab-btn" id="tab-preview" onclick="switchTab('preview')">👁 Preview</button>
-      <button class="tab-btn" id="tab-share" onclick="switchTab('share')">📤 Share</button>
+    <div class="prog-bar mb-5"><div class="prog-fill" id="reading-progress" style="width:100%"></div></div>
+    <div class="card p-5 flex-1 overflow-y-auto" style="max-height:calc(100vh - 230px)">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="text-xs bg-[#FFFC00] text-black px-3 py-1 rounded-full font-syne font-bold">📖 Passage</span>
+      </div>
+      <div id="passage-text" class="text-gray-200 leading-relaxed text-[15px]"></div>
     </div>
+    <button class="btn btn-primary w-full mt-4 py-4" onclick="goToQuestions()">I'm Ready — Start Questions →</button>
+  </div>
+</div>
 
-    <!-- ═══════════  TAB: QUIZ EDITOR  ═══════════ -->
-    <div id="pane-editor">
-
-      <!-- Stats row -->
-      <div class="grid grid-cols-3 gap-4 mb-8">
-        <div class="card p-4 text-center">
-          <p class="text-2xl font-syne font-extrabold accent" id="stat-participants">—</p>
-          <p class="text-xs text-gray-500 mt-1">Participants</p>
-        </div>
-        <div class="card p-4 text-center">
-          <p class="text-2xl font-syne font-extrabold accent" id="stat-avg">—</p>
-          <p class="text-xs text-gray-500 mt-1">Avg Score</p>
-        </div>
-        <div class="card p-4 text-center">
-          <p class="text-2xl font-syne font-extrabold accent" id="stat-questions">—</p>
-          <p class="text-xs text-gray-500 mt-1">Questions</p>
+<!-- QUESTIONS -->
+<div id="screen-questions" class="screen">
+  <div class="flex flex-col px-5 py-6 h-full">
+    <div class="flex items-center justify-between mb-3">
+      <div>
+        <p class="font-syne font-bold text-base" id="q-label">Question 1</p>
+        <p class="text-gray-500 text-xs" id="q-sublabel">of 5</p>
+      </div>
+      <div class="relative w-14 h-14">
+        <svg class="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="24" stroke="#222" stroke-width="4" fill="none"/>
+          <circle id="q-timer-circle" cx="28" cy="28" r="24" stroke="#FFFC00" stroke-width="4" fill="none"
+            stroke-dasharray="150.8" stroke-dashoffset="0" stroke-linecap="round" class="timer-ring"/>
+        </svg>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <span id="q-timer-display" class="font-syne font-bold text-sm accent"></span>
         </div>
       </div>
+    </div>
+    <div class="flex gap-2 mb-5" id="q-dots"></div>
+    <div class="card p-5 mb-4">
+      <p id="q-text" class="text-white font-medium text-[15px] leading-relaxed"></p>
+    </div>
+    <div id="options-container" class="flex flex-col gap-3 overflow-y-auto" style="max-height:calc(100vh - 360px)"></div>
+    <button id="next-btn"   class="btn btn-primary w-full mt-4 py-4 hidden" onclick="nextQuestion()">Next Question →</button>
+    <button id="submit-btn" class="btn btn-primary w-full mt-4 py-4 hidden" onclick="submitQuiz()">Submit Answers ✓</button>
+  </div>
+</div>
 
-      <!-- ── SECTION: Basic Settings ── -->
-      <div class="card p-6 mb-6">
-        <div class="flex items-center justify-between mb-5">
-          <h2 class="font-syne font-bold text-base">⚙️ Basic Settings</h2>
-          <div id="live-status" class="badge badge-green">
-            <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Live
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="text-xs text-gray-500 mb-1 block">Quiz Timer (seconds)</label>
-            <input id="f-time" class="inp" type="number" min="10" max="300" value="60" placeholder="60"/>
-          </div>
-          <div>
-            <label class="text-xs text-gray-500 mb-1 block">Snapchat Username</label>
-            <input id="f-snapchat" class="inp" type="text" placeholder="@Elysooo" value="@Elysooo"/>
-          </div>
-          <div class="md:col-span-2">
-            <label class="text-xs text-gray-500 mb-1 block">Quiz Date Label</label>
-            <input id="f-date-label" class="inp" type="text" placeholder="e.g. Week 3 · Day 2 (leave blank for auto)"/>
-          </div>
-        </div>
+<!-- RESULTS -->
+<div id="screen-results" class="screen">
+  <div class="flex flex-col px-5 py-6 min-h-full">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="font-syne font-extrabold text-2xl">Your Results</h2>
+      <span class="text-2xl" id="result-emoji">🚀</span>
+    </div>
+    <div class="flex flex-col items-center mb-8">
+      <div class="score-circle bounce-in mb-4">
+        <span class="font-syne font-extrabold text-4xl accent" id="result-score">0</span>
+        <span class="text-gray-500 text-xs">out of <span id="result-total">5</span></span>
       </div>
+      <span class="font-syne font-bold text-xl mb-1" id="result-level">Advanced</span>
+      <p class="text-gray-400 text-sm text-center px-4" id="result-message"></p>
+    </div>
+    <div class="card p-4 mb-4">
+      <p class="font-syne font-semibold text-sm mb-3 text-gray-300">📊 Answer Breakdown</p>
+      <div id="breakdown-list"></div>
+    </div>
+    <div class="card p-4 mb-4">
+      <p class="font-syne font-semibold text-sm mb-3 text-gray-300">📝 Key Explanations</p>
+      <div id="explanations-list" class="flex flex-col gap-3"></div>
+    </div>
+    <div class="flex gap-3 mb-3">
+      <button class="btn btn-ghost flex-1 py-3 text-sm" onclick="showLeaderboard()">🏆 Leaderboard</button>
+      <button class="btn btn-primary flex-1 py-3 text-sm" onclick="shareResult()">📤 Share</button>
+    </div>
+    <button class="btn btn-ghost w-full py-3 text-sm mb-6" onclick="resetQuiz()">↩ Try Again</button>
+  </div>
+</div>
 
-      <!-- ── SECTION: Passage ── -->
-      <div class="card p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-syne font-bold text-base">📖 Reading Passage</h2>
-          <span class="text-xs text-gray-600" id="char-count">0 chars</span>
-        </div>
-        <textarea id="f-passage" class="inp" rows="8"
-          placeholder="Paste the reading passage here. Use blank lines to separate paragraphs..."
-          oninput="updateCharCount()"></textarea>
-        <p class="text-xs text-gray-600 mt-2">Tip: Separate paragraphs with a blank line for clean formatting.</p>
-      </div>
+<!-- LEADERBOARD -->
+<div id="screen-leaderboard" class="screen">
+  <div class="flex flex-col px-5 py-6 min-h-full">
+    <div class="flex items-center gap-3 mb-1">
+      <button class="w-9 h-9 rounded-full bg-[#1e1e1e] flex items-center justify-center" onclick="backToResults()">←</button>
+      <h2 class="font-syne font-extrabold text-2xl">Leaderboard 🏆</h2>
+    </div>
+    <p class="text-gray-500 text-sm mb-6 ml-12"><span id="lb-count">0</span> participants</p>
+    <div id="leaderboard-list"></div>
+  </div>
+</div>
 
-      <!-- ── SECTION: Questions ── -->
-      <div class="card p-6 mb-6">
-        <div class="flex items-center justify-between mb-5">
-          <h2 class="font-syne font-bold text-base">❓ Questions</h2>
-          <button class="btn btn-ghost btn-sm" onclick="addQuestion()">+ Add Question</button>
-        </div>
-        <div id="questions-container" class="flex flex-col gap-5"></div>
-      </div>
+<!-- SNAP FAB -->
+<a id="snap-fab" class="snap-fab" href="https://snapchat.com/add/Elysooo" target="_blank" rel="noopener">
+  <svg width="16" height="16" viewBox="0 0 128 128" fill="#0f0f0f"><path d="M64 0C28.7 0 0 28.7 0 64s28.7 64 64 64 64-28.7 64-64S99.3 0 64 0zm31.7 81.4c-.3.5-2.8 1.2-6.9 1.9-.7 2.2-2.1 4.2-3.9 5.8l.1.4c.4 1.5-.2 3.1-1.5 4-.8.6-1.8.9-2.8.9-.8 0-1.5-.2-2.2-.5-3.4-1.5-6.1-2.3-8.4-2.3-2.4 0-5 .8-8.4 2.3-.7.3-1.5.5-2.2.5-1 0-2-.3-2.8-.9-1.3-.9-1.9-2.5-1.5-4l.1-.4c-1.8-1.6-3.2-3.6-3.9-5.8-4.1-.7-6.6-1.4-6.9-1.9-.3-.5-.2-1.1.2-1.5.1-.1.3-.2.4-.2.5 0 1.5.4 3.2.4.4 0 .8 0 1.2-.1-.5-1.3-.8-2.7-.8-4.1V63c0-7.1 5.8-12.9 12.9-12.9h2c1.1-2.9 3.9-5 7.2-5s6.1 2.1 7.2 5h2c7.1 0 12.9 5.8 12.9 12.9v12.9c0 1.4-.3 2.8-.8 4.1.4.1.8.1 1.2.1 1.7 0 2.7-.4 3.2-.4.2 0 .3.1.4.2.4.4.5 1 .2 1.5z"/></svg>
+  <span id="snap-fab-handle">@Elysooo</span>
+</a>
 
-      <!-- ── SECTION: Explanations ── -->
-      <div class="card p-6 mb-8">
-        <div class="flex items-center justify-between mb-5">
-          <h2 class="font-syne font-bold text-base">💡 Key Explanations</h2>
-          <button class="btn btn-ghost btn-sm" onclick="addExplanation()">+ Add</button>
-        </div>
-        <p class="text-xs text-gray-500 mb-4">Shown after quiz. Use <code class="text-yellow-400 bg-[#111] px-1 rounded">&lt;span class='vocab'&gt;word&lt;/span&gt;</code> to highlight vocabulary in yellow.</p>
-        <div id="explanations-container" class="flex flex-col gap-4"></div>
-      </div>
-
-      <!-- ── SAVE BUTTON ── -->
-      <div class="flex gap-3 items-center">
-        <button class="btn btn-primary flex-1 py-4 text-base" onclick="saveQuiz()" id="save-btn">
-          <span id="save-btn-text">💾 Save & Publish Quiz</span>
-          <div class="spinner hidden" id="save-spinner"></div>
-        </button>
-        <button class="btn btn-ghost" onclick="loadCurrentQuiz()" title="Reload from Firestore">↺ Reload</button>
-      </div>
-      <p class="text-xs text-gray-600 mt-3 text-center">Changes go live immediately for all students.</p>
-
-    </div><!-- /pane-editor -->
-
-    <!-- ═══════════  TAB: RESULTS  ═══════════ -->
-    <div id="pane-results" class="hidden">
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="font-syne font-bold text-xl">📊 Student Results</h2>
-        <div class="flex gap-2">
-          <button class="btn btn-ghost btn-sm" onclick="loadResults()">↺ Refresh</button>
-          <button class="btn btn-danger btn-sm" onclick="clearAllResults()">🗑 Clear All</button>
-        </div>
-      </div>
-
-      <!-- Summary cards -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div class="card-inner p-4 text-center">
-          <p class="text-xl font-syne font-extrabold accent" id="r-total">0</p>
-          <p class="text-xs text-gray-500 mt-1">Total</p>
-        </div>
-        <div class="card-inner p-4 text-center">
-          <p class="text-xl font-syne font-extrabold text-green-400" id="r-avg">—</p>
-          <p class="text-xs text-gray-500 mt-1">Average</p>
-        </div>
-        <div class="card-inner p-4 text-center">
-          <p class="text-xl font-syne font-extrabold text-blue-400" id="r-highest">—</p>
-          <p class="text-xs text-gray-500 mt-1">Highest</p>
-        </div>
-        <div class="card-inner p-4 text-center">
-          <p class="text-xl font-syne font-extrabold text-red-400" id="r-lowest">—</p>
-          <p class="text-xs text-gray-500 mt-1">Lowest</p>
-        </div>
-      </div>
-
-      <div class="card overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="results-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Name</th>
-                <th>Score</th>
-                <th>Level</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody id="results-tbody">
-              <tr><td colspan="5" class="text-center text-gray-600 py-8">Loading results...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div><!-- /pane-results -->
-
-    <!-- ═══════════  TAB: PREVIEW  ═══════════ -->
-    <div id="pane-preview" class="hidden">
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="font-syne font-bold text-xl">👁 Live Preview</h2>
-        <button class="btn btn-ghost btn-sm" onclick="refreshPreview()">↺ Refresh</button>
-      </div>
-      <div class="card p-6">
-        <!-- Passage preview -->
-        <div class="mb-6">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="badge badge-yellow">📖 Passage</span>
-          </div>
-          <div id="preview-passage" class="text-gray-300 text-sm leading-relaxed"></div>
-        </div>
-        <hr class="border-[#1e1e1e] mb-6"/>
-        <!-- Questions preview -->
-        <div id="preview-questions" class="flex flex-col gap-6"></div>
-        <!-- Explanations preview -->
-        <div id="preview-explanations" class="mt-6 flex flex-col gap-3"></div>
-      </div>
-    </div><!-- /pane-preview -->
-
-    <!-- ═══════════  TAB: SHARE  ═══════════ -->
-    <div id="pane-share" class="hidden">
-
-      <div class="flex items-center gap-3 mb-6">
-        <h2 class="font-syne font-extrabold text-xl">📤 Share with Students</h2>
-      </div>
-
-      <!-- Link card -->
-      <div class="card p-6 mb-5">
-        <p class="text-xs text-gray-500 mb-2 font-syne font-semibold uppercase tracking-wider">Student Quiz Link</p>
-        <div class="flex items-center gap-3 bg-[#111] border border-[#222] rounded-2xl px-4 py-3 mb-4">
-          <span class="text-[#FFFC00] text-sm flex-1 break-all font-mono select-all" id="share-link-display">https://nawafoooh.github.io/activity/step-quiz.html</span>
-          <button class="btn btn-primary btn-sm flex-shrink-0" onclick="copyLink()">📋 Copy</button>
-        </div>
-
-        <!-- Action buttons -->
-        <div class="grid grid-cols-2 gap-3">
-          <a id="whatsapp-btn" class="btn flex-1 py-3 text-sm text-center" 
-            style="background:#25D366;color:#fff;border-radius:12px;text-decoration:none"
-            href="#" target="_blank" onclick="openWhatsapp()">
-            <svg width="18" height="18" fill="white" viewBox="0 0 24 24" style="margin-right:6px"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.522 5.851L.057 23.985l6.302-1.453A11.954 11.954 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.893 9.893 0 01-5.034-1.378l-.36-.214-3.742.862.939-3.618-.235-.372A9.893 9.893 0 012.106 12C2.106 6.58 6.58 2.106 12 2.106S21.894 6.58 21.894 12 17.42 21.894 12 21.894z"/></svg>
-            WhatsApp
-          </a>
-          <button class="btn btn-ghost flex-1 py-3 text-sm" onclick="openLink()">
-            🔗 Open Quiz
-          </button>
-        </div>
-      </div>
-
-      <!-- QR Code card -->
-      <div class="card p-6 mb-5 text-center">
-        <p class="text-xs text-gray-500 mb-4 font-syne font-semibold uppercase tracking-wider">QR Code — Students Scan This</p>
-        <div class="flex justify-center mb-4">
-          <div id="qr-container" class="bg-white p-4 rounded-2xl inline-block">
-            <!-- QR renders here -->
-          </div>
-        </div>
-        <p class="text-gray-600 text-xs mb-4">Students scan with their phone camera to open the quiz instantly</p>
-        <button class="btn btn-ghost btn-sm" onclick="downloadQR()">⬇️ Download QR Image</button>
-      </div>
-
-      <!-- Sharing message -->
-      <div class="card p-6 mb-5">
-        <div class="flex items-center justify-between mb-3">
-          <p class="text-xs text-gray-500 font-syne font-semibold uppercase tracking-wider">Ready-to-send Message</p>
-          <button class="btn btn-ghost btn-sm" onclick="copyMessage()">📋 Copy</button>
-        </div>
-        <div id="share-message" class="bg-[#111] border border-[#1e1e1e] rounded-xl p-4 text-sm text-gray-300 leading-relaxed whitespace-pre-line select-all"></div>
-      </div>
-
-      <!-- Stats summary -->
-      <div class="card p-5">
-        <p class="text-xs text-gray-500 mb-3 font-syne font-semibold uppercase tracking-wider">Session Stats</p>
-        <div class="grid grid-cols-3 gap-3 text-center">
-          <div>
-            <p class="font-syne font-extrabold text-xl accent" id="share-stat-p">—</p>
-            <p class="text-xs text-gray-600 mt-1">Participants</p>
-          </div>
-          <div>
-            <p class="font-syne font-extrabold text-xl text-green-400" id="share-stat-avg">—</p>
-            <p class="text-xs text-gray-600 mt-1">Avg Score</p>
-          </div>
-          <div>
-            <p class="font-syne font-extrabold text-xl text-blue-400" id="share-stat-time">—</p>
-            <p class="text-xs text-gray-600 mt-1">Timer (sec)</p>
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /pane-share -->
-
-  </div><!-- /max-w -->
-</div><!-- /admin-panel -->
-
-<!-- Toast -->
 <div id="toast"></div>
 
-<!-- ═══════════════════════════════════════════
-     JAVASCRIPT
-════════════════════════════════════════════ -->
 <script>
-/* ── Firebase Init ── */
-const firebaseConfig = {
-  apiKey: "AIzaSyBaY75jwos44EbgZMlhIcU_YfrGeKY7r3w",
-  authDomain: "naj7-7da9d.firebaseapp.com",
-  projectId: "naj7-7da9d",
-  storageBucket: "naj7-7da9d.firebasestorage.app",
-  messagingSenderId: "72751584563",
-  appId: "1:72751584563:web:8562f042882919d2c4da46",
-  measurementId: "G-308H9HW0FP"
-};
-firebase.initializeApp(firebaseConfig);
+/* ── Firebase ── */
+firebase.initializeApp({
+  apiKey:"AIzaSyBaY75jwos44EbgZMlhIcU_YfrGeKY7r3w",
+  authDomain:"naj7-7da9d.firebaseapp.com",
+  projectId:"naj7-7da9d",
+  storageBucket:"naj7-7da9d.firebasestorage.app",
+  messagingSenderId:"72751584563",
+  appId:"1:72751584563:web:8562f042882919d2c4da46"
+});
 const db = firebase.firestore();
-const auth = firebase.auth();
 
 /* ── State ── */
-let questions = [];     // array of question objects
-let explanations = [];  // array of explanation objects
-let unsaved = false;
+let QUESTIONS=[],EXPLANATIONS=[],QUIZ_TIME=60,SNAP='@Elysooo';
+let studentName='',currentQ=0,answers=[],timeLeft=60,timerInterval=null,quizScore=0;
+const CIRC=150.8;
+const STUDENT_URL='https://nawafoooh.github.io/activity/step-quiz.html';
 
-/* ══════════════════════════════
-   AUTH
-══════════════════════════════ */
-auth.onAuthStateChanged(user => {
-  if (user) {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('admin-panel').classList.remove('hidden');
-    document.getElementById('admin-email-display').textContent = user.email;
-    init();
-  } else {
-    document.getElementById('login-screen').classList.remove('hidden');
-    document.getElementById('admin-panel').classList.add('hidden');
-  }
-});
-
-async function loginAdmin() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-password').value;
-  const btn   = document.getElementById('login-btn');
-  const err   = document.getElementById('login-error');
-
-  if (!email || !pass) { showError(err, 'Please fill in all fields.'); return; }
-
-  btn.textContent = 'Signing in...';
-  btn.disabled = true;
-
-  try {
-    await auth.signInWithEmailAndPassword(email, pass);
-  } catch (e) {
-    showError(err, friendlyAuthError(e.code));
-    btn.textContent = 'Sign In →';
-    btn.disabled = false;
-  }
+/* ── Boot ── */
+async function boot(){
+  try{
+    const doc=await db.collection('quiz').doc('today').get();
+    if(!doc.exists){showError('No quiz published today. Check back later!');return;}
+    const d=doc.data();
+    QUESTIONS=d.questions||[];EXPLANATIONS=d.explanations||[];
+    QUIZ_TIME=d.quizTime||60;SNAP=d.snapchat||'@Elysooo';timeLeft=QUIZ_TIME;
+    if(!QUESTIONS.length){showError('Quiz has no questions yet.');return;}
+    document.getElementById('landing-timer').textContent=QUIZ_TIME;
+    document.getElementById('snap-footer').textContent=SNAP;
+    document.getElementById('snap-fab-handle').textContent=SNAP;
+    document.getElementById('snap-fab').href=`https://snapchat.com/add/${SNAP.replace('@','')}`;
+    document.getElementById('date-label-display').textContent=d.dateLabel||'';
+    document.getElementById('today-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    document.getElementById('passage-text').innerHTML=(d.passage||'').trim().split('\n\n').map(p=>`<p class="mb-4">${p.trim()}</p>`).join('');
+    loadCount();
+    showScreen('screen-landing');
+  }catch(e){console.error(e);showError('Connection error. Please check your internet.');}
 }
 
-function logoutAdmin() {
-  if (unsaved && !confirm('You have unsaved changes. Sign out anyway?')) return;
-  auth.signOut();
+function showError(msg){document.getElementById('error-msg').textContent=msg;showScreen('screen-error');}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));const t=document.getElementById(id);t.classList.add('active');t.scrollTop=0;}
+
+/* ── Start ── */
+function startQuiz(){
+  studentName=document.getElementById('student-name').value.trim();
+  const err=document.getElementById('name-error');
+  if(!studentName){err.classList.remove('hidden');return;}
+  err.classList.add('hidden');
+  currentQ=0;answers=new Array(QUESTIONS.length).fill(-1);timeLeft=QUIZ_TIME;
+  showScreen('screen-reading');startTimer();
 }
 
-function friendlyAuthError(code) {
-  const map = {
-    'auth/user-not-found': 'No account found with this email.',
-    'auth/wrong-password': 'Incorrect password.',
-    'auth/invalid-email': 'Invalid email address.',
-    'auth/too-many-requests': 'Too many attempts. Try again later.',
-  };
-  return map[code] || 'Sign-in failed. Check your credentials.';
-}
-
-function showError(el, msg) {
-  el.textContent = msg;
-  el.classList.remove('hidden');
-}
-
-/* ══════════════════════════════
-   INIT
-══════════════════════════════ */
-async function init() {
-  await loadCurrentQuiz();
-  await loadStats();
-}
-
-/* ══════════════════════════════
-   LOAD CURRENT QUIZ FROM FIRESTORE
-══════════════════════════════ */
-async function loadCurrentQuiz() {
-  try {
-    const doc = await db.collection('quiz').doc('today').get();
-    if (doc.exists) {
-      const data = doc.data();
-      document.getElementById('f-time').value       = data.quizTime || 60;
-      document.getElementById('f-snapchat').value   = data.snapchat || '@Elysooo';
-      document.getElementById('f-date-label').value = data.dateLabel || '';
-      document.getElementById('f-passage').value    = data.passage || '';
-      updateCharCount();
-
-      questions    = data.questions    || [];
-      explanations = data.explanations || [];
-    } else {
-      // First time: seed defaults
-      questions    = getDefaultQuestions();
-      explanations = getDefaultExplanations();
+/* ── Timer ── */
+function startTimer(){
+  updateTimer();
+  timerInterval=setInterval(()=>{
+    timeLeft--;updateTimer();
+    const rp=document.getElementById('reading-progress');
+    if(rp)rp.style.width=((timeLeft/QUIZ_TIME)*100)+'%';
+    if(timeLeft<=10){
+      document.getElementById('timer-circle').setAttribute('stroke','#ef4444');
+      document.getElementById('q-timer-circle').setAttribute('stroke','#ef4444');
+      if(navigator.vibrate)navigator.vibrate(40);
     }
-    renderQuestions();
-    renderExplanations();
-    markSaved();
-    showToast('✅ Loaded from Firestore');
-  } catch(e) {
-    console.error(e);
-    showToast('⚠️ Could not load — check connection', 'red');
-    questions    = getDefaultQuestions();
-    explanations = getDefaultExplanations();
-    renderQuestions();
-    renderExplanations();
-  }
+    if(timeLeft<=0){clearInterval(timerInterval);submitQuiz(true);}
+  },1000);
+}
+function updateTimer(){
+  const off=CIRC*(1-timeLeft/QUIZ_TIME);
+  ['timer-circle','q-timer-circle'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.strokeDashoffset=off;});
+  ['timer-display','q-timer-display'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=timeLeft;});
 }
 
-/* ══════════════════════════════
-   SAVE TO FIRESTORE
-══════════════════════════════ */
-async function saveQuiz() {
-  const btn     = document.getElementById('save-btn');
-  const btnText = document.getElementById('save-btn-text');
-  const spinner = document.getElementById('save-spinner');
+/* ── Reading → Questions ── */
+function goToQuestions(){showScreen('screen-questions');renderQ(0);}
 
-  // Collect data
-  const payload = {
-    quizTime:     parseInt(document.getElementById('f-time').value) || 60,
-    snapchat:     document.getElementById('f-snapchat').value.trim() || '@Elysooo',
-    dateLabel:    document.getElementById('f-date-label').value.trim(),
-    passage:      document.getElementById('f-passage').value.trim(),
-    questions:    collectQuestions(),
-    explanations: collectExplanations(),
-    updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
-    updatedBy:    auth.currentUser?.email || 'admin'
-  };
-
-  // Validate
-  if (!payload.passage) { showToast('⚠️ Passage is required!', 'red'); return; }
-  if (payload.questions.length === 0) { showToast('⚠️ Add at least one question!', 'red'); return; }
-  for (let i = 0; i < payload.questions.length; i++) {
-    const q = payload.questions[i];
-    if (!q.question.trim()) { showToast(`⚠️ Q${i+1}: Question text is empty!`, 'red'); return; }
-    const hasEmpty = q.options.some(o => !o.trim());
-    if (hasEmpty) { showToast(`⚠️ Q${i+1}: Fill all 4 options!`, 'red'); return; }
-  }
-
-  // Loading state
-  btnText.classList.add('hidden');
-  spinner.classList.remove('hidden');
-  btn.disabled = true;
-
-  try {
-    await db.collection('quiz').doc('today').set(payload);
-    markSaved();
-    showToast('🚀 Quiz published successfully!');
-    btn.classList.add('glow');
-    setTimeout(() => btn.classList.remove('glow'), 700);
-  } catch(e) {
-    console.error(e);
-    showToast('❌ Save failed: ' + e.message, 'red');
-  } finally {
-    btnText.classList.remove('hidden');
-    spinner.classList.add('hidden');
-    btn.disabled = false;
-  }
-}
-
-/* ══════════════════════════════
-   COLLECT DATA FROM DOM
-══════════════════════════════ */
-function collectQuestions() {
-  return questions.map((_, i) => {
-    const block = document.getElementById(`q-block-${i}`);
-    if (!block) return null;
-    const opts = ['A','B','C','D'].map(l =>
-      block.querySelector(`#opt-${i}-${l}`)?.value || ''
-    );
-    const correctIdx = parseInt(block.querySelector(`[name="correct-${i}"]:checked`)?.value ?? 0);
-    return {
-      question: block.querySelector(`#qtext-${i}`)?.value || '',
-      options: opts,
-      correct: correctIdx
-    };
-  }).filter(Boolean);
-}
-
-function collectExplanations() {
-  return explanations.map((_, i) => {
-    const block = document.getElementById(`exp-block-${i}`);
-    if (!block) return null;
-    return {
-      text: block.querySelector(`#exp-text-${i}`)?.value || '',
-      note: block.querySelector(`#exp-note-${i}`)?.value || ''
-    };
-  }).filter(Boolean);
-}
-
-/* ══════════════════════════════
-   RENDER QUESTIONS
-══════════════════════════════ */
-function renderQuestions() {
-  const container = document.getElementById('questions-container');
-  container.innerHTML = '';
-  questions.forEach((q, i) => renderQuestionBlock(q, i));
-  document.getElementById('stat-questions').textContent = questions.length;
-}
-
-function renderQuestionBlock(q, i) {
-  const container = document.getElementById('questions-container');
-  const letters = ['A','B','C','D'];
-  const div = document.createElement('div');
-  div.className = 'q-block';
-  div.id = `q-block-${i}`;
-
-  div.innerHTML = `
-    <div class="flex items-center gap-3 mb-4">
-      <span class="drag-handle text-lg select-none">⠿</span>
-      <span class="font-syne font-bold text-sm accent">Q${i+1}</span>
-      <div class="flex-1"></div>
-      <button class="btn btn-danger btn-sm" onclick="removeQuestion(${i})">✕ Remove</button>
-    </div>
-
-    <!-- Question text -->
-    <label class="text-xs text-gray-500 mb-1 block">Question</label>
-    <input id="qtext-${i}" class="inp mb-4" type="text"
-      placeholder="Type the question here..."
-      value="${escapeAttr(q.question || '')}"
-      oninput="markUnsaved()"/>
-
-    <!-- Options -->
-    <label class="text-xs text-gray-500 mb-2 block">Answer Options <span class="text-yellow-400">(select the correct one)</span></label>
-    ${letters.map((l, j) => `
-      <div class="opt-row mb-2">
-        <div class="opt-letter ${q.correct === j ? 'bg-yellow-400 text-black' : ''}">${l}</div>
-        <input id="opt-${i}-${l}" class="inp flex-1" type="text"
-          placeholder="Option ${l}..."
-          value="${escapeAttr(q.options?.[j] || '')}"
-          oninput="markUnsaved()"/>
-        <label class="correct-wrap ml-1" title="Mark as correct">
-          <input type="radio" name="correct-${i}" value="${j}"
-            class="correct-radio"
-            ${q.correct === j ? 'checked' : ''}
-            onchange="markUnsaved(); updateOptLetterColor(${i})"/>
-          <span class="text-xs text-gray-500">✓</span>
-        </label>
-      </div>
-    `).join('')}
-  `;
-  container.appendChild(div);
-}
-
-function addQuestion() {
-  questions.push({ question: '', options: ['','','',''], correct: 0 });
-  renderQuestions();
-  markUnsaved();
-  // Scroll to new question
-  const blocks = document.querySelectorAll('.q-block');
-  blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-function removeQuestion(i) {
-  if (questions.length <= 1) { showToast('⚠️ Must have at least one question.', 'red'); return; }
-  if (!confirm(`Remove Question ${i+1}?`)) return;
-  questions.splice(i, 1);
-  renderQuestions();
-  markUnsaved();
-}
-
-function updateOptLetterColor(i) {
-  const block = document.getElementById(`q-block-${i}`);
-  const letters = ['A','B','C','D'];
-  const checked = parseInt(block.querySelector(`[name="correct-${i}"]:checked`)?.value ?? 0);
-  block.querySelectorAll('.opt-letter').forEach((el, j) => {
-    el.classList.toggle('bg-[#FFFC00]', j === checked);
-    el.classList.toggle('text-black', j === checked);
-    el.style.background = j === checked ? '#FFFC00' : '';
-    el.style.color = j === checked ? '#0a0a0a' : '';
+/* ── Render Question ── */
+function renderQ(idx){
+  currentQ=idx;const q=QUESTIONS[idx];const total=QUESTIONS.length;
+  document.getElementById('q-label').textContent=`Question ${idx+1}`;
+  document.getElementById('q-sublabel').textContent=`of ${total}`;
+  document.getElementById('q-text').textContent=q.question;
+  const dots=document.getElementById('q-dots');dots.innerHTML='';
+  QUESTIONS.forEach((_,i)=>{const d=document.createElement('div');d.className=`h-2 flex-1 rounded-full transition-all duration-300 ${i<idx?'bg-green-500':i===idx?'bg-[#FFFC00]':'bg-[#2a2a2a]'}`;dots.appendChild(d);});
+  const container=document.getElementById('options-container');container.innerHTML='';
+  const letters=['A','B','C','D'];
+  q.options.forEach((opt,i)=>{
+    const div=document.createElement('div');div.className='option-card';
+    div.innerHTML=`<div class="opt-letter">${letters[i]}</div><span class="text-[14px] text-gray-200 leading-snug">${opt}</span>`;
+    div.onclick=()=>selectOpt(i);container.appendChild(div);
   });
+  if(answers[idx]!==-1)highlightSel(answers[idx]);
+  document.getElementById('next-btn').classList.add('hidden');
+  document.getElementById('submit-btn').classList.add('hidden');
+}
+function selectOpt(i){
+  answers[currentQ]=i;highlightSel(i);if(navigator.vibrate)navigator.vibrate(25);
+  setTimeout(()=>{
+    document.getElementById(currentQ===QUESTIONS.length-1?'submit-btn':'next-btn').classList.remove('hidden');
+  },280);
+}
+function highlightSel(idx){document.querySelectorAll('.option-card').forEach((c,i)=>c.classList.toggle('selected',i===idx));}
+function nextQuestion(){if(currentQ<QUESTIONS.length-1)renderQ(currentQ+1);}
+
+/* ── Submit ── */
+async function submitQuiz(){
+  clearInterval(timerInterval);
+  quizScore=QUESTIONS.reduce((s,q,i)=>s+(answers[i]===q.correct?1:0),0);
+  try{await db.collection('results').add({name:studentName,score:quizScore,total:QUESTIONS.length,timestamp:firebase.firestore.FieldValue.serverTimestamp(),date:new Date().toISOString()});}
+  catch(e){console.warn(e);}
+  const stored=JSON.parse(localStorage.getItem('stepResults')||'[]');
+  stored.push({name:studentName,score:quizScore,total:QUESTIONS.length,date:new Date().toISOString()});
+  localStorage.setItem('stepResults',JSON.stringify(stored));
+  showResults();
 }
 
-/* ══════════════════════════════
-   RENDER EXPLANATIONS
-══════════════════════════════ */
-function renderExplanations() {
-  const container = document.getElementById('explanations-container');
-  container.innerHTML = '';
-  explanations.forEach((ex, i) => {
-    const div = document.createElement('div');
-    div.className = 'exp-block';
-    div.id = `exp-block-${i}`;
-    div.innerHTML = `
-      <div class="flex items-center justify-between mb-3">
-        <span class="font-syne font-bold text-xs accent">Explanation ${i+1}</span>
-        <button class="btn btn-danger btn-sm" onclick="removeExplanation(${i})">✕</button>
-      </div>
-      <label class="text-xs text-gray-500 mb-1 block">Sentence from passage (HTML allowed for vocab highlights)</label>
-      <input id="exp-text-${i}" class="inp mb-2" type="text"
-        placeholder="e.g. Students who read <span class='vocab'>consistently</span> perform better."
-        value="${escapeAttr(ex.text || '')}"
-        oninput="markUnsaved()"/>
-      <label class="text-xs text-gray-500 mb-1 block">Note / explanation</label>
-      <input id="exp-note-${i}" class="inp" type="text"
-        placeholder="e.g. Key word: consistently = regularly without stopping."
-        value="${escapeAttr(ex.note || '')}"
-        oninput="markUnsaved()"/>
-    `;
-    container.appendChild(div);
-  });
+/* ── Results ── */
+function showResults(){
+  showScreen('screen-results');
+  const pct=quizScore/QUESTIONS.length;
+  let level,msg,emoji;
+  if(pct<=0.2){level='Beginner';msg='Keep going 💪 Every expert was once a beginner!';emoji='💪';}
+  else if(pct<=0.6){level='Intermediate';msg="You're improving 🔥 Keep practicing daily!";emoji='🔥';}
+  else{level='Advanced';msg='Excellent work 🚀 You are crushing it!';emoji='🚀';}
+  document.getElementById('result-score').textContent=quizScore;
+  document.getElementById('result-total').textContent=QUESTIONS.length;
+  document.getElementById('result-level').textContent=level;
+  document.getElementById('result-message').textContent=msg;
+  document.getElementById('result-emoji').textContent=emoji;
+  const letters=['A','B','C','D'];
+  document.getElementById('breakdown-list').innerHTML=QUESTIONS.map((q,i)=>{
+    const ok=answers[i]===q.correct;
+    return`<div class="flex items-start gap-2 py-2 border-b border-[#222] last:border-0"><span class="mt-0.5 text-sm">${ok?'✅':'❌'}</span><div><p class="text-xs text-gray-400 mb-0.5">Q${i+1}: ${q.question}</p><p class="text-xs ${ok?'text-green-400':'text-red-400'}">Your: ${answers[i]>=0?letters[answers[i]]:'—'} · Correct: ${letters[q.correct]}</p></div></div>`;
+  }).join('');
+  document.getElementById('explanations-list').innerHTML=EXPLANATIONS.map(ex=>
+    `<div class="bg-[#111] rounded-2xl p-4 border border-[#222]"><p class="text-[13px] text-gray-200 leading-relaxed mb-1">${ex.text}</p><p class="text-[11px] text-gray-500 italic">${ex.note}</p></div>`
+  ).join('');
 }
 
-function addExplanation() {
-  explanations.push({ text: '', note: '' });
-  renderExplanations();
-  markUnsaved();
-}
-
-function removeExplanation(i) {
-  explanations.splice(i, 1);
-  renderExplanations();
-  markUnsaved();
-}
-
-/* ══════════════════════════════
-   LOAD STATS
-══════════════════════════════ */
-async function loadStats() {
-  try {
-    const snap = await db.collection('results').get();
-    const docs = snap.docs.map(d => d.data());
-    const count = docs.length;
-    const avg = count > 0
-      ? (docs.reduce((s, d) => s + (d.score / (d.total || 5)), 0) / count * 100).toFixed(0) + '%'
-      : '—';
-    document.getElementById('stat-participants').textContent = count;
-    document.getElementById('stat-avg').textContent = avg;
-  } catch(e) {
-    console.warn('Stats error:', e);
-  }
-}
-
-/* ══════════════════════════════
-   LOAD RESULTS TAB
-══════════════════════════════ */
-async function loadResults() {
-  const tbody = document.getElementById('results-tbody');
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-600 py-8"><div class="spinner mx-auto"></div></td></tr>';
-
-  try {
-    const snap = await db.collection('results')
-      .orderBy('score', 'desc')
-      .limit(100).get();
-
-    const docs = snap.docs.map(d => d.data());
-
-    // Summary
-    document.getElementById('r-total').textContent = docs.length;
-    if (docs.length > 0) {
-      const scores = docs.map(d => d.score);
-      const totals = docs.map(d => d.total || 5);
-      document.getElementById('r-avg').textContent =
-        (scores.reduce((a,b,i)=>a+b/totals[i],0)/docs.length*100).toFixed(0)+'%';
-      document.getElementById('r-highest').textContent = Math.max(...scores);
-      document.getElementById('r-lowest').textContent  = Math.min(...scores);
-    }
-
-    if (docs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-600 py-8">No results yet.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = docs.map((d, i) => {
-      const pct = d.score / (d.total || 5);
-      const level = pct <= 0.2 ? 'Beginner' : pct <= 0.6 ? 'Intermediate' : 'Advanced';
-      const levelColor = pct <= 0.2 ? 'text-red-400' : pct <= 0.6 ? 'text-yellow-400' : 'text-green-400';
-      const dateStr = d.date ? new Date(d.date).toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
-      return `
-        <tr>
-          <td class="text-gray-600">${i+1}</td>
-          <td class="font-medium">${sanitize(d.name || '—')}</td>
-          <td><span class="font-syne font-bold accent">${d.score}</span><span class="text-gray-500">/${d.total||5}</span></td>
-          <td class="${levelColor} text-sm font-syne font-semibold">${level}</td>
-          <td class="text-gray-500 text-xs">${dateStr}</td>
-        </tr>
-      `;
+/* ── Leaderboard ── */
+async function showLeaderboard(){
+  showScreen('screen-leaderboard');
+  const list=document.getElementById('leaderboard-list');
+  list.innerHTML='<div class="flex justify-center py-8"><div class="spinner"></div></div>';
+  try{
+    const snap=await db.collection('results').orderBy('score','desc').orderBy('timestamp','asc').limit(30).get();
+    const entries=snap.docs.map(d=>d.data());
+    document.getElementById('lb-count').textContent=entries.length;
+    if(!entries.length){list.innerHTML='<p class="text-gray-600 text-sm text-center py-8">No participants yet 🎯</p>';return;}
+    list.innerHTML=entries.map((e,i)=>{
+      const rc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+      const rt=i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+      const stars='⭐'.repeat(Math.round((e.score/(e.total||QUESTIONS.length))*5))||'☆';
+      return`<div class="lb-row"><div class="lb-rank ${rc}">${rt}</div><div class="flex-1 min-w-0"><p class="font-syne font-semibold text-sm truncate">${sanitize(e.name)}</p><p class="text-xs text-gray-600">${stars}</p></div><div class="text-right"><span class="font-syne font-bold text-lg accent">${e.score}</span><span class="text-gray-600 text-xs">/${e.total||QUESTIONS.length}</span></div></div>`;
     }).join('');
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-red-400 py-8">Error: ${e.message}</td></tr>`;
-  }
+  }catch(e){list.innerHTML='<p class="text-red-400 text-sm text-center py-8">Could not load leaderboard.</p>';}
+}
+function backToResults(){showScreen('screen-results');}
+
+/* ── Count ── */
+async function loadCount(){
+  try{const s=await db.collection('results').get();document.getElementById('participants-count').textContent=s.size;}
+  catch(e){const l=JSON.parse(localStorage.getItem('stepResults')||'[]');document.getElementById('participants-count').textContent=l.length;}
 }
 
-async function clearAllResults() {
-  if (!confirm('⚠️ This will delete ALL student results from Firestore. Are you sure?')) return;
-  if (!confirm('Last warning: this cannot be undone!')) return;
-
-  try {
-    const snap = await db.collection('results').get();
-    const batch = db.batch();
-    snap.docs.forEach(d => batch.delete(d.ref));
-    await batch.commit();
-    showToast('🗑 All results cleared.');
-    loadResults();
-    loadStats();
-  } catch(e) {
-    showToast('❌ Error: ' + e.message, 'red');
-  }
+/* ── Share ── */
+async function shareResult(){
+  const pct=quizScore/QUESTIONS.length;
+  const level=pct<=0.2?'Beginner':pct<=0.6?'Intermediate':'Advanced';
+  const text=`I scored ${quizScore}/${QUESTIONS.length} (${level}) on the STEP Daily Challenge! 🚀\nCan you beat me?\n👉 ${STUDENT_URL}\nby ${SNAP}`;
+  if(navigator.share){try{await navigator.share({title:'STEP Daily Challenge',text,url:STUDENT_URL});}catch(e){}}
+  else{await navigator.clipboard.writeText(text);showToast('Copied! 📋');}
 }
 
-/* ══════════════════════════════
-   PREVIEW TAB
-══════════════════════════════ */
-function refreshPreview() {
-  const passage = document.getElementById('f-passage').value.trim();
-  const qs = collectQuestions();
-  const exps = collectExplanations();
-  const letters = ['A','B','C','D'];
-
-  // Passage
-  document.getElementById('preview-passage').innerHTML =
-    passage.split('\n\n').map(p => `<p class="mb-3">${p.trim()}</p>`).join('');
-
-  // Questions
-  document.getElementById('preview-questions').innerHTML = qs.map((q, i) => `
-    <div class="card-inner p-4">
-      <p class="font-syne font-semibold text-sm mb-3 accent">Q${i+1}: ${sanitize(q.question)}</p>
-      ${q.options.map((o, j) => `
-        <div class="flex items-center gap-2 mb-2 ${j === q.correct ? 'text-green-400' : 'text-gray-400'} text-sm">
-          <span class="w-5 h-5 rounded-full ${j===q.correct?'bg-green-500 text-white':'bg-[#1e1e1e] text-gray-500'} flex items-center justify-center text-xs font-bold flex-shrink-0">${letters[j]}</span>
-          ${sanitize(o)} ${j===q.correct ? '✓' : ''}
-        </div>
-      `).join('')}
-    </div>
-  `).join('');
-
-  // Explanations
-  document.getElementById('preview-explanations').innerHTML = exps.length ? `
-    <p class="font-syne font-semibold text-sm text-gray-300 mb-2">💡 Explanations</p>
-    ${exps.map(ex => `
-      <div class="card-inner p-4">
-        <p class="text-sm text-gray-200 mb-1">${ex.text}</p>
-        <p class="text-xs text-gray-500 italic">${ex.note}</p>
-      </div>
-    `).join('')}
-  ` : '';
+/* ── Reset ── */
+function resetQuiz(){
+  clearInterval(timerInterval);
+  document.getElementById('student-name').value='';
+  document.getElementById('timer-circle').setAttribute('stroke','#FFFC00');
+  document.getElementById('q-timer-circle').setAttribute('stroke','#FFFC00');
+  showScreen('screen-landing');loadCount();
 }
 
-/* ══════════════════════════════
-   TABS
-══════════════════════════════ */
-function switchTab(tab) {
-  ['editor','results','preview','share'].forEach(t => {
-    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
-    document.getElementById(`pane-${t}`).classList.toggle('hidden', t !== tab);
-  });
-  if (tab === 'results') loadResults();
-  if (tab === 'preview') refreshPreview();
-  if (tab === 'share') initShareTab();
-}
-
-/* ══════════════════════════════
-   HELPERS
-══════════════════════════════ */
-function markUnsaved() {
-  unsaved = true;
-  document.getElementById('save-status').classList.remove('hidden');
-}
-function markSaved() {
-  unsaved = false;
-  document.getElementById('save-status').classList.add('hidden');
-}
-
-function updateCharCount() {
-  const len = document.getElementById('f-passage').value.length;
-  document.getElementById('char-count').textContent = `${len} chars`;
-  markUnsaved();
-}
-
-function showToast(msg, color = 'yellow') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.background = color === 'red' ? '#ef4444' : '#FFFC00';
-  t.style.color = color === 'red' ? '#fff' : '#0a0a0a';
-  t.style.opacity = '1';
-  setTimeout(() => { t.style.opacity = '0'; }, 3000);
-}
-
-function escapeAttr(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-function sanitize(str) {
-  return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-/* ══════════════════════════════
-   DEFAULT DATA (first-time seed)
-══════════════════════════════ */
-function getDefaultQuestions() {
-  return [
-    {
-      question: "What is the main idea of the passage?",
-      options: ["Option A", "Option B", "Option C", "Option D"],
-      correct: 0
-    }
-  ];
-}
-function getDefaultExplanations() {
-  return [
-    { text: "Key sentence from the passage here.", note: "Explanation note here." }
-  ];
-}
-
-/* ══════════════════════════════
-   SHARE TAB
-══════════════════════════════ */
-const STUDENT_URL = 'https://nawafoooh.github.io/activity/step-quiz.html';
-let qrGenerated = false;
-
-async function initShareTab() {
-  // Generate QR once
-  if (!qrGenerated) {
-    document.getElementById('qr-container').innerHTML = '';
-    new QRCode(document.getElementById('qr-container'), {
-      text: STUDENT_URL,
-      width: 180,
-      height: 180,
-      colorDark: '#000000',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.H
-    });
-    qrGenerated = true;
-  }
-
-  // Build share message
-  const dateLabel = document.getElementById('f-date-label')?.value.trim() || getTodayStr();
-  const timer = document.getElementById('f-time')?.value || '60';
-  const msg = `⚡ STEP Daily Challenge\n📅 ${dateLabel}\n⏱ ${timer} seconds\n\n🔗 ${STUDENT_URL}\n\nScan the QR code or tap the link to start!\nGood luck! 💪\n\n— by @Elysooo`;
-  document.getElementById('share-message').textContent = msg;
-
-  // WhatsApp link
-  document.getElementById('whatsapp-btn').href =
-    `https://wa.me/?text=${encodeURIComponent(msg)}`;
-
-  // Stats
-  try {
-    const snap = await db.collection('results').get();
-    const docs = snap.docs.map(d => d.data());
-    document.getElementById('share-stat-p').textContent = docs.length;
-    if (docs.length > 0) {
-      const avg = docs.reduce((s,d) => s + d.score/(d.total||5), 0) / docs.length;
-      document.getElementById('share-stat-avg').textContent = (avg*100).toFixed(0)+'%';
-    }
-    document.getElementById('share-stat-time').textContent = timer;
-  } catch(e) { console.warn(e); }
-}
-
-function copyLink() {
-  navigator.clipboard.writeText(STUDENT_URL)
-    .then(() => showToast('✅ Link copied!'))
-    .catch(() => showToast('⚠️ Copy failed', 'red'));
-}
-
-function copyMessage() {
-  const msg = document.getElementById('share-message').textContent;
-  navigator.clipboard.writeText(msg)
-    .then(() => showToast('✅ Message copied!'))
-    .catch(() => showToast('⚠️ Copy failed', 'red'));
-}
-
-function openLink() {
-  window.open(STUDENT_URL, '_blank');
-}
-
-function openWhatsapp() {
-  const msg = document.getElementById('share-message').textContent;
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-}
-
-function downloadQR() {
-  const canvas = document.querySelector('#qr-container canvas');
-  if (!canvas) { showToast('⚠️ QR not ready yet', 'red'); return; }
-  const link = document.createElement('a');
-  link.download = 'step-quiz-qr.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-  showToast('⬇️ QR downloaded!');
-}
-
-function getTodayStr() {
-  return new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
-}
-
-/* ── Prevent accidental navigation if unsaved ── */
-window.addEventListener('beforeunload', e => {
-  if (unsaved) { e.preventDefault(); e.returnValue = ''; }
-});
-
-/* ── Enter to login ── */
-document.getElementById('login-password')?.addEventListener('keydown', e => {
-  if (e.key === 'Enter') loginAdmin();
-});
+/* ── Helpers ── */
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.opacity='1';setTimeout(()=>{t.style.opacity='0';},2500);}
+function sanitize(s){return String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+document.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('copy',e=>e.preventDefault());
+boot();
 </script>
 </body>
 </html>
