@@ -2,532 +2,485 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>STEP Daily Challenge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>STEP Admin Panel</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
-
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet"/>
 
 <style>
-  /* ===== BASE ===== */
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
-    height: 100%; margin: 0; padding: 0;
-    background: #0f0f0f;
-    color: #fff;
+    margin: 0; padding: 0;
+    background: #0a0a0a;
+    color: #f0f0f0;
     font-family: 'DM Sans', sans-serif;
-    overflow: hidden;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    -webkit-user-select: none;
+    min-height: 100vh;
   }
 
-  /* ===== TYPOGRAPHY ===== */
   .font-syne { font-family: 'Syne', sans-serif; }
 
-  /* ===== SCREENS ===== */
-  .screen {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column;
-    overflow-y: auto; overflow-x: hidden;
-    padding: 0; margin: 0;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.35s ease, transform 0.35s ease;
-    transform: translateY(20px);
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #111; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #FFFC00; }
+
+  /* Cards */
+  .card {
+    background: #141414;
+    border: 1px solid #222;
+    border-radius: 20px;
   }
-  .screen.active {
-    opacity: 1; pointer-events: all;
-    transform: translateY(0);
+  .card-inner {
+    background: #1a1a1a;
+    border: 1px solid #252525;
+    border-radius: 14px;
   }
 
-  /* ===== YELLOW ACCENT ===== */
+  /* Accent */
   .accent { color: #FFFC00; }
   .bg-accent { background: #FFFC00; }
-  .border-accent { border-color: #FFFC00; }
 
-  /* ===== CARD ===== */
-  .card {
-    background: #1a1a1a;
-    border-radius: 20px;
-    border: 1px solid #2a2a2a;
+  /* Inputs */
+  .inp {
+    background: #111;
+    border: 2px solid #222;
+    border-radius: 12px;
+    color: #f0f0f0;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    padding: 12px 16px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    resize: vertical;
   }
+  .inp:focus {
+    border-color: #FFFC00;
+    box-shadow: 0 0 0 3px rgba(255,252,0,0.08);
+  }
+  .inp::placeholder { color: #3a3a3a; }
 
-  /* ===== BUTTON BASE ===== */
+  select.inp option { background: #111; }
+
+  /* Buttons */
   .btn {
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 12px;
     font-family: 'Syne', sans-serif;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.9rem;
     cursor: pointer;
     border: none;
     outline: none;
-    transition: transform 0.15s, opacity 0.15s, box-shadow 0.15s;
-    -webkit-tap-highlight-color: transparent;
+    padding: 12px 22px;
+    transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
   }
-  .btn:active { transform: scale(0.95); }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: scale(0.97); }
 
   .btn-primary {
     background: #FFFC00;
-    color: #0f0f0f;
-    padding: 16px 32px;
-    box-shadow: 0 4px 24px rgba(255,252,0,0.25);
+    color: #0a0a0a;
+    box-shadow: 0 4px 20px rgba(255,252,0,0.2);
   }
-  .btn-primary:hover { box-shadow: 0 6px 32px rgba(255,252,0,0.4); }
+  .btn-primary:hover { box-shadow: 0 6px 28px rgba(255,252,0,0.35); }
+
+  .btn-danger {
+    background: #1e0808;
+    color: #f87171;
+    border: 1px solid #3a1010;
+  }
+  .btn-danger:hover { background: #2a0a0a; }
 
   .btn-ghost {
-    background: #2a2a2a;
-    color: #fff;
-    padding: 14px 28px;
+    background: #1a1a1a;
+    color: #aaa;
+    border: 1px solid #252525;
   }
+  .btn-ghost:hover { color: #fff; border-color: #3a3a3a; }
 
-  /* ===== OPTION CARDS ===== */
-  .option-card {
-    background: #1e1e1e;
-    border: 2px solid #2a2a2a;
+  .btn-sm { padding: 8px 14px; font-size: 0.8rem; border-radius: 10px; }
+
+  /* Question block */
+  .q-block {
+    background: #111;
+    border: 1px solid #1e1e1e;
     border-radius: 16px;
-    padding: 14px 18px;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s, transform 0.15s;
-    display: flex; align-items: center; gap: 12px;
-  }
-  .option-card:active { transform: scale(0.98); }
-  .option-card.selected {
-    border-color: #FFFC00;
-    background: rgba(255,252,0,0.06);
-  }
-  .option-card.correct {
-    border-color: #22c55e;
-    background: rgba(34,197,94,0.08);
-  }
-  .option-card.wrong {
-    border-color: #ef4444;
-    background: rgba(239,68,68,0.08);
-  }
-  .option-letter {
-    width: 30px; height: 30px;
-    border-radius: 50%;
-    background: #2a2a2a;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Syne', sans-serif;
-    font-weight: 700; font-size: 0.85rem;
-    flex-shrink: 0;
-    transition: background 0.2s, color 0.2s;
-  }
-  .option-card.selected .option-letter { background: #FFFC00; color: #0f0f0f; }
-  .option-card.correct .option-letter { background: #22c55e; color: #fff; }
-  .option-card.wrong .option-letter { background: #ef4444; color: #fff; }
-
-  /* ===== TIMER RING ===== */
-  .timer-ring { transition: stroke-dashoffset 1s linear; }
-
-  /* ===== PROGRESS BAR ===== */
-  .progress-bar {
-    height: 4px; background: #2a2a2a; border-radius: 999px; overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%; background: #FFFC00; border-radius: 999px;
-    transition: width 0.4s ease;
-  }
-
-  /* ===== LEADERBOARD ROW ===== */
-  .lb-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px;
-    border-radius: 14px;
-    background: #1e1e1e;
-    margin-bottom: 8px;
-  }
-  .lb-rank {
-    width: 28px; height: 28px; border-radius: 50%;
-    background: #2a2a2a;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.8rem;
-    flex-shrink: 0;
-  }
-  .lb-rank.gold { background: #FFFC00; color: #0f0f0f; }
-  .lb-rank.silver { background: #a0a0a0; color: #0f0f0f; }
-  .lb-rank.bronze { background: #cd7f32; color: #fff; }
-
-  /* ===== SNAP BUTTON ===== */
-  .snap-fab {
-    position: fixed; bottom: 24px; right: 16px; z-index: 999;
-    background: #FFFC00; color: #0f0f0f;
-    border-radius: 999px;
-    padding: 10px 18px;
-    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.82rem;
-    display: flex; align-items: center; gap: 8px;
-    box-shadow: 0 4px 20px rgba(255,252,0,0.3);
-    cursor: pointer;
-    border: none;
-    transition: transform 0.2s, box-shadow 0.2s;
-    text-decoration: none;
-  }
-  .snap-fab:active { transform: scale(0.95); }
-
-  /* ===== VOCAB HIGHLIGHT ===== */
-  .vocab {
-    color: #FFFC00;
-    font-weight: 600;
-    border-bottom: 1px dashed rgba(255,252,0,0.4);
-  }
-
-  /* ===== SCROLLBAR ===== */
-  ::-webkit-scrollbar { width: 0; }
-
-  /* ===== INPUT ===== */
-  .inp {
-    background: #1e1e1e;
-    border: 2px solid #2a2a2a;
-    border-radius: 16px;
-    color: #fff;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 1rem;
-    padding: 16px 20px;
-    width: 100%;
-    outline: none;
+    padding: 20px;
+    position: relative;
     transition: border-color 0.2s;
   }
-  .inp:focus { border-color: #FFFC00; }
-  .inp::placeholder { color: #555; }
+  .q-block:hover { border-color: #2a2a2a; }
 
-  /* ===== ANIMATIONS ===== */
-  @keyframes pulse-yellow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255,252,0,0.3); }
-    50% { box-shadow: 0 0 0 12px rgba(255,252,0,0); }
+  /* Option row */
+  .opt-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
   }
-  .pulse { animation: pulse-yellow 2s infinite; }
-
-  @keyframes bounce-in {
-    0% { transform: scale(0.7); opacity: 0; }
-    60% { transform: scale(1.05); }
-    100% { transform: scale(1); opacity: 1; }
+  .opt-letter {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #1e1e1e;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 0.78rem;
+    color: #666;
+    flex-shrink: 0;
   }
-  .bounce-in { animation: bounce-in 0.5s ease forwards; }
-
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+  .correct-radio:checked + label .opt-letter {
+    background: #FFFC00;
+    color: #0a0a0a;
   }
 
-  /* ===== SCORE CIRCLE ===== */
-  .score-circle {
-    width: 130px; height: 130px; border-radius: 50%;
-    border: 4px solid #FFFC00;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  /* Correct radio custom */
+  .correct-wrap {
+    display: flex; align-items: center; gap: 6px;
+    cursor: pointer;
+  }
+  .correct-radio { accent-color: #FFFC00; cursor: pointer; }
+
+  /* Explanation block */
+  .exp-block {
+    background: #111;
+    border: 1px solid #1e1e1e;
+    border-radius: 14px;
+    padding: 16px;
     position: relative;
-    box-shadow: 0 0 40px rgba(255,252,0,0.2);
   }
 
-  /* ===== NO SELECT ===== */
-  img, p, span, h1, h2, h3 { user-select: none; -webkit-user-select: none; }
+  /* Login screen */
+  .login-screen {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 9999;
+    background: #FFFC00; color: #0a0a0a;
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 22px;
+    border-radius: 999px;
+    box-shadow: 0 4px 20px rgba(255,252,0,0.3);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+    white-space: nowrap;
+  }
+
+  /* Tab */
+  .tab-btn {
+    padding: 8px 18px;
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: #555;
+    transition: background 0.2s, color 0.2s;
+  }
+  .tab-btn.active { background: #1e1e1e; color: #FFFC00; }
+
+  /* Status badge */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+  }
+  .badge-green { background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
+  .badge-yellow { background: rgba(255,252,0,0.08); color: #FFFC00; border: 1px solid rgba(255,252,0,0.15); }
+  .badge-red { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+
+  /* Loader */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2px solid #222;
+    border-top-color: #FFFC00;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+  }
+
+  /* Drag handle */
+  .drag-handle { cursor: grab; color: #333; }
+  .drag-handle:active { cursor: grabbing; }
+
+  /* Glow on save */
+  @keyframes glow-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255,252,0,0.4); }
+    100% { box-shadow: 0 0 0 16px rgba(255,252,0,0); }
+  }
+  .glow { animation: glow-pulse 0.6s ease-out; }
+
+  /* Results table */
+  .results-table { width: 100%; border-collapse: collapse; }
+  .results-table th {
+    text-align: left; padding: 10px 14px;
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 0.75rem; color: #555;
+    border-bottom: 1px solid #1e1e1e;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .results-table td {
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    border-bottom: 1px solid #141414;
+  }
+  .results-table tr:hover td { background: #111; }
 </style>
 </head>
-
 <body>
 
-<!-- ████████████████████  SCREEN 1: LANDING  ████████████████████ -->
-<div id="screen-landing" class="screen active">
-  <div class="flex flex-col min-h-full px-6 py-8">
-
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-2">
-      <div class="text-xs text-gray-500 font-medium" id="today-date"></div>
-      <div class="text-xs text-gray-500">📍 Daily Challenge</div>
+<!-- ═══════════════════════════════════════════
+     LOGIN SCREEN
+════════════════════════════════════════════ -->
+<div id="login-screen" class="login-screen">
+  <div class="w-full max-w-sm">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="w-14 h-14 bg-accent rounded-2xl flex items-center justify-center mx-auto mb-4" style="box-shadow:0 4px 24px rgba(255,252,0,0.25)">
+        <span style="font-size:1.6rem">⚡</span>
+      </div>
+      <h1 class="font-syne font-extrabold text-2xl mb-1">STEP Admin</h1>
+      <p class="text-gray-500 text-sm">Control Panel · @Elysooo</p>
     </div>
 
-    <!-- Hero -->
-    <div class="flex-1 flex flex-col justify-center mt-4">
-      <!-- Logo/Icon -->
-      <div class="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center mb-6 pulse">
-        <span style="font-size:1.8rem">⚡</span>
-      </div>
+    <!-- Login card -->
+    <div class="card p-6">
+      <p class="text-gray-400 text-sm mb-5">Sign in with your admin account to manage daily quizzes.</p>
 
-      <h1 class="font-syne font-extrabold text-4xl leading-tight mb-2">
-        STEP<br/><span class="accent">Daily</span><br/>Challenge
-      </h1>
-      <p class="text-gray-400 text-base mt-2 mb-8">Test your English in <span class="accent font-semibold" id="landing-time"></span> seconds ⏱</p>
+      <label class="text-xs text-gray-500 mb-1 block">Email</label>
+      <input id="login-email" class="inp mb-3" type="email" placeholder="admin@example.com" autocomplete="email"/>
 
-      <!-- Participants badge -->
-      <div class="inline-flex items-center gap-2 bg-[#1e1e1e] px-4 py-2 rounded-full mb-8 w-fit border border-[#2a2a2a]">
-        <span class="text-[#FFFC00]">👥</span>
-        <span class="text-sm text-gray-300"><span id="participants-count">0</span> students participated</span>
-      </div>
+      <label class="text-xs text-gray-500 mb-1 block">Password</label>
+      <input id="login-password" class="inp mb-2" type="password" placeholder="••••••••" autocomplete="current-password"/>
 
-      <!-- Name input -->
-      <label class="text-sm text-gray-400 mb-2 font-medium">Your Name</label>
-      <input id="student-name" class="inp mb-3" type="text" placeholder="e.g. Ahmed Al-Rashid" maxlength="40" autocomplete="off"/>
-      <p id="name-error" class="text-red-400 text-sm mb-4 hidden">Please enter your name to continue.</p>
+      <p id="login-error" class="text-red-400 text-xs mb-4 hidden"></p>
 
-      <!-- Start button -->
-      <button class="btn btn-primary w-full text-lg py-5 mt-2" onclick="startQuiz()">
-        Start Challenge 🚀
+      <button class="btn btn-primary w-full mt-2" onclick="loginAdmin()" id="login-btn">
+        Sign In →
       </button>
     </div>
-
-    <!-- Bottom note -->
-    <p class="text-center text-gray-600 text-xs mt-6 mb-2">Made with ❤️ by <span class="accent">@Elysooo</span></p>
   </div>
 </div>
 
-<!-- ████████████████████  SCREEN 2: READING  ████████████████████ -->
-<div id="screen-reading" class="screen">
-  <div class="flex flex-col px-5 py-6 h-full">
+<!-- ═══════════════════════════════════════════
+     MAIN ADMIN PANEL (hidden until login)
+════════════════════════════════════════════ -->
+<div id="admin-panel" class="hidden">
 
-    <!-- Top bar -->
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <p class="font-syne font-bold text-base">Read Carefully</p>
-        <p class="text-gray-500 text-xs">You'll be tested after</p>
-      </div>
-      <!-- Timer -->
-      <div class="relative w-14 h-14">
-        <svg class="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-          <circle cx="28" cy="28" r="24" stroke="#2a2a2a" stroke-width="4" fill="none"/>
-          <circle id="timer-circle" cx="28" cy="28" r="24"
-            stroke="#FFFC00" stroke-width="4" fill="none"
-            stroke-dasharray="150.8" stroke-dashoffset="0"
-            stroke-linecap="round" class="timer-ring"/>
-        </svg>
-        <div class="absolute inset-0 flex items-center justify-center">
-          <span id="timer-display" class="font-syne font-bold text-sm accent"></span>
+  <!-- ── TOP NAV ── -->
+  <nav class="sticky top-0 z-50 border-b border-[#1a1a1a]" style="background:rgba(10,10,10,0.95);backdrop-filter:blur(12px)">
+    <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-accent rounded-lg flex items-center justify-center text-sm">⚡</div>
+        <div>
+          <span class="font-syne font-bold text-sm">STEP Admin</span>
+          <span class="text-gray-600 text-xs ml-2" id="admin-email-display"></span>
         </div>
       </div>
-    </div>
-
-    <!-- Progress bar -->
-    <div class="progress-bar mb-5">
-      <div class="progress-fill" id="reading-progress" style="width:100%"></div>
-    </div>
-
-    <!-- Passage card -->
-    <div class="card p-5 flex-1 overflow-y-auto" style="max-height: calc(100vh - 220px)">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="text-xs bg-[#FFFC00] text-black px-3 py-1 rounded-full font-syne font-bold">📖 Passage</span>
+      <div class="flex items-center gap-2">
+        <div id="save-status" class="badge badge-yellow hidden">
+          <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span> Unsaved
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="logoutAdmin()">Sign Out</button>
       </div>
-      <p id="passage-text" class="text-gray-200 leading-relaxed text-[15px]"></p>
+    </div>
+  </nav>
+
+  <div class="max-w-5xl mx-auto px-5 py-8">
+
+    <!-- ── TAB BAR ── -->
+    <div class="flex gap-1 bg-[#0f0f0f] border border-[#1a1a1a] rounded-xl p-1 mb-8 w-fit">
+      <button class="tab-btn active" id="tab-editor" onclick="switchTab('editor')">✏️ Quiz Editor</button>
+      <button class="tab-btn" id="tab-results" onclick="switchTab('results')">📊 Results</button>
+      <button class="tab-btn" id="tab-preview" onclick="switchTab('preview')">👁 Preview</button>
     </div>
 
-    <!-- Continue button -->
-    <button class="btn btn-primary w-full mt-4 py-4" onclick="goToQuestions()">
-      I'm Ready — Start Questions →
-    </button>
-  </div>
-</div>
+    <!-- ═══════════  TAB: QUIZ EDITOR  ═══════════ -->
+    <div id="pane-editor">
 
-<!-- ████████████████████  SCREEN 3: QUESTIONS  ████████████████████ -->
-<div id="screen-questions" class="screen">
-  <div class="flex flex-col px-5 py-6 h-full">
-
-    <!-- Top bar -->
-    <div class="flex items-center justify-between mb-3">
-      <div>
-        <p class="font-syne font-bold text-base" id="q-label">Question 1</p>
-        <p class="text-gray-500 text-xs" id="q-sublabel">of 5</p>
-      </div>
-      <!-- Timer -->
-      <div class="relative w-14 h-14">
-        <svg class="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-          <circle cx="28" cy="28" r="24" stroke="#2a2a2a" stroke-width="4" fill="none"/>
-          <circle id="q-timer-circle" cx="28" cy="28" r="24"
-            stroke="#FFFC00" stroke-width="4" fill="none"
-            stroke-dasharray="150.8" stroke-dashoffset="0"
-            stroke-linecap="round" class="timer-ring"/>
-        </svg>
-        <div class="absolute inset-0 flex items-center justify-center">
-          <span id="q-timer-display" class="font-syne font-bold text-sm accent"></span>
+      <!-- Stats row -->
+      <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="card p-4 text-center">
+          <p class="text-2xl font-syne font-extrabold accent" id="stat-participants">—</p>
+          <p class="text-xs text-gray-500 mt-1">Participants</p>
+        </div>
+        <div class="card p-4 text-center">
+          <p class="text-2xl font-syne font-extrabold accent" id="stat-avg">—</p>
+          <p class="text-xs text-gray-500 mt-1">Avg Score</p>
+        </div>
+        <div class="card p-4 text-center">
+          <p class="text-2xl font-syne font-extrabold accent" id="stat-questions">—</p>
+          <p class="text-xs text-gray-500 mt-1">Questions</p>
         </div>
       </div>
-    </div>
 
-    <!-- Question progress dots -->
-    <div class="flex gap-2 mb-5" id="q-dots"></div>
+      <!-- ── SECTION: Basic Settings ── -->
+      <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-syne font-bold text-base">⚙️ Basic Settings</h2>
+          <div id="live-status" class="badge badge-green">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Live
+          </div>
+        </div>
 
-    <!-- Question card -->
-    <div class="card p-5 mb-4">
-      <p id="q-text" class="text-white font-medium text-[15px] leading-relaxed"></p>
-    </div>
-
-    <!-- Options -->
-    <div id="options-container" class="flex flex-col gap-3 flex-1 overflow-y-auto" style="max-height: calc(100vh - 340px)"></div>
-
-    <!-- Next button -->
-    <button id="next-btn" class="btn btn-primary w-full mt-4 py-4 hidden" onclick="nextQuestion()">
-      Next Question →
-    </button>
-    <button id="submit-btn" class="btn btn-primary w-full mt-4 py-4 hidden" onclick="submitQuiz()">
-      Submit Answers ✓
-    </button>
-  </div>
-</div>
-
-<!-- ████████████████████  SCREEN 4: RESULTS  ████████████████████ -->
-<div id="screen-results" class="screen">
-  <div class="flex flex-col px-5 py-6 min-h-full">
-
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="font-syne font-extrabold text-2xl">Your Results</h2>
-      <span class="text-2xl" id="result-emoji">🚀</span>
-    </div>
-
-    <!-- Score circle -->
-    <div class="flex flex-col items-center mb-8">
-      <div class="score-circle bounce-in mb-4">
-        <span class="font-syne font-extrabold text-4xl accent" id="result-score">0</span>
-        <span class="text-gray-500 text-xs">out of <span id="result-total">5</span></span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Quiz Timer (seconds)</label>
+            <input id="f-time" class="inp" type="number" min="10" max="300" value="60" placeholder="60"/>
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Snapchat Username</label>
+            <input id="f-snapchat" class="inp" type="text" placeholder="@Elysooo" value="@Elysooo"/>
+          </div>
+          <div class="md:col-span-2">
+            <label class="text-xs text-gray-500 mb-1 block">Quiz Date Label</label>
+            <input id="f-date-label" class="inp" type="text" placeholder="e.g. Week 3 · Day 2 (leave blank for auto)"/>
+          </div>
+        </div>
       </div>
-      <span class="font-syne font-bold text-xl mb-1" id="result-level">Advanced</span>
-      <p class="text-gray-400 text-sm text-center" id="result-message">Excellent work!</p>
-    </div>
 
-    <!-- Breakdown -->
-    <div class="card p-4 mb-4">
-      <p class="font-syne font-semibold text-sm mb-3 text-gray-300">📊 Answer Breakdown</p>
-      <div id="breakdown-list" class="flex flex-col gap-2"></div>
-    </div>
+      <!-- ── SECTION: Passage ── -->
+      <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-syne font-bold text-base">📖 Reading Passage</h2>
+          <span class="text-xs text-gray-600" id="char-count">0 chars</span>
+        </div>
+        <textarea id="f-passage" class="inp" rows="8"
+          placeholder="Paste the reading passage here. Use blank lines to separate paragraphs..."
+          oninput="updateCharCount()"></textarea>
+        <p class="text-xs text-gray-600 mt-2">Tip: Separate paragraphs with a blank line for clean formatting.</p>
+      </div>
 
-    <!-- Explanation -->
-    <div class="card p-4 mb-4">
-      <p class="font-syne font-semibold text-sm mb-3 text-gray-300">📝 Key Explanations</p>
-      <div id="explanations-list" class="flex flex-col gap-3"></div>
-    </div>
+      <!-- ── SECTION: Questions ── -->
+      <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-syne font-bold text-base">❓ Questions</h2>
+          <button class="btn btn-ghost btn-sm" onclick="addQuestion()">+ Add Question</button>
+        </div>
+        <div id="questions-container" class="flex flex-col gap-5"></div>
+      </div>
 
-    <!-- Action buttons -->
-    <div class="flex gap-3 mb-4">
-      <button class="btn btn-ghost flex-1 py-3 text-sm" onclick="showLeaderboard()">🏆 Leaderboard</button>
-      <button class="btn btn-primary flex-1 py-3 text-sm" onclick="shareChallenge()">📤 Share</button>
-    </div>
-    <button class="btn btn-ghost w-full py-3 text-sm mb-2" onclick="resetQuiz()">↩ Try Again</button>
+      <!-- ── SECTION: Explanations ── -->
+      <div class="card p-6 mb-8">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-syne font-bold text-base">💡 Key Explanations</h2>
+          <button class="btn btn-ghost btn-sm" onclick="addExplanation()">+ Add</button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">Shown after quiz. Use <code class="text-yellow-400 bg-[#111] px-1 rounded">&lt;span class='vocab'&gt;word&lt;/span&gt;</code> to highlight vocabulary in yellow.</p>
+        <div id="explanations-container" class="flex flex-col gap-4"></div>
+      </div>
 
-    <!-- Snap watermark -->
-    <p class="text-center text-gray-600 text-xs mt-2 mb-6">Made by <span class="accent">@Elysooo</span> on Snapchat</p>
-  </div>
-</div>
+      <!-- ── SAVE BUTTON ── -->
+      <div class="flex gap-3 items-center">
+        <button class="btn btn-primary flex-1 py-4 text-base" onclick="saveQuiz()" id="save-btn">
+          <span id="save-btn-text">💾 Save & Publish Quiz</span>
+          <div class="spinner hidden" id="save-spinner"></div>
+        </button>
+        <button class="btn btn-ghost" onclick="loadCurrentQuiz()" title="Reload from Firestore">↺ Reload</button>
+      </div>
+      <p class="text-xs text-gray-600 mt-3 text-center">Changes go live immediately for all students.</p>
 
-<!-- ████████████████████  SCREEN 5: LEADERBOARD  ████████████████████ -->
-<div id="screen-leaderboard" class="screen">
-  <div class="flex flex-col px-5 py-6 min-h-full">
+    </div><!-- /pane-editor -->
 
-    <!-- Header -->
-    <div class="flex items-center gap-3 mb-2">
-      <button class="w-9 h-9 rounded-full bg-[#1e1e1e] flex items-center justify-center text-lg" onclick="backToResults()">←</button>
-      <h2 class="font-syne font-extrabold text-2xl">Leaderboard 🏆</h2>
-    </div>
-    <p class="text-gray-500 text-sm mb-6 ml-12"><span id="lb-count">0</span> participants total</p>
+    <!-- ═══════════  TAB: RESULTS  ═══════════ -->
+    <div id="pane-results" class="hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-syne font-bold text-xl">📊 Student Results</h2>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost btn-sm" onclick="loadResults()">↺ Refresh</button>
+          <button class="btn btn-danger btn-sm" onclick="clearAllResults()">🗑 Clear All</button>
+        </div>
+      </div>
 
-    <!-- Leaderboard rows -->
-    <div id="leaderboard-list" class="flex flex-col"></div>
+      <!-- Summary cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="card-inner p-4 text-center">
+          <p class="text-xl font-syne font-extrabold accent" id="r-total">0</p>
+          <p class="text-xs text-gray-500 mt-1">Total</p>
+        </div>
+        <div class="card-inner p-4 text-center">
+          <p class="text-xl font-syne font-extrabold text-green-400" id="r-avg">—</p>
+          <p class="text-xs text-gray-500 mt-1">Average</p>
+        </div>
+        <div class="card-inner p-4 text-center">
+          <p class="text-xl font-syne font-extrabold text-blue-400" id="r-highest">—</p>
+          <p class="text-xs text-gray-500 mt-1">Highest</p>
+        </div>
+        <div class="card-inner p-4 text-center">
+          <p class="text-xl font-syne font-extrabold text-red-400" id="r-lowest">—</p>
+          <p class="text-xs text-gray-500 mt-1">Lowest</p>
+        </div>
+      </div>
 
-    <button class="btn btn-ghost w-full mt-6 py-3 text-sm" onclick="clearLeaderboard()">🗑 Clear Data</button>
-  </div>
-</div>
+      <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Score</th>
+                <th>Level</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="results-tbody">
+              <tr><td colspan="5" class="text-center text-gray-600 py-8">Loading results...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /pane-results -->
 
-<!-- ████████████████████  SNAPCHAT FAB  ████████████████████ -->
-<a id="snap-fab" class="snap-fab" href="https://snapchat.com/add/Elysooo" target="_blank" rel="noopener">
-  <svg width="18" height="18" viewBox="0 0 128 128" fill="#0f0f0f"><path d="M64 0C28.7 0 0 28.7 0 64s28.7 64 64 64 64-28.7 64-64S99.3 0 64 0zm31.7 81.4c-.3.5-2.8 1.2-6.9 1.9-.7 2.2-2.1 4.2-3.9 5.8l.1.4c.4 1.5-.2 3.1-1.5 4-.8.6-1.8.9-2.8.9-.8 0-1.5-.2-2.2-.5-3.4-1.5-6.1-2.3-8.4-2.3-2.4 0-5 .8-8.4 2.3-.7.3-1.5.5-2.2.5-1 0-2-.3-2.8-.9-1.3-.9-1.9-2.5-1.5-4l.1-.4c-1.8-1.6-3.2-3.6-3.9-5.8-4.1-.7-6.6-1.4-6.9-1.9-.3-.5-.2-1.1.2-1.5.1-.1.3-.2.4-.2.5 0 1.5.4 3.2.4.4 0 .8 0 1.2-.1-.5-1.3-.8-2.7-.8-4.1V63c0-7.1 5.8-12.9 12.9-12.9h2c1.1-2.9 3.9-5 7.2-5s6.1 2.1 7.2 5h2c7.1 0 12.9 5.8 12.9 12.9v12.9c0 1.4-.3 2.8-.8 4.1.4.1.8.1 1.2.1 1.7 0 2.7-.4 3.2-.4.2 0 .3.1.4.2.4.4.5 1 .2 1.5z"/></svg>
-  <span id="snap-handle-text">@Elysooo</span>
-</a>
+    <!-- ═══════════  TAB: PREVIEW  ═══════════ -->
+    <div id="pane-preview" class="hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-syne font-bold text-xl">👁 Live Preview</h2>
+        <button class="btn btn-ghost btn-sm" onclick="refreshPreview()">↺ Refresh</button>
+      </div>
+      <div class="card p-6">
+        <!-- Passage preview -->
+        <div class="mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="badge badge-yellow">📖 Passage</span>
+          </div>
+          <div id="preview-passage" class="text-gray-300 text-sm leading-relaxed"></div>
+        </div>
+        <hr class="border-[#1e1e1e] mb-6"/>
+        <!-- Questions preview -->
+        <div id="preview-questions" class="flex flex-col gap-6"></div>
+        <!-- Explanations preview -->
+        <div id="preview-explanations" class="mt-6 flex flex-col gap-3"></div>
+      </div>
+    </div><!-- /pane-preview -->
 
-<!-- ████████████████████  TOAST  ████████████████████ -->
-<div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] bg-[#FFFC00] text-black text-sm font-syne font-bold px-5 py-3 rounded-full shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 whitespace-nowrap">
-  Copied! 📋
-</div>
+  </div><!-- /max-w -->
+</div><!-- /admin-panel -->
 
-<!-- =======================================================
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════
      JAVASCRIPT
-     ======================================================= -->
+════════════════════════════════════════════ -->
 <script>
-/* ============================================================
-   🔧 CUSTOMIZATION VARIABLES — edit these to update the quiz
-   ============================================================ */
-
-const QUIZ_TIME = 60; // seconds for the entire quiz
-const SNAPCHAT_USERNAME = "@Elysooo";
-
-const PASSAGE = `Every year, millions of students around the world prepare for standardized English tests that can shape their academic futures. The STEP test, used widely in Saudi Arabia, measures a student's ability to understand and use the English language effectively. It covers reading comprehension, grammar, and vocabulary — three core pillars of language proficiency.
-
-Researchers have found that students who read consistently perform significantly better on such tests. Reading exposes learners to new vocabulary in context, reinforces grammar patterns naturally, and sharpens comprehension skills. Even fifteen minutes of daily reading can lead to measurable improvements within weeks.
-
-One key strategy experts recommend is to focus on understanding the main idea of a paragraph before tackling individual words. Context clues — surrounding words and sentences — often reveal the meaning of unfamiliar vocabulary. This approach reduces panic during exams and builds confidence over time.
-
-Preparation is not just about studying hard; it is about studying smart. Regular practice with timed exercises trains the brain to process information quickly and accurately, a skill that proves invaluable during any standardized test.`;
-
-const QUESTIONS = [
-  {
-    question: "What is the primary purpose of the STEP test?",
-    options: [
-      "To test mathematical skills",
-      "To measure English language proficiency",
-      "To evaluate Arabic writing ability",
-      "To assess computer literacy"
-    ],
-    correct: 1 // index of correct option (0-based)
-  },
-  {
-    question: "According to the passage, which THREE areas does the STEP test cover?",
-    options: [
-      "Listening, speaking, and writing",
-      "Reading, grammar, and vocabulary",
-      "Mathematics, science, and English",
-      "Translation, dictation, and reading"
-    ],
-    correct: 1
-  },
-  {
-    question: "What does the passage say about daily reading?",
-    options: [
-      "It has no proven benefit",
-      "It requires at least two hours to be effective",
-      "Even 15 minutes daily can lead to improvements",
-      "It is only useful for native speakers"
-    ],
-    correct: 2
-  },
-  {
-    question: "What does the word 'proficiency' most likely mean in this passage?",
-    options: [
-      "Confusion",
-      "Ignorance",
-      "Skill and competence",
-      "Carelessness"
-    ],
-    correct: 2
-  },
-  {
-    question: "According to experts, what is the key strategy for understanding unfamiliar words?",
-    options: [
-      "Use a dictionary immediately",
-      "Skip the word and continue",
-      "Use context clues from surrounding text",
-      "Ask a teacher for help"
-    ],
-    correct: 2
-  }
-];
-
-const EXPLANATIONS = [
-  {
-    text: "The STEP test measures a student's ability to understand and use the English language <span class='vocab'>effectively</span>.",
-    note: "Key word: effectively = in a way that achieves the desired result."
-  },
-  {
-    text: "Context clues — surrounding words and sentences — often reveal the meaning of <span class='vocab'>unfamiliar vocabulary</span>.",
-    note: "Strategy: Always look at surrounding sentences before guessing a word's meaning."
-  },
-  {
-    text: "Regular practice with <span class='vocab'>timed exercises</span> trains the brain to process information quickly and accurately.",
-    note: "Tip: Practicing under time pressure simulates real exam conditions."
-  }
-];
-
-/* ============================================================
-   🔥 FIREBASE CONFIGURATION
-   ============================================================ */
+/* ── Firebase Init ── */
 const firebaseConfig = {
   apiKey: "AIzaSyBaY75jwos44EbgZMlhIcU_YfrGeKY7r3w",
   authDomain: "naj7-7da9d.firebaseapp.com",
@@ -537,452 +490,519 @@ const firebaseConfig = {
   appId: "1:72751584563:web:8562f042882919d2c4da46",
   measurementId: "G-308H9HW0FP"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const analytics = firebase.analytics();
+const auth = firebase.auth();
 
-/* ============================================================
-   STATE
-   ============================================================ */
-let studentName = "";
-let currentQuestion = 0;
-let answers = []; // selected answer indices
-let timerInterval = null;
-let timeLeft = QUIZ_TIME;
-let quizScore = 0;
-let timerStarted = false;
+/* ── State ── */
+let questions = [];     // array of question objects
+let explanations = [];  // array of explanation objects
+let unsaved = false;
 
-const TOTAL_QUESTIONS = QUESTIONS.length;
-const CIRCUMFERENCE = 150.8; // 2 * PI * 24
-
-/* ============================================================
-   INIT
-   ============================================================ */
-document.addEventListener('DOMContentLoaded', () => {
-  // Set today's date
-  const now = new Date();
-  document.getElementById('today-date').textContent =
-    now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-
-  // Show timer in landing
-  document.getElementById('landing-time').textContent = QUIZ_TIME;
-
-  // Snapchat handle
-  document.getElementById('snap-handle-text').textContent = SNAPCHAT_USERNAME;
-
-  // Passage text
-  document.getElementById('passage-text').innerHTML = PASSAGE.trim()
-    .split('\n\n').map(p => `<p class="mb-4">${p.trim()}</p>`).join('');
-
-  // Load participants count from Firestore
-  loadParticipantsCount();
-
-  // Prevent context menu / copy
-  document.addEventListener('contextmenu', e => e.preventDefault());
-  document.addEventListener('copy', e => e.preventDefault());
+/* ══════════════════════════════
+   AUTH
+══════════════════════════════ */
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    document.getElementById('admin-email-display').textContent = user.email;
+    init();
+  } else {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('admin-panel').classList.add('hidden');
+  }
 });
 
-/* ============================================================
-   SCREEN TRANSITIONS
-   ============================================================ */
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const target = document.getElementById(id);
-  target.classList.add('active');
-  target.scrollTop = 0;
-}
+async function loginAdmin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('login-error');
 
-/* ============================================================
-   LANDING → START
-   ============================================================ */
-function startQuiz() {
-  const nameInput = document.getElementById('student-name');
-  const err = document.getElementById('name-error');
+  if (!email || !pass) { showError(err, 'Please fill in all fields.'); return; }
 
-  studentName = nameInput.value.trim();
-  if (!studentName) {
-    err.classList.remove('hidden');
-    nameInput.classList.add('border-red-500');
-    nameInput.focus();
-    return;
+  btn.textContent = 'Signing in...';
+  btn.disabled = true;
+
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch (e) {
+    showError(err, friendlyAuthError(e.code));
+    btn.textContent = 'Sign In →';
+    btn.disabled = false;
   }
-  err.classList.add('hidden');
-
-  // Analytics log
-  analytics.logEvent('quiz_started', { student: studentName });
-
-  // Reset state
-  currentQuestion = 0;
-  answers = new Array(TOTAL_QUESTIONS).fill(-1);
-  timeLeft = QUIZ_TIME;
-  timerStarted = false;
-
-  showScreen('screen-reading');
-  startTimer();
 }
 
-/* ============================================================
-   TIMER
-   ============================================================ */
-function startTimer() {
-  timerStarted = true;
-  updateTimerUI('timer-circle', 'timer-display');
-  updateTimerUI('q-timer-circle', 'q-timer-display');
+function logoutAdmin() {
+  if (unsaved && !confirm('You have unsaved changes. Sign out anyway?')) return;
+  auth.signOut();
+}
 
-  timerInterval = setInterval(() => {
-    timeLeft--;
-    updateTimerUI('timer-circle', 'timer-display');
-    updateTimerUI('q-timer-circle', 'q-timer-display');
+function friendlyAuthError(code) {
+  const map = {
+    'auth/user-not-found': 'No account found with this email.',
+    'auth/wrong-password': 'Incorrect password.',
+    'auth/invalid-email': 'Invalid email address.',
+    'auth/too-many-requests': 'Too many attempts. Try again later.',
+  };
+  return map[code] || 'Sign-in failed. Check your credentials.';
+}
 
-    // Update reading progress bar
-    const pct = (timeLeft / QUIZ_TIME) * 100;
-    const rp = document.getElementById('reading-progress');
-    if (rp) rp.style.width = pct + '%';
+function showError(el, msg) {
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
 
-    // Color warning
-    if (timeLeft <= 10) {
-      document.getElementById('timer-circle').setAttribute('stroke', '#ef4444');
-      document.getElementById('q-timer-circle').setAttribute('stroke', '#ef4444');
-      vibrate(50);
+/* ══════════════════════════════
+   INIT
+══════════════════════════════ */
+async function init() {
+  await loadCurrentQuiz();
+  await loadStats();
+}
+
+/* ══════════════════════════════
+   LOAD CURRENT QUIZ FROM FIRESTORE
+══════════════════════════════ */
+async function loadCurrentQuiz() {
+  try {
+    const doc = await db.collection('quiz').doc('today').get();
+    if (doc.exists) {
+      const data = doc.data();
+      document.getElementById('f-time').value       = data.quizTime || 60;
+      document.getElementById('f-snapchat').value   = data.snapchat || '@Elysooo';
+      document.getElementById('f-date-label').value = data.dateLabel || '';
+      document.getElementById('f-passage').value    = data.passage || '';
+      updateCharCount();
+
+      questions    = data.questions    || [];
+      explanations = data.explanations || [];
+    } else {
+      // First time: seed defaults
+      questions    = getDefaultQuestions();
+      explanations = getDefaultExplanations();
     }
-
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      submitQuiz(true);
-    }
-  }, 1000);
+    renderQuestions();
+    renderExplanations();
+    markSaved();
+    showToast('✅ Loaded from Firestore');
+  } catch(e) {
+    console.error(e);
+    showToast('⚠️ Could not load — check connection', 'red');
+    questions    = getDefaultQuestions();
+    explanations = getDefaultExplanations();
+    renderQuestions();
+    renderExplanations();
+  }
 }
 
-function updateTimerUI(circleId, displayId) {
-  const pct = timeLeft / QUIZ_TIME;
-  const offset = CIRCUMFERENCE * (1 - pct);
-  const circle = document.getElementById(circleId);
-  const display = document.getElementById(displayId);
-  if (circle) circle.style.strokeDashoffset = offset;
-  if (display) display.textContent = timeLeft;
+/* ══════════════════════════════
+   SAVE TO FIRESTORE
+══════════════════════════════ */
+async function saveQuiz() {
+  const btn     = document.getElementById('save-btn');
+  const btnText = document.getElementById('save-btn-text');
+  const spinner = document.getElementById('save-spinner');
+
+  // Collect data
+  const payload = {
+    quizTime:     parseInt(document.getElementById('f-time').value) || 60,
+    snapchat:     document.getElementById('f-snapchat').value.trim() || '@Elysooo',
+    dateLabel:    document.getElementById('f-date-label').value.trim(),
+    passage:      document.getElementById('f-passage').value.trim(),
+    questions:    collectQuestions(),
+    explanations: collectExplanations(),
+    updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy:    auth.currentUser?.email || 'admin'
+  };
+
+  // Validate
+  if (!payload.passage) { showToast('⚠️ Passage is required!', 'red'); return; }
+  if (payload.questions.length === 0) { showToast('⚠️ Add at least one question!', 'red'); return; }
+  for (let i = 0; i < payload.questions.length; i++) {
+    const q = payload.questions[i];
+    if (!q.question.trim()) { showToast(`⚠️ Q${i+1}: Question text is empty!`, 'red'); return; }
+    const hasEmpty = q.options.some(o => !o.trim());
+    if (hasEmpty) { showToast(`⚠️ Q${i+1}: Fill all 4 options!`, 'red'); return; }
+  }
+
+  // Loading state
+  btnText.classList.add('hidden');
+  spinner.classList.remove('hidden');
+  btn.disabled = true;
+
+  try {
+    await db.collection('quiz').doc('today').set(payload);
+    markSaved();
+    showToast('🚀 Quiz published successfully!');
+    btn.classList.add('glow');
+    setTimeout(() => btn.classList.remove('glow'), 700);
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Save failed: ' + e.message, 'red');
+  } finally {
+    btnText.classList.remove('hidden');
+    spinner.classList.add('hidden');
+    btn.disabled = false;
+  }
 }
 
-/* ============================================================
-   READING → QUESTIONS
-   ============================================================ */
-function goToQuestions() {
-  showScreen('screen-questions');
-  renderQuestion(0);
+/* ══════════════════════════════
+   COLLECT DATA FROM DOM
+══════════════════════════════ */
+function collectQuestions() {
+  return questions.map((_, i) => {
+    const block = document.getElementById(`q-block-${i}`);
+    if (!block) return null;
+    const opts = ['A','B','C','D'].map(l =>
+      block.querySelector(`#opt-${i}-${l}`)?.value || ''
+    );
+    const correctIdx = parseInt(block.querySelector(`[name="correct-${i}"]:checked`)?.value ?? 0);
+    return {
+      question: block.querySelector(`#qtext-${i}`)?.value || '',
+      options: opts,
+      correct: correctIdx
+    };
+  }).filter(Boolean);
 }
 
-/* ============================================================
-   RENDER QUESTION
-   ============================================================ */
-function renderQuestion(idx) {
-  currentQuestion = idx;
-  const q = QUESTIONS[idx];
+function collectExplanations() {
+  return explanations.map((_, i) => {
+    const block = document.getElementById(`exp-block-${i}`);
+    if (!block) return null;
+    return {
+      text: block.querySelector(`#exp-text-${i}`)?.value || '',
+      note: block.querySelector(`#exp-note-${i}`)?.value || ''
+    };
+  }).filter(Boolean);
+}
 
-  // Labels
-  document.getElementById('q-label').textContent = `Question ${idx + 1}`;
-  document.getElementById('q-sublabel').textContent = `of ${TOTAL_QUESTIONS}`;
-  document.getElementById('q-text').textContent = q.question;
-
-  // Progress dots
-  const dots = document.getElementById('q-dots');
-  dots.innerHTML = '';
-  QUESTIONS.forEach((_, i) => {
-    const dot = document.createElement('div');
-    dot.className = `h-2 flex-1 rounded-full transition-all duration-300 ${
-      i < idx ? 'bg-green-500' : i === idx ? 'bg-[#FFFC00]' : 'bg-[#2a2a2a]'
-    }`;
-    dots.appendChild(dot);
-  });
-
-  // Options
-  const container = document.getElementById('options-container');
+/* ══════════════════════════════
+   RENDER QUESTIONS
+══════════════════════════════ */
+function renderQuestions() {
+  const container = document.getElementById('questions-container');
   container.innerHTML = '';
-  const letters = ['A', 'B', 'C', 'D'];
+  questions.forEach((q, i) => renderQuestionBlock(q, i));
+  document.getElementById('stat-questions').textContent = questions.length;
+}
 
-  q.options.forEach((opt, i) => {
+function renderQuestionBlock(q, i) {
+  const container = document.getElementById('questions-container');
+  const letters = ['A','B','C','D'];
+  const div = document.createElement('div');
+  div.className = 'q-block';
+  div.id = `q-block-${i}`;
+
+  div.innerHTML = `
+    <div class="flex items-center gap-3 mb-4">
+      <span class="drag-handle text-lg select-none">⠿</span>
+      <span class="font-syne font-bold text-sm accent">Q${i+1}</span>
+      <div class="flex-1"></div>
+      <button class="btn btn-danger btn-sm" onclick="removeQuestion(${i})">✕ Remove</button>
+    </div>
+
+    <!-- Question text -->
+    <label class="text-xs text-gray-500 mb-1 block">Question</label>
+    <input id="qtext-${i}" class="inp mb-4" type="text"
+      placeholder="Type the question here..."
+      value="${escapeAttr(q.question || '')}"
+      oninput="markUnsaved()"/>
+
+    <!-- Options -->
+    <label class="text-xs text-gray-500 mb-2 block">Answer Options <span class="text-yellow-400">(select the correct one)</span></label>
+    ${letters.map((l, j) => `
+      <div class="opt-row mb-2">
+        <div class="opt-letter ${q.correct === j ? 'bg-yellow-400 text-black' : ''}">${l}</div>
+        <input id="opt-${i}-${l}" class="inp flex-1" type="text"
+          placeholder="Option ${l}..."
+          value="${escapeAttr(q.options?.[j] || '')}"
+          oninput="markUnsaved()"/>
+        <label class="correct-wrap ml-1" title="Mark as correct">
+          <input type="radio" name="correct-${i}" value="${j}"
+            class="correct-radio"
+            ${q.correct === j ? 'checked' : ''}
+            onchange="markUnsaved(); updateOptLetterColor(${i})"/>
+          <span class="text-xs text-gray-500">✓</span>
+        </label>
+      </div>
+    `).join('')}
+  `;
+  container.appendChild(div);
+}
+
+function addQuestion() {
+  questions.push({ question: '', options: ['','','',''], correct: 0 });
+  renderQuestions();
+  markUnsaved();
+  // Scroll to new question
+  const blocks = document.querySelectorAll('.q-block');
+  blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function removeQuestion(i) {
+  if (questions.length <= 1) { showToast('⚠️ Must have at least one question.', 'red'); return; }
+  if (!confirm(`Remove Question ${i+1}?`)) return;
+  questions.splice(i, 1);
+  renderQuestions();
+  markUnsaved();
+}
+
+function updateOptLetterColor(i) {
+  const block = document.getElementById(`q-block-${i}`);
+  const letters = ['A','B','C','D'];
+  const checked = parseInt(block.querySelector(`[name="correct-${i}"]:checked`)?.value ?? 0);
+  block.querySelectorAll('.opt-letter').forEach((el, j) => {
+    el.classList.toggle('bg-[#FFFC00]', j === checked);
+    el.classList.toggle('text-black', j === checked);
+    el.style.background = j === checked ? '#FFFC00' : '';
+    el.style.color = j === checked ? '#0a0a0a' : '';
+  });
+}
+
+/* ══════════════════════════════
+   RENDER EXPLANATIONS
+══════════════════════════════ */
+function renderExplanations() {
+  const container = document.getElementById('explanations-container');
+  container.innerHTML = '';
+  explanations.forEach((ex, i) => {
     const div = document.createElement('div');
-    div.className = 'option-card';
-    div.id = `opt-${i}`;
+    div.className = 'exp-block';
+    div.id = `exp-block-${i}`;
     div.innerHTML = `
-      <div class="option-letter">${letters[i]}</div>
-      <span class="text-[14px] text-gray-200 leading-snug">${opt}</span>
+      <div class="flex items-center justify-between mb-3">
+        <span class="font-syne font-bold text-xs accent">Explanation ${i+1}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeExplanation(${i})">✕</button>
+      </div>
+      <label class="text-xs text-gray-500 mb-1 block">Sentence from passage (HTML allowed for vocab highlights)</label>
+      <input id="exp-text-${i}" class="inp mb-2" type="text"
+        placeholder="e.g. Students who read <span class='vocab'>consistently</span> perform better."
+        value="${escapeAttr(ex.text || '')}"
+        oninput="markUnsaved()"/>
+      <label class="text-xs text-gray-500 mb-1 block">Note / explanation</label>
+      <input id="exp-note-${i}" class="inp" type="text"
+        placeholder="e.g. Key word: consistently = regularly without stopping."
+        value="${escapeAttr(ex.note || '')}"
+        oninput="markUnsaved()"/>
     `;
-    div.onclick = () => selectOption(i);
     container.appendChild(div);
   });
-
-  // If already answered (going back — not implemented but future-proof)
-  if (answers[idx] !== -1) highlightSelected(answers[idx]);
-
-  // Buttons
-  const isLast = idx === TOTAL_QUESTIONS - 1;
-  document.getElementById('next-btn').classList.add('hidden');
-  document.getElementById('submit-btn').classList.add('hidden');
 }
 
-/* ============================================================
-   SELECT OPTION
-   ============================================================ */
-function selectOption(optIdx) {
-  answers[currentQuestion] = optIdx;
-  highlightSelected(optIdx);
-  vibrate(30);
-
-  // Show next/submit after short delay
-  setTimeout(() => {
-    const isLast = currentQuestion === TOTAL_QUESTIONS - 1;
-    if (isLast) {
-      document.getElementById('submit-btn').classList.remove('hidden');
-    } else {
-      document.getElementById('next-btn').classList.remove('hidden');
-    }
-  }, 300);
+function addExplanation() {
+  explanations.push({ text: '', note: '' });
+  renderExplanations();
+  markUnsaved();
 }
 
-function highlightSelected(idx) {
-  document.querySelectorAll('.option-card').forEach((c, i) => {
-    c.classList.toggle('selected', i === idx);
-  });
+function removeExplanation(i) {
+  explanations.splice(i, 1);
+  renderExplanations();
+  markUnsaved();
 }
 
-/* ============================================================
-   NEXT QUESTION
-   ============================================================ */
-function nextQuestion() {
-  if (currentQuestion < TOTAL_QUESTIONS - 1) {
-    renderQuestion(currentQuestion + 1);
-  }
-}
-
-/* ============================================================
-   SUBMIT QUIZ
-   ============================================================ */
-async function submitQuiz(auto = false) {
-  clearInterval(timerInterval);
-
-  // Calculate score
-  quizScore = 0;
-  QUESTIONS.forEach((q, i) => {
-    if (answers[i] === q.correct) quizScore++;
-  });
-
-  // Save to Firestore
+/* ══════════════════════════════
+   LOAD STATS
+══════════════════════════════ */
+async function loadStats() {
   try {
-    await db.collection('results').add({
-      name: studentName,
-      score: quizScore,
-      total: TOTAL_QUESTIONS,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      date: new Date().toISOString()
-    });
-  } catch (e) {
-    console.warn('Firestore save error:', e);
+    const snap = await db.collection('results').get();
+    const docs = snap.docs.map(d => d.data());
+    const count = docs.length;
+    const avg = count > 0
+      ? (docs.reduce((s, d) => s + (d.score / (d.total || 5)), 0) / count * 100).toFixed(0) + '%'
+      : '—';
+    document.getElementById('stat-participants').textContent = count;
+    document.getElementById('stat-avg').textContent = avg;
+  } catch(e) {
+    console.warn('Stats error:', e);
   }
-
-  // Also save to localStorage as backup
-  const entry = { name: studentName, score: quizScore, total: TOTAL_QUESTIONS, date: new Date().toISOString() };
-  const stored = JSON.parse(localStorage.getItem('stepResults') || '[]');
-  stored.push(entry);
-  localStorage.setItem('stepResults', JSON.stringify(stored));
-
-  analytics.logEvent('quiz_completed', { score: quizScore, name: studentName });
-
-  showResults();
 }
 
-/* ============================================================
-   SHOW RESULTS
-   ============================================================ */
-function showResults() {
-  showScreen('screen-results');
+/* ══════════════════════════════
+   LOAD RESULTS TAB
+══════════════════════════════ */
+async function loadResults() {
+  const tbody = document.getElementById('results-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-600 py-8"><div class="spinner mx-auto"></div></td></tr>';
 
-  // Level classification
-  let level, message, emoji;
-  const pct = quizScore / TOTAL_QUESTIONS;
-  if (pct <= 0.2) {
-    level = "Beginner"; message = "Keep going 💪 Every expert was once a beginner."; emoji = "💪";
-  } else if (pct <= 0.6) {
-    level = "Intermediate"; message = "You're improving 🔥 Keep practicing daily!"; emoji = "🔥";
-  } else {
-    level = "Advanced"; message = "Excellent work 🚀 You're crushing it!"; emoji = "🚀";
-  }
-
-  document.getElementById('result-score').textContent = quizScore;
-  document.getElementById('result-total').textContent = TOTAL_QUESTIONS;
-  document.getElementById('result-level').textContent = level;
-  document.getElementById('result-message').textContent = message;
-  document.getElementById('result-emoji').textContent = emoji;
-
-  // Breakdown
-  const breakdown = document.getElementById('breakdown-list');
-  breakdown.innerHTML = '';
-  QUESTIONS.forEach((q, i) => {
-    const userAns = answers[i];
-    const correct = q.correct;
-    const isRight = userAns === correct;
-    const letters = ['A','B','C','D'];
-    breakdown.innerHTML += `
-      <div class="flex items-start gap-3 py-2 border-b border-[#2a2a2a] last:border-0">
-        <span class="text-base mt-0.5">${isRight ? '✅' : '❌'}</span>
-        <div class="flex-1 min-w-0">
-          <p class="text-xs text-gray-400 mb-1 truncate">Q${i+1}: ${q.question}</p>
-          <p class="text-xs ${isRight ? 'text-green-400' : 'text-red-400'}">
-            Your answer: ${userAns >= 0 ? letters[userAns] : '—'} · Correct: ${letters[correct]}
-          </p>
-        </div>
-      </div>
-    `;
-  });
-
-  // Explanations
-  const exList = document.getElementById('explanations-list');
-  exList.innerHTML = '';
-  EXPLANATIONS.forEach(ex => {
-    exList.innerHTML += `
-      <div class="bg-[#111] rounded-2xl p-4 border border-[#2a2a2a]">
-        <p class="text-[13px] text-gray-200 leading-relaxed mb-2">${ex.text}</p>
-        <p class="text-[11px] text-gray-500 italic">${ex.note}</p>
-      </div>
-    `;
-  });
-}
-
-/* ============================================================
-   LEADERBOARD
-   ============================================================ */
-async function showLeaderboard() {
-  showScreen('screen-leaderboard');
-
-  const list = document.getElementById('leaderboard-list');
-  list.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Loading...</p>';
-
-  let entries = [];
-
-  // Try Firestore first
   try {
     const snap = await db.collection('results')
       .orderBy('score', 'desc')
-      .orderBy('timestamp', 'asc')
-      .limit(30)
-      .get();
+      .limit(100).get();
 
-    snap.forEach(doc => {
-      const d = doc.data();
-      entries.push({ name: d.name, score: d.score, total: d.total || TOTAL_QUESTIONS });
-    });
-  } catch (e) {
-    console.warn('Firestore read error, falling back to localStorage:', e);
-    // Fallback to localStorage
-    entries = JSON.parse(localStorage.getItem('stepResults') || '[]');
-    entries.sort((a, b) => b.score - a.score);
-  }
+    const docs = snap.docs.map(d => d.data());
 
-  document.getElementById('lb-count').textContent = entries.length;
-  list.innerHTML = '';
+    // Summary
+    document.getElementById('r-total').textContent = docs.length;
+    if (docs.length > 0) {
+      const scores = docs.map(d => d.score);
+      const totals = docs.map(d => d.total || 5);
+      document.getElementById('r-avg').textContent =
+        (scores.reduce((a,b,i)=>a+b/totals[i],0)/docs.length*100).toFixed(0)+'%';
+      document.getElementById('r-highest').textContent = Math.max(...scores);
+      document.getElementById('r-lowest').textContent  = Math.min(...scores);
+    }
 
-  if (entries.length === 0) {
-    list.innerHTML = '<p class="text-gray-500 text-sm text-center py-6">No participants yet. Be the first! 🎯</p>';
-    return;
-  }
+    if (docs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-600 py-8">No results yet.</td></tr>';
+      return;
+    }
 
-  entries.forEach((e, i) => {
-    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const rankText = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
-    const stars = '⭐'.repeat(Math.round((e.score / (e.total || TOTAL_QUESTIONS)) * 5));
-
-    list.innerHTML += `
-      <div class="lb-row">
-        <div class="lb-rank ${rankClass}">${rankText}</div>
-        <div class="flex-1 min-w-0">
-          <p class="font-syne font-semibold text-sm truncate">${sanitize(e.name)}</p>
-          <p class="text-xs text-gray-500">${stars || '☆'}</p>
-        </div>
-        <div class="text-right">
-          <span class="font-syne font-bold text-lg accent">${e.score}</span>
-          <span class="text-gray-500 text-xs">/${e.total || TOTAL_QUESTIONS}</span>
-        </div>
-      </div>
-    `;
-  });
-}
-
-function backToResults() {
-  showScreen('screen-results');
-}
-
-function clearLeaderboard() {
-  if (confirm('Clear local leaderboard data? (Firestore data is preserved)')) {
-    localStorage.removeItem('stepResults');
-    showLeaderboard();
+    tbody.innerHTML = docs.map((d, i) => {
+      const pct = d.score / (d.total || 5);
+      const level = pct <= 0.2 ? 'Beginner' : pct <= 0.6 ? 'Intermediate' : 'Advanced';
+      const levelColor = pct <= 0.2 ? 'text-red-400' : pct <= 0.6 ? 'text-yellow-400' : 'text-green-400';
+      const dateStr = d.date ? new Date(d.date).toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      return `
+        <tr>
+          <td class="text-gray-600">${i+1}</td>
+          <td class="font-medium">${sanitize(d.name || '—')}</td>
+          <td><span class="font-syne font-bold accent">${d.score}</span><span class="text-gray-500">/${d.total||5}</span></td>
+          <td class="${levelColor} text-sm font-syne font-semibold">${level}</td>
+          <td class="text-gray-500 text-xs">${dateStr}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-red-400 py-8">Error: ${e.message}</td></tr>`;
   }
 }
 
-/* ============================================================
-   PARTICIPANTS COUNT
-   ============================================================ */
-async function loadParticipantsCount() {
+async function clearAllResults() {
+  if (!confirm('⚠️ This will delete ALL student results from Firestore. Are you sure?')) return;
+  if (!confirm('Last warning: this cannot be undone!')) return;
+
   try {
     const snap = await db.collection('results').get();
-    document.getElementById('participants-count').textContent = snap.size;
-  } catch (e) {
-    // Fallback to localStorage
-    const stored = JSON.parse(localStorage.getItem('stepResults') || '[]');
-    document.getElementById('participants-count').textContent = stored.length;
+    const batch = db.batch();
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    showToast('🗑 All results cleared.');
+    loadResults();
+    loadStats();
+  } catch(e) {
+    showToast('❌ Error: ' + e.message, 'red');
   }
 }
 
-/* ============================================================
-   SHARE
-   ============================================================ */
-async function shareChallenge() {
-  const shareData = {
-    title: 'STEP Daily Challenge',
-    text: `I scored ${quizScore}/${TOTAL_QUESTIONS} on the STEP Daily Challenge! Can you beat me? 💪 by ${SNAPCHAT_USERNAME}`,
-    url: window.location.href
-  };
+/* ══════════════════════════════
+   PREVIEW TAB
+══════════════════════════════ */
+function refreshPreview() {
+  const passage = document.getElementById('f-passage').value.trim();
+  const qs = collectQuestions();
+  const exps = collectExplanations();
+  const letters = ['A','B','C','D'];
 
-  if (navigator.share) {
-    try {
-      await navigator.share(shareData);
-    } catch (e) { /* user cancelled */ }
-  } else {
-    // Fallback: copy to clipboard
-    try {
-      await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-      showToast('Copied to clipboard! 📋');
-    } catch (e) {
-      showToast('Share: ' + window.location.href);
-    }
-  }
+  // Passage
+  document.getElementById('preview-passage').innerHTML =
+    passage.split('\n\n').map(p => `<p class="mb-3">${p.trim()}</p>`).join('');
+
+  // Questions
+  document.getElementById('preview-questions').innerHTML = qs.map((q, i) => `
+    <div class="card-inner p-4">
+      <p class="font-syne font-semibold text-sm mb-3 accent">Q${i+1}: ${sanitize(q.question)}</p>
+      ${q.options.map((o, j) => `
+        <div class="flex items-center gap-2 mb-2 ${j === q.correct ? 'text-green-400' : 'text-gray-400'} text-sm">
+          <span class="w-5 h-5 rounded-full ${j===q.correct?'bg-green-500 text-white':'bg-[#1e1e1e] text-gray-500'} flex items-center justify-center text-xs font-bold flex-shrink-0">${letters[j]}</span>
+          ${sanitize(o)} ${j===q.correct ? '✓' : ''}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  // Explanations
+  document.getElementById('preview-explanations').innerHTML = exps.length ? `
+    <p class="font-syne font-semibold text-sm text-gray-300 mb-2">💡 Explanations</p>
+    ${exps.map(ex => `
+      <div class="card-inner p-4">
+        <p class="text-sm text-gray-200 mb-1">${ex.text}</p>
+        <p class="text-xs text-gray-500 italic">${ex.note}</p>
+      </div>
+    `).join('')}
+  ` : '';
 }
 
-/* ============================================================
-   RESET
-   ============================================================ */
-function resetQuiz() {
-  clearInterval(timerInterval);
-  document.getElementById('student-name').value = '';
-  showScreen('screen-landing');
-  loadParticipantsCount();
+/* ══════════════════════════════
+   TABS
+══════════════════════════════ */
+function switchTab(tab) {
+  ['editor','results','preview'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`pane-${t}`).classList.toggle('hidden', t !== tab);
+  });
+  if (tab === 'results') loadResults();
+  if (tab === 'preview') refreshPreview();
 }
 
-/* ============================================================
+/* ══════════════════════════════
    HELPERS
-   ============================================================ */
-function vibrate(ms) {
-  if (navigator.vibrate) navigator.vibrate(ms);
+══════════════════════════════ */
+function markUnsaved() {
+  unsaved = true;
+  document.getElementById('save-status').classList.remove('hidden');
+}
+function markSaved() {
+  unsaved = false;
+  document.getElementById('save-status').classList.add('hidden');
 }
 
-function showToast(msg) {
+function updateCharCount() {
+  const len = document.getElementById('f-passage').value.length;
+  document.getElementById('char-count').textContent = `${len} chars`;
+  markUnsaved();
+}
+
+function showToast(msg, color = 'yellow') {
   const t = document.getElementById('toast');
   t.textContent = msg;
+  t.style.background = color === 'red' ? '#ef4444' : '#FFFC00';
+  t.style.color = color === 'red' ? '#fff' : '#0a0a0a';
   t.style.opacity = '1';
-  setTimeout(() => { t.style.opacity = '0'; }, 2500);
+  setTimeout(() => { t.style.opacity = '0'; }, 3000);
 }
 
+function escapeAttr(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 function sanitize(str) {
   return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+/* ══════════════════════════════
+   DEFAULT DATA (first-time seed)
+══════════════════════════════ */
+function getDefaultQuestions() {
+  return [
+    {
+      question: "What is the main idea of the passage?",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      correct: 0
+    }
+  ];
+}
+function getDefaultExplanations() {
+  return [
+    { text: "Key sentence from the passage here.", note: "Explanation note here." }
+  ];
+}
+
+/* ── Prevent accidental navigation if unsaved ── */
+window.addEventListener('beforeunload', e => {
+  if (unsaved) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ── Enter to login ── */
+document.getElementById('login-password')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') loginAdmin();
+});
 </script>
 </body>
 </html>
