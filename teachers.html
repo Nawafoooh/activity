@@ -336,15 +336,6 @@ input[type="text"].invalid:focus, textarea.invalid:focus {
   gap: 10px;
 }
 
-.spinner {
-  animation: spin 0.9s linear infinite;
-  transform-origin: center;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 /* ============================================================
    قسم الخصوصية
    ============================================================ */
@@ -590,9 +581,6 @@ input[type="text"].invalid:focus, textarea.invalid:focus {
           إرسال الملاحظات
         </span>
         <span class="btn-loading" hidden>
-          <svg class="spinner" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="42 100"/>
-          </svg>
           جارٍ الإرسال...
         </span>
       </button>
@@ -657,8 +645,15 @@ const firebaseConfig = {
   measurementId: "G-2MSLR7VYQP"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+let db = null;
+let firebaseReady = false;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  firebaseReady = true;
+} catch (initErr) {
+  console.error('تعذر تهيئة Firebase:', initErr);
+}
 // اسم المجموعة (Collection) في Firestore — مطابق لقاعدة الأمان "approvals"
 const COLLECTION_NAME = 'approvals';
 
@@ -710,14 +705,28 @@ document.addEventListener('DOMContentLoaded', () => {
   // ------------------------------------------------------------
   // دالة إرسال طلب المعلم (مستقلة وقابلة لإعادة الاستخدام)
   // مرتبطة الآن بقاعدة بيانات Firebase Firestore
+  // مع مهلة زمنية (Timeout) حتى لا يبقى الزر عالقاً في حال ضعف
+  // الاتصال أو حجب الشبكة لخدمة Firestore
   // ------------------------------------------------------------
   async function submitTeacherRequest(payload) {
-    await db.collection(COLLECTION_NAME).add({
+    if (!firebaseReady || !db) {
+      throw new Error('تعذر الاتصال بقاعدة البيانات. يرجى التحقق من اتصال الإنترنت.');
+    }
+
+    const writeOperation = db.collection(COLLECTION_NAME).add({
       teacherName: payload.teacherName,
       notes: payload.notes,
       submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
       submittedAtLocal: payload.submittedAt // نسخة نصية احتياطية للعرض
     });
+
+    const timeoutGuard = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('انتهت مهلة الاتصال بالخادم. يرجى التحقق من الإنترنت والمحاولة مرة أخرى.'));
+      }, 15000); // 15 ثانية كحد أقصى للانتظار
+    });
+
+    await Promise.race([writeOperation, timeoutGuard]);
     return { success: true };
   }
 
@@ -775,7 +784,8 @@ document.addEventListener('DOMContentLoaded', () => {
       openModal();
     } catch (err) {
       console.error('حدث خطأ أثناء الإرسال:', err);
-      showError(notesInput, notesError, 'تعذر إرسال البيانات، يرجى المحاولة مرة أخرى.');
+      const friendlyMessage = (err && err.message) ? err.message : 'تعذر إرسال البيانات، يرجى المحاولة مرة أخرى.';
+      showError(notesInput, notesError, friendlyMessage);
     } finally {
       setLoading(false);
     }
