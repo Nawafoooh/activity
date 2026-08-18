@@ -499,6 +499,10 @@ input[type="text"].invalid:focus, textarea.invalid:focus {
 }
 
 </style>
+
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -635,8 +639,28 @@ input[type="text"].invalid:focus, textarea.invalid:focus {
 <script>
 /* ============================================================
    متوسطة المنذر بن عمرو الأنصاري — استطلاع ظروف المعلمين
-   Vanilla JavaScript — لا يعتمد على أي مكتبة خارجية
+   Vanilla JavaScript + Firebase Firestore
    ============================================================ */
+
+// ------------------------------------------------------------
+// إعداد Firebase — للأمانة: مفتاح الويب هذا (apiKey) عام بطبيعته
+// ويُستخدم فقط لتحديد المشروع، وليس سراً؛ الحماية الفعلية تكون
+// عبر قواعد الأمان (Security Rules) في Firestore.
+// ------------------------------------------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyAVFtPQyyDtbdt5VlivumLhgI4whVU3FS4",
+  authDomain: "card-4108e.firebaseapp.com",
+  projectId: "card-4108e",
+  storageBucket: "card-4108e.firebasestorage.app",
+  messagingSenderId: "854525747419",
+  appId: "1:854525747419:web:e67a89a74f9cc8d745acfe",
+  measurementId: "G-2MSLR7VYQP"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+// اسم المجموعة (Collection) في Firestore — مطابق لقاعدة الأمان "approvals"
+const COLLECTION_NAME = 'approvals';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -685,48 +709,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ------------------------------------------------------------
   // دالة إرسال طلب المعلم (مستقلة وقابلة لإعادة الاستخدام)
-  // يمكن لاحقاً استبدال محتوى هذه الدالة بربطها بخدمة خارجية:
-  // Google Sheets Apps Script Webhook / Firebase Firestore / Supabase
+  // مرتبطة الآن بقاعدة بيانات Firebase Firestore
   // ------------------------------------------------------------
   async function submitTeacherRequest(payload) {
-    // ====== منطقة الربط المستقبلي بالـ Backend ======
-    // مثال Google Sheets (Apps Script Web App):
-    //
-    // const response = await fetch('PUT_YOUR_GOOGLE_SHEETS_WEBHOOK_URL_HERE', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(payload)
-    // });
-    // if (!response.ok) throw new Error('فشل الإرسال إلى الخادم');
-    // return await response.json();
-    //
-    // مثال Firebase Firestore:
-    //
-    // import { getFirestore, collection, addDoc } from "firebase/firestore";
-    // const db = getFirestore();
-    // await addDoc(collection(db, "teacherRequests"), payload);
-    //
-    // مثال Supabase:
-    //
-    // const { error } = await supabaseClient.from('teacher_requests').insert([payload]);
-    // if (error) throw error;
-    // ====================================================
-
-    // لا يوجد حالياً Backend مرتبط بالموقع.
-    // نستخدم LocalStorage مؤقتاً لأغراض التجربة فقط،
-    // وهذا لا يمثل إرسالاً فعلياً إلى قاعدة بيانات حقيقية.
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        try {
-          const existing = JSON.parse(localStorage.getItem('teacherRequests') || '[]');
-          existing.push(payload);
-          localStorage.setItem('teacherRequests', JSON.stringify(existing));
-        } catch (err) {
-          console.error('تعذر الحفظ محلياً:', err);
-        }
-        resolve({ success: true });
-      }, 900); // محاكاة زمن استجابة الشبكة
+    await db.collection(COLLECTION_NAME).add({
+      teacherName: payload.teacherName,
+      notes: payload.notes,
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      submittedAtLocal: payload.submittedAt // نسخة نصية احتياطية للعرض
     });
+    return { success: true };
   }
 
   // ------------------------------------------------------------
