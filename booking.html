@@ -3,74 +3,675 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nawaf Pro - Private Market Sessions</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- استدعاء Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Nawaf Pro | Private Wyckoff & Market Analysis Sessions</title>
+
+    <!-- Firebase SDKs (Modular/CDN Compatible) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs, 
+            query, 
+            where, 
+            updateDoc, 
+            doc, 
+            onSnapshot 
+        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBaY75jwos44EbgZMlhIcU_YfrGeKY7r3w",
+            authDomain: "naj7-7da9d.firebaseapp.com",
+            projectId: "naj7-7da9d",
+            storageBucket: "naj7-7da9d.firebasestorage.app",
+            messagingSenderId: "72751584563",
+            appId: "1:72751584563:web:8562f042882919d2c4da46",
+            measurementId: "G-308H9HW0FP"
+        };
+
+        // Initialize Firebase & Firestore
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Expose Firebase functions globally for UI interaction
+        window.db = db;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.getDocs = getDocs;
+        window.query = query;
+        window.where = where;
+        window.updateDoc = updateDoc;
+        window.doc = doc;
+        window.onSnapshot = onSnapshot;
+    </script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #050505 !important;
+            color: #ffffff !important;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding-bottom: 4rem;
+        }
+
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+            background-size: 35px 35px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .glass-panel {
+            background: #0f0f0f;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 1.8rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+        }
+
+        header {
+            text-align: center;
+            padding: 3rem 1rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: linear-gradient(180deg, #111 0%, #050505 100%);
+        }
+
+        .brand-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: #ffffff;
+            margin-bottom: 0.2rem;
+        }
+
+        .brand-subtitle {
+            font-size: 0.95rem;
+            letter-spacing: 2px;
+            color: #888888;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .arabic-title {
+            font-size: 1.6rem;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero-desc {
+            color: #aaaaaa;
+            font-size: 0.9rem;
+            max-width: 600px;
+            margin: 0 auto 1.5rem;
+        }
+
+        .meta-pills {
+            display: flex;
+            justify-content: center;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 0.4rem 0.8rem;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            color: #dddddd;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 2rem auto;
+            padding: 0 1.2rem;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            color: #ffffff;
+            margin-bottom: 1.2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.5rem;
+        }
+
+        .date-picker-input {
+            width: 100%;
+            padding: 0.9rem;
+            background: #000000;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+            font-size: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .date-picker-input::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        .slots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .slot-card {
+            padding: 1.2rem;
+            text-align: center;
+            border-radius: 8px;
+            background: #000000;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.2s ease;
+        }
+
+        .slot-card.available {
+            border-color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+        }
+
+        .slot-card.available:hover {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .slot-card.available:hover .slot-time,
+        .slot-card.available:hover .slot-duration {
+            color: #000000 !important;
+        }
+
+        .slot-card.booked {
+            opacity: 0.35;
+            cursor: not-allowed;
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .slot-time {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .slot-duration {
+            font-size: 0.8rem;
+            color: #888888;
+            margin: 0.3rem 0 0.8rem;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-weight: bold;
+            border: 1px solid #ffffff;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: #aaaaaa;
+            margin-bottom: 0.3rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.8rem;
+            background: #000000;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: #ffffff;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.85rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-white {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .btn-white:hover {
+            background: #cccccc;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #aaaaaa;
+            margin-top: 0.5rem;
+        }
+
+        .btn-outline:hover {
+            color: #ffffff;
+            border-color: #ffffff;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-box {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .admin-table th, .admin-table td {
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 0.6rem;
+            text-align: right;
+        }
+
+        .admin-table th {
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+
+        .hidden { display: none !important; }
+    </style>
 </head>
 <body>
-    <div class="bg-elements"></div> <!-- خلفية الشارتات المجردة -->
-    
-    <header class="hero">
-        <h1>NAWAF PRO</h1>
-        <h2>PRIVATE WYCKOFF & MARKET ANALYSIS SESSIONS</h2>
-        <p>احجز جلستك التدريبية الفردية مباشرة.</p>
-        
-        <div class="session-info">
-            <span>🕒 جميع المواعيد بتوقيت السعودية (UTC+3)</span>
-            <span>💻 عبر Zoom</span>
-            <span>⏱ مدة الجلسة: 75 دقيقة</span>
-            <span>🔒 خصوصية كاملة</span>
+
+    <div class="bg-grid"></div>
+
+    <header>
+        <div class="brand-title">NAWAF PRO</div>
+        <div class="brand-subtitle">Private Wyckoff & Market Analysis Sessions</div>
+        <h1 class="arabic-title">حجز المحاضرات الفردية اليومية</h1>
+        <p class="hero-desc">جلسات مباشرة وخاصة لتحليل الأسواق، منهج Wyckoff، قراءة حركة السعر، وإدارة الفرص التداولية.</p>
+
+        <div class="meta-pills">
+            <span class="pill">🕒 توقيت السعودية (UTC+3)</span>
+            <span class="pill">💻 عبر Zoom</span>
+            <span class="pill">⏱ 75 دقيقة للجلسة</span>
+            <span class="pill">🔒 خصوصية كاملة</span>
         </div>
     </header>
 
-    <main class="booking-container">
-        <!-- Progress -->
-        <div class="progress-bar">
-            <span class="active">01 التاريخ</span>
-            <span>02 الوقت</span>
-            <span>03 البيانات</span>
-        </div>
+    <div class="container">
 
-        <!-- Calendar Section -->
-        <section id="date-selection" class="step-section">
-            <h3>اختر يوم التدريب</h3>
-            <input type="date" id="booking-date" min="" onchange="loadAvailableSlots()">
+        <!-- 1. Date Selection -->
+        <section class="glass-panel">
+            <h2 class="section-title">📅 اختر يوم التدريب</h2>
+            <input type="date" id="booking-date-picker" class="date-picker-input" onchange="onDateSelected()">
         </section>
 
-        <!-- Time Slots Section -->
-        <section id="time-selection" class="step-section hidden">
-            <h3>المواعيد المتاحة</h3>
-            <div class="slots-grid" id="slots-container">
-                <!-- يتم توليد البطاقات عبر JS -->
+        <!-- 2. Time Slots Section -->
+        <section id="slots-section" class="glass-panel hidden">
+            <h2 class="section-title">🕒 المواعيد المتاحة</h2>
+            <div id="slots-grid-container" class="slots-grid"></div>
+        </section>
+
+        <!-- 3. Manage Booking -->
+        <section class="glass-panel">
+            <h2 class="section-title">🔍 استعلام عن حجز متدرب</h2>
+            <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="lookup-code-input" class="form-control" placeholder="أدخل رمز الحجز (مثال: NP-X89K2)">
+                <button class="btn btn-white" style="width: auto; min-width: 100px;" onclick="lookupBooking()">بحث</button>
+            </div>
+            <div id="booking-result-card" class="hidden" style="margin-top: 1rem; padding: 1rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;"></div>
+        </section>
+
+        <!-- 4. Admin Panel Section -->
+        <section class="glass-panel">
+            <h2 class="section-title">🔐 لوحة الإدارة والتحكم الخاصة</h2>
+            <div id="admin-login-box" style="display: flex; gap: 0.5rem;">
+                <input type="password" id="admin-pass-input" class="form-control" placeholder="أدخل الرقم السري للإدارة">
+                <button class="btn btn-white" style="width: auto; min-width: 110px;" onclick="checkAdminPass()">دخول</button>
+            </div>
+
+            <div id="admin-dashboard" class="hidden" style="margin-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: #fff; font-size: 0.95rem;">جدول الحجوزات المسجلة بالسحابة:</h3>
+                    <button class="btn btn-outline" style="width: auto; padding: 0.3rem 0.8rem; font-size: 0.8rem; margin:0;" onclick="logoutAdmin()">خروج</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>الرمز</th>
+                                <th>الاسم</th>
+                                <th>Telegram</th>
+                                <th>التاريخ</th>
+                                <th>الوقت</th>
+                                <th>الملاحظة</th>
+                                <th>الإجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body"></tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
-        <!-- Booking Form Modal (Hidden by default) -->
-        <div id="booking-modal" class="modal hidden">
-            <div class="modal-content glass">
-                <h3>تأكيد الحجز</h3>
-                <p id="selected-slot-info" class="gold-text"></p>
-                <form id="booking-form">
-                    <input type="text" id="student_name" placeholder="الاسم الكريم (مطلوب)" required>
-                    <input type="text" id="contact" placeholder="رقم الجوال أو حساب تيليجرام">
-                    <textarea id="note" placeholder="ملاحظة للمدرب (خاصة وسرية)..."></textarea>
-                    <button type="submit" class="btn-primary">تأكيد الحجز</button>
-                    <button type="button" class="btn-secondary" onclick="closeModal()">إلغاء</button>
-                </form>
+    </div>
+
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="modal-overlay">
+        <div class="glass-panel modal-box">
+            <h3 class="section-title" id="modal-title">تأكيد بيانات الحجز</h3>
+            
+            <p id="modal-slot-summary" style="font-size: 0.85rem; color: #aaaaaa; margin-bottom: 1rem;"></p>
+
+            <form id="booking-form" onsubmit="submitBooking(event)">
+                <div class="form-group">
+                    <label>الاسم الكريم *</label>
+                    <input type="text" id="input-student-name" class="form-control" required placeholder="أدخل اسمك الكريم">
+                </div>
+
+                <div class="form-group">
+                    <label>حساب Telegram *</label>
+                    <input type="text" id="input-contact" class="form-control" required placeholder="@username">
+                </div>
+
+                <div class="form-group">
+                    <label>ملاحظة خاصة للمدرب (سرية)</label>
+                    <textarea id="input-note" class="form-control" rows="3" placeholder="ملاحظتك هنا..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-white" id="btn-submit-booking">تأكيد الحجز</button>
+                <button type="button" class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+            </form>
+
+            <div id="booking-success-box" class="hidden" style="text-align: center; margin-top: 1rem;">
+                <p id="success-message-text" style="color: #4cd964; margin-bottom: 1rem; font-size: 0.9rem;"></p>
+                
+                <a id="btn-add-calendar" target="_blank" class="btn btn-white" style="margin-bottom: 0.5rem;">
+                    🔔 إضافة تنبيه للتقويم (تنبيه قبل 15 دقيقة)
+                </a>
+                <button type="button" class="btn btn-outline" onclick="closeModal()">إغلاق</button>
             </div>
         </div>
-    </main>
+    </div>
 
-    <!-- Manage Booking Section -->
-    <section class="manage-booking">
-        <h3>إدارة حجزي</h3>
-        <input type="text" id="manage_code" placeholder="أدخل رمز الحجز (Booking ID)">
-        <button class="btn-outline" onclick="fetchMyBooking()">استعراض الحجز</button>
-        <div id="my-booking-details" class="hidden"></div>
-    </section>
+    <script>
+        const FIXED_SLOTS = [
+            { startTime: "16:00", endTime: "17:15", label: "4:00 م – 5:15 م" },
+            { startTime: "17:45", endTime: "19:00", label: "5:45 م – 7:00 م" },
+            { startTime: "19:30", endTime: "20:45", label: "7:30 م – 8:45 م" },
+            { startTime: "21:15", endTime: "22:30", label: "9:15 م – 10:30 م" }
+        ];
 
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+        let activeDate = null;
+        let activeSlot = null;
+        let isAdminLoggedIn = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('booking-date-picker').min = new Date().toISOString().split('T')[0];
+        });
+
+        async function onDateSelected() {
+            activeDate = document.getElementById('booking-date-picker').value;
+            if(!activeDate) return;
+
+            const container = document.getElementById('slots-grid-container');
+            document.getElementById('slots-section').classList.remove('hidden');
+            container.innerHTML = '<p style="color:#888;">جاري تحميل المواعيد من قاعدة البيانات...</p>';
+
+            try {
+                // Query Firestore for active bookings on the selected date
+                const q = window.query(
+                    window.collection(window.db, "bookings"), 
+                    window.where("session_date", "==", activeDate),
+                    window.where("status", "==", "Booked")
+                );
+                
+                const querySnapshot = await window.getDocs(q);
+                let bookedTimes = [];
+                querySnapshot.forEach((doc) => {
+                    bookedTimes.push(doc.data().start_time);
+                });
+
+                container.innerHTML = '';
+                FIXED_SLOTS.forEach(slot => {
+                    const isBooked = bookedTimes.includes(slot.startTime);
+                    const card = document.createElement('div');
+                    card.className = `slot-card ${isBooked ? 'booked' : 'available'}`;
+                    
+                    card.innerHTML = `
+                        <div class="slot-time">🕒 ${slot.label}</div>
+                        <div class="slot-duration">مدة الجلسة: 75 دقيقة</div>
+                        <span class="badge">${isBooked ? 'غير متاح' : 'متاح للحجز'}</span>
+                    `;
+
+                    if (!isBooked) {
+                        card.onclick = () => openModal(slot);
+                    }
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Firebase Read Error: ", err);
+                container.innerHTML = '<p style="color:#ff5555;">حدث خطأ أثناء قراءة الحجوزات، يرجى المحاولة لاحقاً.</p>';
+            }
+        }
+
+        function openModal(slot) {
+            activeSlot = slot;
+            document.getElementById('booking-form').classList.remove('hidden');
+            document.getElementById('booking-success-box').classList.add('hidden');
+            document.getElementById('modal-title').innerText = 'تأكيد بيانات الحجز';
+            document.getElementById('modal-slot-summary').innerText = `التاريخ: ${activeDate} | الوقت: ${slot.label}`;
+            document.getElementById('booking-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('booking-modal').classList.remove('active');
+            document.getElementById('booking-form').reset();
+        }
+
+        async function submitBooking(event) {
+            event.preventDefault();
+            const btnSubmit = document.getElementById('btn-submit-booking');
+            btnSubmit.innerText = "جاري الحفظ...";
+            btnSubmit.disabled = true;
+
+            const bookingCode = 'NP-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+            const studentName = document.getElementById('input-student-name').value;
+            const contact = document.getElementById('input-contact').value;
+            const note = document.getElementById('input-note').value;
+
+            try {
+                // Save to Firestore Database
+                await window.addDoc(window.collection(window.db, "bookings"), {
+                    booking_code: bookingCode,
+                    student_name: studentName,
+                    contact: contact,
+                    session_date: activeDate,
+                    start_time: activeSlot.startTime,
+                    end_time: activeSlot.endTime,
+                    slot_label: activeSlot.label,
+                    note: note,
+                    status: 'Booked',
+                    created_at: new Date()
+                });
+
+                const calLink = createGoogleCalendarLink(activeDate, activeSlot.startTime, activeSlot.endTime, studentName);
+                
+                document.getElementById('booking-form').classList.add('hidden');
+                document.getElementById('booking-success-box').classList.remove('hidden');
+                document.getElementById('modal-title').innerText = '🎉 تم الحجز بنجاح';
+                document.getElementById('success-message-text').innerText = `رمز الحجز الخاص بك: [ ${bookingCode} ]\nتم حفظ موعدك بنجاح في السحابة.`;
+                document.getElementById('btn-add-calendar').href = calLink;
+
+                onDateSelected();
+            } catch (err) {
+                console.error("Firebase Save Error: ", err);
+                alert("حدث خطأ أثناء حفظ الحجز. يرجى المحاولة مرة أخرى.");
+            } finally {
+                btnSubmit.innerText = "تأكيد الحجز";
+                btnSubmit.disabled = false;
+            }
+        }
+
+        function createGoogleCalendarLink(dateStr, startTime, endTime, name) {
+            const startISO = dateStr.replace(/-/g, '') + 'T' + startTime.replace(':', '') + '00';
+            const endISO = dateStr.replace(/-/g, '') + 'T' + endTime.replace(':', '') + '00';
+            const title = encodeURIComponent("محاضرة خاصة - NAWAF PRO");
+            const details = encodeURIComponent(`جلسة تحليل خاصة مع المتدرب: ${name}\nيرجى التواجد قبل الموعد.`);
+            
+            return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startISO}/${endISO}&details=${details}&ctz=Asia/Riyadh`;
+        }
+
+        async function lookupBooking() {
+            const code = document.getElementById('lookup-code-input').value.trim().toUpperCase();
+            const card = document.getElementById('booking-result-card');
+            if(!code) return;
+
+            card.classList.remove('hidden');
+            card.innerHTML = `<p style="color:#888;">جاري البحث...</p>`;
+
+            try {
+                const q = window.query(
+                    window.collection(window.db, "bookings"), 
+                    window.where("booking_code", "==", code),
+                    window.where("status", "==", "Booked")
+                );
+                
+                const snapshot = await window.getDocs(q);
+                if (snapshot.empty) {
+                    card.innerHTML = `<p style="color:#aaa;">❌ لا يوجد حجز نشط بهذا الرمز.</p>`;
+                } else {
+                    const docData = snapshot.docs[0].data();
+                    const docId = snapshot.docs[0].id;
+
+                    card.innerHTML = `
+                        <p><strong>اسم المتدرب:</strong> ${docData.student_name}</p>
+                        <p><strong>التاريخ:</strong> ${docData.session_date}</p>
+                        <p><strong>الوقت:</strong> ${docData.slot_label}</p>
+                        <button class="btn btn-outline" style="margin-top:0.8rem; color:#ff5555;" onclick="cancelBookingDoc('${docId}')">إلغاء الحجز</button>
+                    `;
+                }
+            } catch (err) {
+                console.error(err);
+                card.innerHTML = `<p style="color:#ff5555;">تعذر إجراء البحث.</p>`;
+            }
+        }
+
+        async function cancelBookingDoc(docId) {
+            if(!confirm('هل أنت متأكد من إلغاء هذا الحجز؟')) return;
+            try {
+                const docRef = window.doc(window.db, "bookings", docId);
+                await window.updateDoc(docRef, { status: 'Cancelled' });
+                alert('تم إلغاء الحجز بنجاح.');
+                document.getElementById('booking-result-card').classList.add('hidden');
+                onDateSelected();
+            } catch (err) {
+                console.error(err);
+                alert('تعذر إلغاء الحجز.');
+            }
+        }
+
+        /* ADMIN FUNCTIONS WITH REAL-TIME LISTENER */
+        function checkAdminPass() {
+            const pass = document.getElementById('admin-pass-input').value;
+            if(pass === "nawaf2030") {
+                isAdminLoggedIn = true;
+                document.getElementById('admin-login-box').classList.add('hidden');
+                document.getElementById('admin-dashboard').classList.remove('hidden');
+                listenToBookingsRealtime();
+            } else {
+                alert("الرمز السري غير صحيح!");
+            }
+        }
+
+        function logoutAdmin() {
+            isAdminLoggedIn = false;
+            document.getElementById('admin-pass-input').value = '';
+            document.getElementById('admin-login-box').classList.remove('hidden');
+            document.getElementById('admin-dashboard').classList.add('hidden');
+        }
+
+        function listenToBookingsRealtime() {
+            const tbody = document.getElementById('admin-table-body');
+            const q = window.query(
+                window.collection(window.db, "bookings"),
+                window.where("status", "==", "Booked")
+            );
+
+            // Listen for changes in realtime
+            window.onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#888;">لا توجد حجوزات مسجلة حالياً.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = snapshot.docs.map(docSnap => {
+                    const b = docSnap.data();
+                    const docId = docSnap.id;
+                    return `
+                        <tr>
+                            <td><strong>${b.booking_code}</strong></td>
+                            <td>${b.student_name}</td>
+                            <td>${b.contact}</td>
+                            <td>${b.session_date}</td>
+                            <td>${b.slot_label}</td>
+                            <td>${b.note || '-'}</td>
+                            <td><button style="color:#ff5555; background:none; border:none; cursor:pointer;" onclick="cancelBookingDoc('${docId}')">إلغاء</button></td>
+                        </tr>
+                    `;
+                }).join('');
+            });
+        }
+    </script>
 </body>
 </html>
