@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الجدول المدرسي - النظام الذكي</title>
     <style>
-        /* ===== CSS من الكود الأصلي ===== */
+        /* ===== جميع الأنماط من الكود السابق ===== */
         * {
             margin: 0;
             padding: 0;
@@ -145,8 +145,117 @@
         .btn-distribute:hover { background: #dd6b20; transform: translateY(-2px); }
         .btn-smart-schedule { background: #e53e3e; color: white; }
         .btn-smart-schedule:hover { background: #c53030; transform: translateY(-2px); }
+        .btn-smart-schedule:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        /* ===== واجهة شروط القيود والمنع ===== */
+        /* ===== واجهة إسناد الفصول ===== */
+        .assignment-panel {
+            background: #f7fafc;
+            border: 2px solid #cbd5e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .assignment-panel h3 {
+            color: #2c5282;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #cbd5e0;
+            padding-bottom: 10px;
+        }
+        .assignment-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 15px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+        }
+        .assignment-item .teacher-name-display {
+            font-weight: bold;
+            min-width: 150px;
+            color: #2d3748;
+        }
+        .assignment-item .class-select {
+            min-width: 200px;
+            padding: 6px 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            background: white;
+            font-size: 13px;
+        }
+        .assignment-item .class-select[multiple] {
+            min-height: 60px;
+        }
+        .assignment-item .remove-assignment {
+            background: #fc8181;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .assignment-item .remove-assignment:hover {
+            background: #e53e3e;
+            transform: scale(1.1);
+        }
+        .assignment-item .assignment-badge {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .assignment-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 15px;
+            background: #ebf8ff;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px dashed #63b3ed;
+        }
+        .assignment-form select,
+        .assignment-form input {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 5px;
+            font-size: 14px;
+            background: white;
+        }
+        .assignment-form select[multiple] {
+            min-height: 60px;
+            min-width: 200px;
+        }
+        .assignment-form .btn-add-assignment {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .assignment-form .btn-add-assignment:hover {
+            background: #38a169;
+            transform: translateY(-1px);
+        }
+
+        /* ===== واجهة القيود ===== */
         .restrictions-panel {
             background: #f7fafc;
             border: 2px solid #cbd5e0;
@@ -181,17 +290,13 @@
             min-width: 150px;
             color: #2d3748;
         }
-        .restriction-item .day-select {
-            min-width: 100px;
-            padding: 4px 8px;
-            border: 1px solid #cbd5e0;
-            border-radius: 4px;
-        }
-        .restriction-item .period-select {
-            min-width: 80px;
-            padding: 4px 8px;
-            border: 1px solid #cbd5e0;
-            border-radius: 4px;
+        .restriction-item .restriction-badge {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
         }
         .restriction-item .remove-restriction {
             background: #fc8181;
@@ -208,14 +313,6 @@
         .restriction-item .remove-restriction:hover {
             background: #e53e3e;
             transform: scale(1.1);
-        }
-        .restriction-item .restriction-badge {
-            background: #fed7d7;
-            color: #742a2a;
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
         }
         .restriction-form {
             display: flex;
@@ -302,7 +399,6 @@
         .status-dot.red { background: #fc8181; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        /* ===== محرك التوزيع الذكي - ستايل التقدم ===== */
         .scheduler-progress {
             background: white;
             border-radius: 10px;
@@ -326,11 +422,7 @@
             transition: width 0.5s ease;
             width: 0%;
         }
-        .scheduler-progress .progress-text {
-            text-align: center;
-            font-weight: bold;
-            color: #2d3748;
-        }
+        .scheduler-progress .progress-text { text-align: center; font-weight: bold; color: #2d3748; }
         .scheduler-progress .progress-details {
             max-height: 200px;
             overflow-y: auto;
@@ -345,17 +437,13 @@
             text-align: left;
         }
 
-        .btn-smart-schedule { background: #e53e3e; color: white; }
-        .btn-smart-schedule:hover { background: #c53030; transform: translateY(-2px); }
-        .btn-smart-schedule:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
         @media print {
             .no-print-select { display: none !important; }
             .print-only-text { display: inline !important; font-weight: bold; }
             .btn-print, .btn { display: none !important; }
             .page-break { page-break-after: always; break-after: page; }
             .teacher-schedule-table { margin-bottom: 0 !important; padding-bottom: 0 !important; }
-            .firebase-status, .buttons, .alert, .tabs, .restrictions-panel, .scheduler-progress { display: none !important; }
+            .firebase-status, .buttons, .alert, .tabs, .restrictions-panel, .assignment-panel, .scheduler-progress { display: none !important; }
             #manageTab { display: none !important; }
             .lock-indicator { display: none !important; }
             .container { box-shadow: none; padding: 5px; }
@@ -426,7 +514,7 @@
 
     <div class="container" id="mainContainer">
         <div class="header">
-            <h1>📚 الجدول المدرسي الأسبوعي الكامل - النظام الذكي</h1>
+            <h1>📚 الجدول المدرسي - النظام الذكي</h1>
             <p style="color: #718096; margin-top: 5px;">العام الدراسي 1447 هـ - المرحلة المتوسطة</p>
         </div>
 
@@ -435,6 +523,7 @@
         <!-- ===== التبويبات ===== -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('main')">📋 الجدول الرئيسي</button>
+            <button class="tab" onclick="switchTab('assignments')">📌 إسناد الفصول</button>
             <button class="tab" onclick="switchTab('restrictions')">🚫 شروط القيود</button>
             <button class="tab" onclick="switchTab('teacher')">👨‍🏫 جدول معلم</button>
             <button class="tab" onclick="switchTab('class')">📚 جدول فصل</button>
@@ -499,18 +588,75 @@
             </div>
         </div>
 
-        <!-- ===== التبويب 2: شروط القيود والمنع ===== -->
+        <!-- ===== التبويب 2: إسناد الفصول ===== -->
+        <div id="assignmentsTab" class="tab-content">
+            <div style="padding: 20px;">
+                <h2 style="color: #2d3748; margin-bottom: 20px; border-bottom: 3px solid #4a5568; padding-bottom: 15px;">
+                    📌 إسناد الفصول للمعلمين
+                </h2>
+                <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.8;">
+                    هنا يمكنك تحديد الفصول التي يدرسها كل معلم. سيتم احترام هذه الإسنادات عند تنفيذ التوزيع الذكي.
+                    <br><strong>مثال:</strong> إذا حددت أن محمد يدرس ١-٢ و ١-٣، فسيتم توزيع حصصه على هذين الفصلين فقط.
+                </p>
+
+                <!-- نموذج إضافة إسناد -->
+                <div class="assignment-form">
+                    <select id="assignTeacherSelect">
+                        <option value="">-- اختر المعلم --</option>
+                    </select>
+                    <select id="assignClassSelect" multiple style="min-width: 200px; min-height: 60px;">
+                        <option value="1-1">١-١</option>
+                        <option value="1-2">١-٢</option>
+                        <option value="1-3">١-٣</option>
+                        <option value="1-4">١-٤</option>
+                        <option value="1-5">١-٥</option>
+                        <option value="1-6">١-٦</option>
+                        <option value="1-7">١-٧</option>
+                        <option value="1-8">١-٨</option>
+                        <option value="2-1">٢-١</option>
+                        <option value="2-2">٢-٢</option>
+                        <option value="2-3">٢-٣</option>
+                        <option value="2-4">٢-٤</option>
+                        <option value="2-5">٢-٥</option>
+                        <option value="2-6">٢-٦</option>
+                        <option value="2-7">٢-٧</option>
+                        <option value="3-1">٣-١</option>
+                        <option value="3-2">٣-٢</option>
+                        <option value="3-3">٣-٣</option>
+                        <option value="3-4">٣-٤</option>
+                        <option value="3-5">٣-٥</option>
+                        <option value="3-6">٣-٦</option>
+                        <option value="3-7">٣-٧</option>
+                    </select>
+                    <button class="btn-add-assignment" onclick="addAssignment()">➕ إضافة إسناد</button>
+                </div>
+
+                <!-- قائمة الإسنادات الحالية -->
+                <div class="assignment-panel" id="assignmentsList">
+                    <h3>📋 قائمة إسنادات الفصول الحالية</h3>
+                    <div id="assignmentsContainer">
+                        <p style="color: #a0aec0; text-align: center; padding: 20px;">لا توجد إسنادات مضافة حالياً</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                    <button class="btn" style="background: #e53e3e; color: white;" onclick="clearAllAssignments()">🗑️ مسح جميع الإسنادات</button>
+                    <button class="btn" style="background: #48bb78; color: white;" onclick="saveAssignments()">💾 حفظ الإسنادات</button>
+                    <button class="btn" style="background: #ed8936; color: white;" onclick="autoAssignAllTeachers()">⚡ إسناد تلقائي (حسب المادة)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== التبويب 3: شروط القيود ===== -->
         <div id="restrictionsTab" class="tab-content">
             <div style="padding: 20px;">
                 <h2 style="color: #2d3748; margin-bottom: 20px; border-bottom: 3px solid #4a5568; padding-bottom: 15px;">
                     🚫 شروط القيود والمنع للمعلمين
                 </h2>
                 <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.8;">
-                    هنا يمكنك تحديد الحصص التي يمنع فيها المعلم من التدريس. 
-                    سيتم احترام هذه الشروط عند تنفيذ التوزيع الذكي الآلي.
+                    هنا يمكنك تحديد الحصص التي يمنع فيها المعلم من التدريس.
                 </p>
 
-                <!-- نموذج إضافة قيد جديد -->
                 <div class="restriction-form">
                     <select id="restrictTeacherSelect">
                         <option value="">-- اختر المعلم --</option>
@@ -534,7 +680,6 @@
                     <button class="btn-add-restriction" onclick="addRestriction()">➕ إضافة منع</button>
                 </div>
 
-                <!-- قائمة القيود الحالية -->
                 <div class="restrictions-panel" id="restrictionsList">
                     <h3>📋 قائمة القيود الحالية</h3>
                     <div id="restrictionsContainer">
@@ -549,7 +694,7 @@
             </div>
         </div>
 
-        <!-- ===== التبويب 3: جدول معلم ===== -->
+        <!-- ===== التبويب 4: جدول معلم ===== -->
         <div id="teacherTab" class="tab-content">
             <div class="teacher-schedule-selector">
                 <h3>اختر معلم لعرض جدوله:</h3>
@@ -564,7 +709,7 @@
             </div>
         </div>
 
-        <!-- ===== التبويب 4: جدول فصل ===== -->
+        <!-- ===== التبويب 5: جدول فصل ===== -->
         <div id="classTab" class="tab-content">
             <div class="teacher-schedule-selector">
                 <h3>اختر الصف والفصل لعرض جدوله:</h3>
@@ -587,7 +732,7 @@
             </div>
         </div>
 
-        <!-- ===== التبويب 5: التوزيع اليومي ===== -->
+        <!-- ===== التبويب 6: التوزيع اليومي ===== -->
         <div id="dailyTab" class="tab-content">
             <div class="waiting-section">
                 <h2 style="border-bottom: 2px solid #cbd5e0; padding-bottom: 15px;">📋 جدول توزيع الانتظار اليومي</h2>
@@ -613,7 +758,7 @@
             </div>
         </div>
 
-        <!-- ===== التبويب 6: متابعة الانتظار ===== -->
+        <!-- ===== التبويب 7: متابعة الانتظار ===== -->
         <div id="weeklyTab" class="tab-content">
             <div style="background: white; padding: 30px; border-radius: 10px; max-width: 1200px; margin: 0 auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 3px solid #4a5568; flex-wrap: wrap; gap: 10px;">
@@ -625,15 +770,13 @@
                 </div>
                 <div style="background: #ebf8ff; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-right: 4px solid #4299e1;">
                     <h4 style="color: #2c5282; margin-bottom: 10px;">💡 الهدف من هذه الصفحة:</h4>
-                    <p style="color: #2d3748; line-height: 1.8; margin: 0;">
-                        متابعة عدد حصص الانتظار المسندة لكل معلم خلال الأسبوع لضمان العدالة في التوزيع.
-                    </p>
+                    <p style="color: #2d3748; line-height: 1.8; margin: 0;">متابعة عدد حصص الانتظار المسندة لكل معلم خلال الأسبوع لضمان العدالة في التوزيع.</p>
                 </div>
                 <div id="weeklyTrackingContent"></div>
             </div>
         </div>
 
-        <!-- ===== التبويب 7: إدارة الجدول ===== -->
+        <!-- ===== التبويب 8: إدارة الجدول ===== -->
         <div id="manageTab" class="tab-content">
             <div style="padding: 20px;">
                 <h2 style="text-align: center; color: #2d3748; margin-bottom: 30px; border-bottom: 3px solid #4a5568; padding-bottom: 15px;">🔧 إدارة وصيانة الجدول المدرسي</h2>
@@ -671,9 +814,10 @@
                     <div style="background: #f0fff4; padding: 25px; border-radius: 10px; border: 2px solid #68d391;">
                         <h3 style="color: #22543d; margin-bottom: 15px;">💡 نصائح للاستخدام الأمثل</h3>
                         <ul style="color: #2d3748; line-height: 2; margin: 0; padding-right: 20px;">
-                            <li><strong>التوزيع الذكي:</strong> استخدم زر "التوزيع الذكي الآلي" لإعادة توزيع الجدول بالكامل بناءً على النصاب والقيود</li>
-                            <li><strong>النسخ الاحتياطي:</strong> قم بتصدير الجدول بانتظام قبل إجراء أي تعديلات كبيرة</li>
+                            <li><strong>إسناد الفصول:</strong> حدد الفصول التي يدرسها كل معلم في تبويب "إسناد الفصول"</li>
+                            <li><strong>التوزيع الذكي:</strong> استخدم زر "التوزيع الذكي الآلي" لإعادة توزيع الجدول بناءً على الإسنادات</li>
                             <li><strong>شروط القيود:</strong> حدد الحصص الممنوعة لكل معلم في تبويب "شروط القيود"</li>
+                            <li><strong>النسخ الاحتياطي:</strong> قم بتصدير الجدول بانتظام</li>
                         </ul>
                     </div>
                 </div>
@@ -749,6 +893,8 @@
             'فواز الرشيدي': { 'sun_3': 'مهارات حياتية' }
         };
 
+        const allClasses = ['1-1','1-2','1-3','1-4','1-5','1-6','1-7','1-8','2-1','2-2','2-3','2-4','2-5','2-6','2-7','3-1','3-2','3-3','3-4','3-5','3-6','3-7'];
+
         const classOptions = [
             { value: '', label: '---', group: '' },
             { value: '1-1', label: '1-1', group: 'first' }, { value: '1-2', label: '1-2', group: 'first' },
@@ -775,20 +921,20 @@
         const WEEKLY_TRACKING_KEY = 'weeklyWaitingAssignments';
 
         // ============================================================
-        // 🔧 مفتاح تخزين القيود
+        // 🔧 مفاتيح التخزين
         // ============================================================
         const RESTRICTIONS_KEY = 'teacher_restrictions';
+        const ASSIGNMENTS_KEY = 'teacher_assignments';
 
         function getRestrictions() {
-            try {
-                const data = localStorage.getItem(RESTRICTIONS_KEY);
-                return data ? JSON.parse(data) : {};
-            } catch { return {}; }
+            try { const data = localStorage.getItem(RESTRICTIONS_KEY); return data ? JSON.parse(data) : {}; } catch { return {}; }
         }
+        function saveRestrictionsToStorage(r) { localStorage.setItem(RESTRICTIONS_KEY, JSON.stringify(r)); }
 
-        function saveRestrictionsToStorage(restrictions) {
-            localStorage.setItem(RESTRICTIONS_KEY, JSON.stringify(restrictions));
+        function getAssignments() {
+            try { const data = localStorage.getItem(ASSIGNMENTS_KEY); return data ? JSON.parse(data) : {}; } catch { return {}; }
         }
+        function saveAssignmentsToStorage(a) { localStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(a)); }
 
         // ============================================================
         // 🔐 دوال تسجيل الدخول
@@ -832,6 +978,7 @@
             document.querySelector('.lock-indicator').style.display = 'flex';
             if (!window.scheduleInitialized) {
                 createSchedule();
+                loadAssignmentsUI();
                 loadRestrictionsUI();
                 window.scheduleInitialized = true;
             }
@@ -886,6 +1033,7 @@
                     saveToFirebase();
                     updateAbsentTeacherList();
                     updateTeacherSelect();
+                    updateAssignmentTeacherList();
                     updateRestrictionTeacherList();
                 });
                 nameCell.appendChild(nameInput);
@@ -996,6 +1144,7 @@
             updateClassCounts();
             checkUnassignedClasses();
             updateTeacherSelect();
+            updateAssignmentTeacherList();
             updateRestrictionTeacherList();
         }
 
@@ -1123,8 +1272,8 @@
                 data.labTeacher1 = document.getElementById('labTeacher1')?.value || 'عبدالله القرني';
                 data.labTeacher2 = document.getElementById('labTeacher2')?.value || 'عبدالمجيد الرشيدي';
                 data.lastUpdate = new Date().toISOString();
-                // حفظ القيود
                 data.restrictions = getRestrictions();
+                data.assignments = getAssignments();
 
                 const docRef = window.firestoreDoc(window.firebaseDB, 'schedules', scheduleDocId);
                 await window.firestoreSetDoc(docRef, data);
@@ -1173,10 +1322,13 @@
             if (document.getElementById('labTeacher1')) document.getElementById('labTeacher1').value = data.labTeacher1 || 'عبدالله القرني';
             if (document.getElementById('labTeacher2')) document.getElementById('labTeacher2').value = data.labTeacher2 || 'عبدالمجيد الرشيدي';
 
-            // استعادة القيود
             if (data.restrictions) {
                 saveRestrictionsToStorage(data.restrictions);
                 loadRestrictionsUI();
+            }
+            if (data.assignments) {
+                saveAssignmentsToStorage(data.assignments);
+                loadAssignmentsUI();
             }
 
             updateAbsentTeacherList();
@@ -1184,11 +1336,11 @@
             updateClassCounts();
             checkUnassignedClasses();
             updateTeacherSelect();
+            updateAssignmentTeacherList();
             updateRestrictionTeacherList();
         }
 
         function saveData() { saveToFirebase(); }
-
         function loadData() { /* يتم التحميل من Firebase */ }
 
         // ============================================================
@@ -1316,7 +1468,6 @@
         }
 
         function checkUnassignedClasses() {
-            const allClasses = ['1-1','1-2','1-3','1-4','1-5','1-6','1-7','1-8','2-1','2-2','2-3','2-4','2-5','2-6','2-7','3-1','3-2','3-3','3-4','3-5','3-6','3-7'];
             const missingClasses = [];
             days.forEach(day => {
                 for (let period = 1; period <= 7; period++) {
@@ -1358,12 +1509,12 @@
         }
 
         // ============================================================
-        // 🚫 دوال إدارة القيود
+        // 📌 دوال إدارة إسناد الفصول
         // ============================================================
-        function updateRestrictionTeacherList() {
-            const select = document.getElementById('restrictTeacherSelect');
+        function updateAssignmentTeacherList() {
+            const select = document.getElementById('assignTeacherSelect');
             if (!select) return;
-            const currentValue = select.value;
+            const current = select.value;
             select.innerHTML = '<option value="">-- اختر المعلم --</option>';
             for (let i = 0; i < 42; i++) {
                 if (excludedTeachers.includes(i)) continue;
@@ -1375,7 +1526,170 @@
                     select.appendChild(opt);
                 }
             }
-            if (currentValue) select.value = currentValue;
+            if (current) select.value = current;
+        }
+
+        function loadAssignmentsUI() {
+            const assignments = getAssignments();
+            const container = document.getElementById('assignmentsContainer');
+            if (!container) return;
+
+            if (Object.keys(assignments).length === 0) {
+                container.innerHTML = '<p style="color: #a0aec0; text-align: center; padding: 20px;">لا توجد إسنادات مضافة حالياً</p>';
+                return;
+            }
+
+            let html = '';
+            for (const teacherIndex in assignments) {
+                const teacherName = document.getElementById(`teacher_${teacherIndex}`)?.value || `معلم ${parseInt(teacherIndex) + 1}`;
+                const classes = assignments[teacherIndex] || [];
+                if (classes.length === 0) continue;
+                html += `
+                    <div class="assignment-item">
+                        <span class="teacher-name-display">👤 ${teacherName}</span>
+                        <span class="assignment-badge">📌 يدرس</span>
+                        <span style="font-weight: bold; color: #2c5282;">${classes.join('، ')}</span>
+                        <button class="remove-assignment" onclick="removeAssignment(${teacherIndex})">✕</button>
+                    </div>
+                `;
+            }
+            container.innerHTML = html || '<p style="color: #a0aec0; text-align: center; padding: 20px;">لا توجد إسنادات مضافة حالياً</p>';
+        }
+
+        function addAssignment() {
+            const teacherSelect = document.getElementById('assignTeacherSelect');
+            const classSelect = document.getElementById('assignClassSelect');
+
+            const teacherIndex = teacherSelect.value;
+            const selectedClasses = Array.from(classSelect.selectedOptions).map(opt => opt.value);
+
+            if (!teacherIndex) { alert('يرجى اختيار معلم'); return; }
+            if (selectedClasses.length === 0) { alert('يرجى اختيار فصل واحد على الأقل'); return; }
+
+            const assignments = getAssignments();
+            if (!assignments[teacherIndex]) assignments[teacherIndex] = [];
+            
+            // إضافة الفصول مع منع التكرار
+            selectedClasses.forEach(cls => {
+                if (!assignments[teacherIndex].includes(cls)) {
+                    assignments[teacherIndex].push(cls);
+                }
+            });
+            
+            saveAssignmentsToStorage(assignments);
+            loadAssignmentsUI();
+            saveToFirebase();
+        }
+
+        function removeAssignment(teacherIndex) {
+            const assignments = getAssignments();
+            delete assignments[teacherIndex];
+            saveAssignmentsToStorage(assignments);
+            loadAssignmentsUI();
+            saveToFirebase();
+        }
+
+        function clearAllAssignments() {
+            if (confirm('هل أنت متأكد من مسح جميع إسنادات الفصول؟')) {
+                saveAssignmentsToStorage({});
+                loadAssignmentsUI();
+                saveToFirebase();
+            }
+        }
+
+        function saveAssignments() {
+            saveToFirebase();
+            alert('✅ تم حفظ الإسنادات بنجاح!');
+        }
+
+        function getTeacherAssignments(teacherIndex) {
+            const assignments = getAssignments();
+            return assignments[teacherIndex] || [];
+        }
+
+        // ============================================================
+        // 🤖 الإسناد التلقائي حسب المادة
+        // ============================================================
+        function autoAssignAllTeachers() {
+            if (!confirm('سيتم إسناد الفصول تلقائياً لكل معلم بناءً على المادة التي يدرسها.\nهل أنت متأكد؟')) return;
+
+            const subjectToClasses = {
+                'رياضيات': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'اللغة العربية': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'لغة عربية': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'عربي': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'العلوم': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'علوم': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'دين': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'انجليزي': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'اجتماعيات': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'المهارات الرقمية': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'مهارات رقمية': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'بدنية': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'تربية فنية': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'تربيه فنية': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'مهارات حياتية': ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8', '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7', '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'],
+                'تفكير ناقد': ['3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7']
+            };
+
+            const assignments = {};
+            let assignedCount = 0;
+
+            for (let i = 0; i < 42; i++) {
+                if (excludedTeachers.includes(i)) continue;
+                const name = document.getElementById(`teacher_${i}`)?.value.trim();
+                if (!name) continue;
+                
+                const subjectInput = document.getElementById(`subject_${i}`);
+                let subject = subjectInput ? subjectInput.value.trim() : '';
+                if (!subject && teacherSubjects[name]) subject = teacherSubjects[name];
+                if (!subject) continue;
+
+                // البحث عن المادة في القائمة
+                let foundClasses = null;
+                for (const [key, classes] of Object.entries(subjectToClasses)) {
+                    if (subject.includes(key) || key.includes(subject)) {
+                        foundClasses = classes;
+                        break;
+                    }
+                }
+
+                if (foundClasses) {
+                    assignments[i] = foundClasses;
+                    assignedCount++;
+                }
+            }
+
+            if (assignedCount === 0) {
+                alert('❌ لم يتم العثور على معلمين لإسنادهم تلقائياً.\nتأكد من إدخال المواد بشكل صحيح.');
+                return;
+            }
+
+            saveAssignmentsToStorage(assignments);
+            loadAssignmentsUI();
+            saveToFirebase();
+            alert(`✅ تم إسناد ${assignedCount} معلم تلقائياً!`);
+        }
+
+        // ============================================================
+        // 🚫 دوال إدارة القيود
+        // ============================================================
+        function updateRestrictionTeacherList() {
+            const select = document.getElementById('restrictTeacherSelect');
+            if (!select) return;
+            const current = select.value;
+            select.innerHTML = '<option value="">-- اختر المعلم --</option>';
+            for (let i = 0; i < 42; i++) {
+                if (excludedTeachers.includes(i)) continue;
+                const input = document.getElementById(`teacher_${i}`);
+                if (input && input.value.trim()) {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = input.value.trim();
+                    select.appendChild(opt);
+                }
+            }
+            if (current) select.value = current;
         }
 
         function loadRestrictionsUI() {
@@ -1467,14 +1781,13 @@
         }
 
         // ============================================================
-        // 🧠 محرك التوزيع الذكي الآلي
+        // 🧠 محرك التوزيع الذكي الآلي (محدث مع الإسنادات)
         // ============================================================
         function runSmartScheduler() {
             const btn = document.getElementById('smartSchedulerBtn');
             btn.disabled = true;
             btn.textContent = '⏳ جاري التوزيع...';
 
-            // إظهار شريط التقدم
             const progressDiv = document.createElement('div');
             progressDiv.className = 'scheduler-progress';
             progressDiv.id = 'schedulerProgress';
@@ -1496,7 +1809,6 @@
                 details.scrollTop = details.scrollHeight;
             }
 
-            // استخدام setTimeout للسماح بتحديث واجهة المستخدم
             setTimeout(() => {
                 try {
                     performSmartScheduling(updateProgress);
@@ -1523,12 +1835,12 @@
         }
 
         function performSmartScheduling(updateProgress) {
-            const allClasses = ['1-1','1-2','1-3','1-4','1-5','1-6','1-7','1-8','2-1','2-2','2-3','2-4','2-5','2-6','2-7','3-1','3-2','3-3','3-4','3-5','3-6','3-7'];
-
-            // ===== المرحلة 1: جمع بيانات المعلمين =====
-            updateProgress(5, '📊 جمع بيانات المعلمين...');
+            // ===== المرحلة 1: جمع بيانات المعلمين والإسنادات =====
+            updateProgress(5, '📊 جمع بيانات المعلمين والإسنادات...');
             
             const teachers = [];
+            const assignments = getAssignments();
+
             for (let i = 0; i < 42; i++) {
                 if (excludedTeachers.includes(i)) continue;
                 const nameInput = document.getElementById(`teacher_${i}`);
@@ -1540,13 +1852,20 @@
                 const subjectInput = document.getElementById(`subject_${i}`);
                 const subject = subjectInput ? subjectInput.value.trim() || teacherSubjects[name] || '' : teacherSubjects[name] || '';
 
+                // الفصول المسندة لهذا المعلم
+                const teacherClasses = assignments[i] || [];
+                
+                // إذا لم تكن هناك إسنادات، استخدم جميع الفصول
+                const effectiveClasses = teacherClasses.length > 0 ? teacherClasses : allClasses;
+
                 teachers.push({
                     index: i,
                     name: name,
                     subject: subject,
                     quota: quota,
                     assigned: 0,
-                    schedule: {}
+                    schedule: { sun: [], mon: [], tue: [], wed: [], thu: [] },
+                    classes: effectiveClasses
                 });
             }
 
@@ -1555,8 +1874,10 @@
                 return;
             }
 
+            updateProgress(10, `✅ تم جمع ${teachers.length} معلم`);
+
             // ===== المرحلة 2: مسح الجدول الحالي =====
-            updateProgress(10, '🗑️ مسح الجدول الحالي...');
+            updateProgress(15, '🗑️ مسح الجدول الحالي...');
             
             let clearedCount = 0;
             for (let i = 0; i < 42; i++) {
@@ -1570,48 +1891,41 @@
                     }
                 });
             }
-            updateProgress(15, `✅ تم مسح ${clearedCount} حصة`);
+            updateProgress(20, `✅ تم مسح ${clearedCount} حصة`);
 
-            // ===== المرحلة 3: إعادة التوزيع الذكي =====
-            updateProgress(20, '🧠 بدء التوزيع الذكي...');
+            // ===== المرحلة 3: التوزيع الذكي مع مراعاة الإسنادات =====
+            updateProgress(25, '🧠 بدء التوزيع الذكي مع مراعاة الإسنادات...');
 
-            // بناء جدول زمني لكل معلم (يسجل الحصص المسندة لكل يوم)
-            teachers.forEach(teacher => {
-                teacher.schedule = { sun: [], mon: [], tue: [], wed: [], thu: [] };
-            });
-
-            // قائمة الفصول التي تم توزيعها
-            const assignedClasses = new Set();
+            // تتبع الفصول المسندة بالكامل (لكل فصل 35 حصة)
+            const classCount = {};
+            allClasses.forEach(cls => { classCount[cls] = 0; });
 
             // ترتيب المعلمين حسب النصاب (الأقل أولاً)
             teachers.sort((a, b) => a.quota - b.quota);
 
-            // توزيع الفصول على المعلمين
             let totalAssigned = 0;
             let iteration = 0;
-            const maxIterations = 1000;
+            const maxIterations = 2000;
 
-            // قائمة الحصص المطلوبة لكل فصل (كل فصل يحتاج 35 حصة أسبوعياً)
-            const classNeeds = {};
-            allClasses.forEach(cls => { classNeeds[cls] = 35; });
-
-            // معالجة كل معلم
+            // توزيع المعلمين
             let teacherIndex = 0;
             while (teacherIndex < teachers.length && iteration < maxIterations) {
                 iteration++;
                 const teacher = teachers[teacherIndex];
                 
-                // إذا كان المعلم قد وصل لنصابه، انتقل للمعلم التالي
                 if (teacher.assigned >= teacher.quota) {
                     teacherIndex++;
                     continue;
                 }
 
-                // البحث عن حصة شاغرة لهذا المعلم
+                // التحقق من أن المعلم لديه فصول مسندة
+                if (teacher.classes.length === 0) {
+                    teacherIndex++;
+                    continue;
+                }
+
                 let assigned = false;
                 const dayOrder = ['sun', 'mon', 'tue', 'wed', 'thu'];
-                
-                // ترتيب الأيام حسب عدد الحصص المسندة حالياً
                 const dayLoads = dayOrder.map(day => ({
                     day: day,
                     count: teacher.schedule[day].length
@@ -1622,87 +1936,93 @@
                     const day = dl.day;
                     const maxPeriod = (day === 'thu') ? 6 : 7;
                     
-                    // ترتيب الحصص - نفضل الحصص التي لديها فصول غير مسندة
                     for (let period = 1; period <= maxPeriod; period++) {
                         // التحقق من القيود
                         if (isTeacherRestricted(teacher.index, day, period)) continue;
-
-                        // التحقق من أن المعلم ليس لديه حصة في هذا اليوم في هذا الوقت
                         if (teacher.schedule[day].includes(period)) continue;
 
-                        // البحث عن فصل غير مسند في هذه الحصة
-                        const unassignedClasses = allClasses.filter(cls => {
-                            if (assignedClasses.has(cls)) return false;
-                            // التحقق من أن هذا الفصل لم يأخذ هذه المادة في نفس اليوم
+                        // البحث عن فصل من الفصول المسندة لهذا المعلم
+                        // نفضل الفصول التي لديها حصص أقل
+                        const availableClasses = teacher.classes
+                            .filter(cls => classCount[cls] < 35)
+                            .sort((a, b) => classCount[a] - classCount[b]);
+
+                        for (const cls of availableClasses) {
+                            // التحقق من عدم تكرار المادة في نفس اليوم
+                            let duplicate = false;
+                            for (let p = 1; p <= maxPeriod; p++) {
+                                if (p === period) continue;
+                                const sel = document.getElementById(`cell_${teacher.index}_${day}_${p}`);
+                                if (sel && sel.value === cls) {
+                                    const subj = getEffectiveSubject(teacher.index, day, p);
+                                    if (subj === teacher.subject && !isArtEducationSubject(subj)) {
+                                        duplicate = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (duplicate) continue;
+
+                            // التحقق من أن الفصل لا يدرس نفس المادة في نفس اليوم من معلم آخر
+                            let classHasSubjectToday = false;
                             for (let p = 1; p <= maxPeriod; p++) {
                                 if (p === period) continue;
                                 for (const t of teachers) {
                                     const sel = document.getElementById(`cell_${t.index}_${day}_${p}`);
                                     if (sel && sel.value === cls) {
                                         const subj = getEffectiveSubject(t.index, day, p);
-                                        if (subj === teacher.subject) return false;
+                                        if (subj === teacher.subject) {
+                                            classHasSubjectToday = true;
+                                            break;
+                                        }
                                     }
                                 }
+                                if (classHasSubjectToday) break;
                             }
-                            return true;
-                        });
+                            if (classHasSubjectToday && !isArtEducationSubject(teacher.subject)) continue;
 
-                        if (unassignedClasses.length > 0) {
-                            // اختيار فصل عشوائي من القائمة
-                            const randomIndex = Math.floor(Math.random() * unassignedClasses.length);
-                            const cls = unassignedClasses[randomIndex];
-                            
                             // إسناد الحصة
                             const select = document.getElementById(`cell_${teacher.index}_${day}_${period}`);
                             if (select) {
                                 select.value = cls;
                                 teacher.assigned++;
                                 teacher.schedule[day].push(period);
-                                assignedClasses.add(cls);
+                                classCount[cls]++;
                                 totalAssigned++;
                                 assigned = true;
                                 if (teacher.assigned >= teacher.quota) break;
                             }
                         }
+                        if (teacher.assigned >= teacher.quota) break;
                     }
                     if (teacher.assigned >= teacher.quota) break;
                 }
 
-                // إذا لم يتم إسناد أي حصة لهذا المعلم، انتقل للمعلم التالي
                 if (!assigned) {
                     teacherIndex++;
                 }
 
-                // تحديث التقدم كل 10 معلمين
-                if (iteration % 5 === 0) {
-                    const progress = 20 + Math.min(70, (totalAssigned / (teachers.length * 24)) * 70);
-                    updateProgress(Math.min(90, progress), `📊 تم إسناد ${totalAssigned} حصة...`);
+                if (iteration % 10 === 0) {
+                    const progress = 25 + Math.min(60, (totalAssigned / (teachers.length * 24)) * 60);
+                    updateProgress(Math.min(85, progress), `📊 تم إسناد ${totalAssigned} حصة...`);
                 }
             }
 
             // ===== المرحلة 4: ملء الفصول المتبقية =====
-            updateProgress(90, '🔄 ملء الفصول المتبقية...');
+            updateProgress(85, '🔄 ملء الفصول المتبقية...');
 
-            // البحث عن الفصول التي لم تسند بالكامل
             for (const cls of allClasses) {
-                let count = 0;
-                for (let i = 0; i < 42; i++) {
-                    days.forEach(day => {
-                        for (let period = 1; period <= 7; period++) {
-                            const select = document.getElementById(`cell_${i}_${day}_${period}`);
-                            if (select && select.value === cls) count++;
-                        }
-                    });
-                }
-                
-                // إذا كان الفصل بحاجة لحصص إضافية
+                let count = classCount[cls] || 0;
                 if (count < 35) {
                     const needed = 35 - count;
-                    // محاولة إسناد الحصص المتبقية لأي معلم لديه نصاب متبقي
-                    for (let n = 0; n < needed; n++) {
+                    let filled = 0;
+                    
+                    for (let n = 0; n < needed && filled < needed; n++) {
                         let assigned = false;
+                        // البحث عن معلم لديه نصاب متبقي ويمكنه تدريس هذا الفصل
                         for (const teacher of teachers) {
                             if (teacher.assigned >= teacher.quota) continue;
+                            if (!teacher.classes.includes(cls)) continue;
                             
                             for (const day of days) {
                                 const maxPeriod = (day === 'thu') ? 6 : 7;
@@ -1719,17 +2039,22 @@
                                             const sel = document.getElementById(`cell_${teacher.index}_${day}_${p}`);
                                             if (sel && sel.value === cls) {
                                                 const subj = getEffectiveSubject(teacher.index, day, p);
-                                                if (subj === teacher.subject) duplicate = true;
+                                                if (subj === teacher.subject && !isArtEducationSubject(subj)) {
+                                                    duplicate = true;
+                                                    break;
+                                                }
                                             }
                                         }
-                                        if (!duplicate) {
-                                            select.value = cls;
-                                            teacher.assigned++;
-                                            teacher.schedule[day].push(period);
-                                            assigned = true;
-                                            totalAssigned++;
-                                            break;
-                                        }
+                                        if (duplicate) continue;
+                                        
+                                        select.value = cls;
+                                        teacher.assigned++;
+                                        teacher.schedule[day].push(period);
+                                        classCount[cls] = (classCount[cls] || 0) + 1;
+                                        totalAssigned++;
+                                        assigned = true;
+                                        filled++;
+                                        break;
                                     }
                                 }
                                 if (assigned) break;
@@ -1744,12 +2069,10 @@
             // ===== المرحلة 5: تحديث الواجهة =====
             updateProgress(95, '🔄 تحديث الواجهة...');
 
-            // تحديث جميع الإحصائيات
             checkConflicts();
             updateClassCounts();
             checkUnassignedClasses();
 
-            // إعادة تعيين القيم المخزنة
             for (let i = 0; i < 42; i++) {
                 days.forEach(day => {
                     for (let period = 1; period <= 7; period++) {
@@ -1759,13 +2082,12 @@
                 });
             }
 
-            // حفظ البيانات
             saveData();
             saveToFirebase();
 
             updateProgress(100, `✅ اكتمل التوزيع الذكي! تم إسناد ${totalAssigned} حصة.`);
 
-            // عرض التقرير النهائي
+            // عرض التقرير
             const report = generateScheduleReport(teachers, totalAssigned);
             displaySmartScheduleReport(report);
         }
@@ -1791,13 +2113,12 @@
                     name: teacher.name,
                     quota: teacher.quota,
                     assigned: actualCount,
+                    classes: teacher.classes,
                     status: actualCount >= teacher.quota ? '✅ مكتمل' : `⚠️ ناقص ${teacher.quota - actualCount}`,
                     schedule: teacher.schedule
                 });
             });
 
-            // إحصائيات الفصول
-            const allClasses = ['1-1','1-2','1-3','1-4','1-5','1-6','1-7','1-8','2-1','2-2','2-3','2-4','2-5','2-6','2-7','3-1','3-2','3-3','3-4','3-5','3-6','3-7'];
             report.classStats = [];
             allClasses.forEach(cls => {
                 let count = 0;
@@ -1838,6 +2159,7 @@
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
                         <thead><tr style="background: #2d3748; color: white;">
                             <th style="padding: 8px; border: 1px solid #4a5568;">المعلم</th>
+                            <th style="padding: 8px; border: 1px solid #4a5568;">الفصول المسندة</th>
                             <th style="padding: 8px; border: 1px solid #4a5568;">النصاب</th>
                             <th style="padding: 8px; border: 1px solid #4a5568;">المسند</th>
                             <th style="padding: 8px; border: 1px solid #4a5568;">الحالة</th>
@@ -1846,8 +2168,10 @@
                     `;
             report.teacherDetails.forEach(t => {
                 const color = t.status.includes('مكتمل') ? '#c6f6d5' : '#fed7d7';
+                const classesDisplay = t.classes.length > 0 ? t.classes.join('، ') : 'جميع الفصول';
                 html += `<tr style="background: ${color};">
                     <td style="padding: 6px; border: 1px solid #cbd5e0; text-align: right;">${t.name}</td>
+                    <td style="padding: 6px; border: 1px solid #cbd5e0; text-align: center; font-size: 11px;">${classesDisplay}</td>
                     <td style="padding: 6px; border: 1px solid #cbd5e0; text-align: center;">${t.quota}</td>
                     <td style="padding: 6px; border: 1px solid #cbd5e0; text-align: center; font-weight: bold;">${t.assigned}</td>
                     <td style="padding: 6px; border: 1px solid #cbd5e0; text-align: center;">${t.status}</td>
@@ -1859,10 +2183,11 @@
                 <div style="margin-top: 20px; padding: 15px; background: #ebf8ff; border-radius: 8px; border-right: 4px solid #4299e1;">
                     <h5 style="color: #2c5282; margin-bottom: 10px;">💡 ملاحظات:</h5>
                     <ul style="margin: 0; padding-right: 20px; color: #2d3748; line-height: 1.8; font-size: 13px;">
-                        <li>✅ تم التوزيع بناءً على النصاب المحدد لكل معلم</li>
+                        <li>✅ تم التوزيع بناءً على إسنادات الفصول المحددة لكل معلم</li>
                         <li>🚫 تم احترام شروط القيود والمنع المحددة</li>
                         <li>📊 تم تحقيق التوازن في توزيع الحصص على الأيام</li>
                         <li>🔄 تم منع تكرار نفس المادة للفصل في نفس اليوم</li>
+                        <li>📌 المعلمون بدون إسناد تم توزيعهم على جميع الفصول</li>
                     </ul>
                 </div>
             </div>`;
@@ -1876,15 +2201,9 @@
         // ⏳ دوال الانتظار اليومي والأسبوعي
         // ============================================================
         function getWeeklyTrackingData() {
-            try {
-                const data = localStorage.getItem(WEEKLY_TRACKING_KEY);
-                return data ? JSON.parse(data) : {};
-            } catch { return {}; }
+            try { const data = localStorage.getItem(WEEKLY_TRACKING_KEY); return data ? JSON.parse(data) : {}; } catch { return {}; }
         }
-
-        function saveWeeklyTrackingData(data) {
-            localStorage.setItem(WEEKLY_TRACKING_KEY, JSON.stringify(data));
-        }
+        function saveWeeklyTrackingData(data) { localStorage.setItem(WEEKLY_TRACKING_KEY, JSON.stringify(data)); }
 
         function refreshWeeklyTracking() {
             const data = getWeeklyTrackingData();
@@ -1931,7 +2250,6 @@
         }
 
         function distributeWaiting() {
-            // نفس الدالة من الكود الأصلي مع التحسينات
             const absentTeachers = [];
             for (let i = 1; i <= 5; i++) {
                 const sel = document.getElementById(`absentTeacher${i}`);
@@ -1944,7 +2262,6 @@
                 return;
             }
 
-            // جمع الحصص الشاغرة
             const vacantClasses = [];
             absentTeachers.forEach(idx => {
                 const teacherName = document.getElementById(`teacher_${idx}`).value.trim();
@@ -1962,7 +2279,6 @@
                 return;
             }
 
-            // توزيع الانتظار (نسخة مبسطة)
             const weeklyData = getWeeklyTrackingData();
             const waitingTypes = ['انتظار1', 'انتظار2', 'انتظار3', 'انتظار4', 'انتظار5'];
             const assignedToday = {};
@@ -1971,7 +2287,6 @@
                 const period = vacant.period;
                 let assigned = false;
 
-                // البحث عن معلم لديه انتظار في هذه الحصة
                 const candidates = [];
                 for (let i = 0; i < 42; i++) {
                     if (excludedTeachers.includes(i) || absentTeachers.includes(i)) continue;
@@ -1980,10 +2295,8 @@
                     const name = document.getElementById(`teacher_${i}`).value.trim();
                     if (!name) continue;
                     if (assignedToday[name]) continue;
-
                     const weeklyCount = weeklyData[name] || 0;
                     if (weeklyCount >= 5) continue;
-
                     candidates.push({ index: i, name, waitingType: sel.value, weeklyCount });
                 }
 
@@ -1998,7 +2311,6 @@
                 }
 
                 if (!assigned) {
-                    // البحث عن معلم فارغ
                     for (let i = 0; i < 42; i++) {
                         if (excludedTeachers.includes(i) || absentTeachers.includes(i)) continue;
                         const sel = document.getElementById(`cell_${i}_${day}_${period}`);
@@ -2075,9 +2387,7 @@
             resultDiv.innerHTML = html;
         }
 
-        function printDailyReport() {
-            window.print();
-        }
+        function printDailyReport() { window.print(); }
 
         // ============================================================
         // 📋 دوال الجداول (معلم، فصل، إدارة)
@@ -2091,6 +2401,7 @@
             if (btn) btn.classList.add('active');
             if (tabName === 'weekly') refreshWeeklyTracking();
             if (tabName === 'teacher') updateTeacherSelect();
+            if (tabName === 'assignments') { updateAssignmentTeacherList(); loadAssignmentsUI(); }
             if (tabName === 'restrictions') { updateRestrictionTeacherList(); loadRestrictionsUI(); }
             if (tabName === 'manage') loadLabTeacherSettings();
         }
@@ -2157,7 +2468,6 @@
                 if (excludedTeachers.includes(i)) continue;
                 const name = document.getElementById(`teacher_${i}`).value.trim();
                 if (name) {
-                    // بناء جدول المعلم
                     let html = `<div class="teacher-schedule-table page-break"><h2 style="text-align: center;">جدول المعلم: ${name}</h2><table>
                         <thead><tr><th class="day-header">اليوم / الحصة</th><th class="period-header">1</th><th class="period-header">2</th><th class="period-header">3</th><th class="period-header">4</th><th class="period-header">5</th><th class="period-header">6</th><th class="period-header">7</th></tr></thead><tbody>`;
                     let tc = 0, tw = 0;
@@ -2188,7 +2498,6 @@
             document.body.classList.add('printing-teacher-schedule');
             window.print();
             document.body.classList.remove('printing-teacher-schedule');
-            // استعادة
             if (document.getElementById('teacherSelect').value) showTeacherSchedule();
             else view.innerHTML = '';
         }
@@ -2234,7 +2543,6 @@
                             break;
                         }
                     }
-                    // إضافة المادة
                     let subject = '';
                     if (teacher !== '-') {
                         const key = `${day}_${p}`;
@@ -2288,7 +2596,6 @@
                         if (has) break;
                     }
                     if (has) {
-                        // بناء الجدول
                         const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
                         const className = `الصف ${gradeNames[grade]} متوسط - الفصل ${cn}`;
                         let html = `<div class="teacher-schedule-table page-break"><h2 style="text-align: center;">جدول ${className}</h2><table>
@@ -2498,6 +2805,7 @@
             data.labTeacher1 = document.getElementById('labTeacher1')?.value || 'عبدالله القرني';
             data.labTeacher2 = document.getElementById('labTeacher2')?.value || 'عبدالمجيد الرشيدي';
             data.restrictions = getRestrictions();
+            data.assignments = getAssignments();
             data.exportDate = new Date().toISOString();
 
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2547,12 +2855,17 @@
                         saveRestrictionsToStorage(data.restrictions);
                         loadRestrictionsUI();
                     }
+                    if (data.assignments) {
+                        saveAssignmentsToStorage(data.assignments);
+                        loadAssignmentsUI();
+                    }
                     updateAbsentTeacherList();
                     setTimeout(() => {
                         checkConflicts();
                         updateClassCounts();
                         checkUnassignedClasses();
                         updateTeacherSelect();
+                        updateAssignmentTeacherList();
                         updateRestrictionTeacherList();
                     }, 100);
                     alert('✅ تم استيراد الجدول بنجاح!');
@@ -2566,16 +2879,11 @@
         }
 
         // ============================================================
-        // ⚡ توزيع الانتظار التلقائي (نسخة محسنة)
+        // ⚡ توزيع الانتظار التلقائي
         // ============================================================
         function autoAssignWaiting() {
             if (!confirm('سيتم توزيع حصص الانتظار لإكمال نصاب جميع المعلمين إلى 20 حصة. هل أنت متأكد؟')) return;
-            // استخدام الدالة الموجودة
-            distributeWaitingAuto();
-        }
-
-        function distributeWaitingAuto() {
-            // نسخة مبسطة من autoAssignWaiting الأصلية
+            
             const teacherData = {};
             let totalRemoved = 0;
 
@@ -2611,7 +2919,6 @@
                 };
             }
 
-            // توزيع بسيط
             const waitingTypes = ['انتظار1', 'انتظار2', 'انتظار3', 'انتظار4', 'انتظار5'];
             let assigned = 0;
 
@@ -2619,7 +2926,6 @@
                 const maxPeriod = (day === 'thu') ? 6 : 7;
                 for (let p = 1; p <= maxPeriod; p++) {
                     const usedTypes = new Set();
-                    // جمع الأنواع المستخدمة
                     for (const i in teacherData) {
                         const sel = document.getElementById(`cell_${i}_${day}_${p}`);
                         if (sel && sel.value && sel.value.startsWith('انتظار')) {
@@ -2662,8 +2968,7 @@
         // ============================================================
         // 🚀 بدء التطبيق
         // ============================================================
-        // تم بالفعل استدعاء checkSession في DOMContentLoaded
-        console.log('📚 الجدول المدرسي - النظام الذكي جاهز!');
+        console.log('📚 الجدول المدرسي - النظام الذكي مع إسناد الفصول جاهز!');
     </script>
 </body>
 </html>
