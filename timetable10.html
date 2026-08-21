@@ -1072,7 +1072,7 @@
 
         <div class="header">
             <h1>📚 الجدول المدرسي الأسبوعي الكامل</h1>
-            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1448 هـ - المرحلة المتوسطة</p>
+            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1447 هـ - المرحلة المتوسطة</p>
         </div>
 
         <div id="alertBox"></div>
@@ -1571,6 +1571,7 @@
                     </div>
                 </div>
                 <div id="manualAssignTeachersList"></div>
+                <div id="manualAssignAssignedList"></div>
             </div>
 
         </div>
@@ -1847,12 +1848,12 @@ const specialAssignments = {
     'عبدالمجيد الرشيدي': 'المهارات الرقمية',
     'عبدالهادي الشاماني': 'تربية فنية',
     'علي الحربي': 'العلوم',
-    'فهد الشاماني': 'عربي',
+    'فهد الشاماني': 'اللغة العربية',
     'فواز الرشيدي': 'دين',
-    'فيصل الصاعدي': 'عربي',
+    'فيصل الصاعدي': 'اللغة العربية',
     'فيصل ابو سلمي': 'بدنية',
     'كاتب الرشيدي': 'انجليزي',
-    'محمد الزهراني': 'عربي',
+    'محمد الزهراني': 'اللغة العربية',
     'محمد عياد': 'دين',
     'موسى غازي': 'مهارات حياتية',
     'موفق السحيمي': 'دين',
@@ -1863,14 +1864,14 @@ const specialAssignments = {
     'ابراهيم الجابري': 'دين',
     'احمد المويعزي': 'العلوم',
     'أسامه العوفي': 'اجتماعيات',
-    'حبيب العمري': 'عربي',
+    'حبيب العمري': 'اللغة العربية',
     'حمزه صدقه': 'انجليزي',
     'ساير المطيري': 'بدنية',
     'سلطان السحيمي': 'دين',
     'سلمان الحارثي': 'دين',
     'سيف العارضي': 'تربية فنية',
     'عبدالعزيز المخلفي': 'العلوم',
-    'عبدالعزيز الرويثي': 'عربي',
+    'عبدالعزيز الرويثي': 'اللغة العربية',
     'عبدالله القرني': 'المهارات الرقمية',
     'عبدالله الحازمي': 'رياضيات',
     
@@ -1880,12 +1881,49 @@ const specialAssignments = {
     'فؤاد العتيبي': 'انجليزي',
     'عبدالله الرحيلي': 'رياضيات',
     'احمد الرشيدي': 'انجليزي',
-    'محمد ذعار': 'عربي',
+    'محمد ذعار': 'اللغة العربية',
     'مشعل هليل': 'رياضيات',
     'بدر السحيمي': 'دين',
     'ابراهيم العلوي': 'اجتماعيات',
     'عبدالله مطر': 'دين'
 };
+
+        // القائمة المعتمدة للمواد الدراسية (يُبنى عليها حقل مادة كل معلم وخطة الحصص الأسبوعية)
+        const STANDARD_SUBJECTS = [
+            'اجتماعيات',
+            'العلوم',
+            'اللغة العربية',
+            'المهارات الرقمية',
+            'انجليزي',
+            'بدنية',
+            'تربية فنية',
+            'تفكير ناقد',
+            'دين',
+            'رياضيات',
+            'مهارات حياتية'
+        ];
+
+        // لتصحيح أي قيم قديمة محفوظة بصيغ مختلفة لنفس المادة (مثال: "عربي" أو "لغة عربية")
+        const SUBJECT_NAME_ALIASES = {
+            'عربي': 'اللغة العربية',
+            'لغة عربية': 'اللغة العربية',
+            'اللغة العربيه': 'اللغة العربية',
+            'علوم': 'العلوم',
+            'مهارات رقمية': 'المهارات الرقمية',
+            'مهارات الرقمية': 'المهارات الرقمية',
+            'انجليزية': 'انجليزي',
+            'اللغة الانجليزية': 'انجليزي',
+            'اللغة الإنجليزية': 'انجليزي',
+            'تربيه فنية': 'تربية فنية',
+            'تربية بدنية': 'بدنية',
+            'رياضيات ': 'رياضيات'
+        };
+
+        function normalizeSubjectName(subject) {
+            if (!subject) return subject;
+            const trimmed = subject.trim();
+            return SUBJECT_NAME_ALIASES[trimmed] || trimmed;
+        }
         // يحدد المادة الفعلية التي يدرّسها المعلم في يوم/حصة معينة
         // (يراعي الإسنادات الخاصة، ثم حقل المادة المُدخل يدوياً، ثم قائمة مواد المعلمين الافتراضية)
         function getEffectiveSubject(teacherIndex, day, period) {
@@ -2136,10 +2174,10 @@ const specialAssignments = {
                 const subjectInput = document.getElementById(`subject_${i}`);
                 if (subjectInput) {
                     if (data[`subject_${i}`]) {
-                        subjectInput.value = data[`subject_${i}`];
+                        subjectInput.value = normalizeSubjectName(data[`subject_${i}`]);
                     } else if (!subjectInput.value && data[`teacher_${i}`] && teacherSubjects[data[`teacher_${i}`]]) {
                         // تعبئة المادة تلقائياً إذا كان اسم المعلم معروفاً ولم تُحفظ مادة من قبل
-                        subjectInput.value = teacherSubjects[data[`teacher_${i}`]];
+                        subjectInput.value = normalizeSubjectName(teacherSubjects[data[`teacher_${i}`]]);
                     }
                 }
                 const quotaInput = document.getElementById(`quota_${i}`);
@@ -2909,6 +2947,8 @@ const specialAssignments = {
             }
             document.getElementById('manualAssignSubject').innerHTML = '<option value="">-- اختر المادة --</option>';
             document.getElementById('manualAssignTeachersList').innerHTML = '';
+            const assignedListElG = document.getElementById('manualAssignAssignedList');
+            if (assignedListElG) assignedListElG.innerHTML = '';
         }
 
         function onManualAssignClassChange() {
@@ -2926,10 +2966,13 @@ const specialAssignments = {
                 });
             }
             document.getElementById('manualAssignTeachersList').innerHTML = '';
+            const assignedListElC = document.getElementById('manualAssignAssignedList');
+            if (assignedListElC) assignedListElC.innerHTML = '';
         }
 
         function onManualAssignSubjectChange() {
             renderManualAssignTeachersList();
+            renderAssignedPeriodsList();
         }
 
         function renderManualAssignTeachersList() {
@@ -2982,6 +3025,183 @@ const specialAssignments = {
                     </div>
                 `;
             }).join('');
+        }
+
+        // ─── تعديل الإسناد اليدوي: عرض الحصص المُسندة حالياً مع إمكانية حذفها أو تغيير معلمها أو نقل وقتها ───
+
+        function getAssignedPeriodsForClassSubject(classValue, subject) {
+            const results = [];
+            for (let i = 0; i < 42; i++) {
+                const nameInput = document.getElementById(`teacher_${i}`);
+                const name = nameInput ? nameInput.value.trim() : '';
+                if (!name) continue;
+                days.forEach(day => {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value === classValue) {
+                            const effSubject = getEffectiveSubject(i, day, period);
+                            if (effSubject === subject) {
+                                results.push({ teacherIndex: i, teacherName: name, day, period });
+                            }
+                        }
+                    }
+                });
+            }
+            const dayOrderIndex = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4 };
+            results.sort((a, b) => (dayOrderIndex[a.day] - dayOrderIndex[b.day]) || (a.period - b.period));
+            return results;
+        }
+
+        function renderAssignedPeriodsList() {
+            const classValue = document.getElementById('manualAssignClass').value;
+            const subject = document.getElementById('manualAssignSubject').value;
+            const container = document.getElementById('manualAssignAssignedList');
+            if (!container) return;
+
+            if (!classValue || !subject) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const assigned = getAssignedPeriodsForClassSubject(classValue, subject);
+            if (assigned.length === 0) {
+                container.innerHTML = '<p style="color:#a0aec0; margin-top:10px;">لا توجد حصص مُسندة لهذه المادة في هذا الفصل بعد.</p>';
+                return;
+            }
+
+            const teachersInfo = getAllTeachersInfo().filter(t => t.subject === subject);
+            const safeSubject = subject.replace(/'/g, "\\'");
+
+            const rowsHTML = assigned.map(a => {
+                // خيارات تغيير المعلم: معلمون آخرون مؤهلون ومتاحون في نفس اليوم/الحصة
+                const otherTeacherOptions = teachersInfo
+                    .filter(t => t.index !== a.teacherIndex)
+                    .filter(t => {
+                        const sel = document.getElementById(`cell_${t.index}_${a.day}_${a.period}`);
+                        return sel && !sel.value;
+                    })
+                    .map(t => `<option value="${t.index}">${t.name}</option>`)
+                    .join('');
+
+                // خيارات نقل الوقت: خانات فارغة لنفس المعلم وغير مشغولة للفصل في وقتها
+                const slotOptions = [];
+                days.forEach(day => {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        if (day === a.day && period === a.period) continue;
+                        const sel = document.getElementById(`cell_${a.teacherIndex}_${day}_${period}`);
+                        if (!sel || sel.value) continue;
+                        let classBusy = false;
+                        for (let ti = 0; ti < 42; ti++) {
+                            const other = document.getElementById(`cell_${ti}_${day}_${period}`);
+                            if (other && other.value === classValue) { classBusy = true; break; }
+                        }
+                        if (!classBusy) {
+                            slotOptions.push(`<option value="${day}_${period}">${getDayName(day)} - حصة ${period}</option>`);
+                        }
+                    }
+                });
+
+                return `
+                    <div class="manual-assign-teacher-row" style="flex-wrap: wrap;">
+                        <div>
+                            <strong>${a.teacherName}</strong>
+                            <span style="color:#718096; font-size:13px;"> — ${getDayName(a.day)} - الحصة ${a.period}</span>
+                        </div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                            ${otherTeacherOptions ? `
+                                <select class="teacher-input" style="width:170px;"
+                                    onchange="reassignPeriodTeacher(${a.teacherIndex}, '${a.day}', ${a.period}, this.value, '${classValue}'); this.selectedIndex = 0;">
+                                    <option value="">🔄 تغيير المعلم</option>
+                                    ${otherTeacherOptions}
+                                </select>
+                            ` : ''}
+                            ${slotOptions.length > 0 ? `
+                                <select class="teacher-input" style="width:170px;"
+                                    onchange="reassignPeriodTime(${a.teacherIndex}, '${a.day}', ${a.period}, this.value, '${classValue}'); this.selectedIndex = 0;">
+                                    <option value="">⏱️ نقل إلى وقت آخر</option>
+                                    ${slotOptions.join('')}
+                                </select>
+                            ` : ''}
+                            <button class="btn" style="background:#e53e3e; color:white; padding:6px 12px;" onclick="removeAssignedPeriod(${a.teacherIndex}, '${a.day}', ${a.period})">🗑️ حذف</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <h4 style="color:#2d3748; margin: 18px 0 10px;">📌 الحصص المُسندة حالياً (${assigned.length}) — تعديل الإسناد</h4>
+                ${rowsHTML}
+            `;
+        }
+
+        function refreshManualAssignPanels() {
+            checkConflicts();
+            updateClassCounts();
+            checkUnassignedClasses();
+            saveData();
+            saveToFirebase();
+            renderManualAssignTeachersList();
+            renderAssignedPeriodsList();
+            renderTeacherQuotaStatusList();
+        }
+
+        function removeAssignedPeriod(teacherIndex, day, period) {
+            if (!confirm('هل تريد حذف هذه الحصة من الجدول؟')) return;
+
+            const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
+            if (select) {
+                select.value = '';
+                select.dataset.prevValue = '';
+                const cell = select.parentElement;
+                cell.classList.remove('dummy-cell');
+                cell.removeAttribute('data-dummy');
+            }
+            refreshManualAssignPanels();
+        }
+
+        function reassignPeriodTeacher(oldTeacherIndex, day, period, newTeacherIndexStr, classValue) {
+            if (!newTeacherIndexStr) return;
+            const newTeacherIndex = parseInt(newTeacherIndexStr);
+            const oldSelect = document.getElementById(`cell_${oldTeacherIndex}_${day}_${period}`);
+            const newSelect = document.getElementById(`cell_${newTeacherIndex}_${day}_${period}`);
+            if (!oldSelect || !newSelect) return;
+
+            if (newSelect.value) {
+                alert('❌ المعلم الجديد أصبح مشغولاً في هذا الوقت. لم يتم تنفيذ التغيير.');
+                renderAssignedPeriodsList();
+                return;
+            }
+
+            oldSelect.value = '';
+            oldSelect.dataset.prevValue = '';
+            newSelect.value = classValue;
+            newSelect.dataset.prevValue = classValue;
+
+            refreshManualAssignPanels();
+        }
+
+        function reassignPeriodTime(teacherIndex, oldDay, oldPeriod, newSlotStr, classValue) {
+            if (!newSlotStr) return;
+            const [newDay, newPeriodStr] = newSlotStr.split('_');
+            const newPeriod = parseInt(newPeriodStr);
+            const oldSelect = document.getElementById(`cell_${teacherIndex}_${oldDay}_${oldPeriod}`);
+            const newSelect = document.getElementById(`cell_${teacherIndex}_${newDay}_${newPeriod}`);
+            if (!oldSelect || !newSelect) return;
+
+            if (newSelect.value) {
+                alert('❌ الخانة الجديدة أصبحت مشغولة. لم يتم تنفيذ النقل.');
+                renderAssignedPeriodsList();
+                return;
+            }
+
+            oldSelect.value = '';
+            oldSelect.dataset.prevValue = '';
+            newSelect.value = classValue;
+            newSelect.dataset.prevValue = classValue;
+
+            refreshManualAssignPanels();
         }
 
         function manualAssignTeacherToClass(teacherIndex, classValue, subject) {
@@ -3052,6 +3272,7 @@ const specialAssignments = {
             saveData();
             saveToFirebase();
             renderManualAssignTeachersList();
+            renderAssignedPeriodsList();
             renderTeacherQuotaStatusList();
 
             const teacherName = document.getElementById(`teacher_${teacherIndex}`).value;
@@ -3202,15 +3423,17 @@ function createSchedule() {
         nameCell.appendChild(nameInput);
         row.appendChild(nameCell);
 
-        // خلية المادة الدراسية للمعلم
+        // خلية المادة الدراسية للمعلم (قائمة منسدلة بالمواد المعتمدة فقط لمنع الأخطاء الإملائية)
         const subjectCell = document.createElement('td');
         subjectCell.className = 'teacher-subject-cell';
-        const subjectInput = document.createElement('input');
-        subjectInput.type = 'text';
+        const subjectInput = document.createElement('select');
         subjectInput.className = 'teacher-subject-input';
-        subjectInput.placeholder = 'المادة';
         subjectInput.id = `subject_${i}`;
+        subjectInput.innerHTML = '<option value="">-- المادة --</option>' +
+            STANDARD_SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
         subjectInput.addEventListener('change', () => {
+            checkConflicts();
+            updateClassCounts();
             saveData();
             saveToFirebase();
         });
@@ -3919,8 +4142,8 @@ function updateManualAssignment(index, newTeacherName) {
 
                     for (let i = 0; i < 42; i++) {
                         const subjectInput = document.getElementById(`subject_${i}`);
-                        if (subjectInput && data[`subject_${i}`] !== undefined) {
-                            subjectInput.value = data[`subject_${i}`];
+                        if (subjectInput && data[`subject_${i}`] !== undefined && data[`subject_${i}`] !== '') {
+                            subjectInput.value = normalizeSubjectName(data[`subject_${i}`]);
                         }
                         const quotaInput = document.getElementById(`quota_${i}`);
                         if (quotaInput && data[`quota_${i}`] !== undefined && data[`quota_${i}`] !== '') {
