@@ -2617,38 +2617,133 @@ const specialAssignments = {
             return { teacherBusy, classBusy };
         }
 
-        // يحاول توزيع "count" حصة لمعلم/فصل/مادة معينة عبر أيام الأسبوع، مع تفضيل توزيعها
-        // على أيام مختلفة (باستثناء التربية الفنية المسموح بتكرارها بنفس اليوم عند الحاجة)
-        function placeRequirementPeriods(teacherIndex, classValue, subject, count, occupancy) {
+        function isPhysicalEducationSubject(subject) {
+            return !!subject && subject.includes('بدني');
+        }
+
+        // قيود صارمة على مكان الحصة (بغض النظر عن انشغال المعلم/الفصل):
+        // - لا حصة سابعة يوم الأربعاء
+        // - مادة الرياضيات لا تُوضع في الحصة السادسة أو السابعة
+        function isSlotAllowedForAutoPlacement(day, period, subject) {
+            if (day === 'wed' && period === 7) return false;
+            if (subject === 'رياضيات' && (period === 6 || period === 7)) return false;
+            return true;
+        }
+
+        // يبني خريطة (يوم موجود بها فعلاً حصص هذا المعلم) للتحقق من طول أطول متتالية حصص
+        // إذا أضفنا حصة جديدة في period ضمن نفس اليوم — يُستخدم كقيد مرن (نتجنبه قدر الإمكان)
+        function wouldCreateLongConsecutiveRun(teacherIndex, day, period, occupancy, maxAllowed) {
+            const maxP = getMaxPeriodsForDay(day);
+            const busy = new Set();
+            for (let p = 1; p <= maxP; p++) {
+                if (occupancy.teacherBusy.has(`${teacherIndex}_${day}_${p}`)) busy.add(p);
+            }
+            busy.add(period);
+
+            let run = 1;
+            let p = period - 1;
+            while (busy.has(p)) { run++; p--; }
+            p = period + 1;
+            while (busy.has(p)) { run++; p++; }
+            return run > maxAllowed;
+        }
+
+        // يحاول توزيع "count" حصة لمعلم/فصل/مادة معينة عبر أيام الأسبوع مراعياً:
+        // - قيود صارمة: لا حصة سابعة يوم الأربعاء، الرياضيات ليست في الحصة 6 أو 7،
+        //   عدم تكرار نفس المادة لنفس الفصل بنفس اليوم (إلا التربية الفنية بحد أقصى حصتين)
+        // - قيود مرنة (قدر الإمكان): تجنب أكثر من 4 حصص متتالية للمعلم دون فراغ،
+        //   وللتربية البدنية: تقليل تعارض فصلين بنفس الوقت، وإن تعذر يُفضَّل أن يكون التعارض بين فصول من نفس الصف
+        function placeRequirementPeriods(teacherIndex, classValue, grade, subject, count, occupancy, peUsage) {
             const placements = [];
-            const dayOrder = shuffleArray([...days]);
-            const perDayCount = {};
-            days.forEach(d => perDayCount[d] = 0);
             let remaining = count;
             const isArt = isArtEducationSubject(subject);
+            const isPE = isPhysicalEducationSubject(subject);
+            const dayCap = isArt ? 2 : 1;
 
-            for (let maxAllowedPerDay = 1; maxAllowedPerDay <= 7 && remaining > 0; maxAllowedPerDay++) {
-                if (!isArt && maxAllowedPerDay > 1) {
-                    // مادة غير التربية الفنية: السماح بتكرارها بنفس اليوم فقط كحل أخير عند تعذر التوزيع
-                }
-                for (const day of dayOrder) {
-                    if (remaining <= 0) break;
-                    if (perDayCount[day] >= maxAllowedPerDay) continue;
+            const perDayCount = {};
+            days.forEach(d => perDayCount[d] = 0);
+            getAssignedPeriodsForClassSubject(classValue, subject).forEach(a => {
+                perDayCount[a.day] = (perDayCount[a.day] || 0) + 1;
+            });
+
+            const dayOrder = shuffleArray([...days]);
+
+            function collectCandidates(allowDayCapBreach, allowConsecutiveBreach) {
+                const candidates = [];
+                dayOrder.forEach(day => {
+                    if (!allowDayCapBreach && perDayCount[day] >= dayCap) return;
                     const maxP = getMaxPeriodsForDay(day);
-                    for (let period = 1; period <= maxP && remaining > 0; period++) {
-                        if (perDayCount[day] >= maxAllowedPerDay) break;
+                    for (let period = 1; period <= maxP; period++) {
+                        if (!isSlotAllowedForAutoPlacement(day, period, subject)) continue;
                         const tKey = `${teacherIndex}_${day}_${period}`;
                         const cKey = `${classValue}_${day}_${period}`;
                         if (occupancy.teacherBusy.has(tKey)) continue;
                         if (occupancy.classBusy.has(cKey)) continue;
-                        occupancy.teacherBusy.add(tKey);
-                        occupancy.classBusy.add(cKey);
-                        placements.push({ day, period });
-                        perDayCount[day]++;
-                        remaining--;
+
+                        const breaksConsecutive = wouldCreateLongConsecutiveRun(teacherIndex, day, period, occupancy, 4);
+                        if (breaksConsecutive && !allowConsecutiveBreach) continue;
+
+                        let score = 0;
+                        if (breaksConsecutive) score -= 10;
+                        score -= perDayCount[day];
+
+                        if (isPE) {
+                            const key = `${day}_${period}`;
+                            const existing = peUsage.get(key) || [];
+                            if (existing.length === 0) {
+                                score += 5;
+                            } else {
+                                const sameGrade = existing.every(e => e.grade === grade);
+                                score += sameGrade ? 1 : -5;
+                            }
+                        }
+
+                        candidates.push({ day, period, score });
                     }
+                });
+                candidates.sort((a, b) => b.score - a.score);
+                return candidates;
+            }
+
+            let stage = 0; // 0: احترام كل القيود، 1: السماح بكسر قاعدة التتالي، 2: السماح أيضاً بتكرار المادة باليوم (حل أخير)
+            let candidates = collectCandidates(false, false);
+
+            while (remaining > 0) {
+                if (candidates.length === 0) {
+                    if (stage === 0) {
+                        stage = 1;
+                        candidates = collectCandidates(false, true);
+                    } else if (stage === 1) {
+                        stage = 2;
+                        candidates = collectCandidates(true, true);
+                    } else {
+                        break;
+                    }
+                    continue;
+                }
+
+                const choice = candidates.shift();
+                const tKey = `${teacherIndex}_${choice.day}_${choice.period}`;
+                const cKey = `${classValue}_${choice.day}_${choice.period}`;
+                if (occupancy.teacherBusy.has(tKey) || occupancy.classBusy.has(cKey)) continue;
+
+                occupancy.teacherBusy.add(tKey);
+                occupancy.classBusy.add(cKey);
+                perDayCount[choice.day] = (perDayCount[choice.day] || 0) + 1;
+                placements.push({ day: choice.day, period: choice.period });
+                remaining--;
+
+                if (isPE) {
+                    const key = `${choice.day}_${choice.period}`;
+                    if (!peUsage.has(key)) peUsage.set(key, []);
+                    peUsage.get(key).push({ classValue, grade });
+                }
+
+                if (remaining > 0) {
+                    candidates = collectCandidates(stage >= 2, stage >= 1);
                 }
             }
+
             return { placements, unplaced: remaining };
         }
 
@@ -2707,6 +2802,20 @@ const specialAssignments = {
 
             const occupancy = buildOccupancyFromRealSchedule();
             const stagedByCell = new Map();
+            const peUsage = new Map(); // day_period -> [{classValue, grade}] لتتبع تعارضات التربية البدنية عبر كامل عملية التوزيع
+            teachersInfo.filter(t => isPhysicalEducationSubject(t.subject)).forEach(t => {
+                days.forEach(day => {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        const select = document.getElementById(`cell_${t.index}_${day}_${period}`);
+                        if (select && select.value && !select.value.startsWith('انتظار') && select.value !== 'وهمي') {
+                            const key = `${day}_${period}`;
+                            if (!peUsage.has(key)) peUsage.set(key, []);
+                            peUsage.get(key).push({ classValue: select.value, grade: getGradeFromClass(select.value) });
+                        }
+                    }
+                });
+            });
             const loadTracker = {};
             teachersInfo.forEach(t => { loadTracker[t.index] = getCurrentAssignedCount(t.index); });
 
@@ -2744,7 +2853,7 @@ const specialAssignments = {
                 let bestPartial = null;
 
                 for (const candidate of candidates) {
-                    const result = placeRequirementPeriods(candidate.index, req.classValue, req.subject, req.stillNeeded, occupancy);
+                    const result = placeRequirementPeriods(candidate.index, req.classValue, req.grade, req.subject, req.stillNeeded, occupancy, peUsage);
                     if (result.placements.length === req.stillNeeded) {
                         finalChoice = { candidate, result };
                         break;
@@ -2752,6 +2861,15 @@ const specialAssignments = {
                     result.placements.forEach(p => {
                         occupancy.teacherBusy.delete(`${candidate.index}_${p.day}_${p.period}`);
                         occupancy.classBusy.delete(`${req.classValue}_${p.day}_${p.period}`);
+                        if (isPhysicalEducationSubject(req.subject)) {
+                            const key = `${p.day}_${p.period}`;
+                            const arr = peUsage.get(key);
+                            if (arr) {
+                                const idx = arr.findIndex(e => e.classValue === req.classValue && e.grade === req.grade);
+                                if (idx !== -1) arr.splice(idx, 1);
+                                if (arr.length === 0) peUsage.delete(key);
+                            }
+                        }
                     });
                     if (!bestPartial || result.placements.length > bestPartial.placedCount) {
                         bestPartial = { candidate, placedCount: result.placements.length };
@@ -2759,7 +2877,7 @@ const specialAssignments = {
                 }
 
                 if (!finalChoice && bestPartial) {
-                    const reapply = placeRequirementPeriods(bestPartial.candidate.index, req.classValue, req.subject, req.stillNeeded, occupancy);
+                    const reapply = placeRequirementPeriods(bestPartial.candidate.index, req.classValue, req.grade, req.subject, req.stillNeeded, occupancy, peUsage);
                     finalChoice = { candidate: bestPartial.candidate, result: reapply };
                 }
 
@@ -3084,12 +3202,13 @@ const specialAssignments = {
                     .map(t => `<option value="${t.index}">${t.name}</option>`)
                     .join('');
 
-                // خيارات نقل الوقت: خانات فارغة لنفس المعلم وغير مشغولة للفصل في وقتها
+                // خيارات نقل الوقت: خانات فارغة لنفس المعلم وغير مشغولة للفصل في وقتها، وتحترم قيود الجدول
                 const slotOptions = [];
                 days.forEach(day => {
                     const maxP = getMaxPeriodsForDay(day);
                     for (let period = 1; period <= maxP; period++) {
                         if (day === a.day && period === a.period) continue;
+                        if (!isSlotAllowedForAutoPlacement(day, period, subject)) continue;
                         const sel = document.getElementById(`cell_${a.teacherIndex}_${day}_${period}`);
                         if (!sel || sel.value) continue;
                         let classBusy = false;
@@ -3235,6 +3354,7 @@ const specialAssignments = {
                 if (!isArt && usedDaysForClassSubject.has(day)) continue;
                 const maxP = getMaxPeriodsForDay(day);
                 for (let period = 1; period <= maxP; period++) {
+                    if (!isSlotAllowedForAutoPlacement(day, period, subject)) continue;
                     const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
                     if (select && !select.value && !classBusyCells.has(`${day}_${period}`)) {
                         target = { day, period };
@@ -3247,6 +3367,7 @@ const specialAssignments = {
                 for (const day of days) {
                     const maxP = getMaxPeriodsForDay(day);
                     for (let period = 1; period <= maxP; period++) {
+                        if (!isSlotAllowedForAutoPlacement(day, period, subject)) continue;
                         const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
                         if (select && !select.value && !classBusyCells.has(`${day}_${period}`)) {
                             target = { day, period };
