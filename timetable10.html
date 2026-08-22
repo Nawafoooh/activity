@@ -1072,7 +1072,7 @@
 
         <div class="header">
             <h1>📚 الجدول المدرسي الأسبوعي الكامل</h1>
-            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1448 هـ - المرحلة المتوسطة</p>
+            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1447 هـ - المرحلة المتوسطة</p>
         </div>
 
         <div id="alertBox"></div>
@@ -2199,6 +2199,7 @@ const specialAssignments = {
             if (data.curriculumPlan) {
                 try {
                     curriculumPlan = JSON.parse(data.curriculumPlan);
+                    migrateCurriculumPlanKeys();
                 } catch (e) {
                     curriculumPlan = {};
                 }
@@ -2655,8 +2656,10 @@ const specialAssignments = {
                 if (!curriculumPlan[subject]) curriculumPlan[subject] = {};
                 curriculumPlan[subject][grade] = input.value === '' ? '' : (parseInt(input.value) || 0);
             });
+            migrateCurriculumPlanKeys();
             saveData();
             saveToFirebase();
+            refreshCurriculumTable();
             alert('✅ تم حفظ خطة الحصص الأسبوعية بنجاح!');
         }
 
@@ -2664,6 +2667,25 @@ const specialAssignments = {
             const plan = curriculumPlan[subject];
             if (!plan) return 0;
             return parseInt(plan['g' + grade]) || 0;
+        }
+
+        // يُصحّح مفاتيح خطة الحصص القديمة/غير القياسية (مثال: "عربي" أو "لغة عربية") بدمجها
+        // في اسم المادة المعتمد، حتى لا يبقى مفتاح قديم منفصلاً لا يطابقه أي معلم فيتسبب
+        // بتحذيرات "لا يوجد معلم" خاطئة رغم وجود معلم فعلي تحت الاسم الصحيح
+        function migrateCurriculumPlanKeys() {
+            const migrated = {};
+            Object.keys(curriculumPlan).forEach(rawKey => {
+                const canonical = normalizeSubjectName(rawKey);
+                const rawPlan = curriculumPlan[rawKey] || {};
+                if (!migrated[canonical]) migrated[canonical] = { g1: '', g2: '', g3: '' };
+                ['g1', 'g2', 'g3'].forEach(g => {
+                    const rawVal = rawPlan[g];
+                    if (rawVal !== undefined && rawVal !== '' && (migrated[canonical][g] === '' || migrated[canonical][g] === undefined)) {
+                        migrated[canonical][g] = rawVal;
+                    }
+                });
+            });
+            curriculumPlan = migrated;
         }
 
         // ─── محرك التوزيع التلقائي ───
@@ -2733,7 +2755,7 @@ const specialAssignments = {
         //   عدم تكرار نفس المادة لنفس الفصل بنفس اليوم (إلا التربية الفنية بحد أقصى حصتين)
         // - قيود مرنة (قدر الإمكان): تجنب أكثر من 4 حصص متتالية للمعلم دون فراغ،
         //   وللتربية البدنية: تقليل تعارض فصلين بنفس الوقت، وإن تعذر يُفضَّل أن يكون التعارض بين فصول من نفس الصف
-        function placeRequirementPeriods(teacherIndex, classValue, grade, subject, count, occupancy, peUsage) {
+        function placeRequirementPeriods(teacherIndex, classValue, grade, subject, count, occupancy, peUsage, classPeriodUsage) {
             const placements = [];
             let remaining = count;
             const isArt = isArtEducationSubject(subject);
@@ -2745,6 +2767,11 @@ const specialAssignments = {
             getAssignedPeriodsForClassSubject(classValue, subject).forEach(a => {
                 perDayCount[a.day] = (perDayCount[a.day] || 0) + 1;
             });
+
+            if (!classPeriodUsage.has(classValue)) {
+                classPeriodUsage.set(classValue, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 });
+            }
+            const periodBalance = classPeriodUsage.get(classValue);
 
             const dayOrder = shuffleArray([...days]);
 
@@ -2766,6 +2793,9 @@ const specialAssignments = {
                         let score = 0;
                         if (breaksConsecutive) score -= 10;
                         score -= perDayCount[day];
+                        // نفضل الحصص الأقل استخداماً لهذا الفصل عبر كل المواد، لتوزيع الحصص على
+                        // كامل حصص اليوم (1-7) بدل تكديسها في الحصص الأولى دائماً
+                        score -= (periodBalance[period] || 0) * 2;
 
                         if (isPE) {
                             const key = `${day}_${period}`;
@@ -2791,11 +2821,12 @@ const specialAssignments = {
             while (remaining > 0) {
                 if (candidates.length === 0) {
                     if (stage === 0) {
+                        // القيد الوحيد الذي نُخفّفه كحل أخير هو تفضيل عدم التتالي (قيد مرن بطبيعته)؛
+                        // أما عدم تكرار المادة لنفس الفصل بنفس اليوم فهو قيد صارم لا نخترقه أبداً
+                        // (إلا للتربية الفنية المسموح لها أصلاً بحد أقصى حصتين عبر dayCap)،
+                        // فإن تعذر الإسناد ضمن هذا الحد تبقى الحصص المتبقية غير مُسندة ويُبلَّغ عنها كتحذير
                         stage = 1;
                         candidates = collectCandidates(false, true);
-                    } else if (stage === 1) {
-                        stage = 2;
-                        candidates = collectCandidates(true, true);
                     } else {
                         break;
                     }
@@ -2810,6 +2841,7 @@ const specialAssignments = {
                 occupancy.teacherBusy.add(tKey);
                 occupancy.classBusy.add(cKey);
                 perDayCount[choice.day] = (perDayCount[choice.day] || 0) + 1;
+                periodBalance[choice.period] = (periodBalance[choice.period] || 0) + 1;
                 placements.push({ day: choice.day, period: choice.period });
                 remaining--;
 
@@ -2820,7 +2852,7 @@ const specialAssignments = {
                 }
 
                 if (remaining > 0) {
-                    candidates = collectCandidates(stage >= 2, stage >= 1);
+                    candidates = collectCandidates(false, stage >= 1);
                 }
             }
 
@@ -2880,7 +2912,53 @@ const specialAssignments = {
             teachersInfo.forEach(t => {
                 teacherCountBySubject[t.subject] = (teacherCountBySubject[t.subject] || 0) + 1;
             });
-            requirements.sort((a, b) => (teacherCountBySubject[a.subject] || 0) - (teacherCountBySubject[b.subject] || 0));
+
+            // بدل تفريغ كل حصص مادة واحدة على كل الفصول قبل الانتقال لمادة أخرى (ما قد "يُجوّع" فصولاً
+            // تُعالج متأخراً)، نُعالج المتطلبات على شكل "جولات": حصة واحدة من كل مادة (بترتيب الندرة)
+            // في كل جولة، بالتناوب على الفصول، حتى لا تستهلك مادة واحدة كل وقت فصل معين مبكراً
+            function buildRoundRobinOrder(reqs) {
+                const bySubject = {};
+                reqs.forEach(req => {
+                    if (!bySubject[req.subject]) bySubject[req.subject] = [];
+                    bySubject[req.subject].push(req);
+                });
+                const subjectsInOrder = Object.keys(bySubject).sort(
+                    (a, b) => (teacherCountBySubject[a] || 0) - (teacherCountBySubject[b] || 0)
+                );
+                const ordered = [];
+                let remaining = true;
+                while (remaining) {
+                    remaining = false;
+                    for (const subject of subjectsInOrder) {
+                        const list = bySubject[subject];
+                        if (list.length > 0) {
+                            ordered.push(list.shift());
+                            remaining = true;
+                        }
+                    }
+                }
+                return ordered;
+            }
+
+            const orderedRequirements = buildRoundRobinOrder(requirements);
+
+            // تحذير مبكر: إن كان إجمالي الحصص الأسبوعية المطلوبة لصف معين يتجاوز عدد الأوقات
+            // المتاحة فعلياً للتوزيع التلقائي (33 حصة كحد أقصى بعد استبعاد حصة الأربعاء السابعة)
+            // فسيتعذر إسناد كل الحصص مهما بلغت كفاءة الخوارزمية، ويجب تنبيه المستخدم بذلك صراحة
+            const MAX_AUTO_SLOTS_PER_CLASS = 33;
+            const overSubscriptionWarnings = [];
+            ['1', '2', '3'].forEach(grade => {
+                let total = 0;
+                Object.keys(curriculumPlan).forEach(subject => {
+                    total += getSubjectPeriodsForGrade(subject, grade);
+                });
+                if (total > MAX_AUTO_SLOTS_PER_CLASS) {
+                    const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
+                    overSubscriptionWarnings.push(
+                        `⚠️ إجمالي حصص خطة الصف ${gradeNames[grade]} (${total} حصة/أسبوع) يتجاوز الحد الأقصى المتاح فعلياً للتوزيع (${MAX_AUTO_SLOTS_PER_CLASS} حصة)، لذا سيتعذر إسناد كل الحصص لبعض فصول هذا الصف مهما حاول النظام. يُنصح بمراجعة "خطة الحصص الأسبوعية".`
+                    );
+                }
+            });
 
             const occupancy = buildOccupancyFromRealSchedule();
             const stagedByCell = new Map();
@@ -2901,10 +2979,29 @@ const specialAssignments = {
             const loadTracker = {};
             teachersInfo.forEach(t => { loadTracker[t.index] = getCurrentAssignedCount(t.index); });
 
+            // تتبع استخدام كل رقم حصة (1-7) لكل فصل عبر كامل عملية التوزيع، لتوزيع الحصص على
+            // كامل اليوم الدراسي بدل تكديسها في الحصص الأولى فقط - مُهيّأ ببيانات الجدول الحالية أولاً
+            const classPeriodUsage = new Map();
+            classes.forEach(classValue => {
+                const balance = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
+                for (let i = 0; i < 42; i++) {
+                    days.forEach(day => {
+                        const maxP = getMaxPeriodsForDay(day);
+                        for (let period = 1; period <= maxP; period++) {
+                            const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                            if (select && select.value === classValue) {
+                                balance[period] = (balance[period] || 0) + 1;
+                            }
+                        }
+                    });
+                }
+                classPeriodUsage.set(classValue, balance);
+            });
+
             const classAssignments = [];
             const warnings = [];
 
-            requirements.forEach(req => {
+            orderedRequirements.forEach(req => {
                 if (req.stillNeeded <= 0) {
                     classAssignments.push({
                         classValue: req.classValue, grade: req.grade, subject: req.subject,
@@ -2935,7 +3032,7 @@ const specialAssignments = {
                 let bestPartial = null;
 
                 for (const candidate of candidates) {
-                    const result = placeRequirementPeriods(candidate.index, req.classValue, req.grade, req.subject, req.stillNeeded, occupancy, peUsage);
+                    const result = placeRequirementPeriods(candidate.index, req.classValue, req.grade, req.subject, req.stillNeeded, occupancy, peUsage, classPeriodUsage);
                     if (result.placements.length === req.stillNeeded) {
                         finalChoice = { candidate, result };
                         break;
@@ -2943,6 +3040,8 @@ const specialAssignments = {
                     result.placements.forEach(p => {
                         occupancy.teacherBusy.delete(`${candidate.index}_${p.day}_${p.period}`);
                         occupancy.classBusy.delete(`${req.classValue}_${p.day}_${p.period}`);
+                        const balance = classPeriodUsage.get(req.classValue);
+                        if (balance && balance[p.period]) balance[p.period]--;
                         if (isPhysicalEducationSubject(req.subject)) {
                             const key = `${p.day}_${p.period}`;
                             const arr = peUsage.get(key);
@@ -2959,7 +3058,7 @@ const specialAssignments = {
                 }
 
                 if (!finalChoice && bestPartial) {
-                    const reapply = placeRequirementPeriods(bestPartial.candidate.index, req.classValue, req.grade, req.subject, req.stillNeeded, occupancy, peUsage);
+                    const reapply = placeRequirementPeriods(bestPartial.candidate.index, req.classValue, req.grade, req.subject, req.stillNeeded, occupancy, peUsage, classPeriodUsage);
                     finalChoice = { candidate: bestPartial.candidate, result: reapply };
                 }
 
@@ -2998,7 +3097,12 @@ const specialAssignments = {
                 }
             });
 
-            lastDistributionProposal = { stagedByCell, teacherReport, classAssignments, warnings };
+            lastDistributionProposal = {
+                stagedByCell,
+                teacherReport,
+                classAssignments,
+                warnings: [...overSubscriptionWarnings, ...warnings]
+            };
             renderDistributionReview();
         }
 
@@ -4332,6 +4436,7 @@ function updateManualAssignment(index, newTeacherName) {
                     if (data.curriculumPlan) {
                         try {
                             curriculumPlan = JSON.parse(data.curriculumPlan);
+                            migrateCurriculumPlanKeys();
                         } catch (err) {
                             curriculumPlan = {};
                         }
