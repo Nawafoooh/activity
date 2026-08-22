@@ -3112,11 +3112,21 @@ const specialAssignments = {
             if (!lastDistributionProposal) return;
             const { teacherReport, classAssignments, warnings, stagedByCell } = lastDistributionProposal;
 
+            const conflictCheck = validateStagedForConflicts(stagedByCell);
+            const conflictBanner = conflictCheck.length === 0
+                ? `<div class="alert success" style="margin-bottom:10px;">🛡️ تم التحقق: لا يوجد أي تعارض في المعلمين أو الفصول ضمن هذا الاقتراح.</div>`
+                : `<div class="alert" style="background:#fff5f5; border-right-color:#e53e3e; color:#742a2a; margin-bottom:10px;">
+                       <strong>🚫 تنبيه: تم رصد ${conflictCheck.length} تعارض — لن يُقبل الاعتماد حتى تتم إعادة التوزيع:</strong>
+                       <ul style="margin:10px 0 0; padding-right:20px; max-height:150px; overflow-y:auto;">
+                           ${conflictCheck.slice(0, 10).map(c => `<li>${c}</li>`).join('')}
+                       </ul>
+                   </div>`;
+
             const warningsBox = document.getElementById('distributionWarningsBox');
             if (warnings.length === 0) {
-                warningsBox.innerHTML = `<div class="alert success">✅ تم اقتراح توزيع لـ ${stagedByCell.size} حصة دون أي تحذيرات تُذكر.</div>`;
+                warningsBox.innerHTML = conflictBanner + `<div class="alert success">✅ تم اقتراح توزيع لـ ${stagedByCell.size} حصة دون أي تحذيرات تُذكر.</div>`;
             } else {
-                warningsBox.innerHTML = `
+                warningsBox.innerHTML = conflictBanner + `
                     <div class="alert" style="background:#fff5f5; border-right-color:#e53e3e; color:#742a2a;">
                         <strong>⚠️ تحذيرات (${warnings.length}) — تم اقتراح ${stagedByCell.size} حصة:</strong>
                         <ul style="margin:10px 0 0; padding-right:20px; max-height:200px; overflow-y:auto;">
@@ -3166,8 +3176,69 @@ const specialAssignments = {
             document.getElementById('distributionReviewOverlay').classList.remove('active');
         }
 
+        // تحقق نهائي وصارم قبل أي اعتماد فعلي: يفحص أن كل خانة مُقترحة ما زالت فارغة فعلاً في الجدول
+        // الحالي (لم تتغير منذ إنشاء الاقتراح)، وأن الفصل نفسه غير محجوز في نفس الوقت من معلم آخر
+        // في الجدول الفعلي، وأن الاقتراح نفسه لا يحتوي على تعارض داخلي (فصل واحد لمعلمين بنفس الوقت).
+        // هذا حاجز أمان إضافي فوق منطق البناء (الذي يمنع التعارض أصلاً)، فلا يُكتب أي شيء إطلاقاً
+        // إن وُجد أي تعارض حقيقي — إما اعتماد كامل نظيف، أو رفض كامل مع تفسير واضح.
+        function validateStagedForConflicts(stagedByCell) {
+            const conflicts = [];
+            const classSlotMap = new Map(); // "classValue_day_period" -> [teacherIndex, ...]
+
+            stagedByCell.forEach((classValue, key) => {
+                const [i, day, period] = key.split('_');
+
+                // 1) خانة المعلم نفسها يجب أن تكون ما زالت فارغة فعلياً في الجدول الحقيقي
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (!select) {
+                    conflicts.push(`تعذر إيجاد الخانة المستهدفة (${key}).`);
+                    return;
+                }
+                if (select.value) {
+                    const teacherName = document.getElementById(`teacher_${i}`)?.value || `معلم ${parseInt(i) + 1}`;
+                    conflicts.push(`خانة المعلم ${teacherName} في ${getDayName(day)} - الحصة ${period} أصبحت مشغولة (${select.value}) منذ إعداد الاقتراح.`);
+                }
+
+                // 2) الفصل نفسه يجب ألا يكون محجوزاً بالفعل من معلم آخر في نفس الوقت ضمن الجدول الحقيقي
+                for (let ti = 0; ti < 42; ti++) {
+                    if (String(ti) === String(i)) continue;
+                    const otherSelect = document.getElementById(`cell_${ti}_${day}_${period}`);
+                    if (otherSelect && otherSelect.value === classValue) {
+                        conflicts.push(`الفصل ${classValue} مُسند بالفعل في ${getDayName(day)} - الحصة ${period} لمعلم آخر.`);
+                    }
+                }
+
+                // 3) لا يجوز أن يتنازع أكثر من معلم داخل الاقتراح نفسه على نفس الفصل بنفس الوقت
+                const classSlotKey = `${classValue}_${day}_${period}`;
+                if (!classSlotMap.has(classSlotKey)) classSlotMap.set(classSlotKey, []);
+                classSlotMap.get(classSlotKey).push(i);
+            });
+
+            classSlotMap.forEach((teacherIndexes, slotKey) => {
+                if (new Set(teacherIndexes).size > 1) {
+                    const [classValue, day, period] = slotKey.split('_');
+                    conflicts.push(`تعارض داخلي في الاقتراح: أكثر من معلم مُقترح لنفس الفصل ${classValue} في ${getDayName(day)} - الحصة ${period}.`);
+                }
+            });
+
+            return conflicts;
+        }
+
         function commitDistribution() {
             if (!lastDistributionProposal) return;
+
+            const conflicts = validateStagedForConflicts(lastDistributionProposal.stagedByCell);
+            if (conflicts.length > 0) {
+                alert(
+                    `🚫 تم رفض الاعتماد لحماية الجدول من التعارض!\n\n` +
+                    `اكتُشف ${conflicts.length} تعارض محتمل قبل الحفظ:\n\n` +
+                    conflicts.slice(0, 8).join('\n') +
+                    (conflicts.length > 8 ? `\n... و${conflicts.length - 8} حالة أخرى` : '') +
+                    `\n\nلم يتم إسناد أي حصة. يرجى الضغط على "🔀 إعادة توزيع" لإنشاء اقتراح جديد متوافق مع الوضع الحالي للجدول.`
+                );
+                return;
+            }
+
             let count = 0;
             lastDistributionProposal.stagedByCell.forEach((classValue, key) => {
                 const [i, day, period] = key.split('_');
@@ -3187,7 +3258,7 @@ const specialAssignments = {
             saveToFirebase();
             renderTeacherQuotaStatusList();
 
-            alert(`✅ تم اعتماد التوزيع بنجاح!\n\nتم إسناد ${count} حصة جديدة إلى الجدول.`);
+            alert(`✅ تم اعتماد التوزيع بنجاح، بلا أي تعارض!\n\nتم إسناد ${count} حصة جديدة إلى الجدول.`);
             lastDistributionProposal = null;
         }
 
@@ -3466,6 +3537,16 @@ const specialAssignments = {
             refreshManualAssignPanels();
         }
 
+        // يتحقق مباشرة من الجدول الحقيقي إن كان فصل معين مشغولاً في يوم/حصة معينة من أي معلم آخر
+        function isClassBusyAt(classValue, day, period, excludeTeacherIndex) {
+            for (let ti = 0; ti < 42; ti++) {
+                if (excludeTeacherIndex !== undefined && String(ti) === String(excludeTeacherIndex)) continue;
+                const select = document.getElementById(`cell_${ti}_${day}_${period}`);
+                if (select && select.value === classValue) return true;
+            }
+            return false;
+        }
+
         function reassignPeriodTeacher(oldTeacherIndex, day, period, newTeacherIndexStr, classValue) {
             if (!newTeacherIndexStr) return;
             const newTeacherIndex = parseInt(newTeacherIndexStr);
@@ -3473,6 +3554,7 @@ const specialAssignments = {
             const newSelect = document.getElementById(`cell_${newTeacherIndex}_${day}_${period}`);
             if (!oldSelect || !newSelect) return;
 
+            // تحقق نهائي دفاعي: خانة المعلم الجديد يجب أن تكون فارغة فعلاً في هذه اللحظة
             if (newSelect.value) {
                 alert('❌ المعلم الجديد أصبح مشغولاً في هذا الوقت. لم يتم تنفيذ التغيير.');
                 renderAssignedPeriodsList();
@@ -3495,8 +3577,14 @@ const specialAssignments = {
             const newSelect = document.getElementById(`cell_${teacherIndex}_${newDay}_${newPeriod}`);
             if (!oldSelect || !newSelect) return;
 
+            // تحقق نهائي دفاعي: الخانة الجديدة يجب أن تكون فارغة للمعلم، وغير مشغولة للفصل من معلم آخر
             if (newSelect.value) {
                 alert('❌ الخانة الجديدة أصبحت مشغولة. لم يتم تنفيذ النقل.');
+                renderAssignedPeriodsList();
+                return;
+            }
+            if (isClassBusyAt(classValue, newDay, newPeriod, teacherIndex)) {
+                alert('❌ الفصل أصبح مشغولاً في هذا الوقت من معلم آخر. لم يتم تنفيذ النقل.');
                 renderAssignedPeriodsList();
                 return;
             }
@@ -3566,6 +3654,13 @@ const specialAssignments = {
 
             if (!target) {
                 alert('❌ تعذر إيجاد خانة فارغة مناسبة لإسناد هذه الحصة (المعلم أو الفصل بلا أوقات متاحة).');
+                return;
+            }
+
+            // تحقق نهائي دفاعي قبل الكتابة الفعلية: تأكد أن الخانة ما زالت فارغة للمعلم وغير مشغولة للفصل
+            const finalCheckSelect = document.getElementById(`cell_${teacherIndex}_${target.day}_${target.period}`);
+            if (!finalCheckSelect || finalCheckSelect.value || isClassBusyAt(classValue, target.day, target.period, teacherIndex)) {
+                alert('❌ تغيّر الجدول أثناء الإسناد، يرجى المحاولة مرة أخرى.');
                 return;
             }
 
