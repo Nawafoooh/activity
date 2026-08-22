@@ -369,6 +369,103 @@
             font-size: 12px;
         }
 
+        .teacher-subject-cell {
+            background: #f0fff4;
+            width: 90px;
+            min-width: 90px;
+        }
+
+        .teacher-subject-input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #9ae6b4;
+            border-radius: 5px;
+            font-size: 11px;
+            text-align: center;
+            background: white;
+        }
+
+        .teacher-quota-cell {
+            background: #fffbea;
+            width: 70px;
+            min-width: 70px;
+        }
+
+        .teacher-quota-input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #f6c453;
+            border-radius: 5px;
+            font-size: 12px;
+            text-align: center;
+            font-weight: bold;
+            background: white;
+        }
+
+        .teacher-quota-input.quota-exceeded {
+            border: 2px solid #e53e3e !important;
+            background: #fed7d7 !important;
+            color: #742a2a;
+            animation: pulse-orange 1.5s infinite;
+        }
+
+        .distribution-review-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 9999;
+            align-items: flex-start;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 30px 15px;
+        }
+        .distribution-review-overlay.active {
+            display: flex;
+        }
+        .distribution-review-modal {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            width: 100%;
+            max-width: 1100px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-badge.status-ok {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .status-badge.status-low {
+            background: #fefcbf;
+            color: #744210;
+        }
+        .status-badge.status-over {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        .manual-assign-teacher-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+        }
+
         .buttons {
             display: flex;
             gap: 10px;
@@ -870,6 +967,14 @@
         width: 100px;
         min-width: 100px;
     }
+    .teacher-subject-cell {
+        width: 55px;
+        min-width: 55px;
+    }
+    .teacher-quota-cell {
+        width: 40px;
+        min-width: 40px;
+    }
     /* إخفاء الحصص الوهمية بشكل احترافي عند الطباعة */
     td[data-dummy="true"] { background: transparent !important; background-image: none !important; }
     td[data-dummy="true"] select { visibility: hidden !important; }
@@ -879,6 +984,9 @@
     /* --- إعدادات طباعة جدول المعلم --- */
     body.printing-teacher-schedule .schedule-wrapper,
     body.printing-teacher-schedule #classScheduleView {
+        display: none;
+    }
+    body.printing-teacher-schedule .waiting-section {
         display: none;
     }
     body.printing-teacher-schedule #teacherScheduleView {
@@ -894,27 +1002,6 @@
         display: block !important;
     }
 }
-            @page {
-                size: A4 landscape;
-                margin: 10mm;
-            }
-
-            body.printing-teacher-schedule .schedule-wrapper {
-                display: none;
-            }
-
-            body.printing-teacher-schedule .waiting-section {
-                display: none;
-            }
-
-            body.printing-teacher-schedule #teacherScheduleView {
-                display: block !important;
-            }
-
-            body.printing-teacher-schedule #classScheduleView {
-                display: block !important;
-            }
-        }
     </style>
     
     <!-- Firebase SDK -->
@@ -985,7 +1072,7 @@
 
         <div class="header">
             <h1>📚 الجدول المدرسي الأسبوعي الكامل</h1>
-            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1447 هـ - المرحلة المتوسطة</p>
+            <p style="color: #718096; margin-top: 5px;">العام الدراسي 1448 هـ - المرحلة المتوسطة</p>
         </div>
 
         <div id="alertBox"></div>
@@ -997,6 +1084,7 @@
             <button class="tab" onclick="switchTab('daily')">📅 التوزيع اليومي</button>
             <button class="tab" onclick="switchTab('weekly')">📊 متابعة الانتظار الأسبوعي</button>
             <button class="tab" onclick="switchTab('manage')">🔧 إدارة الجدول</button>
+            <button class="tab" onclick="switchTab('assign')">🔄 إسناد وتوزيع المعلمين</button>
         </div>
 
         <div id="mainTab" class="tab-content active">
@@ -1006,6 +1094,8 @@
                 <thead>
                     <tr>
                         <th rowspan="2" style="background: #1a202c;">اسم المعلم</th>
+                        <th rowspan="2" style="background: #2f855a; width: 90px;">المادة</th>
+                        <th rowspan="2" style="background: #b7791f; width: 70px;">النصاب</th>
                         <th rowspan="2" style="background: #2c7a7b; width: 60px;">عدد<br>الحصص</th>
                         <th colspan="7" style="background: #d69e2e;">الأحد</th>
                         <th colspan="7" style="background: #3182ce;" class="day-border">الإثنين</th>
@@ -1064,7 +1154,8 @@
                 <input type="file" id="importFile" accept=".json" onchange="importSchedule(event)">
             </button>
             <button class="btn btn-print" onclick="window.print()">🖨️ طباعة الجدول</button>
-            <button class="btn btn-clear" onclick="clearSchedule()">🗑️ مسح الجدول</button>
+            <button class="btn" style="background: #dd6b20; color: white;" onclick="clearLessonsOnly()">🗑️ مسح الحصص فقط</button>
+            <button class="btn btn-clear" onclick="clearSchedule()">🗑️ مسح الجدول بالكامل</button>
         </div>
 
         <!-- ✅ تم إخفاء قواعد الانتظار وإعدادات المعمل - لكنها تعمل في الخلفية -->
@@ -1285,6 +1376,21 @@
             </div>
 
             <!-- ============================================ -->
+            <!-- قسم جديد: مسح الحصص فقط (مع الاحتفاظ بالمعلمين والنصاب) -->
+            <!-- ============================================ -->
+            <div style="background: #fffaf0; padding: 25px; border-radius: 10px; border: 2px solid #dd6b20;">
+                <h3 style="color: #9c4221; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    🗑️ مسح الحصص فقط
+                </h3>
+                <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.6;">
+                    يمسح جميع الحصص من الجدول (دراسية، انتظار، ووهمية) مع <strong>الاحتفاظ الكامل</strong> بأسماء المعلمين، والمادة الدراسية، ونصاب كل معلم. مفيد عند بدء جدول جديد بنفس فريق المعلمين.
+                </p>
+                <button class="btn" style="background: #dd6b20; color: white; width: 100%;" onclick="clearLessonsOnly()">
+                    🗑️ مسح الحصص فقط
+                </button>
+            </div>
+
+            <!-- ============================================ -->
             <!-- قسم 3: مسح الجدول بالكامل (تحذير) -->
             <!-- ============================================ -->
             <div style="background: #fff5f5; padding: 25px; border-radius: 10px; border: 2px solid #fc8181;">
@@ -1371,6 +1477,164 @@
 <!-- نهاية تبويب إدارة الجدول -->
 <!-- ======================================================== -->
 
+<!-- ======================================================== -->
+<!-- تبويب إسناد وتوزيع المعلمين -->
+<!-- ======================================================== -->
+<div id="assignTab" class="tab-content">
+    <div style="padding: 20px;">
+        <h2 style="text-align: center; color: #2d3748; margin-bottom: 30px; border-bottom: 3px solid #4a5568; padding-bottom: 15px;">
+            🔄 إسناد وتوزيع المعلمين
+        </h2>
+
+        <div style="display: grid; gap: 25px; max-width: 1300px; margin: 0 auto;">
+
+            <div id="subjectIntegrityWarning"></div>
+
+            <!-- ============================================ -->
+            <!-- قسم: خطة الحصص الأسبوعية لكل مادة (لكل صف) -->
+            <!-- ============================================ -->
+            <div style="background: #f7fafc; padding: 25px; border-radius: 10px; border: 2px solid #cbd5e0;">
+                <h3 style="color: #2c5282; margin-bottom: 15px;">📚 خطة الحصص الأسبوعية لكل مادة</h3>
+                <p style="color: #4a5568; margin-bottom: 15px; line-height: 1.6;">
+                    حدد هنا عدد الحصص الأسبوعية المطلوبة لكل مادة في كل صف. هذه البيانات يعتمد عليها محرك التوزيع التلقائي والإسناد اليدوي.
+                    تُستخرج قائمة المواد تلقائياً من حقل "المادة" أمام كل معلم في الجدول الرئيسي.
+                </p>
+                <div style="overflow-x: auto;">
+                    <table id="curriculumTable" style="width: 100%; border-collapse: collapse; background: white;">
+                        <thead>
+                            <tr style="background: #2c5282; color: white;">
+                                <th style="padding: 10px; border: 1px solid #cbd5e0;">المادة</th>
+                                <th style="padding: 10px; border: 1px solid #cbd5e0; width: 140px;">الصف الأول (حصص/أسبوع)</th>
+                                <th style="padding: 10px; border: 1px solid #cbd5e0; width: 140px;">الصف الثاني (حصص/أسبوع)</th>
+                                <th style="padding: 10px; border: 1px solid #cbd5e0; width: 140px;">الصف الثالث (حصص/أسبوع)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="curriculumTableBody">
+                            <!-- تُبنى ديناميكياً -->
+                        </tbody>
+                    </table>
+                </div>
+                <button class="btn" style="background: #4299e1; color: white; margin-top: 15px;" onclick="refreshCurriculumTable()">🔃 تحديث قائمة المواد</button>
+                <button class="btn" style="background: #2c5282; color: white; margin-top: 15px;" onclick="saveCurriculumPlan()">💾 حفظ خطة الحصص</button>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- قسم: التوزيع التلقائي -->
+            <!-- ============================================ -->
+            <div style="background: #f0fff4; padding: 25px; border-radius: 10px; border: 2px solid #68d391;">
+                <h3 style="color: #22543d; margin-bottom: 15px;">🔄 التوزيع التلقائي للحصص</h3>
+                <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.6;">
+                    يقوم النظام بتحليل المعلمين والمواد والأنصبة والفصول وخطة الحصص، ثم يقترح توزيعاً كاملاً للحصص.
+                    لن يتم تعديل الجدول الفعلي إلا بعد مراجعة النتيجة والضغط على "اعتماد التوزيع". الخلايا المُسندة يدوياً مسبقاً في الجدول الرئيسي تبقى كما هي ولن يتم تجاوزها.
+                </p>
+                <button class="btn" style="background: #38a169; color: white; font-size: 16px; padding: 14px 20px;" onclick="runAutoDistribution()">
+                    🔄 توزيع الحصص تلقائياً
+                </button>
+                <div id="autoDistributionSummary" style="margin-top: 15px;"></div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- قسم: مؤشر حالة أنصبة المعلمين -->
+            <!-- ============================================ -->
+            <div style="background: #f7fafc; padding: 25px; border-radius: 10px; border: 2px solid #cbd5e0;">
+                <h3 style="color: #2d3748; margin-bottom: 15px;">📊 حالة أنصبة المعلمين</h3>
+                <div id="teacherQuotaStatusList" style="overflow-x: auto;"></div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- قسم: الإسناد اليدوي -->
+            <!-- ============================================ -->
+            <div style="background: #fffaf0; padding: 25px; border-radius: 10px; border: 2px solid #dd6b20;">
+                <h3 style="color: #9c4221; margin-bottom: 15px;">✋ إسناد يدوي</h3>
+                <p style="color: #4a5568; margin-bottom: 15px; line-height: 1.6;">
+                    اختر الصف، ثم الفصل، ثم المادة، وسيعرض لك النظام المعلمين المؤهلين مرتبين من الأقل نصاباً إلى الأعلى.
+                </p>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">الصف</label>
+                        <select id="manualAssignGrade" class="teacher-input" style="width: 160px;" onchange="onManualAssignGradeChange()">
+                            <option value="">-- اختر الصف --</option>
+                            <option value="1">الصف الأول</option>
+                            <option value="2">الصف الثاني</option>
+                            <option value="3">الصف الثالث</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">الفصل</label>
+                        <select id="manualAssignClass" class="teacher-input" style="width: 160px;" onchange="onManualAssignClassChange()">
+                            <option value="">-- اختر الفصل --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">المادة</label>
+                        <select id="manualAssignSubject" class="teacher-input" style="width: 200px;" onchange="onManualAssignSubjectChange()">
+                            <option value="">-- اختر المادة --</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="manualAssignTeachersList"></div>
+                <div id="manualAssignAssignedList"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+<!-- ======================================================== -->
+<!-- نهاية تبويب إسناد وتوزيع المعلمين -->
+<!-- ======================================================== -->
+
+<!-- ======================================================== -->
+<!-- نافذة مراجعة التوزيع التلقائي -->
+<!-- ======================================================== -->
+<div id="distributionReviewOverlay" class="distribution-review-overlay">
+    <div class="distribution-review-modal">
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 15px;">
+            <h2 style="color:#2d3748; margin:0;">📋 مراجعة التوزيع المقترح</h2>
+            <button class="btn" style="background:#a0aec0; color:white;" onclick="closeDistributionReview()">✖ إغلاق</button>
+        </div>
+
+        <div id="distributionWarningsBox" style="margin-bottom: 20px;"></div>
+
+        <h3 style="color:#2c5282;">👨‍🏫 توزيع أنصبة المعلمين</h3>
+        <div style="overflow-x:auto; margin-bottom: 25px;">
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background:#2c5282; color:white;">
+                        <th style="padding:8px; border:1px solid #cbd5e0;">المعلم</th>
+                        <th style="padding:8px; border:1px solid #cbd5e0;">المادة</th>
+                        <th style="padding:8px; border:1px solid #cbd5e0;">النصاب المطلوب</th>
+                        <th style="padding:8px; border:1px solid #cbd5e0;">النصاب المسند (بعد التوزيع)</th>
+                        <th style="padding:8px; border:1px solid #cbd5e0;">الفرق</th>
+                    </tr>
+                </thead>
+                <tbody id="reviewTeachersBody"></tbody>
+            </table>
+        </div>
+
+        <h3 style="color:#2c5282;">🏫 توزيع الفصول</h3>
+        <div style="overflow-x:auto; margin-bottom: 25px;">
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background:#2f855a; color:white;">
+                        <th style="padding:8px; border:1px solid #cbd5e0;">الصف</th>
+                        <th style="padding:8px; border:1px solid #cbd5e0;">الفصل</th>
+                        <th style="padding:8px; border:1px solid #cbd5e0;">المادة</th>
+                        <th style="padding:8px; border:1px solid #cbd5e0;">المعلم المسند</th>
+                        <th style="padding:8px; border:1px solid #cbd5e0;">الحصص المُسندة/المطلوبة</th>
+                    </tr>
+                </thead>
+                <tbody id="reviewClassesBody"></tbody>
+            </table>
+        </div>
+
+        <div style="display:flex; gap:12px; flex-wrap: wrap; justify-content:center; padding-top: 15px; border-top: 2px solid #e2e8f0;">
+            <button class="btn" style="background:#38a169; color:white; font-size:15px; padding:12px 24px;" onclick="commitDistribution()">✅ اعتماد التوزيع</button>
+            <button class="btn" style="background:#dd6b20; color:white; font-size:15px; padding:12px 24px;" onclick="editManuallyFromReview()">✋ تعديل يدوياً</button>
+            <button class="btn" style="background:#4299e1; color:white; font-size:15px; padding:12px 24px;" onclick="redistributeFromReview()">🔀 إعادة توزيع</button>
+        </div>
+    </div>
+</div>
+
             <!-- حالة الاتصال بـ Firebase -->
         <div id="firebaseStatus" class="firebase-status disconnected">
             <div class="status-dot red"></div>
@@ -1382,7 +1646,7 @@
         // ═══════════════════════════════════════════════════════════════
         // 🔐 نظام الحماية بكلمة المرور
         // ═══════════════════════════════════════════════════════════════
-        const CORRECT_PASSWORD = 'Nawaf2030'; // ✅ الرقم السري
+        const CORRECT_PASSWORD = '123'; // ✅ الرقم السري
         // ✅✅ الخطوة 1: أضف هذا الكود بعد سطر كلمة المرور مباشرة ✅✅
 
 // قائمة بالمعلمين غير النشطين (سيتم تجاهلهم تماماً في كل العمليات)
@@ -1588,29 +1852,29 @@ const specialAssignments = {
     'علي الحربي': 'العلوم',
     'فهد الشاماني': 'اللغة العربية',
     'فواز الرشيدي': 'دين',
-    'فيصل الصاعدي': 'لغة عربية',
+    'فيصل الصاعدي': 'اللغة العربية',
     'فيصل ابو سلمي': 'بدنية',
     'كاتب الرشيدي': 'انجليزي',
-    'محمد الزهراني': 'لغة عربية',
+    'محمد الزهراني': 'اللغة العربية',
     'محمد عياد': 'دين',
     'موسى غازي': 'مهارات حياتية',
     'موفق السحيمي': 'دين',
     'نافع المطيري': 'اجتماعيات',
     'ناهر المطيري': 'رياضيات',
     'نميان الحربي': 'دين',
-    'طارق الحربي': 'علوم',
+    'طارق الحربي': 'العلوم',
     'ابراهيم الجابري': 'دين',
-    'احمد المويعزي': 'علوم',
+    'احمد المويعزي': 'العلوم',
     'أسامه العوفي': 'اجتماعيات',
-    'حبيب العمري': 'لغة عربية',
+    'حبيب العمري': 'اللغة العربية',
     'حمزه صدقه': 'انجليزي',
     'ساير المطيري': 'بدنية',
     'سلطان السحيمي': 'دين',
     'سلمان الحارثي': 'دين',
     'سيف العارضي': 'تربية فنية',
-    'عبدالعزيز المخلفي': 'علوم',
-    'عبدالعزيز الرويثي': 'عربي',
-    'عبدالله القرني': 'مهارات رقمية',
+    'عبدالعزيز المخلفي': 'العلوم',
+    'عبدالعزيز الرويثي': 'اللغة العربية',
+    'عبدالله القرني': 'المهارات الرقمية',
     'عبدالله الحازمي': 'رياضيات',
     
     // --- الأسماء الجديدة التي تمت إضافتها ---
@@ -1619,12 +1883,140 @@ const specialAssignments = {
     'فؤاد العتيبي': 'انجليزي',
     'عبدالله الرحيلي': 'رياضيات',
     'احمد الرشيدي': 'انجليزي',
-    'محمد ذعار': 'لغة عربية',
+    'محمد ذعار': 'اللغة العربية',
     'مشعل هليل': 'رياضيات',
     'بدر السحيمي': 'دين',
     'ابراهيم العلوي': 'اجتماعيات',
     'عبدالله مطر': 'دين'
 };
+
+        // القائمة المعتمدة للمواد الدراسية (يُبنى عليها حقل مادة كل معلم وخطة الحصص الأسبوعية)
+        const STANDARD_SUBJECTS = [
+            'اجتماعيات',
+            'العلوم',
+            'اللغة العربية',
+            'المهارات الرقمية',
+            'انجليزي',
+            'بدنية',
+            'تربية فنية',
+            'تفكير ناقد',
+            'دين',
+            'رياضيات',
+            'مهارات حياتية'
+        ];
+
+        // لتصحيح أي قيم قديمة محفوظة بصيغ مختلفة لنفس المادة (مثال: "عربي" أو "لغة عربية")
+        const SUBJECT_NAME_ALIASES = {
+            'عربي': 'اللغة العربية',
+            'لغة عربية': 'اللغة العربية',
+            'اللغة العربيه': 'اللغة العربية',
+            'اللغه العربية': 'اللغة العربية',
+            'اللغة العربيّة': 'اللغة العربية',
+            'علوم': 'العلوم',
+            'العلوم العامة': 'العلوم',
+            'مهارات رقمية': 'المهارات الرقمية',
+            'مهارات الرقمية': 'المهارات الرقمية',
+            'مهارات رقميه': 'المهارات الرقمية',
+            'المهارات الرقميه': 'المهارات الرقمية',
+            'حاسب': 'المهارات الرقمية',
+            'حاسب آلي': 'المهارات الرقمية',
+            'انجليزية': 'انجليزي',
+            'اللغة الانجليزية': 'انجليزي',
+            'اللغة الإنجليزية': 'انجليزي',
+            'اللغه الانجليزية': 'انجليزي',
+            'الانجليزي': 'انجليزي',
+            'إنجليزي': 'انجليزي',
+            'تربيه فنية': 'تربية فنية',
+            'تربية فنيه': 'تربية فنية',
+            'فنية': 'تربية فنية',
+            'رسم': 'تربية فنية',
+            'تربية بدنية': 'بدنية',
+            'تربيه بدنية': 'بدنية',
+            'رياضة': 'بدنية',
+            'الرياضيات': 'رياضيات',
+            'رياضيات ': 'رياضيات',
+            'التربية الإسلامية': 'دين',
+            'التربية الاسلامية': 'دين',
+            'تربية إسلامية': 'دين',
+            'الدين': 'دين',
+            'الاجتماعيات': 'اجتماعيات',
+            'الدراسات الاجتماعية': 'اجتماعيات',
+            'المهارات الحياتية': 'مهارات حياتية',
+            'مهارات الحياة': 'مهارات حياتية',
+            'التفكير الناقد': 'تفكير ناقد'
+        };
+
+        function normalizeSubjectName(subject) {
+            if (!subject) return subject;
+            const trimmed = subject.trim();
+            return SUBJECT_NAME_ALIASES[trimmed] || trimmed;
+        }
+
+        // يضبط قيمة قائمة "المادة" المنسدلة بأمان: إذا كانت القيمة المحفوظة (بعد التطبيع) لا تطابق
+        // أياً من المواد المعتمدة، تُضاف كخيار إضافي مؤقت بدل أن تختفي بصمت وتفرغ الحقل
+        function setSubjectSelectValueSafely(selectEl, rawValue) {
+            if (!selectEl || !rawValue) return;
+            const normalized = normalizeSubjectName(rawValue);
+            const alreadyHasOption = Array.from(selectEl.options).some(o => o.value === normalized);
+            if (!alreadyHasOption) {
+                const opt = document.createElement('option');
+                opt.value = normalized;
+                opt.textContent = `⚠️ ${normalized} (يرجى اختيار مادة معتمدة)`;
+                selectEl.appendChild(opt);
+            }
+            selectEl.value = normalized;
+        }
+
+        // يحدد المادة الفعلية التي يدرّسها المعلم في يوم/حصة معينة
+        // (يراعي الإسنادات الخاصة، ثم حقل المادة المُدخل يدوياً، ثم قائمة مواد المعلمين الافتراضية)
+        function getEffectiveSubject(teacherIndex, day, period) {
+            const teacherNameInput = document.getElementById(`teacher_${teacherIndex}`);
+            const teacherName = teacherNameInput ? teacherNameInput.value.trim() : '';
+            const key = `${day}_${period}`;
+
+            if (teacherName && specialAssignments[teacherName] && specialAssignments[teacherName][key]) {
+                return specialAssignments[teacherName][key];
+            }
+
+            const subjectInput = document.getElementById(`subject_${teacherIndex}`);
+            if (subjectInput && subjectInput.value.trim()) {
+                return subjectInput.value.trim();
+            }
+
+            if (teacherName && teacherSubjects[teacherName]) {
+                return teacherSubjects[teacherName];
+            }
+
+            return '';
+        }
+
+        function isArtEducationSubject(subject) {
+            if (!subject) return false;
+            return subject.includes('تربية فنية') || subject.includes('تربيه فنية');
+        }
+
+        // يتحقق مما إذا كانت نفس المادة مُسندة مسبقاً لنفس المعلم في نفس اليوم لنفس الفصل
+        // في حصة أخرى (باستثناء مادة التربية الفنية المسموح بتكرارها)
+        function checkSameSubjectSameDay(teacherIndex, day, period, classValue) {
+            const currentSubject = getEffectiveSubject(teacherIndex, day, period);
+            if (!currentSubject || isArtEducationSubject(currentSubject)) {
+                return null;
+            }
+
+            const maxPeriod = (day === 'thu') ? 6 : 7;
+            for (let p = 1; p <= maxPeriod; p++) {
+                if (p === period) continue;
+                const otherSelect = document.getElementById(`cell_${teacherIndex}_${day}_${p}`);
+                if (otherSelect && otherSelect.value === classValue) {
+                    const otherSubject = getEffectiveSubject(teacherIndex, day, p);
+                    if (otherSubject === currentSubject) {
+                        return { subject: currentSubject, period: p };
+                    }
+                }
+            }
+            return null;
+        }
+
         const days = ['sun', 'mon', 'tue', 'wed', 'thu'];
         const dayColors = {
             'sun': 'day-sun',
@@ -1642,18 +2034,22 @@ const specialAssignments = {
             { value: '1-4', label: '1-4', group: 'first' },
             { value: '1-5', label: '1-5', group: 'first' },
             { value: '1-6', label: '1-6', group: 'first' },
+            { value: '1-7', label: '1-7', group: 'first' },
+            { value: '1-8', label: '1-8', group: 'first' },
             { value: '2-1', label: '2-1', group: 'second' },
             { value: '2-2', label: '2-2', group: 'second' },
             { value: '2-3', label: '2-3', group: 'second' },
             { value: '2-4', label: '2-4', group: 'second' },
             { value: '2-5', label: '2-5', group: 'second' },
             { value: '2-6', label: '2-6', group: 'second' },
+            { value: '2-7', label: '2-7', group: 'second' },
             { value: '3-1', label: '3-1', group: 'third' },
             { value: '3-2', label: '3-2', group: 'third' },
             { value: '3-3', label: '3-3', group: 'third' },
             { value: '3-4', label: '3-4', group: 'third' },
             { value: '3-5', label: '3-5', group: 'third' },
             { value: '3-6', label: '3-6', group: 'third' },
+            { value: '3-7', label: '3-7', group: 'third' },
             { value: 'انتظار1', label: 'انتظار1', group: 'waiting' },
             { value: 'انتظار2', label: 'انتظار2', group: 'waiting' },
             { value: 'انتظار3', label: 'انتظار3', group: 'waiting' },
@@ -1661,6 +2057,15 @@ const specialAssignments = {
             { value: 'انتظار5', label: 'انتظار5', group: 'waiting' },
             { value: 'وهمي', label: '🚫 وهمي (ممنوع)', group: 'dummy' }
         ];
+
+        // الصف الأول لديه 8 فصول (١-٧ و ١-٨)، والصفين الثاني والثالث لديهما 7 فصول (٢-٧ و ٣-٧)
+        function getMaxClassNumForGrade(grade) {
+            const g = String(grade);
+            if (g === '1') return 8;
+            if (g === '2') return 7;
+            if (g === '3') return 7;
+            return 6;
+        }
 
         let isFirebaseReady = false;
         let isSyncing = false;
@@ -1739,6 +2144,18 @@ const specialAssignments = {
                     }
                 }
 
+                // حفظ المادة الدراسية ونصاب كل معلم
+                for (let i = 0; i < 42; i++) {
+                    const subjectInput = document.getElementById(`subject_${i}`);
+                    if (subjectInput) {
+                        data[`subject_${i}`] = subjectInput.value;
+                    }
+                    const quotaInput = document.getElementById(`quota_${i}`);
+                    if (quotaInput) {
+                        data[`quota_${i}`] = quotaInput.value;
+                    }
+                }
+
                 // حفظ بيانات الجدول
                 for (let i = 0; i < 42; i++) {
                     days.forEach(day => {
@@ -1757,6 +2174,7 @@ const specialAssignments = {
                 data.sigName = document.getElementById('sigName')?.value || '';
                 data.labTeacher1 = document.getElementById('labTeacher1')?.value || 'عبدالله القرني';
                 data.labTeacher2 = document.getElementById('labTeacher2')?.value || 'عبدالمجيد الرشيدي';
+                data.curriculumPlan = JSON.stringify(curriculumPlan);
                 data.lastUpdate = new Date().toISOString();
                 
                 const docRef = window.firestoreDoc(window.firebaseDB, 'schedules', scheduleDocId);
@@ -1777,11 +2195,38 @@ const specialAssignments = {
         }
 
         function loadDataFromObject(data) {
+            // تحميل خطة الحصص الأسبوعية لكل مادة
+            if (data.curriculumPlan) {
+                try {
+                    curriculumPlan = JSON.parse(data.curriculumPlan);
+                    migrateCurriculumPlanKeys();
+                } catch (e) {
+                    curriculumPlan = {};
+                }
+            }
+
             // تحميل أسماء المعلمين
             for (let i = 0; i < 42; i++) {
                 const input = document.getElementById(`teacher_${i}`);
                 if (input && data[`teacher_${i}`]) {
                     input.value = data[`teacher_${i}`];
+                }
+            }
+
+            // تحميل المادة الدراسية ونصاب كل معلم
+            for (let i = 0; i < 42; i++) {
+                const subjectInput = document.getElementById(`subject_${i}`);
+                if (subjectInput) {
+                    if (data[`subject_${i}`]) {
+                        setSubjectSelectValueSafely(subjectInput, data[`subject_${i}`]);
+                    } else if (!subjectInput.value && data[`teacher_${i}`] && teacherSubjects[data[`teacher_${i}`]]) {
+                        // تعبئة المادة تلقائياً إذا كان اسم المعلم معروفاً ولم تُحفظ مادة من قبل
+                        setSubjectSelectValueSafely(subjectInput, teacherSubjects[data[`teacher_${i}`]]);
+                    }
+                }
+                const quotaInput = document.getElementById(`quota_${i}`);
+                if (quotaInput && data[`quota_${i}`] !== undefined && data[`quota_${i}`] !== '') {
+                    quotaInput.value = data[`quota_${i}`];
                 }
             }
 
@@ -1792,6 +2237,7 @@ const specialAssignments = {
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
                         if (select && data[`cell_${i}_${day}_${period}`]) {
                             select.value = data[`cell_${i}_${day}_${period}`];
+                            select.dataset.prevValue = select.value;
                             
                             // تطبيق تنسيق الحصص الوهمية
                             if (select.value === 'وهمي') {
@@ -1820,9 +2266,10 @@ const specialAssignments = {
                 document.getElementById('labTeacher2').value = data.labTeacher2 || 'عبدالمجيد الرشيدي';
             }
             
+            refreshCurriculumTable();
             updateAbsentTeacherList();
-            updateClassCounts();
             checkConflicts();
+            updateClassCounts();
             checkUnassignedClasses();
             updateTeacherSelect();
         }
@@ -1922,9 +2369,15 @@ const specialAssignments = {
                 item.select.parentElement.classList.add('lab-conflict');
             });
 
-            // إظهار رسائل التنبيه
+            // إظهار رسائل التنبيه (مع الحفاظ على تنبيهات النصاب والفصول غير المسندة الظاهرة حالياً)
             const alertBox = document.getElementById('alertBox');
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = alertBox.innerHTML;
+            tempDiv.querySelectorAll('.conflict-status-alert').forEach(el => el.remove());
+            const preservedHTML = tempDiv.innerHTML;
+
             let alertHTML = '';
+            let isSuccessOnly = false;
 
             if (labConflicts.length > 0) {
                 const uniqueLabConflicts = new Set();
@@ -1933,7 +2386,7 @@ const specialAssignments = {
                 });
                 
                 alertHTML += `
-                    <div class="alert" style="background: #fff7ed; border-right-color: #f97316; color: #9a3412;">
+                    <div class="alert conflict-status-alert" style="background: #fff7ed; border-right-color: #f97316; color: #9a3412;">
                         🟠 تنبيه معمل الحاسب: يوجد ${labConflicts.length / 2} تعارض في استخدام معمل الحاسب!<br>
                         <strong>التعارضات:</strong> ${Array.from(uniqueLabConflicts).join(' | ')}
                         <br><small style="margin-top: 5px; display: block;">
@@ -1951,7 +2404,7 @@ const specialAssignments = {
                 });
                 
                 alertHTML += `
-                    <div class="alert">
+                    <div class="alert conflict-status-alert">
                         ⚠️ تنبيه: يوجد ${conflicts.length / 2} تعارض في الجدول! يرجى مراجعة الخلايا المظللة باللون الأحمر.
                     </div>
                 `;
@@ -1959,21 +2412,28 @@ const specialAssignments = {
             
             if (conflicts.length === 0 && labConflicts.length === 0) {
                 alertHTML = `
-                    <div class="alert success">
+                    <div class="alert success conflict-status-alert" id="conflictSuccessAlert">
                         ✅ ممتاز! لا يوجد أي تعارض في الجدول ولا في معمل الحاسب
                     </div>
                 `;
-                setTimeout(() => {
-                    alertBox.innerHTML = '';
-                }, 3000);
+                isSuccessOnly = true;
             }
 
-            alertBox.innerHTML = alertHTML;
+            alertBox.innerHTML = preservedHTML + alertHTML;
+
+            if (isSuccessOnly) {
+                setTimeout(() => {
+                    const el = document.getElementById('conflictSuccessAlert');
+                    if (el) el.remove();
+                }, 3000);
+            }
 
             return conflicts.length === 0 && labConflicts.length === 0;
         }
 
         function updateClassCounts() {
+            const overQuotaTeachers = [];
+
             for (let i = 0; i < 42; i++) {
                 let count = 0;
                 days.forEach(day => {
@@ -1986,9 +2446,18 @@ const specialAssignments = {
                 });
                 
                 const countCell = document.getElementById(`count_${i}`);
+                const quotaInput = document.getElementById(`quota_${i}`);
+                const teacherInput = document.getElementById(`teacher_${i}`);
+                const teacherName = teacherInput ? teacherInput.value.trim() : '';
+                const quota = quotaInput ? (parseInt(quotaInput.value) || 0) : null;
+                const isOverQuota = quota !== null && quotaInput.value !== '' && count > quota;
+
                 if (countCell) {
                     countCell.textContent = count;
-                    if (count === 0) {
+                    if (isOverQuota) {
+                        countCell.style.background = '#feb2b2';
+                        countCell.style.color = '#742a2a';
+                    } else if (count === 0) {
                         countCell.style.background = '#fed7d7';
                         countCell.style.color = '#742a2a';
                     } else if (count < 10) {
@@ -1999,14 +2468,1222 @@ const specialAssignments = {
                         countCell.style.color = '#22543d';
                     }
                 }
+
+                if (quotaInput) {
+                    quotaInput.classList.toggle('quota-exceeded', isOverQuota);
+                    quotaInput.title = isOverQuota ? 'المعلم اخذ حصص اكثر من النصاب' : '';
+                }
+
+                if (isOverQuota && teacherName) {
+                    overQuotaTeachers.push({ name: teacherName, count, quota });
+                }
             }
+
+            renderQuotaAlerts(overQuotaTeachers);
+            renderTeacherQuotaStatusList();
+        }
+
+        // يعرض تنبيهاً مجمّعاً للمعلمين الذين تجاوزوا نصابهم، دون حذف تنبيهات أخرى معروضة
+        function renderQuotaAlerts(overQuotaTeachers) {
+            const alertBox = document.getElementById('alertBox');
+            if (!alertBox) return;
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = alertBox.innerHTML;
+            tempDiv.querySelectorAll('.quota-alert').forEach(el => el.remove());
+            alertBox.innerHTML = tempDiv.innerHTML;
+
+            if (overQuotaTeachers.length === 0) return;
+
+            const itemsHTML = overQuotaTeachers
+                .map(t => `<li><strong>${t.name}</strong>: اخذ ${t.count} حصة (النصاب: ${t.quota})</li>`)
+                .join('');
+
+            const quotaAlertHTML = `
+                <div class="alert quota-alert" style="background: #fff5f5; border-right-color: #e53e3e; color: #742a2a;">
+                    🚫 تنبيه: المعلم اخذ حصص اكثر من النصاب!
+                    <ul style="margin: 10px 0 0; padding-right: 20px;">${itemsHTML}</ul>
+                </div>
+            `;
+
+            alertBox.innerHTML += quotaAlertHTML;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🔄 نظام إسناد وتوزيع المعلمين
+        // ═══════════════════════════════════════════════════════════════
+
+        let curriculumPlan = {}; // { "المادة": { g1: n, g2: n, g3: n } }
+        let lastDistributionProposal = null;
+
+        function getAllTeachersInfo() {
+            const teachers = [];
+            for (let i = 0; i < 42; i++) {
+                const nameInput = document.getElementById(`teacher_${i}`);
+                const name = nameInput ? nameInput.value.trim() : '';
+                if (!name) continue;
+                const subjectInput = document.getElementById(`subject_${i}`);
+                const subject = subjectInput && subjectInput.value.trim() ? subjectInput.value.trim() : (teacherSubjects[name] || '');
+                const quotaInput = document.getElementById(`quota_${i}`);
+                const quota = quotaInput ? (parseInt(quotaInput.value) || 0) : 0;
+                teachers.push({ index: i, name, subject, quota });
+            }
+            return teachers;
+        }
+
+        // يفحص وجود معلمين بلا مادة محددة، أو بمادة غير معتمدة (خيار ⚠️ احتياطي)، ويعرض تنبيهاً واضحاً بدل الفشل الصامت
+        function renderSubjectIntegrityWarning() {
+            const container = document.getElementById('subjectIntegrityWarning');
+            if (!container) return;
+
+            const missing = [];
+            const nonStandard = [];
+            for (let i = 0; i < 42; i++) {
+                const nameInput = document.getElementById(`teacher_${i}`);
+                const name = nameInput ? nameInput.value.trim() : '';
+                if (!name) continue;
+                const subjectInput = document.getElementById(`subject_${i}`);
+                const value = subjectInput ? subjectInput.value : '';
+                if (!value) {
+                    missing.push(name);
+                } else if (!STANDARD_SUBJECTS.includes(value)) {
+                    nonStandard.push(`${name} (${value})`);
+                }
+            }
+
+            if (missing.length === 0 && nonStandard.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="alert" style="background:#fff5f5; border-right-color:#e53e3e; color:#742a2a; margin-bottom: 10px;">';
+            html += '<strong>⚠️ تنبيه: لن يشارك هؤلاء المعلمون في التوزيع التلقائي حتى تُحدَّد لهم مادة معتمدة من القائمة أمام اسم كل منهم في الجدول الرئيسي:</strong>';
+            if (missing.length > 0) {
+                html += `<div style="margin-top:8px;">🔲 بلا مادة محددة: ${missing.join('، ')}</div>`;
+            }
+            if (nonStandard.length > 0) {
+                html += `<div style="margin-top:8px;">⚠️ مادة غير معتمدة (يلزم إعادة الاختيار من القائمة): ${nonStandard.join('، ')}</div>`;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function getRealClassList() {
+            return classOptions
+                .filter(c => c.value && c.value !== 'وهمي' && !c.value.startsWith('انتظار'))
+                .map(c => c.value);
+        }
+
+        function getGradeFromClass(classValue) {
+            return classValue.split('-')[0];
+        }
+
+        function getMaxPeriodsForDay(day) {
+            return day === 'thu' ? 6 : 7;
+        }
+
+        function getCurrentAssignedCount(teacherIndex) {
+            let count = 0;
+            days.forEach(day => {
+                const maxP = getMaxPeriodsForDay(day);
+                for (let period = 1; period <= maxP; period++) {
+                    const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
+                    if (select && select.value && !select.value.startsWith('انتظار') && select.value !== 'وهمي') {
+                        count++;
+                    }
+                }
+            });
+            return count;
+        }
+
+        function getQuotaStatus(assigned, quota) {
+            if (!quota || quota <= 0) return { icon: '⚪', label: 'بدون نصاب محدد', cls: 'status-low' };
+            if (assigned > quota) return { icon: '🔴', label: 'تجاوز النصاب', cls: 'status-over' };
+            if (assigned === quota || assigned >= quota * 0.8) return { icon: '🟢', label: assigned === quota ? 'مكتمل' : 'ضمن الحد المطلوب', cls: 'status-ok' };
+            return { icon: '🟡', label: 'أقل من النصاب', cls: 'status-low' };
+        }
+
+        // ─── خطة الحصص الأسبوعية لكل مادة ───
+
+        function getKnownSubjectsList() {
+            const subjects = new Set();
+            for (let i = 0; i < 42; i++) {
+                const subjectInput = document.getElementById(`subject_${i}`);
+                if (subjectInput && subjectInput.value.trim()) {
+                    subjects.add(subjectInput.value.trim());
+                }
+            }
+            Object.values(teacherSubjects).forEach(s => { if (s) subjects.add(s); });
+            return Array.from(subjects).sort((a, b) => a.localeCompare(b, 'ar'));
+        }
+
+        function refreshCurriculumTable() {
+            const subjects = getKnownSubjectsList();
+            const tbody = document.getElementById('curriculumTableBody');
+            if (!tbody) return;
+
+            if (subjects.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="padding:15px; text-align:center; color:#a0aec0;">لا توجد مواد مُدخلة بعد. أدخل مادة كل معلم في الجدول الرئيسي أولاً.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = subjects.map(subject => {
+                const plan = curriculumPlan[subject] || {};
+                return `
+                    <tr>
+                        <td style="padding:8px; border:1px solid #cbd5e0; font-weight:bold;">${subject}</td>
+                        <td style="padding:8px; border:1px solid #cbd5e0; text-align:center;">
+                            <input type="number" min="0" class="teacher-input curriculum-input" style="width:80px; text-align:center;"
+                                data-subject="${subject}" data-grade="g1" value="${plan.g1 ?? ''}">
+                        </td>
+                        <td style="padding:8px; border:1px solid #cbd5e0; text-align:center;">
+                            <input type="number" min="0" class="teacher-input curriculum-input" style="width:80px; text-align:center;"
+                                data-subject="${subject}" data-grade="g2" value="${plan.g2 ?? ''}">
+                        </td>
+                        <td style="padding:8px; border:1px solid #cbd5e0; text-align:center;">
+                            <input type="number" min="0" class="teacher-input curriculum-input" style="width:80px; text-align:center;"
+                                data-subject="${subject}" data-grade="g3" value="${plan.g3 ?? ''}">
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function saveCurriculumPlan() {
+            document.querySelectorAll('.curriculum-input').forEach(input => {
+                const subject = input.dataset.subject;
+                const grade = input.dataset.grade;
+                if (!curriculumPlan[subject]) curriculumPlan[subject] = {};
+                curriculumPlan[subject][grade] = input.value === '' ? '' : (parseInt(input.value) || 0);
+            });
+            migrateCurriculumPlanKeys();
+            saveData();
+            saveToFirebase();
+            refreshCurriculumTable();
+            alert('✅ تم حفظ خطة الحصص الأسبوعية بنجاح!');
+        }
+
+        function getSubjectPeriodsForGrade(subject, grade) {
+            const plan = curriculumPlan[subject];
+            if (!plan) return 0;
+            return parseInt(plan['g' + grade]) || 0;
+        }
+
+        // يُصحّح مفاتيح خطة الحصص القديمة/غير القياسية (مثال: "عربي" أو "لغة عربية") بدمجها
+        // في اسم المادة المعتمد، حتى لا يبقى مفتاح قديم منفصلاً لا يطابقه أي معلم فيتسبب
+        // بتحذيرات "لا يوجد معلم" خاطئة رغم وجود معلم فعلي تحت الاسم الصحيح
+        function migrateCurriculumPlanKeys() {
+            const migrated = {};
+            Object.keys(curriculumPlan).forEach(rawKey => {
+                const canonical = normalizeSubjectName(rawKey);
+                const rawPlan = curriculumPlan[rawKey] || {};
+                if (!migrated[canonical]) migrated[canonical] = { g1: '', g2: '', g3: '' };
+                ['g1', 'g2', 'g3'].forEach(g => {
+                    const rawVal = rawPlan[g];
+                    if (rawVal !== undefined && rawVal !== '' && (migrated[canonical][g] === '' || migrated[canonical][g] === undefined)) {
+                        migrated[canonical][g] = rawVal;
+                    }
+                });
+            });
+            curriculumPlan = migrated;
+        }
+
+        // ─── محرك التوزيع التلقائي ───
+
+        function shuffleArray(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function buildOccupancyFromRealSchedule() {
+            const teacherBusy = new Set();
+            const classBusy = new Set();
+            for (let i = 0; i < 42; i++) {
+                days.forEach(day => {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value) {
+                            teacherBusy.add(`${i}_${day}_${period}`);
+                            if (!select.value.startsWith('انتظار') && select.value !== 'وهمي') {
+                                classBusy.add(`${select.value}_${day}_${period}`);
+                            }
+                        }
+                    }
+                });
+            }
+            return { teacherBusy, classBusy };
+        }
+
+        function isPhysicalEducationSubject(subject) {
+            return !!subject && subject.includes('بدني');
+        }
+
+        // قيود صارمة على مكان الحصة (بغض النظر عن انشغال المعلم/الفصل):
+        // - لا حصة سابعة يوم الأربعاء
+        // - مادة الرياضيات لا تُوضع في الحصة السادسة أو السابعة
+        function isSlotAllowedForAutoPlacement(day, period, subject) {
+            if (day === 'wed' && period === 7) return false;
+            if (subject === 'رياضيات' && (period === 6 || period === 7)) return false;
+            return true;
+        }
+
+        // يبني خريطة (يوم موجود بها فعلاً حصص هذا المعلم) للتحقق من طول أطول متتالية حصص
+        // إذا أضفنا حصة جديدة في period ضمن نفس اليوم — يُستخدم كقيد مرن (نتجنبه قدر الإمكان)
+        function wouldCreateLongConsecutiveRun(teacherIndex, day, period, occupancy, maxAllowed) {
+            const maxP = getMaxPeriodsForDay(day);
+            const busy = new Set();
+            for (let p = 1; p <= maxP; p++) {
+                if (occupancy.teacherBusy.has(`${teacherIndex}_${day}_${p}`)) busy.add(p);
+            }
+            busy.add(period);
+
+            let run = 1;
+            let p = period - 1;
+            while (busy.has(p)) { run++; p--; }
+            p = period + 1;
+            while (busy.has(p)) { run++; p++; }
+            return run > maxAllowed;
+        }
+
+        // يحاول توزيع "count" حصة لمعلم/فصل/مادة معينة عبر أيام الأسبوع مراعياً:
+        // - قيود صارمة: لا حصة سابعة يوم الأربعاء، الرياضيات ليست في الحصة 6 أو 7،
+        // - قيود مرنة (قدر الإمكان): تجنب أكثر من 4 حصص متتالية للمعلم دون فراغ،
+        //   وللتربية البدنية: تقليل تعارض فصلين بنفس الوقت، وإن تعذر يُفضَّل أن يكون التعارض بين فصول من نفس الصف
+        function placeRequirementPeriods(teacherIndex, classValue, grade, subject, count, occupancy, peUsage, classPeriodUsage) {
+            const placements = [];
+            let remaining = count;
+            const isArt = isArtEducationSubject(subject);
+            const isPE = isPhysicalEducationSubject(subject);
+            const dayCap = isArt ? 2 : 1;
+
+            const perDayCount = {};
+            days.forEach(d => perDayCount[d] = 0);
+            getAssignedPeriodsForClassSubject(classValue, subject).forEach(a => {
+                perDayCount[a.day] = (perDayCount[a.day] || 0) + 1;
+            });
+
+            if (!classPeriodUsage.has(classValue)) {
+                classPeriodUsage.set(classValue, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 });
+            }
+            const periodBalance = classPeriodUsage.get(classValue);
+
+            const dayOrder = shuffleArray([...days]);
+
+            function collectCandidates(allowDayCapBreach, allowConsecutiveBreach) {
+                const candidates = [];
+                dayOrder.forEach(day => {
+                    if (!allowDayCapBreach && perDayCount[day] >= dayCap) return;
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        if (!isSlotAllowedForAutoPlacement(day, period, subject)) continue;
+                        const tKey = `${teacherIndex}_${day}_${period}`;
+                        const cKey = `${classValue}_${day}_${period}`;
+                        if (occupancy.teacherBusy.has(tKey)) continue;
+                        if (occupancy.classBusy.has(cKey)) continue;
+
+                        const breaksConsecutive = wouldCreateLongConsecutiveRun(teacherIndex, day, period, occupancy, 4);
+                        if (breaksConsecutive && !allowConsecutiveBreach) continue;
+
+                        let score = 0;
+                        if (breaksConsecutive) score -= 10;
+                        score -= perDayCount[day];
+                        // نفضل الحصص الأقل استخداماً لهذا الفصل عبر كل المواد، لتوزيع الحصص على
+                        // كامل حصص اليوم (1-7) بدل تكديسها في الحصص الأولى دائماً
+                        score -= (periodBalance[period] || 0) * 2;
+
+                        if (isPE) {
+                            const key = `${day}_${period}`;
+                            const existing = peUsage.get(key) || [];
+                            if (existing.length === 0) {
+                                score += 5;
+                            } else {
+                                const sameGrade = existing.every(e => e.grade === grade);
+                                score += sameGrade ? 1 : -5;
+                            }
+                        }
+
+                        candidates.push({ day, period, score });
+                    }
+                });
+                candidates.sort((a, b) => b.score - a.score);
+                return candidates;
+            }
+
+            let stage = 0; // 0: احترام كل القيود، 1: السماح بكسر قاعدة التتالي، 2: السماح أيضاً بتكرار المادة باليوم (حل أخير)
+            let candidates = collectCandidates(false, false);
+
+            while (remaining > 0) {
+                if (candidates.length === 0) {
+                    if (stage === 0) {
+                        // القيد الوحيد الذي نُخفّفه كحل أخير هو تفضيل عدم التتالي (قيد مرن بطبيعته)؛
+                        // (إلا للتربية الفنية المسموح لها أصلاً بحد أقصى حصتين عبر dayCap)،
+                        // فإن تعذر الإسناد ضمن هذا الحد تبقى الحصص المتبقية غير مُسندة ويُبلَّغ عنها كتحذير
+                        stage = 1;
+                        candidates = collectCandidates(false, true);
+                    } else {
+                        break;
+                    }
+                    continue;
+                }
+
+                const choice = candidates.shift();
+                const tKey = `${teacherIndex}_${choice.day}_${choice.period}`;
+                const cKey = `${classValue}_${choice.day}_${choice.period}`;
+                if (occupancy.teacherBusy.has(tKey) || occupancy.classBusy.has(cKey)) continue;
+
+                occupancy.teacherBusy.add(tKey);
+                occupancy.classBusy.add(cKey);
+                perDayCount[choice.day] = (perDayCount[choice.day] || 0) + 1;
+                periodBalance[choice.period] = (periodBalance[choice.period] || 0) + 1;
+                placements.push({ day: choice.day, period: choice.period });
+                remaining--;
+
+                if (isPE) {
+                    const key = `${choice.day}_${choice.period}`;
+                    if (!peUsage.has(key)) peUsage.set(key, []);
+                    peUsage.get(key).push({ classValue, grade });
+                }
+
+                if (remaining > 0) {
+                    candidates = collectCandidates(false, stage >= 1);
+                }
+            }
+
+            return { placements, unplaced: remaining };
+        }
+
+        function runAutoDistribution() {
+            renderSubjectIntegrityWarning();
+
+            const teachersInfo = getAllTeachersInfo();
+            if (teachersInfo.length === 0) {
+                alert('⚠️ لا يوجد معلمون مُدخلون بأسمائهم في الجدول الرئيسي. أضف أسماء المعلمين أولاً.');
+                return;
+            }
+
+            if (Object.keys(curriculumPlan).length === 0) {
+                alert('⚠️ لم يتم إدخال خطة حصص أسبوعية لأي مادة بعد.\n\nالرجاء تعبئة "خطة الحصص الأسبوعية لكل مادة" أولاً ثم الضغط على "حفظ خطة الحصص".');
+                return;
+            }
+
+            const classes = getRealClassList();
+            const requirements = [];
+
+            classes.forEach(classValue => {
+                const grade = getGradeFromClass(classValue);
+                Object.keys(curriculumPlan).forEach(subject => {
+                    const periods = getSubjectPeriodsForGrade(subject, grade);
+                    if (periods <= 0) return;
+
+                    let alreadyAssigned = 0;
+                    teachersInfo.forEach(t => {
+                        if (t.subject !== subject) return;
+                        days.forEach(day => {
+                            const maxP = getMaxPeriodsForDay(day);
+                            for (let period = 1; period <= maxP; period++) {
+                                const select = document.getElementById(`cell_${t.index}_${day}_${period}`);
+                                if (select && select.value === classValue) alreadyAssigned++;
+                            }
+                        });
+                    });
+
+                    requirements.push({
+                        classValue, grade, subject,
+                        totalPeriods: periods,
+                        alreadyAssigned,
+                        stillNeeded: Math.max(0, periods - alreadyAssigned)
+                    });
+                });
+            });
+
+            if (requirements.length === 0) {
+                alert('⚠️ لم يتم إيجاد أي متطلبات حصص وفق خطة الحصص الحالية والفصول الموجودة.');
+                return;
+            }
+
+            const teacherCountBySubject = {};
+            teachersInfo.forEach(t => {
+                teacherCountBySubject[t.subject] = (teacherCountBySubject[t.subject] || 0) + 1;
+            });
+
+            // بدل تفريغ كل حصص مادة واحدة على كل الفصول قبل الانتقال لمادة أخرى (ما قد "يُجوّع" فصولاً
+            // تُعالج متأخراً)، نُعالج المتطلبات على شكل "جولات": حصة واحدة من كل مادة (بترتيب الندرة)
+            // في كل جولة، بالتناوب على الفصول، حتى لا تستهلك مادة واحدة كل وقت فصل معين مبكراً
+            function buildRoundRobinOrder(reqs) {
+                const bySubject = {};
+                reqs.forEach(req => {
+                    if (!bySubject[req.subject]) bySubject[req.subject] = [];
+                    bySubject[req.subject].push(req);
+                });
+                const subjectsInOrder = Object.keys(bySubject).sort(
+                    (a, b) => (teacherCountBySubject[a] || 0) - (teacherCountBySubject[b] || 0)
+                );
+                const ordered = [];
+                let remaining = true;
+                while (remaining) {
+                    remaining = false;
+                    for (const subject of subjectsInOrder) {
+                        const list = bySubject[subject];
+                        if (list.length > 0) {
+                            ordered.push(list.shift());
+                            remaining = true;
+                        }
+                    }
+                }
+                return ordered;
+            }
+
+            const orderedRequirements = buildRoundRobinOrder(requirements);
+
+            // تحذير مبكر: إن كان إجمالي الحصص الأسبوعية المطلوبة لصف معين يتجاوز عدد الأوقات
+            // المتاحة فعلياً للتوزيع التلقائي (33 حصة كحد أقصى بعد استبعاد حصة الأربعاء السابعة)
+            // فسيتعذر إسناد كل الحصص مهما بلغت كفاءة الخوارزمية، ويجب تنبيه المستخدم بذلك صراحة
+            const MAX_AUTO_SLOTS_PER_CLASS = 33;
+            const overSubscriptionWarnings = [];
+            ['1', '2', '3'].forEach(grade => {
+                let total = 0;
+                Object.keys(curriculumPlan).forEach(subject => {
+                    total += getSubjectPeriodsForGrade(subject, grade);
+                });
+                if (total > MAX_AUTO_SLOTS_PER_CLASS) {
+                    const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
+                    overSubscriptionWarnings.push(
+                        `⚠️ إجمالي حصص خطة الصف ${gradeNames[grade]} (${total} حصة/أسبوع) يتجاوز الحد الأقصى المتاح فعلياً للتوزيع (${MAX_AUTO_SLOTS_PER_CLASS} حصة)، لذا سيتعذر إسناد كل الحصص لبعض فصول هذا الصف مهما حاول النظام. يُنصح بمراجعة "خطة الحصص الأسبوعية".`
+                    );
+                }
+            });
+
+            const occupancy = buildOccupancyFromRealSchedule();
+            const stagedByCell = new Map();
+            const peUsage = new Map(); // day_period -> [{classValue, grade}] لتتبع تعارضات التربية البدنية عبر كامل عملية التوزيع
+            teachersInfo.filter(t => isPhysicalEducationSubject(t.subject)).forEach(t => {
+                days.forEach(day => {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        const select = document.getElementById(`cell_${t.index}_${day}_${period}`);
+                        if (select && select.value && !select.value.startsWith('انتظار') && select.value !== 'وهمي') {
+                            const key = `${day}_${period}`;
+                            if (!peUsage.has(key)) peUsage.set(key, []);
+                            peUsage.get(key).push({ classValue: select.value, grade: getGradeFromClass(select.value) });
+                        }
+                    }
+                });
+            });
+            const loadTracker = {};
+            teachersInfo.forEach(t => { loadTracker[t.index] = getCurrentAssignedCount(t.index); });
+
+            // تتبع استخدام كل رقم حصة (1-7) لكل فصل عبر كامل عملية التوزيع، لتوزيع الحصص على
+            // كامل اليوم الدراسي بدل تكديسها في الحصص الأولى فقط - مُهيّأ ببيانات الجدول الحالية أولاً
+            const classPeriodUsage = new Map();
+            classes.forEach(classValue => {
+                const balance = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
+                for (let i = 0; i < 42; i++) {
+                    days.forEach(day => {
+                        const maxP = getMaxPeriodsForDay(day);
+                        for (let period = 1; period <= maxP; period++) {
+                            const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                            if (select && select.value === classValue) {
+                                balance[period] = (balance[period] || 0) + 1;
+                            }
+                        }
+                    });
+                }
+                classPeriodUsage.set(classValue, balance);
+            });
+
+            const classAssignments = [];
+            const warnings = [];
+
+            orderedRequirements.forEach(req => {
+                if (req.stillNeeded <= 0) {
+                    classAssignments.push({
+                        classValue: req.classValue, grade: req.grade, subject: req.subject,
+                        teacherIndex: null, teacherName: '(مُسند مسبقاً بالكامل)',
+                        assignedPeriods: req.alreadyAssigned, neededPeriods: req.totalPeriods
+                    });
+                    return;
+                }
+
+                const candidates = teachersInfo.filter(t => t.subject === req.subject);
+                if (candidates.length === 0) {
+                    warnings.push(`⚠️ لا يوجد معلم لمادة "${req.subject}" (مطلوبة لفصل ${req.classValue})`);
+                    classAssignments.push({
+                        classValue: req.classValue, grade: req.grade, subject: req.subject,
+                        teacherIndex: null, teacherName: '❌ لا يوجد معلم',
+                        assignedPeriods: req.alreadyAssigned, neededPeriods: req.totalPeriods
+                    });
+                    return;
+                }
+
+                candidates.sort((a, b) => {
+                    const ratioA = a.quota > 0 ? loadTracker[a.index] / a.quota : loadTracker[a.index];
+                    const ratioB = b.quota > 0 ? loadTracker[b.index] / b.quota : loadTracker[b.index];
+                    return ratioA - ratioB;
+                });
+
+                let finalChoice = null;
+                let bestPartial = null;
+
+                for (const candidate of candidates) {
+                    const result = placeRequirementPeriods(candidate.index, req.classValue, req.grade, req.subject, req.stillNeeded, occupancy, peUsage, classPeriodUsage);
+                    if (result.placements.length === req.stillNeeded) {
+                        finalChoice = { candidate, result };
+                        break;
+                    }
+                    result.placements.forEach(p => {
+                        occupancy.teacherBusy.delete(`${candidate.index}_${p.day}_${p.period}`);
+                        occupancy.classBusy.delete(`${req.classValue}_${p.day}_${p.period}`);
+                        const balance = classPeriodUsage.get(req.classValue);
+                        if (balance && balance[p.period]) balance[p.period]--;
+                        if (isPhysicalEducationSubject(req.subject)) {
+                            const key = `${p.day}_${p.period}`;
+                            const arr = peUsage.get(key);
+                            if (arr) {
+                                const idx = arr.findIndex(e => e.classValue === req.classValue && e.grade === req.grade);
+                                if (idx !== -1) arr.splice(idx, 1);
+                                if (arr.length === 0) peUsage.delete(key);
+                            }
+                        }
+                    });
+                    if (!bestPartial || result.placements.length > bestPartial.placedCount) {
+                        bestPartial = { candidate, placedCount: result.placements.length };
+                    }
+                }
+
+                if (!finalChoice && bestPartial) {
+                    const reapply = placeRequirementPeriods(bestPartial.candidate.index, req.classValue, req.grade, req.subject, req.stillNeeded, occupancy, peUsage, classPeriodUsage);
+                    finalChoice = { candidate: bestPartial.candidate, result: reapply };
+                }
+
+                if (finalChoice) {
+                    const { candidate, result } = finalChoice;
+                    result.placements.forEach(p => {
+                        stagedByCell.set(`${candidate.index}_${p.day}_${p.period}`, req.classValue);
+                    });
+                    loadTracker[candidate.index] += result.placements.length;
+
+                    if (result.unplaced > 0) {
+                        warnings.push(`⚠️ تعذر توزيع ${result.unplaced} من أصل ${req.stillNeeded} حصة لمادة "${req.subject}" لفصل ${req.classValue} بسبب تعارضات الجدول`);
+                    }
+
+                    classAssignments.push({
+                        classValue: req.classValue, grade: req.grade, subject: req.subject,
+                        teacherIndex: candidate.index, teacherName: candidate.name,
+                        assignedPeriods: req.alreadyAssigned + result.placements.length,
+                        neededPeriods: req.totalPeriods
+                    });
+                }
+            });
+
+            const teacherReport = teachersInfo.map(t => {
+                const assigned = loadTracker[t.index];
+                return { index: t.index, name: t.name, subject: t.subject, quota: t.quota, assigned, diff: assigned - t.quota };
+            });
+            teacherReport.forEach(t => {
+                if (t.quota > 0 && t.assigned > t.quota) {
+                    warnings.push(`⚠️ المعلم ${t.name} تجاوز نصابه بـ ${t.assigned - t.quota} حصة (${t.assigned} من ${t.quota})`);
+                }
+            });
+            classAssignments.forEach(ca => {
+                if (ca.teacherIndex !== null && ca.assignedPeriods < ca.neededPeriods) {
+                    warnings.push(`⚠️ فصل ${ca.classValue} - مادة ${ca.subject}: تم إسناد ${ca.assignedPeriods} من ${ca.neededPeriods} حصة فقط`);
+                }
+            });
+
+            lastDistributionProposal = {
+                stagedByCell,
+                teacherReport,
+                classAssignments,
+                warnings: [...overSubscriptionWarnings, ...warnings]
+            };
+            renderDistributionReview();
+        }
+
+        // ─── شاشة المراجعة ───
+
+        function renderDistributionReview() {
+            if (!lastDistributionProposal) return;
+            const { teacherReport, classAssignments, warnings, stagedByCell } = lastDistributionProposal;
+
+            const conflictCheck = validateStagedForConflicts(stagedByCell);
+            const conflictBanner = conflictCheck.length === 0
+                ? `<div class="alert success" style="margin-bottom:10px;">🛡️ تم التحقق: لا يوجد أي تعارض في المعلمين أو الفصول ضمن هذا الاقتراح.</div>`
+                : `<div class="alert" style="background:#fff5f5; border-right-color:#e53e3e; color:#742a2a; margin-bottom:10px;">
+                       <strong>🚫 تنبيه: تم رصد ${conflictCheck.length} تعارض — لن يُقبل الاعتماد حتى تتم إعادة التوزيع:</strong>
+                       <ul style="margin:10px 0 0; padding-right:20px; max-height:150px; overflow-y:auto;">
+                           ${conflictCheck.slice(0, 10).map(c => `<li>${c}</li>`).join('')}
+                       </ul>
+                   </div>`;
+
+            const warningsBox = document.getElementById('distributionWarningsBox');
+            if (warnings.length === 0) {
+                warningsBox.innerHTML = conflictBanner + `<div class="alert success">✅ تم اقتراح توزيع لـ ${stagedByCell.size} حصة دون أي تحذيرات تُذكر.</div>`;
+            } else {
+                warningsBox.innerHTML = conflictBanner + `
+                    <div class="alert" style="background:#fff5f5; border-right-color:#e53e3e; color:#742a2a;">
+                        <strong>⚠️ تحذيرات (${warnings.length}) — تم اقتراح ${stagedByCell.size} حصة:</strong>
+                        <ul style="margin:10px 0 0; padding-right:20px; max-height:200px; overflow-y:auto;">
+                            ${warnings.map(w => `<li>${w}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            const teachersBody = document.getElementById('reviewTeachersBody');
+            teachersBody.innerHTML = teacherReport.map(t => {
+                const diffColor = t.diff > 0 ? '#e53e3e' : (t.diff < 0 ? '#d69e2e' : '#38a169');
+                const diffText = t.diff > 0 ? `+${t.diff}` : t.diff;
+                return `
+                    <tr>
+                        <td style="padding:6px; border:1px solid #e2e8f0;">${t.name}</td>
+                        <td style="padding:6px; border:1px solid #e2e8f0;">${t.subject || '-'}</td>
+                        <td style="padding:6px; border:1px solid #e2e8f0; text-align:center;">${t.quota}</td>
+                        <td style="padding:6px; border:1px solid #e2e8f0; text-align:center;">${t.assigned}</td>
+                        <td style="padding:6px; border:1px solid #e2e8f0; text-align:center; color:${diffColor}; font-weight:bold;">${diffText}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const classesBody = document.getElementById('reviewClassesBody');
+            const sortedClasses = [...classAssignments].sort((a, b) =>
+                a.classValue.localeCompare(b.classValue, 'ar', { numeric: true }) || a.subject.localeCompare(b.subject, 'ar')
+            );
+            classesBody.innerHTML = sortedClasses.map(ca => {
+                const gradeNames = { '1': 'الأول', '2': 'الثاني', '3': 'الثالث' };
+                const complete = ca.assignedPeriods >= ca.neededPeriods;
+                return `
+                    <tr style="${complete ? '' : 'background:#fffaf0;'}">
+                        <td style="padding:6px; border:1px solid #e2e8f0;">${gradeNames[ca.grade] || ca.grade}</td>
+                        <td style="padding:6px; border:1px solid #e2e8f0;">${ca.classValue}</td>
+                        <td style="padding:6px; border:1px solid #e2e8f0;">${ca.subject}</td>
+                        <td style="padding:6px; border:1px solid #e2e8f0;">${ca.teacherName}</td>
+                        <td style="padding:6px; border:1px solid #e2e8f0; text-align:center; ${complete ? '' : 'color:#c05621; font-weight:bold;'}">${ca.assignedPeriods} / ${ca.neededPeriods}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('distributionReviewOverlay').classList.add('active');
+        }
+
+        function closeDistributionReview() {
+            document.getElementById('distributionReviewOverlay').classList.remove('active');
+        }
+
+        // تحقق نهائي وصارم قبل أي اعتماد فعلي: يفحص أن كل خانة مُقترحة ما زالت فارغة فعلاً في الجدول
+        // الحالي (لم تتغير منذ إنشاء الاقتراح)، وأن الفصل نفسه غير محجوز في نفس الوقت من معلم آخر
+        // في الجدول الفعلي، وأن الاقتراح نفسه لا يحتوي على تعارض داخلي (فصل واحد لمعلمين بنفس الوقت).
+        // هذا حاجز أمان إضافي فوق منطق البناء (الذي يمنع التعارض أصلاً)، فلا يُكتب أي شيء إطلاقاً
+        // إن وُجد أي تعارض حقيقي — إما اعتماد كامل نظيف، أو رفض كامل مع تفسير واضح.
+        function validateStagedForConflicts(stagedByCell) {
+            const conflicts = [];
+            const classSlotMap = new Map(); // "classValue_day_period" -> [teacherIndex, ...]
+
+            stagedByCell.forEach((classValue, key) => {
+                const [i, day, period] = key.split('_');
+
+                // 1) خانة المعلم نفسها يجب أن تكون ما زالت فارغة فعلياً في الجدول الحقيقي
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (!select) {
+                    conflicts.push(`تعذر إيجاد الخانة المستهدفة (${key}).`);
+                    return;
+                }
+                if (select.value) {
+                    const teacherName = document.getElementById(`teacher_${i}`)?.value || `معلم ${parseInt(i) + 1}`;
+                    conflicts.push(`خانة المعلم ${teacherName} في ${getDayName(day)} - الحصة ${period} أصبحت مشغولة (${select.value}) منذ إعداد الاقتراح.`);
+                }
+
+                // 2) الفصل نفسه يجب ألا يكون محجوزاً بالفعل من معلم آخر في نفس الوقت ضمن الجدول الحقيقي
+                for (let ti = 0; ti < 42; ti++) {
+                    if (String(ti) === String(i)) continue;
+                    const otherSelect = document.getElementById(`cell_${ti}_${day}_${period}`);
+                    if (otherSelect && otherSelect.value === classValue) {
+                        conflicts.push(`الفصل ${classValue} مُسند بالفعل في ${getDayName(day)} - الحصة ${period} لمعلم آخر.`);
+                    }
+                }
+
+                // 3) لا يجوز أن يتنازع أكثر من معلم داخل الاقتراح نفسه على نفس الفصل بنفس الوقت
+                const classSlotKey = `${classValue}_${day}_${period}`;
+                if (!classSlotMap.has(classSlotKey)) classSlotMap.set(classSlotKey, []);
+                classSlotMap.get(classSlotKey).push(i);
+            });
+
+            classSlotMap.forEach((teacherIndexes, slotKey) => {
+                if (new Set(teacherIndexes).size > 1) {
+                    const [classValue, day, period] = slotKey.split('_');
+                    conflicts.push(`تعارض داخلي في الاقتراح: أكثر من معلم مُقترح لنفس الفصل ${classValue} في ${getDayName(day)} - الحصة ${period}.`);
+                }
+            });
+
+            return conflicts;
+        }
+
+        function commitDistribution() {
+            if (!lastDistributionProposal) return;
+
+            const conflicts = validateStagedForConflicts(lastDistributionProposal.stagedByCell);
+            if (conflicts.length > 0) {
+                alert(
+                    `🚫 تم رفض الاعتماد لحماية الجدول من التعارض!\n\n` +
+                    `اكتُشف ${conflicts.length} تعارض محتمل قبل الحفظ:\n\n` +
+                    conflicts.slice(0, 8).join('\n') +
+                    (conflicts.length > 8 ? `\n... و${conflicts.length - 8} حالة أخرى` : '') +
+                    `\n\nلم يتم إسناد أي حصة. يرجى الضغط على "🔀 إعادة توزيع" لإنشاء اقتراح جديد متوافق مع الوضع الحالي للجدول.`
+                );
+                return;
+            }
+
+            let count = 0;
+            lastDistributionProposal.stagedByCell.forEach((classValue, key) => {
+                const [i, day, period] = key.split('_');
+                const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                if (select && !select.value) {
+                    select.value = classValue;
+                    select.dataset.prevValue = classValue;
+                    count++;
+                }
+            });
+
+            closeDistributionReview();
+            checkConflicts();
+            updateClassCounts();
+            checkUnassignedClasses();
+            saveData();
+            saveToFirebase();
+            renderTeacherQuotaStatusList();
+
+            alert(`✅ تم اعتماد التوزيع بنجاح، بلا أي تعارض!\n\nتم إسناد ${count} حصة جديدة إلى الجدول.`);
+            lastDistributionProposal = null;
+        }
+
+        function editManuallyFromReview() {
+            closeDistributionReview();
+            switchTab('assign');
+        }
+
+        function redistributeFromReview() {
+            runAutoDistribution();
+        }
+
+        // ─── مؤشر حالة أنصبة المعلمين ───
+
+        function renderTeacherQuotaStatusList() {
+            const container = document.getElementById('teacherQuotaStatusList');
+            if (!container) return;
+
+            const teachersInfo = getAllTeachersInfo();
+            if (teachersInfo.length === 0) {
+                container.innerHTML = '<p style="color:#a0aec0;">لا يوجد معلمون مُدخلون بعد.</p>';
+                return;
+            }
+
+            container.innerHTML = teachersInfo.map(t => {
+                const assigned = getCurrentAssignedCount(t.index);
+                const status = getQuotaStatus(assigned, t.quota);
+                return `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:white; border:1px solid #e2e8f0; border-radius:8px; padding:10px 15px; margin-bottom:6px;">
+                        <div>
+                            <strong>${t.name}</strong>
+                            <span style="color:#718096; font-size:13px;"> — ${t.subject || 'بدون مادة'}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-weight:bold;">${assigned} / ${t.quota || '؟'}</span>
+                            <span class="status-badge ${status.cls}">${status.icon} ${status.label}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ─── الإسناد اليدوي ───
+
+        function populateManualAssignGradeDependent() {
+            onManualAssignGradeChange();
+        }
+
+        function onManualAssignGradeChange() {
+            const grade = document.getElementById('manualAssignGrade').value;
+            const classSelect = document.getElementById('manualAssignClass');
+            classSelect.innerHTML = '<option value="">-- اختر الفصل --</option>';
+            if (grade) {
+                const maxNum = getMaxClassNumForGrade(grade);
+                for (let i = 1; i <= maxNum; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = `${grade}-${i}`;
+                    opt.textContent = `${grade}-${i}`;
+                    classSelect.appendChild(opt);
+                }
+            }
+            document.getElementById('manualAssignSubject').innerHTML = '<option value="">-- اختر المادة --</option>';
+            document.getElementById('manualAssignTeachersList').innerHTML = '';
+            const assignedListElG = document.getElementById('manualAssignAssignedList');
+            if (assignedListElG) assignedListElG.innerHTML = '';
+        }
+
+        function onManualAssignClassChange() {
+            const grade = document.getElementById('manualAssignGrade').value;
+            const subjectSelect = document.getElementById('manualAssignSubject');
+            subjectSelect.innerHTML = '<option value="">-- اختر المادة --</option>';
+            if (grade) {
+                const withPlan = Object.keys(curriculumPlan).filter(s => getSubjectPeriodsForGrade(s, grade) > 0);
+                const list = withPlan.length > 0 ? withPlan : getKnownSubjectsList();
+                list.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    subjectSelect.appendChild(opt);
+                });
+            }
+            document.getElementById('manualAssignTeachersList').innerHTML = '';
+            const assignedListElC = document.getElementById('manualAssignAssignedList');
+            if (assignedListElC) assignedListElC.innerHTML = '';
+        }
+
+        function onManualAssignSubjectChange() {
+            renderManualAssignTeachersList();
+            renderAssignedPeriodsList();
+        }
+
+        function renderManualAssignTeachersList() {
+            const grade = document.getElementById('manualAssignGrade').value;
+            const classValue = document.getElementById('manualAssignClass').value;
+            const subject = document.getElementById('manualAssignSubject').value;
+            const container = document.getElementById('manualAssignTeachersList');
+
+            if (!classValue || !subject) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const teachersInfo = getAllTeachersInfo().filter(t => t.subject === subject);
+            if (teachersInfo.length === 0) {
+                container.innerHTML = `<p style="color:#e53e3e;">❌ لا يوجد معلم مُسند لمادة "${subject}" حالياً.</p>`;
+                return;
+            }
+
+            const withLoad = teachersInfo.map(t => ({ ...t, assigned: getCurrentAssignedCount(t.index) }));
+            withLoad.sort((a, b) => a.assigned - b.assigned);
+
+            const periodsNeeded = getSubjectPeriodsForGrade(subject, grade);
+            let alreadyForClass = 0;
+            withLoad.forEach(t => {
+                days.forEach(day => {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        const select = document.getElementById(`cell_${t.index}_${day}_${period}`);
+                        if (select && select.value === classValue) alreadyForClass++;
+                    }
+                });
+            });
+
+            let infoHTML = '';
+            if (periodsNeeded > 0) {
+                infoHTML = `<p style="color:#4a5568; margin-bottom:10px;">الحصص المطلوبة لهذه المادة في هذا الفصل: <strong>${periodsNeeded}</strong> — المُسند حالياً: <strong>${alreadyForClass}</strong></p>`;
+            }
+
+            container.innerHTML = infoHTML + withLoad.map(t => {
+                const status = getQuotaStatus(t.assigned, t.quota);
+                const safeSubject = subject.replace(/'/g, "\\'");
+                return `
+                    <div class="manual-assign-teacher-row">
+                        <div>
+                            <strong>${t.name}</strong>
+                            <span class="status-badge ${status.cls}" style="margin-right:8px;">${status.icon} ${t.assigned} / ${t.quota || '؟'}</span>
+                        </div>
+                        <button class="btn" style="background:#38a169; color:white;" onclick="manualAssignTeacherToClass(${t.index}, '${classValue}', '${safeSubject}')">➕ إسناد حصة</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ─── تعديل الإسناد اليدوي: عرض الحصص المُسندة حالياً مع إمكانية حذفها أو تغيير معلمها أو نقل وقتها ───
+
+        function getAssignedPeriodsForClassSubject(classValue, subject) {
+            const results = [];
+            for (let i = 0; i < 42; i++) {
+                const nameInput = document.getElementById(`teacher_${i}`);
+                const name = nameInput ? nameInput.value.trim() : '';
+                if (!name) continue;
+                days.forEach(day => {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value === classValue) {
+                            const effSubject = getEffectiveSubject(i, day, period);
+                            if (effSubject === subject) {
+                                results.push({ teacherIndex: i, teacherName: name, day, period });
+                            }
+                        }
+                    }
+                });
+            }
+            const dayOrderIndex = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4 };
+            results.sort((a, b) => (dayOrderIndex[a.day] - dayOrderIndex[b.day]) || (a.period - b.period));
+            return results;
+        }
+
+        function renderAssignedPeriodsList() {
+            const classValue = document.getElementById('manualAssignClass').value;
+            const subject = document.getElementById('manualAssignSubject').value;
+            const container = document.getElementById('manualAssignAssignedList');
+            if (!container) return;
+
+            if (!classValue || !subject) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const assigned = getAssignedPeriodsForClassSubject(classValue, subject);
+            if (assigned.length === 0) {
+                container.innerHTML = '<p style="color:#a0aec0; margin-top:10px;">لا توجد حصص مُسندة لهذه المادة في هذا الفصل بعد.</p>';
+                return;
+            }
+
+            const teachersInfo = getAllTeachersInfo().filter(t => t.subject === subject);
+            const safeSubject = subject.replace(/'/g, "\\'");
+
+            const rowsHTML = assigned.map(a => {
+                // خيارات تغيير المعلم: معلمون آخرون مؤهلون ومتاحون في نفس اليوم/الحصة
+                const otherTeacherOptions = teachersInfo
+                    .filter(t => t.index !== a.teacherIndex)
+                    .filter(t => {
+                        const sel = document.getElementById(`cell_${t.index}_${a.day}_${a.period}`);
+                        return sel && !sel.value;
+                    })
+                    .map(t => `<option value="${t.index}">${t.name}</option>`)
+                    .join('');
+
+                // خيارات نقل الوقت: خانات فارغة لنفس المعلم وغير مشغولة للفصل في وقتها، وتحترم قيود الجدول
+                const slotOptions = [];
+                days.forEach(day => {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        if (day === a.day && period === a.period) continue;
+                        if (!isSlotAllowedForAutoPlacement(day, period, subject)) continue;
+                        const sel = document.getElementById(`cell_${a.teacherIndex}_${day}_${period}`);
+                        if (!sel || sel.value) continue;
+                        let classBusy = false;
+                        for (let ti = 0; ti < 42; ti++) {
+                            const other = document.getElementById(`cell_${ti}_${day}_${period}`);
+                            if (other && other.value === classValue) { classBusy = true; break; }
+                        }
+                        if (!classBusy) {
+                            slotOptions.push(`<option value="${day}_${period}">${getDayName(day)} - حصة ${period}</option>`);
+                        }
+                    }
+                });
+
+                return `
+                    <div class="manual-assign-teacher-row" style="flex-wrap: wrap;">
+                        <div>
+                            <strong>${a.teacherName}</strong>
+                            <span style="color:#718096; font-size:13px;"> — ${getDayName(a.day)} - الحصة ${a.period}</span>
+                        </div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                            ${otherTeacherOptions ? `
+                                <select class="teacher-input" style="width:170px;"
+                                    onchange="reassignPeriodTeacher(${a.teacherIndex}, '${a.day}', ${a.period}, this.value, '${classValue}'); this.selectedIndex = 0;">
+                                    <option value="">🔄 تغيير المعلم</option>
+                                    ${otherTeacherOptions}
+                                </select>
+                            ` : ''}
+                            ${slotOptions.length > 0 ? `
+                                <select class="teacher-input" style="width:170px;"
+                                    onchange="reassignPeriodTime(${a.teacherIndex}, '${a.day}', ${a.period}, this.value, '${classValue}'); this.selectedIndex = 0;">
+                                    <option value="">⏱️ نقل إلى وقت آخر</option>
+                                    ${slotOptions.join('')}
+                                </select>
+                            ` : ''}
+                            <button class="btn" style="background:#e53e3e; color:white; padding:6px 12px;" onclick="removeAssignedPeriod(${a.teacherIndex}, '${a.day}', ${a.period})">🗑️ حذف</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <h4 style="color:#2d3748; margin: 18px 0 10px;">📌 الحصص المُسندة حالياً (${assigned.length}) — تعديل الإسناد</h4>
+                ${rowsHTML}
+            `;
+        }
+
+        function refreshManualAssignPanels() {
+            checkConflicts();
+            updateClassCounts();
+            checkUnassignedClasses();
+            saveData();
+            saveToFirebase();
+            renderManualAssignTeachersList();
+            renderAssignedPeriodsList();
+            renderTeacherQuotaStatusList();
+        }
+
+        function removeAssignedPeriod(teacherIndex, day, period) {
+            if (!confirm('هل تريد حذف هذه الحصة من الجدول؟')) return;
+
+            const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
+            if (select) {
+                select.value = '';
+                select.dataset.prevValue = '';
+                const cell = select.parentElement;
+                cell.classList.remove('dummy-cell');
+                cell.removeAttribute('data-dummy');
+            }
+            refreshManualAssignPanels();
+        }
+
+        // يتحقق مباشرة من الجدول الحقيقي إن كان فصل معين مشغولاً في يوم/حصة معينة من أي معلم آخر
+        function isClassBusyAt(classValue, day, period, excludeTeacherIndex) {
+            for (let ti = 0; ti < 42; ti++) {
+                if (excludeTeacherIndex !== undefined && String(ti) === String(excludeTeacherIndex)) continue;
+                const select = document.getElementById(`cell_${ti}_${day}_${period}`);
+                if (select && select.value === classValue) return true;
+            }
+            return false;
+        }
+
+        function reassignPeriodTeacher(oldTeacherIndex, day, period, newTeacherIndexStr, classValue) {
+            if (!newTeacherIndexStr) return;
+            const newTeacherIndex = parseInt(newTeacherIndexStr);
+            const oldSelect = document.getElementById(`cell_${oldTeacherIndex}_${day}_${period}`);
+            const newSelect = document.getElementById(`cell_${newTeacherIndex}_${day}_${period}`);
+            if (!oldSelect || !newSelect) return;
+
+            // تحقق نهائي دفاعي: خانة المعلم الجديد يجب أن تكون فارغة فعلاً في هذه اللحظة
+            if (newSelect.value) {
+                alert('❌ المعلم الجديد أصبح مشغولاً في هذا الوقت. لم يتم تنفيذ التغيير.');
+                renderAssignedPeriodsList();
+                return;
+            }
+
+            oldSelect.value = '';
+            oldSelect.dataset.prevValue = '';
+            newSelect.value = classValue;
+            newSelect.dataset.prevValue = classValue;
+
+            refreshManualAssignPanels();
+        }
+
+        function reassignPeriodTime(teacherIndex, oldDay, oldPeriod, newSlotStr, classValue) {
+            if (!newSlotStr) return;
+            const [newDay, newPeriodStr] = newSlotStr.split('_');
+            const newPeriod = parseInt(newPeriodStr);
+            const oldSelect = document.getElementById(`cell_${teacherIndex}_${oldDay}_${oldPeriod}`);
+            const newSelect = document.getElementById(`cell_${teacherIndex}_${newDay}_${newPeriod}`);
+            if (!oldSelect || !newSelect) return;
+
+            // تحقق نهائي دفاعي: الخانة الجديدة يجب أن تكون فارغة للمعلم، وغير مشغولة للفصل من معلم آخر
+            if (newSelect.value) {
+                alert('❌ الخانة الجديدة أصبحت مشغولة. لم يتم تنفيذ النقل.');
+                renderAssignedPeriodsList();
+                return;
+            }
+            if (isClassBusyAt(classValue, newDay, newPeriod, teacherIndex)) {
+                alert('❌ الفصل أصبح مشغولاً في هذا الوقت من معلم آخر. لم يتم تنفيذ النقل.');
+                renderAssignedPeriodsList();
+                return;
+            }
+
+            oldSelect.value = '';
+            oldSelect.dataset.prevValue = '';
+            newSelect.value = classValue;
+            newSelect.dataset.prevValue = classValue;
+
+            refreshManualAssignPanels();
+        }
+
+        function manualAssignTeacherToClass(teacherIndex, classValue, subject) {
+            const isArt = isArtEducationSubject(subject);
+            const usedDaysForClassSubject = new Set();
+            days.forEach(day => {
+                const maxP = getMaxPeriodsForDay(day);
+                for (let period = 1; period <= maxP; period++) {
+                    const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
+                    if (select && select.value === classValue) {
+                        usedDaysForClassSubject.add(day);
+                    }
+                }
+            });
+
+            const classBusyCells = new Set();
+            for (let i = 0; i < 42; i++) {
+                days.forEach(day => {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value === classValue) {
+                            classBusyCells.add(`${day}_${period}`);
+                        }
+                    }
+                });
+            }
+
+            let target = null;
+            for (const day of days) {
+                if (!isArt && usedDaysForClassSubject.has(day)) continue;
+                const maxP = getMaxPeriodsForDay(day);
+                for (let period = 1; period <= maxP; period++) {
+                    if (!isSlotAllowedForAutoPlacement(day, period, subject)) continue;
+                    const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
+                    if (select && !select.value && !classBusyCells.has(`${day}_${period}`)) {
+                        target = { day, period };
+                        break;
+                    }
+                }
+                if (target) break;
+            }
+            if (!target) {
+                for (const day of days) {
+                    const maxP = getMaxPeriodsForDay(day);
+                    for (let period = 1; period <= maxP; period++) {
+                        if (!isSlotAllowedForAutoPlacement(day, period, subject)) continue;
+                        const select = document.getElementById(`cell_${teacherIndex}_${day}_${period}`);
+                        if (select && !select.value && !classBusyCells.has(`${day}_${period}`)) {
+                            target = { day, period };
+                            break;
+                        }
+                    }
+                    if (target) break;
+                }
+            }
+
+            if (!target) {
+                alert('❌ تعذر إيجاد خانة فارغة مناسبة لإسناد هذه الحصة (المعلم أو الفصل بلا أوقات متاحة).');
+                return;
+            }
+
+            // تحقق نهائي دفاعي قبل الكتابة الفعلية: تأكد أن الخانة ما زالت فارغة للمعلم وغير مشغولة للفصل
+            const finalCheckSelect = document.getElementById(`cell_${teacherIndex}_${target.day}_${target.period}`);
+            if (!finalCheckSelect || finalCheckSelect.value || isClassBusyAt(classValue, target.day, target.period, teacherIndex)) {
+                alert('❌ تغيّر الجدول أثناء الإسناد، يرجى المحاولة مرة أخرى.');
+                return;
+            }
+
+            const select = document.getElementById(`cell_${teacherIndex}_${target.day}_${target.period}`);
+            select.value = classValue;
+            select.dataset.prevValue = classValue;
+
+            checkConflicts();
+            updateClassCounts();
+            checkUnassignedClasses();
+            saveData();
+            saveToFirebase();
+            renderManualAssignTeachersList();
+            renderAssignedPeriodsList();
+            renderTeacherQuotaStatusList();
+
+            const teacherName = document.getElementById(`teacher_${teacherIndex}`).value;
+            alert(`✅ تم إسناد ${teacherName} إلى فصل ${classValue} يوم ${getDayName(target.day)} - الحصة ${target.period}`);
         }
 
         function checkUnassignedClasses() {
             const allClasses = [
-                '1-1', '1-2', '1-3', '1-4', '1-5', '1-6',
-                '2-1', '2-2', '2-3', '2-4', '2-5', '2-6',
-                '3-1', '3-2', '3-3', '3-4', '3-5', '3-6'
+                '1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8',
+                '2-1', '2-2', '2-3', '2-4', '2-5', '2-6', '2-7',
+                '3-1', '3-2', '3-3', '3-4', '3-5', '3-6', '3-7'
             ];
             
             const dayNames = {
@@ -2146,6 +3823,41 @@ function createSchedule() {
         nameCell.appendChild(nameInput);
         row.appendChild(nameCell);
 
+        // خلية المادة الدراسية للمعلم (قائمة منسدلة بالمواد المعتمدة فقط لمنع الأخطاء الإملائية)
+        const subjectCell = document.createElement('td');
+        subjectCell.className = 'teacher-subject-cell';
+        const subjectInput = document.createElement('select');
+        subjectInput.className = 'teacher-subject-input';
+        subjectInput.id = `subject_${i}`;
+        subjectInput.innerHTML = '<option value="">-- المادة --</option>' +
+            STANDARD_SUBJECTS.map(s => `<option value="${s}">${s}</option>`).join('');
+        subjectInput.addEventListener('change', () => {
+            checkConflicts();
+            updateClassCounts();
+            saveData();
+            saveToFirebase();
+            renderSubjectIntegrityWarning();
+        });
+        subjectCell.appendChild(subjectInput);
+        row.appendChild(subjectCell);
+
+        // خلية النصاب (يمكن تعديله يدوياً لكل معلم)
+        const quotaCell = document.createElement('td');
+        quotaCell.className = 'teacher-quota-cell';
+        const quotaInput = document.createElement('input');
+        quotaInput.type = 'number';
+        quotaInput.className = 'teacher-quota-input';
+        quotaInput.min = '0';
+        quotaInput.value = '24';
+        quotaInput.id = `quota_${i}`;
+        quotaInput.addEventListener('change', () => {
+            updateClassCounts();
+            saveData();
+            saveToFirebase();
+        });
+        quotaCell.appendChild(quotaInput);
+        row.appendChild(quotaCell);
+
         const countCell = document.createElement('td');
         countCell.className = 'class-count';
         countCell.id = `count_${i}`;
@@ -2190,7 +3902,19 @@ function createSchedule() {
                     }
                     select.appendChild(opt);
                 });
+                select.dataset.prevValue = '';
                 select.addEventListener('change', () => {
+                    const newValue = select.value;
+                    // منع إسناد نفس المادة مرتين في نفس اليوم لنفس المعلم لنفس الفصل (ماعدا التربية الفنية)
+                    if (newValue && !newValue.startsWith('انتظار') && newValue !== 'وهمي') {
+                        const dup = checkSameSubjectSameDay(i, day, period, newValue);
+                        if (dup) {
+                            alert(`🚫 غير مسموح!\n\nتم إسناد مادة "${dup.subject}" لنفس المعلم في نفس اليوم (${getDayName(day)}) لنفس الفصل (${newValue}) مسبقاً في الحصة ${dup.period}.\n\nلا يُسمح بتكرار نفس المادة لنفس الفصل في نفس اليوم إلا في مادة التربية الفنية.`);
+                            select.value = select.dataset.prevValue || '';
+                            return;
+                        }
+                    }
+                    select.dataset.prevValue = newValue;
                     if (select.value === 'وهمي') {
                         cell.classList.add('dummy-cell');
                         cell.setAttribute('data-dummy', 'true');
@@ -2248,6 +3972,7 @@ function createSchedule() {
             data.sigName = document.getElementById('sigName')?.value || '';
             data.labTeacher1 = document.getElementById('labTeacher1')?.value || 'عبدالله القرني';
             data.labTeacher2 = document.getElementById('labTeacher2')?.value || 'عبدالمجيد الرشيدي';
+            data.curriculumPlan = JSON.stringify(curriculumPlan);
             
             saveToFirebase();
         }
@@ -2260,6 +3985,40 @@ function createSchedule() {
             if (confirm('هل أنت متأكد من مسح جميع البيانات؟ لا يمكن التراجع عن هذا الإجراء!')) {
                 location.reload();
             }
+        }
+
+        // يمسح جميع الحصص المُسندة في الجدول (دراسية، انتظار، وهمية) مع الاحتفاظ الكامل
+        // بأسماء المعلمين، والمادة الدراسية، والنصاب المُدخل لكل معلم
+        function clearLessonsOnly() {
+            if (!confirm('هل أنت متأكد من مسح جميع الحصص من الجدول؟\n\nسيتم الاحتفاظ بأسماء المعلمين والمادة والنصاب لكل معلم.\nلا يمكن التراجع عن هذا الإجراء!')) {
+                return;
+            }
+
+            let removedCount = 0;
+
+            for (let i = 0; i < 42; i++) {
+                days.forEach(day => {
+                    for (let period = 1; period <= 7; period++) {
+                        const select = document.getElementById(`cell_${i}_${day}_${period}`);
+                        if (select && select.value) {
+                            select.value = '';
+                            select.dataset.prevValue = '';
+                            const cell = select.parentElement;
+                            cell.classList.remove('dummy-cell');
+                            cell.removeAttribute('data-dummy');
+                            removedCount++;
+                        }
+                    }
+                });
+            }
+
+            saveData();
+            checkConflicts();
+            updateClassCounts();
+            checkUnassignedClasses();
+            saveToFirebase();
+
+            alert(`✅ تم مسح ${removedCount} حصة من الجدول بنجاح!\n\nتم الاحتفاظ بأسماء المعلمين والمادة والنصاب لكل معلم.`);
         }
 
         function updateAbsentTeacherList() {
@@ -2713,6 +4472,17 @@ function updateManualAssignment(index, newTeacherName) {
             }
 
             for (let i = 0; i < 42; i++) {
+                const subjectInput = document.getElementById(`subject_${i}`);
+                if (subjectInput) {
+                    data[`subject_${i}`] = subjectInput.value;
+                }
+                const quotaInput = document.getElementById(`quota_${i}`);
+                if (quotaInput) {
+                    data[`quota_${i}`] = quotaInput.value;
+                }
+            }
+
+            for (let i = 0; i < 42; i++) {
                 days.forEach(day => {
                     for (let period = 1; period <= 7; period++) {
                         const select = document.getElementById(`cell_${i}_${day}_${period}`);
@@ -2728,8 +4498,9 @@ function updateManualAssignment(index, newTeacherName) {
             data.sigName = document.getElementById('sigName')?.value || '';
             data.labTeacher1 = document.getElementById('labTeacher1')?.value || 'عبدالله القرني';
             data.labTeacher2 = document.getElementById('labTeacher2')?.value || 'عبدالمجيد الرشيدي';
+            data.curriculumPlan = JSON.stringify(curriculumPlan);
             data.exportDate = new Date().toISOString();
-            data.version = '2.0';
+            data.version = '2.2';
             
             const jsonString = JSON.stringify(data, null, 2);
             const blob = new Blob([jsonString], { type: 'application/json' });
@@ -2754,6 +4525,15 @@ function updateManualAssignment(index, newTeacherName) {
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
+
+                    if (data.curriculumPlan) {
+                        try {
+                            curriculumPlan = JSON.parse(data.curriculumPlan);
+                            migrateCurriculumPlanKeys();
+                        } catch (err) {
+                            curriculumPlan = {};
+                        }
+                    }
                     
                     for (let i = 0; i < 42; i++) {
                         const input = document.getElementById(`teacher_${i}`);
@@ -2763,11 +4543,23 @@ function updateManualAssignment(index, newTeacherName) {
                     }
 
                     for (let i = 0; i < 42; i++) {
+                        const subjectInput = document.getElementById(`subject_${i}`);
+                        if (subjectInput && data[`subject_${i}`] !== undefined && data[`subject_${i}`] !== '') {
+                            setSubjectSelectValueSafely(subjectInput, data[`subject_${i}`]);
+                        }
+                        const quotaInput = document.getElementById(`quota_${i}`);
+                        if (quotaInput && data[`quota_${i}`] !== undefined && data[`quota_${i}`] !== '') {
+                            quotaInput.value = data[`quota_${i}`];
+                        }
+                    }
+
+                    for (let i = 0; i < 42; i++) {
                         days.forEach(day => {
                             for (let period = 1; period <= 7; period++) {
                                 const select = document.getElementById(`cell_${i}_${day}_${period}`);
                                 if (select && data[`cell_${i}_${day}_${period}`]) {
                                     select.value = data[`cell_${i}_${day}_${period}`];
+                                    select.dataset.prevValue = select.value;
                                 }
                             }
                         });
@@ -2790,6 +4582,7 @@ function updateManualAssignment(index, newTeacherName) {
                     }
                     
                     updateAbsentTeacherList();
+                    refreshCurriculumTable();
                     
                     setTimeout(() => checkConflicts(), 100);
                     
@@ -2843,6 +4636,12 @@ function switchTab(tabName) {
     if (tabName === 'manage') {
         loadLabTeacherSettings();
     }
+    if (tabName === 'assign') {
+        refreshCurriculumTable();
+        renderTeacherQuotaStatusList();
+        populateManualAssignGradeDependent();
+        renderSubjectIntegrityWarning();
+    }
 }
 
         function loadLabTeacherSettings() {
@@ -2881,8 +4680,8 @@ function switchTab(tabName) {
             }
 
             saveData();
-            updateClassCounts();
             checkConflicts();
+            updateClassCounts();
             checkUnassignedClasses();
             saveToFirebase();
 
@@ -2939,8 +4738,8 @@ function switchTab(tabName) {
             }
 
             saveData();
-            updateClassCounts();
             checkConflicts();
+            updateClassCounts();
             checkUnassignedClasses();
             saveToFirebase();
 
@@ -3203,9 +5002,10 @@ function printAllClasses() {
     const originalClassSelect = document.getElementById('classNumberSelect').value;
     
     let allHTML = '';
-    // المرور على جميع الصفوف (1-3) والفصول (1-6)
+    // المرور على جميع الصفوف (1-3) وفصولها (الأول: 1-8، الثاني والثالث: 1-7)
     for (let grade = 1; grade <= 3; grade++) {
-        for (let classNum = 1; classNum <= 6; classNum++) {
+        const maxClassNumForGrade = getMaxClassNumForGrade(grade);
+        for (let classNum = 1; classNum <= maxClassNumForGrade; classNum++) {
             const classValue = `${grade}-${classNum}`;
             // التحقق إذا كان الفصل له حصص أصلاً قبل إضافته للطباعة
             let hasClasses = false;
@@ -3521,7 +5321,8 @@ function printDailyReport() {
             classSelect.innerHTML = '<option value="">-- اختر الفصل --</option>';
             
             if (grade) {
-                for (let i = 1; i <= 6; i++) {
+                const maxClassNum = getMaxClassNumForGrade(grade);
+                for (let i = 1; i <= maxClassNum; i++) {
                     const option = document.createElement('option');
                     option.value = `${grade}-${i}`;
                     option.textContent = `الفصل ${i}`;
@@ -3855,8 +5656,8 @@ function autoAssignWaiting() {
 
     // --- التقرير والعرض ---
     saveData();
-    updateClassCounts();
     checkConflicts();
+    updateClassCounts();
     checkUnassignedClasses();
     
     const incompleteTeachers = Object.values(teacherData).filter(t => t.total < 20);
@@ -4011,6 +5812,5 @@ function autoAssignWaiting() {
 
         </script>
 </body>
-</html> 
-
+</html>
 
