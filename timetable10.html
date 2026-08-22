@@ -1488,6 +1488,8 @@
 
         <div style="display: grid; gap: 25px; max-width: 1300px; margin: 0 auto;">
 
+            <div id="subjectIntegrityWarning"></div>
+
             <!-- ============================================ -->
             <!-- قسم: خطة الحصص الأسبوعية لكل مادة (لكل صف) -->
             <!-- ============================================ -->
@@ -1908,15 +1910,40 @@ const specialAssignments = {
             'عربي': 'اللغة العربية',
             'لغة عربية': 'اللغة العربية',
             'اللغة العربيه': 'اللغة العربية',
+            'اللغه العربية': 'اللغة العربية',
+            'اللغة العربيّة': 'اللغة العربية',
             'علوم': 'العلوم',
+            'العلوم العامة': 'العلوم',
             'مهارات رقمية': 'المهارات الرقمية',
             'مهارات الرقمية': 'المهارات الرقمية',
+            'مهارات رقميه': 'المهارات الرقمية',
+            'المهارات الرقميه': 'المهارات الرقمية',
+            'حاسب': 'المهارات الرقمية',
+            'حاسب آلي': 'المهارات الرقمية',
             'انجليزية': 'انجليزي',
             'اللغة الانجليزية': 'انجليزي',
             'اللغة الإنجليزية': 'انجليزي',
+            'اللغه الانجليزية': 'انجليزي',
+            'الانجليزي': 'انجليزي',
+            'إنجليزي': 'انجليزي',
             'تربيه فنية': 'تربية فنية',
+            'تربية فنيه': 'تربية فنية',
+            'فنية': 'تربية فنية',
+            'رسم': 'تربية فنية',
             'تربية بدنية': 'بدنية',
-            'رياضيات ': 'رياضيات'
+            'تربيه بدنية': 'بدنية',
+            'رياضة': 'بدنية',
+            'الرياضيات': 'رياضيات',
+            'رياضيات ': 'رياضيات',
+            'التربية الإسلامية': 'دين',
+            'التربية الاسلامية': 'دين',
+            'تربية إسلامية': 'دين',
+            'الدين': 'دين',
+            'الاجتماعيات': 'اجتماعيات',
+            'الدراسات الاجتماعية': 'اجتماعيات',
+            'المهارات الحياتية': 'مهارات حياتية',
+            'مهارات الحياة': 'مهارات حياتية',
+            'التفكير الناقد': 'تفكير ناقد'
         };
 
         function normalizeSubjectName(subject) {
@@ -1924,6 +1951,22 @@ const specialAssignments = {
             const trimmed = subject.trim();
             return SUBJECT_NAME_ALIASES[trimmed] || trimmed;
         }
+
+        // يضبط قيمة قائمة "المادة" المنسدلة بأمان: إذا كانت القيمة المحفوظة (بعد التطبيع) لا تطابق
+        // أياً من المواد المعتمدة، تُضاف كخيار إضافي مؤقت بدل أن تختفي بصمت وتفرغ الحقل
+        function setSubjectSelectValueSafely(selectEl, rawValue) {
+            if (!selectEl || !rawValue) return;
+            const normalized = normalizeSubjectName(rawValue);
+            const alreadyHasOption = Array.from(selectEl.options).some(o => o.value === normalized);
+            if (!alreadyHasOption) {
+                const opt = document.createElement('option');
+                opt.value = normalized;
+                opt.textContent = `⚠️ ${normalized} (يرجى اختيار مادة معتمدة)`;
+                selectEl.appendChild(opt);
+            }
+            selectEl.value = normalized;
+        }
+
         // يحدد المادة الفعلية التي يدرّسها المعلم في يوم/حصة معينة
         // (يراعي الإسنادات الخاصة، ثم حقل المادة المُدخل يدوياً، ثم قائمة مواد المعلمين الافتراضية)
         function getEffectiveSubject(teacherIndex, day, period) {
@@ -2174,10 +2217,10 @@ const specialAssignments = {
                 const subjectInput = document.getElementById(`subject_${i}`);
                 if (subjectInput) {
                     if (data[`subject_${i}`]) {
-                        subjectInput.value = normalizeSubjectName(data[`subject_${i}`]);
+                        setSubjectSelectValueSafely(subjectInput, data[`subject_${i}`]);
                     } else if (!subjectInput.value && data[`teacher_${i}`] && teacherSubjects[data[`teacher_${i}`]]) {
                         // تعبئة المادة تلقائياً إذا كان اسم المعلم معروفاً ولم تُحفظ مادة من قبل
-                        subjectInput.value = normalizeSubjectName(teacherSubjects[data[`teacher_${i}`]]);
+                        setSubjectSelectValueSafely(subjectInput, teacherSubjects[data[`teacher_${i}`]]);
                     }
                 }
                 const quotaInput = document.getElementById(`quota_${i}`);
@@ -2487,6 +2530,43 @@ const specialAssignments = {
             return teachers;
         }
 
+        // يفحص وجود معلمين بلا مادة محددة، أو بمادة غير معتمدة (خيار ⚠️ احتياطي)، ويعرض تنبيهاً واضحاً بدل الفشل الصامت
+        function renderSubjectIntegrityWarning() {
+            const container = document.getElementById('subjectIntegrityWarning');
+            if (!container) return;
+
+            const missing = [];
+            const nonStandard = [];
+            for (let i = 0; i < 42; i++) {
+                const nameInput = document.getElementById(`teacher_${i}`);
+                const name = nameInput ? nameInput.value.trim() : '';
+                if (!name) continue;
+                const subjectInput = document.getElementById(`subject_${i}`);
+                const value = subjectInput ? subjectInput.value : '';
+                if (!value) {
+                    missing.push(name);
+                } else if (!STANDARD_SUBJECTS.includes(value)) {
+                    nonStandard.push(`${name} (${value})`);
+                }
+            }
+
+            if (missing.length === 0 && nonStandard.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="alert" style="background:#fff5f5; border-right-color:#e53e3e; color:#742a2a; margin-bottom: 10px;">';
+            html += '<strong>⚠️ تنبيه: لن يشارك هؤلاء المعلمون في التوزيع التلقائي حتى تُحدَّد لهم مادة معتمدة من القائمة أمام اسم كل منهم في الجدول الرئيسي:</strong>';
+            if (missing.length > 0) {
+                html += `<div style="margin-top:8px;">🔲 بلا مادة محددة: ${missing.join('، ')}</div>`;
+            }
+            if (nonStandard.length > 0) {
+                html += `<div style="margin-top:8px;">⚠️ مادة غير معتمدة (يلزم إعادة الاختيار من القائمة): ${nonStandard.join('، ')}</div>`;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
         function getRealClassList() {
             return classOptions
                 .filter(c => c.value && c.value !== 'وهمي' && !c.value.startsWith('انتظار'))
@@ -2748,6 +2828,8 @@ const specialAssignments = {
         }
 
         function runAutoDistribution() {
+            renderSubjectIntegrityWarning();
+
             const teachersInfo = getAllTeachersInfo();
             if (teachersInfo.length === 0) {
                 alert('⚠️ لا يوجد معلمون مُدخلون بأسمائهم في الجدول الرئيسي. أضف أسماء المعلمين أولاً.');
@@ -3557,6 +3639,7 @@ function createSchedule() {
             updateClassCounts();
             saveData();
             saveToFirebase();
+            renderSubjectIntegrityWarning();
         });
         subjectCell.appendChild(subjectInput);
         row.appendChild(subjectCell);
@@ -4264,7 +4347,7 @@ function updateManualAssignment(index, newTeacherName) {
                     for (let i = 0; i < 42; i++) {
                         const subjectInput = document.getElementById(`subject_${i}`);
                         if (subjectInput && data[`subject_${i}`] !== undefined && data[`subject_${i}`] !== '') {
-                            subjectInput.value = normalizeSubjectName(data[`subject_${i}`]);
+                            setSubjectSelectValueSafely(subjectInput, data[`subject_${i}`]);
                         }
                         const quotaInput = document.getElementById(`quota_${i}`);
                         if (quotaInput && data[`quota_${i}`] !== undefined && data[`quota_${i}`] !== '') {
@@ -4359,6 +4442,7 @@ function switchTab(tabName) {
         refreshCurriculumTable();
         renderTeacherQuotaStatusList();
         populateManualAssignGradeDependent();
+        renderSubjectIntegrityWarning();
     }
 }
 
