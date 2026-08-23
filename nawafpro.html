@@ -352,6 +352,11 @@
           <div class="err">يرجى إدخال اسم المستخدم في TradingView.</div>
         </div>
         <div class="field">
+          <label for="telegramUser">اسم المستخدم في Telegram</label>
+          <input type="text" id="telegramUser" required placeholder="username بدون @">
+          <div class="err">يرجى إدخال اسم المستخدم في Telegram.</div>
+        </div>
+        <div class="field">
           <label for="level">مستوى الخبرة في التداول</label>
           <select id="level" required>
             <option value="" disabled selected>اختر مستوى خبرتك</option>
@@ -459,18 +464,22 @@
         <h2>المسجلون</h2>
         <p id="adminCount" style="margin-top:6px;"></p>
       </div>
+      <div id="expiredBanner" style="display:none; background:#FBEAE6; border:1px solid #f0c6bc; color:var(--danger); border-radius:12px; padding:14px 18px; font-size:14px; font-weight:600; margin-bottom:20px;"></div>
       <div style="overflow-x:auto; background:var(--white); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);">
-        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+        <table style="width:100%; border-collapse:collapse; font-size:13.5px;">
           <thead>
             <tr style="background:var(--bg-soft); text-align:right;">
-              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">الاسم الكامل</th>
-              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">مستخدم TradingView</th>
-              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">مستوى الخبرة</th>
-              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">التاريخ</th>
+              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">الاسم</th>
+              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">TradingView</th>
+              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">Telegram</th>
+              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">المستوى</th>
+              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">تاريخ الانتهاء</th>
+              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">الحالة</th>
+              <th style="padding:14px 16px; border-bottom:1px solid var(--line);">إجراءات</th>
             </tr>
           </thead>
           <tbody id="adminTableBody">
-            <tr><td colspan="4" style="padding:20px; color:var(--ink-soft);">جارٍ التحميل...</td></tr>
+            <tr><td colspan="7" style="padding:20px; color:var(--ink-soft);">جارٍ التحميل...</td></tr>
           </tbody>
         </table>
       </div>
@@ -507,34 +516,90 @@
   const adminCount = document.getElementById('adminCount');
   const levelLabels = { beginner: 'مبتدئ', intermediate: 'متوسط', advanced: 'متقدم' };
 
+  const EXPIRY_MESSAGE = 'تم انتهاء الاشتراك المجاني ونتمنى لك التوفيق في تداولاتك القادمة.';
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const expiredBanner = document.getElementById('expiredBanner');
+
   function loadRegistrations(){
-    adminTableBody.innerHTML = '<tr><td colspan="4" style="padding:20px; color:var(--ink-soft);">جارٍ التحميل...</td></tr>';
+    adminTableBody.innerHTML = '<tr><td colspan="7" style="padding:20px; color:var(--ink-soft);">جارٍ التحميل...</td></tr>';
     db.collection('nawafpro_registrations').orderBy('createdAt', 'desc').get()
       .then((snapshot) => {
         if(snapshot.empty){
-          adminTableBody.innerHTML = '<tr><td colspan="4" style="padding:20px; color:var(--ink-soft);">لا يوجد مسجلون بعد.</td></tr>';
+          adminTableBody.innerHTML = '<tr><td colspan="7" style="padding:20px; color:var(--ink-soft);">لا يوجد مسجلون بعد.</td></tr>';
           adminCount.textContent = '0 طلب';
+          expiredBanner.style.display = 'none';
           return;
         }
         adminCount.textContent = snapshot.size + ' طلب';
         adminTableBody.innerHTML = '';
+        let expiredCount = 0;
+        const now = Date.now();
+
         snapshot.forEach((doc) => {
           const d = doc.data();
-          const date = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString('ar-SA') : '—';
+          const activatedAt = d.activatedAt && d.activatedAt.toDate ? d.activatedAt.toDate() : null;
+
+          let statusHtml, expiryText, actionsHtml;
+          const nameSafe = (d.fullName || '').replace(/'/g, "\\'");
+          const tgSafe = (d.telegramUsername || '').replace(/'/g, "\\'");
+
+          if(!activatedAt){
+            statusHtml = '<span style="color:#8A6414; font-weight:600;">بانتظار التفعيل</span>';
+            expiryText = '—';
+            actionsHtml = '<button type="button" class="btn btn-ghost btn-sm" onclick="activateSub(\'' + doc.id + '\')">تفعيل الاشتراك</button>';
+          } else {
+            const expiry = new Date(activatedAt.getTime() + WEEK_MS);
+            expiryText = expiry.toLocaleDateString('ar-SA');
+            const isExpired = now > expiry.getTime();
+            if(isExpired){
+              expiredCount++;
+              statusHtml = '<span style="color:var(--danger); font-weight:600;">منتهي</span>';
+            } else {
+              statusHtml = '<span style="color:var(--teal-dark); font-weight:600;">نشط</span>';
+            }
+            actionsHtml = '<button type="button" class="btn btn-ghost btn-sm" onclick="messageSub(\'' + tgSafe + '\', \'' + nameSafe + '\')">مراسلة</button>';
+          }
+
           const row = document.createElement('tr');
           row.innerHTML =
             '<td style="padding:14px 16px; border-bottom:1px solid var(--line);">' + (d.fullName || '—') + '</td>' +
             '<td style="padding:14px 16px; border-bottom:1px solid var(--line);">' + (d.tvUsername || '—') + '</td>' +
+            '<td style="padding:14px 16px; border-bottom:1px solid var(--line);">' + (d.telegramUsername ? '@' + d.telegramUsername : '—') + '</td>' +
             '<td style="padding:14px 16px; border-bottom:1px solid var(--line);">' + (levelLabels[d.level] || d.level || '—') + '</td>' +
-            '<td style="padding:14px 16px; border-bottom:1px solid var(--line);">' + date + '</td>';
+            '<td style="padding:14px 16px; border-bottom:1px solid var(--line);">' + expiryText + '</td>' +
+            '<td style="padding:14px 16px; border-bottom:1px solid var(--line);">' + statusHtml + '</td>' +
+            '<td style="padding:14px 16px; border-bottom:1px solid var(--line);">' + actionsHtml + '</td>';
           adminTableBody.appendChild(row);
         });
+
+        if(expiredCount > 0){
+          expiredBanner.textContent = 'تنبيه: يوجد ' + expiredCount + ' مشترك انتهى اشتراكه الأسبوعي.';
+          expiredBanner.style.display = 'block';
+        } else {
+          expiredBanner.style.display = 'none';
+        }
       })
       .catch((err) => {
-        adminTableBody.innerHTML = '<tr><td colspan="4" style="padding:20px; color:var(--danger);">تعذّر تحميل البيانات.</td></tr>';
+        adminTableBody.innerHTML = '<tr><td colspan="7" style="padding:20px; color:var(--danger);">تعذّر تحميل البيانات.</td></tr>';
         console.error(err);
       });
   }
+
+  window.activateSub = function(docId){
+    db.collection('nawafpro_registrations').doc(docId).update({
+      status: 'active',
+      activatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(loadRegistrations).catch((err) => console.error(err));
+  };
+
+  window.messageSub = function(telegramUsername, fullName){
+    if(!telegramUsername){ alert('لا يوجد اسم مستخدم Telegram لهذا المشترك.'); return; }
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(EXPIRY_MESSAGE).catch(() => {});
+    }
+    alert('تم نسخ رسالة انتهاء الاشتراك — سيتم فتح محادثة @' + telegramUsername + ' على Telegram، الصق الرسالة (Ctrl+V) وأرسلها.');
+    window.open('https://t.me/' + telegramUsername, '_blank');
+  };
 
   document.getElementById('adminLoginBtn').addEventListener('click', () => {
     if(adminPass.value === ADMIN_PASSWORD){
@@ -576,7 +641,7 @@
 
     // basic field validation
     let valid = true;
-    ['fullName','tvUser','level'].forEach(id => {
+    ['fullName','tvUser','telegramUser','level'].forEach(id => {
       const field = document.getElementById(id);
       const errEl = field.closest('.field') ? field.closest('.field').querySelector('.err') : null;
       if(!field.value){
@@ -593,9 +658,12 @@
     submitBtn.disabled = true;
     submitBtn.textContent = 'جارٍ الإرسال...';
 
+    const telegramUsername = document.getElementById('telegramUser').value.trim().replace(/^@/, '');
+
     db.collection('nawafpro_registrations').add({
       fullName: document.getElementById('fullName').value.trim(),
       tvUsername: document.getElementById('tvUser').value.trim(),
+      telegramUsername: telegramUsername,
       level: document.getElementById('level').value,
       status: 'pending',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
