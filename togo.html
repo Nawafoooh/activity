@@ -361,6 +361,21 @@ const LOCAL = {
   requests: {},
   seq: 10481,
 };
+
+// ---------------------------------------------------------------------
+// School staff accounts (username + password).
+// NOTE ON SECURITY: this list lives inside the HTML/JS that ships to the
+// browser, so anyone who views the page source can read these
+// credentials — this is only safe for a small internal/testing setup on
+// a private link, not for a publicly reachable production site. For a
+// real deployment, move staff accounts into Firebase Authentication
+// (real accounts created from the Firebase console) and remove this
+// list entirely; the code below already falls back to Firebase Auth
+// automatically once that is set up.
+// ---------------------------------------------------------------------
+const STAFF_ACCOUNTS = {
+  'Nawaf': { password: 'nawaf2030', name: 'Nawaf', role: 'admin' },
+};
 function uid(prefix){ return prefix + '-' + Math.random().toString(36).slice(2,9); }
 
 // ---------------------------------------------------------------------
@@ -751,37 +766,46 @@ function renderStaffLogin(root){
       ${topbar('دخول المدرسة', 'حساب الموظف', ()=>go('home')).outerHTML}
       <div class="scroll">
         <div class="field">
-          <label>البريد الإلكتروني للموظف</label>
-          <input type="email" id="email" placeholder="name@school.sa">
+          <label>اسم المستخدم</label>
+          <input type="text" id="username" placeholder="اسم المستخدم" autocapitalize="none" autocorrect="off">
         </div>
         <div class="field">
           <label>كلمة المرور</label>
           <input type="password" id="password" placeholder="••••••••">
         </div>
         <button class="btn btn-primary" id="login">دخول</button>
-        <p class="small-note" style="margin-top:16px;">حسابات الموظفين تُنشأ من قبل إدارة المدرسة عبر لوحة التحكم، ولا يوجد تسجيل ذاتي.</p>
+        <p class="small-note" style="margin-top:16px;">حسابات الموظفين تُنشأ من قبل إدارة المدرسة، ولا يوجد تسجيل ذاتي.</p>
       </div>
     </div>`);
   root.appendChild(screen);
 
   screen.querySelector('#login').addEventListener('click', async ()=>{
-    const email = screen.querySelector('#email').value.trim();
+    const username = screen.querySelector('#username').value.trim();
     const pw = screen.querySelector('#password').value;
-    if(!email || !pw){ toast('أدخل البريد الإلكتروني وكلمة المرور.', 'warn'); return; }
+    if(!username || !pw){ toast('أدخل اسم المستخدم وكلمة المرور.', 'warn'); return; }
     const btn = screen.querySelector('#login');
     btn.disabled = true; btn.textContent = 'جارٍ الدخول…';
     try{
-      if(firebaseReady){
-        const cred = await signInWithEmailAndPassword(auth, email, pw);
-        const staffSnap = await getDoc(doc(db,'staff', cred.user.uid));
-        state.staff = staffSnap.exists() ? { id:cred.user.uid, ...staffSnap.data() } : { id:cred.user.uid, name: email, role:'staff' };
-      }else{
-        state.staff = LOCAL.staff['staff-demo'];
+      const account = STAFF_ACCOUNTS[username];
+      if(account && account.password === pw){
+        state.staff = { id: username, name: account.name, role: account.role };
+        go('staffDashboard');
+        return;
       }
-      go('staffDashboard');
+      // Fallback: real Firebase Auth account (email-style username), for
+      // when staff accounts are properly provisioned in the Firebase
+      // console instead of the local list above.
+      if(firebaseReady && username.includes('@')){
+        const cred = await signInWithEmailAndPassword(auth, username, pw);
+        const staffSnap = await getDoc(doc(db,'staff', cred.user.uid));
+        state.staff = staffSnap.exists() ? { id:cred.user.uid, ...staffSnap.data() } : { id:cred.user.uid, name: username, role:'staff' };
+        go('staffDashboard');
+        return;
+      }
+      throw new Error('invalid-credentials');
     }catch(e){
       console.warn(e);
-      toast('تعذر تسجيل الدخول، تحقق من البيانات.', 'err');
+      toast('اسم المستخدم أو كلمة المرور غير صحيحة.', 'err');
     }finally{
       btn.disabled = false; btn.textContent = 'دخول';
     }
