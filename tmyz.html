@@ -75,6 +75,20 @@ a{color:inherit}
   padding:6px 10px; border-radius:20px; font-size:12.5px; font-weight:700; margin-inline-start:auto;
 }
 .role-pill select{background:none; border:none; color:inherit; font-weight:700; font-size:12.5px; outline:none}
+.sync-pill{font-size:11.5px; font-weight:700; padding:6px 10px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); color:var(--ink-dim); white-space:nowrap}
+.sync-pill.online{background:var(--success-tint); color:var(--success)}
+.sync-pill.offline{background:var(--danger-tint); color:var(--danger)}
+#userChip{cursor:default; gap:8px}
+#userChip button{border:none; background:none; color:var(--danger); font-weight:700; font-size:12px; cursor:pointer; padding:0; margin-inline-start:4px}
+.auth-overlay{
+  position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.auth-card{width:100%; max-width:420px; background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); padding:30px}
+.auth-card .eyebrow{color:var(--accent); font-weight:700; font-size:12.5px; text-align:center}
+.auth-card h1{font-size:20px; text-align:center; margin:6px 0 2px; font-weight:800}
+.auth-card p.sub{text-align:center; color:var(--ink-dim); font-size:13px; margin:0 0 20px}
+.auth-card .err{background:var(--danger-tint); color:var(--danger); border-radius:9px; padding:9px 12px; font-size:13px; margin-bottom:12px; display:none}
+.auth-card .hint{font-size:12px; color:var(--ink-dim); text-align:center; margin-top:14px; line-height:1.8}
 .content{padding:26px 30px 60px; max-width:1180px; width:100%; margin:0 auto}
 /* ===== Generic pieces ===== */
 .page-head{margin-bottom:20px}
@@ -187,35 +201,162 @@ th{color:var(--ink-dim); font-weight:700; font-size:12px}
     <div class="topbar">
       <button class="icon-btn menu-toggle" id="menuToggle">☰</button>
       <div class="search"><span>🔍</span><input id="searchInput" placeholder="ابحث في الأقسام..."></div>
-      <div class="role-pill">👤
-        <select id="roleSelect">
-          <option value="leader">قائد المدرسة</option>
-          <option value="team" selected>فريق التميز</option>
-          <option value="teacher">المعلم</option>
-          <option value="supervisor">المشرف</option>
-        </select>
-      </div>
+      <div class="role-pill" id="userChip">👤 —</div>
+      <span class="sync-pill" id="syncStatus">⏳ يتصل بقاعدة البيانات...</span>
       <button class="icon-btn" id="themeToggle">🌙</button>
     </div>
     <div class="content" id="content"></div>
   </div>
 </div>
+<div id="authOverlay" class="auth-overlay" style="display:none"></div>
 
+<!-- Firebase (قاعدة بيانات مشتركة بين جميع المستخدمين) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 /* ============ DATA LAYER ============ */
+// البيانات المشتركة (تُخزَّن في Firestore ويشترك فيها الجميع)
 const STORE_KEY='ftm_platform_v1';
+// تفضيلات هذا الجهاز فقط (لا تُشارك أبدًا): الوضع الليلي والدور المعروض
+const PREFS_KEY='ftm_prefs_v1';
+
 function defaultData(){
   return {
+    members:[],
     baseline:[], results:[], gaps:[], interventions:[], evidences:[], meetings:[],
-    checklist:{}, timeline:{
-      w1:'', w2:'', w3:'', w46:'', w7:''
-    },
-    theme:'light', role:'team'
+    checklist:{}, timeline:{ w1:'', w2:'', w3:'', w46:'', w7:'' }
   };
 }
-let DB = JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || defaultData();
-function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }
+function defaultPrefs(){ return { theme:'light' }; }
+
+let DB    = JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || defaultData();
+if(!DB.members) DB.members = []; // توافق مع بيانات محفوظة سابقًا قبل إضافة الأعضاء
+let PREFS = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null') || defaultPrefs();
+
 function uid(){ return Math.random().toString(36).slice(2,9); }
+
+/* ---- Firebase / Firestore (المشاركة الفعلية بين الأجهزة والمستخدمين) ---- */
+const firebaseConfig = {
+  apiKey: "AIzaSyD8bugX85UtK4JVHUnjkbSLAyOb31x909Y",
+  authDomain: "forms-school.firebaseapp.com",
+  projectId: "forms-school",
+  storageBucket: "forms-school.firebasestorage.app",
+  messagingSenderId: "270437208329",
+  appId: "1:270437208329:web:2c01c8a48d68910234c3d8",
+  measurementId: "G-Z7KB0YDNQ6"
+};
+let fsDocRef = null;
+let firestoreReady = false;
+try{
+  firebase.initializeApp(firebaseConfig);
+  fsDocRef = firebase.firestore().collection('ftm_platform').doc('main');
+}catch(err){ console.error('Firebase init failed', err); }
+
+function setSyncStatus(state){
+  const el = document.getElementById('syncStatus'); if(!el) return;
+  el.classList.remove('online','offline');
+  if(state==='online'){ el.textContent='🟢 متصل — البيانات مشتركة'; el.classList.add('online'); }
+  else if(state==='offline'){ el.textContent='🔴 غير متصل — يُحفظ محليًا فقط'; el.classList.add('offline'); }
+  else{ el.textContent='⏳ يتصل بقاعدة البيانات...'; }
+}
+
+function save(){
+  // حفظ فوري محليًا كنسخة احتياطية سريعة
+  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  if(!fsDocRef){ setSyncStatus('offline'); return; }
+  fsDocRef.set(DB).then(()=> setSyncStatus('online')).catch(err=>{
+    console.error('Firestore write failed', err); setSyncStatus('offline');
+  });
+}
+function savePrefs(){ localStorage.setItem(PREFS_KEY, JSON.stringify(PREFS)); }
+
+function startRealtimeSync(onFirstResponse){
+  if(!fsDocRef){ setSyncStatus('offline'); onFirstResponse && onFirstResponse(); return; }
+  let first=true;
+  const settle=()=>{ if(first){ first=false; onFirstResponse && onFirstResponse(); } };
+  fsDocRef.onSnapshot(snap=>{
+    if(snap.exists){
+      DB = snap.data();
+      if(!DB.members) DB.members=[];
+      localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+      setSyncStatus('online');
+      refreshCurrentMemberFromDB();
+      // لا نُعيد رسم الشاشة إن كان المستخدم يكتب حاليًا داخل نموذج، حتى لا يفقد ما يكتبه
+      const activeTag = document.activeElement && document.activeElement.tagName;
+      if(!['INPUT','TEXTAREA','SELECT'].includes(activeTag)){ renderSidebar(); if(currentMember) renderContent(); }
+    } else {
+      // أول تشغيل: لا يوجد مستند بعد، أنشئه من بياناتنا المحلية
+      fsDocRef.set(DB).then(()=> setSyncStatus('online'));
+    }
+    settle();
+  }, err=>{ console.error('Firestore sync error', err); setSyncStatus('offline'); settle(); });
+}
+
+/* ============ AUTH (اسم ثلاثي + رقم سري، بدون بريد إلكتروني) ============ */
+const SESSION_KEY='ftm_session_v1';
+let currentMember = null;
+function normalizeName(s){ return (s||'').trim().replace(/\s+/g,' '); }
+function getSession(){ return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
+function setSession(id){ localStorage.setItem(SESSION_KEY, JSON.stringify({id})); }
+function clearSession(){ localStorage.removeItem(SESSION_KEY); currentMember=null; }
+function refreshCurrentMemberFromDB(){
+  const session=getSession();
+  if(!session) return;
+  const m = DB.members.find(x=>x.id===session.id);
+  if(m){ currentMember=m; }
+  else { clearSession(); currentMember=null; renderAuthScreen(); }
+}
+function initAuthFlow(){
+  const session=getSession();
+  const m = session? DB.members.find(x=>x.id===session.id) : null;
+  if(m){ currentMember=m; renderSidebar(); renderContent(); }
+  else { renderAuthScreen(); }
+}
+function renderAuthScreen(){
+  document.getElementById('authOverlay').style.display='flex';
+  document.getElementById('authOverlay').innerHTML = `
+    <div class="auth-card">
+      <div class="eyebrow">فريق التميز المدرسي</div>
+      <h1>تسجيل الدخول</h1>
+      <p class="sub">أدخل اسمك الثلاثي ورقمك السري. إن كانت أول مرة سيُنشأ حسابك تلقائيًا.</p>
+      <div class="err" id="authErr"></div>
+      <form id="authForm">
+        <div class="field"><label>الاسم الثلاثي</label><input name="name" required></div>
+        <div class="field"><label>الرقم السري (٤ أرقام على الأقل)</label><input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,}" minlength="4" required></div>
+        <div class="field" id="roleField"><label>الدور (لأول مرة فقط)</label>
+          <select name="role">
+            <option value="teacher">المعلم</option>
+            <option value="team" selected>فريق التميز</option>
+            <option value="leader">قائد المدرسة</option>
+            <option value="supervisor">المشرف</option>
+          </select>
+        </div>
+        <button class="btn" type="submit" style="width:100%; justify-content:center">دخول</button>
+      </form>
+      <div class="hint">الرقم السري خاص بك ولا يظهر لأحد. إن نسيته يمكن لفريق التميز إعادة تعيينه من صفحة «الصلاحيات».</div>
+    </div>`;
+  document.getElementById('authForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const name=normalizeName(fd.get('name'));
+    const pin=(fd.get('pin')||'').trim();
+    const role=fd.get('role');
+    const errEl=document.getElementById('authErr');
+    errEl.style.display='none';
+    if(name.length<3 || pin.length<4){ errEl.textContent='الرجاء إدخال الاسم الثلاثي ورقم سري من ٤ أرقام على الأقل.'; errEl.style.display='block'; return; }
+    const existing = DB.members.find(m=>normalizeName(m.name).toLowerCase()===name.toLowerCase());
+    if(existing){
+      if(existing.pin!==pin){ errEl.textContent='هذا الاسم مسجّل مسبقًا برقم سري مختلف. تأكد من الرقم أو تواصل مع فريق التميز لإعادة تعيينه.'; errEl.style.display='block'; return; }
+      setSession(existing.id); currentMember=existing;
+    } else {
+      const nm={ id:uid(), name, pin, role, createdAt:new Date().toISOString().slice(0,10) };
+      DB.members.push(nm); save(); setSession(nm.id); currentMember=nm;
+    }
+    document.getElementById('authOverlay').style.display='none';
+    renderSidebar(); renderContent();
+  });
+}
+function logout(){ clearSession(); updateUserChip(); renderAuthScreen(); }
 
 /* ============ NAV ============ */
 const NAV = [
@@ -428,7 +569,7 @@ VIEWS.gaps = () => pageHead('القسم السادس','بطاقة فجوة تع�
       <div class="field"><label>الأولوية</label>
         <select name="priority"><option>عالية</option><option>متوسطة</option><option>منخفضة</option></select>
       </div>
-      <div class="field"><label>المعلم المسؤول</label><input name="teacher"></div>
+      <div class="field"><label>المعلم المسؤول</label><input name="teacher" value="${currentMember?esc(currentMember.name):''}"></div>
       <div class="field"><label>تاريخ بدء المعالجة</label><input name="start" type="date"></div>
       <div class="field"><label>تاريخ القياس القادم</label><input name="next" type="date"></div>
       <div style="grid-column:1/-1"><button class="btn" type="submit">➕ إضافة الفجوة</button></div>
@@ -465,7 +606,7 @@ VIEWS.interventions = () => pageHead('القسم السابع','خطة التد�
       <div class="field"><label>الإجراء</label>
         <select name="action">${ACTIONS.map(a=>`<option>${a}</option>`).join('')}</select>
       </div>
-      <div class="field"><label>المسؤول</label><input name="owner"></div>
+      <div class="field"><label>المسؤول</label><input name="owner" value="${currentMember?esc(currentMember.name):''}"></div>
       <div class="field"><label>المدة</label><input name="duration" placeholder="مثال: أسبوعان"></div>
       <div class="field"><label>مؤشر النجاح</label><input name="kpi"></div>
       <div class="field"><label>أداة القياس</label><input name="tool"></div>
@@ -653,7 +794,7 @@ VIEWS.meeting = () => pageHead('القسم السادس عشر','الاجتما�
       <div class="field"><label>5. ما الذي لم ينجح؟</label><textarea name="q5"></textarea></div>
       <div class="field"><label>6. ما نتيجة القياس؟</label><textarea name="q6"></textarea></div>
       <div class="field"><label>7. ما القرار القادم؟</label><textarea name="q7"></textarea></div>
-      <div class="field"><label>8. من المسؤول؟</label><input name="q8"></div>
+      <div class="field"><label>8. من المسؤول؟</label><input name="q8" value="${currentMember?esc(currentMember.name):''}"></div>
       <div class="field"><label>9. متى نراجع النتيجة؟</label><input type="date" name="q9"></div>
       <div style="grid-column:1/-1"><button class="btn" type="submit">📝 إنشاء محضر اجتماع</button></div>
     </form>
@@ -740,11 +881,31 @@ function printMeeting(id){
 }
 
 /* ---- Roles ---- */
-VIEWS.roles = () => pageHead('القسم الثامن عشر','الصلاحيات',
-  'هذه المنصة تجريبية (بدون خادم)، والدور المختار من الأعلى يتحكم في إظهار/إخفاء أزرار التعديل فقط.') + `
+const ROLE_LABELS={leader:'قائد المدرسة',team:'فريق التميز',teacher:'المعلم',supervisor:'المشرف'};
+VIEWS.roles = () => pageHead('القسم الثامن عشر','الصلاحيات والأعضاء',
+  'كل عضو يسجّل دخوله باسمه الثلاثي ورقمه السري الخاص، ويختار دوره عند أول تسجيل. صلاحية «المشرف» تُخفي أزرار التعديل تلقائيًا.') + `
   <div class="grid grid-2">
     ${[['قائد المدرسة','يشاهد جميع البيانات والتقارير.'],['فريق التميز','إدارة التحليل والخطط والمتابعة.'],['المعلم','يشاهد المواد والمهارات والفجوات المرتبطة به، ويدخل إجراءات المعالجة والنتائج.'],['المشرف','صلاحية مشاهدة التقارير والشواهد دون تعديل البيانات.']]
       .map(([t,d])=>`<div class="card card-pad"><div class="section-title">${t}</div><p class="muted">${d}</p></div>`).join('')}
+  </div>
+  <div class="card card-pad" style="margin-top:16px">
+    <div class="section-title">الأعضاء المسجَّلون (${DB.members.length})</div>
+    ${DB.members.length===0? emptyState('لا يوجد أعضاء مسجَّلون بعد'):`
+    <table><thead><tr><th>الاسم</th><th>الدور</th><th>تاريخ التسجيل</th><th class="no-print">إجراءات</th></tr></thead>
+    <tbody>${DB.members.map(m=>`
+      <tr>
+        <td>${esc(m.name)}${currentMember && m.id===currentMember.id? ' <span class="muted">(أنت)</span>':''}</td>
+        <td>
+          <select class="member-role" data-id="${m.id}" style="border:1px solid var(--border);border-radius:8px;padding:4px 8px;background:var(--surface-2);color:var(--ink)">
+            ${Object.entries(ROLE_LABELS).map(([v,l])=>`<option value="${v}" ${m.role===v?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </td>
+        <td>${m.createdAt||'—'}</td>
+        <td class="no-print">
+          <button class="btn ghost sm" onclick="resetMemberPin('${m.id}')">إعادة تعيين الرقم السري</button>
+          <button class="btn ghost sm" onclick="removeMember('${m.id}')">حذف</button>
+        </td>
+      </tr>`).join('')}</tbody></table>`}
   </div>`;
 
 /* ---- Start here checklist ---- */
@@ -788,6 +949,15 @@ function renderContent(){
   el.innerHTML = (VIEWS[currentView] || VIEWS.home)();
   bindDynamicHandlers();
   applyRoleView();
+  updateUserChip();
+}
+function updateUserChip(){
+  const chip=document.getElementById('userChip');
+  if(!chip) return;
+  if(!currentMember){ chip.innerHTML='👤 —'; return; }
+  const roleLabel={leader:'قائد المدرسة',team:'فريق التميز',teacher:'المعلم',supervisor:'المشرف'}[currentMember.role] || currentMember.role;
+  chip.innerHTML = `👤 ${esc(currentMember.name)} · ${roleLabel} <button id="logoutBtn" type="button">خروج</button>`;
+  const lb=document.getElementById('logoutBtn'); if(lb) lb.addEventListener('click', logout);
 }
 function bindDynamicHandlers(){
   document.querySelectorAll('[data-view]').forEach(b=>{
@@ -797,10 +967,10 @@ function bindDynamicHandlers(){
   const forms={
     baselineForm:(d)=>{ DB.baseline.push({id:uid(), subject:d.subject, skill:d.skill, before:+d.before, after:d.after===''? '': +d.after}); },
     resultsForm:(d)=>{ DB.results.push({id:uid(), ...d, total:+d.total, measured:+d.measured, avg:+d.avg, mastery:+d.mastery}); },
-    gapForm:(d)=>{ DB.gaps.push({id:uid(), ...d}); },
-    interventionForm:(d)=>{ DB.interventions.push({id:uid(), ...d}); },
+    gapForm:(d)=>{ DB.gaps.push({id:uid(), ...d, createdBy:currentMember?currentMember.name:''}); },
+    interventionForm:(d)=>{ DB.interventions.push({id:uid(), ...d, createdBy:currentMember?currentMember.name:''}); },
     evidenceForm:(d)=>{ DB.evidences.push({id:uid(), ...d}); },
-    meetingForm:(d)=>{ DB.meetings.push({id:uid(), ...d}); },
+    meetingForm:(d)=>{ DB.meetings.push({id:uid(), ...d, createdBy:currentMember?currentMember.name:''}); },
   };
   Object.keys(forms).forEach(fid=>{
     const f=document.getElementById(fid);
@@ -821,27 +991,42 @@ function bindDynamicHandlers(){
   document.querySelectorAll('.check-row input[type=checkbox]').forEach(cb=>{
     cb.addEventListener('change', ()=>{ DB.checklist[cb.dataset.idx]=cb.checked; save(); renderContent(); });
   });
+  document.querySelectorAll('.member-role').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const m=DB.members.find(x=>x.id===sel.dataset.id);
+      if(m){ m.role=sel.value; save(); if(currentMember && currentMember.id===m.id) currentMember=m; renderContent(); }
+    });
+  });
+}
+function resetMemberPin(id){
+  const m=DB.members.find(x=>x.id===id); if(!m) return;
+  const newPin = String(Math.floor(1000+Math.random()*9000));
+  m.pin=newPin; save(); renderContent();
+  alert(`تم إنشاء رقم سري جديد لـ ${m.name}: ${newPin}\nأبلغه به ليستخدمه في تسجيل الدخول القادم.`);
+}
+function removeMember(id){
+  const m=DB.members.find(x=>x.id===id); if(!m) return;
+  if(!confirm(`هل تريد حذف العضو "${m.name}"؟`)) return;
+  DB.members = DB.members.filter(x=>x.id!==id); save(); renderContent();
 }
 function removeItem(key,id){ DB[key]=DB[key].filter(x=>x.id!==id); save(); renderContent(); }
 
 function applyRoleView(){
-  const role=DB.role;
+  const role = currentMember? currentMember.role : 'supervisor';
   const hideEdits = role==='supervisor';
   document.querySelectorAll('.no-print').forEach(elm=>{
     if(hideEdits && (elm.tagName==='FORM' || elm.querySelector('form'))) elm.style.display='none';
   });
 }
 
-/* ============ TOP CONTROLS ============ */
-document.getElementById('roleSelect').value = DB.role;
-document.getElementById('roleSelect').addEventListener('change', e=>{ DB.role=e.target.value; save(); renderContent(); });
-document.documentElement.setAttribute('data-theme', DB.theme);
-document.getElementById('themeToggle').textContent = DB.theme==='dark'? '☀️':'🌙';
+/* ============ TOP CONTROLS (تفضيلات محلية فقط، لا تُشارك) ============ */
+document.documentElement.setAttribute('data-theme', PREFS.theme);
+document.getElementById('themeToggle').textContent = PREFS.theme==='dark'? '☀️':'🌙';
 document.getElementById('themeToggle').addEventListener('click', ()=>{
-  DB.theme = DB.theme==='dark'? 'light':'dark';
-  document.documentElement.setAttribute('data-theme', DB.theme);
-  document.getElementById('themeToggle').textContent = DB.theme==='dark'? '☀️':'🌙';
-  save();
+  PREFS.theme = PREFS.theme==='dark'? 'light':'dark';
+  document.documentElement.setAttribute('data-theme', PREFS.theme);
+  document.getElementById('themeToggle').textContent = PREFS.theme==='dark'? '☀️':'🌙';
+  savePrefs();
 });
 document.getElementById('menuToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
 document.getElementById('searchInput').addEventListener('input', e=>{
@@ -852,8 +1037,10 @@ document.getElementById('searchInput').addEventListener('input', e=>{
 });
 
 /* ============ INIT ============ */
-renderSidebar();
-renderContent();
+document.getElementById('content').innerHTML = '<div class="empty"><div class="big">⏳</div>جاري التحميل...</div>';
+// ننتظر أول استجابة من قاعدة البيانات (أو مهلة 3 ثوانٍ في حال عدم الاتصال) قبل تحديد
+// هل نعرض شاشة الدخول أم نُدخل العضو المسجَّل مسبقًا على هذا الجهاز مباشرة.
+startRealtimeSync(initAuthFlow);
 </script>
 </body>
 </html>
