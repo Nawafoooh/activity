@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بنك الأسئلة — نافِس برو</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16211F; --pine:#0D3B36; --pine-light:#155048; --paper:#FBFAF6; --paper-dim:#F1F0E9;
+    --amber:#D9A441; --amber-dim:#F3E2BB; --brick:#C1502E; --brick-dim:#F5DCD3; --green:#2F7A4D; --green-dim:#DCEEDF;
+    --line:#DFDCD1; --radius-s:6px; --radius-m:10px; --maxw:1180px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans Arabic',sans-serif; line-height:1.65; font-size:15.5px;}
+  h1,h2,h3,.display{font-family:'Cairo',sans-serif; color:var(--pine); margin:0;}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px;}
+  :focus-visible{outline:3px solid var(--amber); outline-offset:2px;}
+  button{font-family:inherit; cursor:pointer;}
+  input, select, textarea{font-family:inherit; font-size:0.95rem;}
+
+  header.site{position:sticky; top:0; z-index:40; background:rgba(251,250,246,0.95); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
+  nav.wrap{display:flex; align-items:center; justify-content:space-between; padding:14px 24px; flex-wrap:wrap; gap:12px;}
+  .brand{display:flex; align-items:center; gap:10px; font-family:'Cairo',sans-serif; font-weight:800; font-size:1.1rem; color:var(--pine);}
+  .brand .mark{width:28px; height:28px; border-radius:7px; background:linear-gradient(135deg,var(--pine),var(--pine-light)); color:var(--amber); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem;}
+  .tabs{display:flex; gap:4px; background:var(--paper-dim); padding:4px; border-radius:10px;}
+  .tab-btn{border:0; background:transparent; padding:9px 16px; border-radius:8px; font-weight:600; font-size:0.9rem; color:#4A534F;}
+  .tab-btn.active{background:var(--pine); color:#fff;}
+  .export-btn{border:1.5px solid var(--pine); background:transparent; color:var(--pine); padding:9px 16px; border-radius:8px; font-weight:700; font-size:0.85rem;}
+  .export-btn:hover{background:var(--paper-dim);}
+
+  main{padding:36px 0 80px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius-m); padding:26px;}
+  .card + .card{margin-top:20px;}
+  .section-title{font-size:1.15rem; margin-bottom:18px;}
+
+  /* dashboard */
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;}
+  .stat{background:#fff; border:1px solid var(--line); border-radius:var(--radius-m); padding:20px;}
+  .stat .num{font-family:'Cairo',sans-serif; font-weight:800; font-size:1.9rem; color:var(--pine);}
+  .stat .lbl{font-size:0.85rem; color:#5A6560; margin-top:4px;}
+  .progress-track{background:var(--paper-dim); border-radius:20px; height:16px; overflow:hidden; margin-top:10px;}
+  .progress-fill{height:100%; background:linear-gradient(90deg,var(--pine),var(--pine-light)); border-radius:20px; transition:width .5s;}
+  .skillrow{margin-bottom:14px;}
+  .skillrow .labels{display:flex; justify-content:space-between; font-size:0.87rem; margin-bottom:6px; color:#4A534F;}
+  .skillrow .track{background:var(--paper-dim); border-radius:20px; height:9px; overflow:hidden;}
+  .skillrow .fill{height:100%; border-radius:20px; background:var(--pine-light); transition:width .6s;}
+  .pace-note{margin-top:14px; padding:12px 14px; background:var(--amber-dim); border-radius:var(--radius-s); font-size:0.88rem; color:#5A430F;}
+  .pace-note.ok{background:var(--green-dim); color:#1C4A30;}
+
+  /* form */
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:0.85rem; font-weight:600; color:#3A4441; margin-bottom:6px;}
+  .field input[type=text], .field input[type=file], .field select, .field textarea{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--paper);
+  }
+  .field textarea{min-height:80px; resize:vertical;}
+  .skill-add-row{display:flex; gap:8px; margin-top:8px;}
+  .skill-add-row input{flex:1; padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius-s);}
+  .skill-add-row button{background:var(--paper-dim); border:1px solid var(--line); border-radius:var(--radius-s); padding:8px 14px; font-size:0.85rem; font-weight:600;}
+  .option-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .option-row input[type=radio]{width:18px; height:18px; accent-color:var(--green);}
+  .option-row input[type=text]{flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:var(--radius-s);}
+  .img-preview{margin-top:10px; max-width:220px; border-radius:var(--radius-s); border:1px solid var(--line);}
+  .img-remove{margin-top:8px; background:none; border:none; color:var(--brick); font-size:0.82rem; font-weight:600; text-decoration:underline;}
+  .form-actions{display:flex; gap:12px; margin-top:22px; align-items:center;}
+  .btn-primary{background:var(--pine); color:#fff; border:0; padding:13px 24px; border-radius:var(--radius-s); font-weight:700; font-size:0.95rem;}
+  .btn-primary:hover{background:var(--pine-light);}
+  .btn-secondary{background:transparent; color:var(--pine); border:1.5px solid var(--pine); padding:13px 24px; border-radius:var(--radius-s); font-weight:700; font-size:0.95rem;}
+  .err-text{color:var(--brick); font-size:0.85rem; margin-top:10px;}
+
+  /* browse */
+  .filters{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
+  .filters select, .filters input{padding:8px 12px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--paper); font-size:0.88rem;}
+  .qlist{border:1px solid var(--line); border-radius:var(--radius-m); overflow:hidden;}
+  .qrow{display:grid; grid-template-columns:90px 1fr 130px 100px 140px; gap:14px; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); font-size:0.88rem;}
+  .qrow:last-child{border-bottom:none;}
+  .qrow.head{background:var(--paper-dim); font-weight:700; color:var(--pine);}
+  .qid{font-family:'Cairo',sans-serif; font-weight:700; color:var(--pine-light); font-size:0.82rem;}
+  .qtext{color:#3A4441; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .badge{display:inline-block; padding:3px 9px; border-radius:14px; font-size:0.76rem; font-weight:600;}
+  .badge.draft{background:var(--amber-dim); color:#8A6413;}
+  .badge.approved{background:var(--green-dim); color:#1C4A30;}
+  .row-actions{display:flex; gap:8px;}
+  .row-actions button{background:none; border:1px solid var(--line); border-radius:6px; padding:5px 10px; font-size:0.78rem; font-weight:600; color:var(--pine);}
+  .row-actions button.del{color:var(--brick); border-color:var(--brick-dim);}
+  .empty-note{padding:40px; text-align:center; color:#6b7570; font-size:0.92rem;}
+
+  /* skills manager */
+  .skill-tag{display:inline-flex; align-items:center; gap:8px; background:var(--paper-dim); padding:6px 12px; border-radius:16px; font-size:0.85rem; margin:4px 6px 4px 0;}
+  .skill-tag button{background:none; border:none; color:var(--brick); font-weight:700; font-size:0.9rem; line-height:1;}
+
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--pine); color:#fff; padding:12px 22px; border-radius:24px; font-size:0.9rem; font-weight:600; box-shadow:0 12px 30px -10px rgba(13,59,54,.5); z-index:100; opacity:0; transition:opacity .25s;}
+  .toast.show{opacity:1;}
+
+  @media (max-width:860px){
+    .stat-grid{grid-template-columns:1fr 1fr;}
+    .grid2, .grid3{grid-template-columns:1fr;}
+    .qrow{grid-template-columns:1fr; gap:6px;}
+    .tabs{flex-wrap:wrap;}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <nav class="wrap">
+    <a href="index.html" class="brand" style="text-decoration:none;"><span class="mark">ن</span> نافِس برو</a>
+    <a href="index.html" style="font-size:0.82rem; color:#5A6560; text-decoration:none; margin-left:-6px;">← الرئيسية</a>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">لوحة التقدم</button>
+      <button class="tab-btn" data-tab="add">إضافة سؤال</button>
+      <button class="tab-btn" data-tab="browse">بنك الأسئلة</button>
+      <button class="tab-btn" data-tab="skills">إدارة المهارات</button>
+    </div>
+    <button class="export-btn" id="exportBtn">تصدير نسخة احتياطية (JSON)</button>
+  </nav>
+</header>
+
+<main class="wrap">
+
+  <!-- DASHBOARD -->
+  <section class="panel active" id="panel-dashboard">
+    <div class="stat-grid">
+      <div class="stat"><div class="num" id="statTotal">0</div><div class="lbl">إجمالي الأسئلة المحفوظة</div></div>
+      <div class="stat"><div class="num" id="statToday">0</div><div class="lbl">أضيفت اليوم</div></div>
+      <div class="stat"><div class="num" id="statApproved">0</div><div class="lbl">معتمدة</div></div>
+      <div class="stat"><div class="num" id="statDaysLeft">-</div><div class="lbl">الأيام المتبقية على الهدف</div></div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">الهدف: 3000 سؤال</h3>
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div id="paceNote" class="pace-note">جاري الحساب...</div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">التوزيع حسب المادة</h3>
+      <div id="subjectBreakdown"></div>
+    </div>
+  </section>
+
+  <!-- ADD QUESTION -->
+  <section class="panel" id="panel-add">
+    <div class="card">
+      <h3 class="section-title" id="formTitle">إضافة سؤال جديد</h3>
+      <div class="grid3">
+        <div class="field">
+          <label>المادة</label>
+          <select id="fSubject"></select>
+        </div>
+        <div class="field">
+          <label>الصف</label>
+          <select id="fGrade"></select>
+        </div>
+        <div class="field">
+          <label>مستوى الصعوبة</label>
+          <select id="fDifficulty">
+            <option value="سهل">سهل</option>
+            <option value="متوسط" selected>متوسط</option>
+            <option value="صعب">صعب</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>المهارة</label>
+        <select id="fSkill"></select>
+        <div class="skill-add-row">
+          <input type="text" id="newSkillInline" placeholder="أو أضف مهارة جديدة لهذه المادة والصف">
+          <button type="button" id="addSkillInlineBtn">إضافة</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>نص السؤال</label>
+        <textarea id="fText" placeholder="اكتب نص السؤال هنا..."></textarea>
+      </div>
+
+      <div class="field">
+        <label>صورة السؤال (اختياري)</label>
+        <input type="file" id="fImage" accept="image/*">
+        <img id="imgPreview" class="img-preview" style="display:none">
+        <button type="button" id="imgRemoveBtn" class="img-remove" style="display:none">إزالة الصورة</button>
+      </div>
+
+      <div class="field">
+        <label>الخيارات — حدّد الإجابة الصحيحة</label>
+        <div class="option-row"><input type="radio" name="correctOpt" value="0"><input type="text" class="optText" placeholder="الخيار الأول"></div>
+        <div class="option-row"><input type="radio" name="correctOpt" value="1"><input type="text" class="optText" placeholder="الخيار الثاني"></div>
+        <div class="option-row"><input type="radio" name="correctOpt" value="2"><input type="text" class="optText" placeholder="الخيار الثالث"></div>
+        <div class="option-row"><input type="radio" name="correctOpt" value="3"><input type="text" class="optText" placeholder="الخيار الرابع"></div>
+      </div>
+
+      <div class="field">
+        <label>التفسير (اختياري)</label>
+        <textarea id="fExplain" placeholder="لماذا هذه الإجابة صحيحة؟"></textarea>
+      </div>
+
+      <div id="formErr" class="err-text" style="display:none"></div>
+
+      <div class="form-actions">
+        <button class="btn-primary" id="saveNextBtn">حفظ وإضافة سؤال آخر</button>
+        <button class="btn-secondary" id="saveOnlyBtn">حفظ فقط</button>
+        <button class="btn-secondary" id="cancelEditBtn" style="display:none">إلغاء التعديل</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BROWSE -->
+  <section class="panel" id="panel-browse">
+    <div class="card">
+      <div class="filters">
+        <select id="filterSubject"><option value="">كل المواد</option></select>
+        <select id="filterGrade"><option value="">كل الصفوف</option></select>
+        <select id="filterSkill"><option value="">كل المهارات</option></select>
+        <select id="filterStatus">
+          <option value="">كل الحالات</option>
+          <option value="draft">مسودة</option>
+          <option value="approved">معتمد</option>
+        </select>
+        <input type="text" id="filterSearch" placeholder="بحث في نص السؤال...">
+      </div>
+      <div class="qlist" id="qlist">
+        <div class="qrow head"><span>الرقم</span><span>نص السؤال</span><span>المهارة</span><span>الحالة</span><span>إجراءات</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SKILLS -->
+  <section class="panel" id="panel-skills">
+    <div class="card">
+      <h3 class="section-title">إدارة المهارات حسب المادة والصف</h3>
+      <div class="grid2">
+        <div class="field">
+          <label>المادة</label>
+          <select id="skSubject"></select>
+        </div>
+        <div class="field">
+          <label>الصف</label>
+          <select id="skGrade"></select>
+        </div>
+      </div>
+      <div id="skillTags" style="margin:14px 0;"></div>
+      <div class="skill-add-row">
+        <input type="text" id="skNewSkill" placeholder="اسم المهارة الجديدة">
+        <button type="button" id="skAddBtn">إضافة مهارة</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3 class="section-title">قائمة مهارات مقترحة لكل المواد والصفوف</h3>
+      <p style="font-size:0.88rem; color:#5A6560; margin-bottom:14px;">
+        قائمة مبدئية مبنية على معايير المنهج العامة — راجعها وعدّلها حسب خبرتك، وليست نسخة رسمية من هيئة قياس.
+        الضغط يضيف المهارات الناقصة فقط، ولا يحذف أي مهارة أضفتها مسبقًا.
+      </p>
+      <button type="button" class="btn-secondary" id="seedSkillsBtn">تحميل القائمة المقترحة لكل المواد</button>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUBJECTS = ['الرياضيات','العلوم','لغتي'];
+const GRADES = ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'];
+const TARGET_TOTAL = 3000;
+const TARGET_DAYS = 60;
+
+const DEFAULT_SKILLS = {
+  'الرياضيات': {
+    'ثالث ابتدائي': ['الأعداد حتى 10,000','الجمع والطرح','الضرب والقسمة الأساسية','الكسور البسيطة','القياس (طول/وزن/وقت)','الأشكال الهندسية الأساسية','قراءة البيانات البسيطة'],
+    'سادس ابتدائي': ['الأعداد الصحيحة','الكسور والأعداد العشرية','النسبة والتناسب','المعادلات الجبرية البسيطة','المساحة والمحيط والحجم','الأشكال الهندسية والتحويلات','تحليل البيانات والاحتمالات'],
+    'ثالث متوسط': ['الأعداد الحقيقية','المعادلات والمتباينات','الدوال الخطية','الهندسة (تطابق وتشابه)','المساحة والحجم المركب','الإحصاء والاحتمالات','حل المسائل اللفظية']
+  },
+  'العلوم': {
+    'ثالث ابتدائي': ['خصائص الكائنات الحية','دورات حياة النبات والحيوان','حالات المادة','القوى والحركة البسيطة','الطقس والفصول','الأرض ومواردها'],
+    'سادس ابتدائي': ['الخلية وتصنيف الكائنات','النظم البيئية والسلاسل الغذائية','خصائص المادة وتغيراتها','الطاقة وأشكالها','الكهرباء والمغناطيسية الأساسية','النظام الشمسي'],
+    'ثالث متوسط': ['التكاثر والوراثة','التفاعلات الكيميائية','قوانين نيوتن الأساسية','الطاقة وتحولاتها','الدوائر الكهربائية','الغلاف الجوي والتغير المناخي']
+  },
+  'لغتي': {
+    'ثالث ابتدائي': ['الفهم القرائي المباشر','الفهم الاستنتاجي البسيط','المفردات والمعاني','التراكيب اللغوية الأساسية','الإملاء'],
+    'سادس ابتدائي': ['الفهم القرائي المباشر','الفهم الاستنتاجي والتحليلي','المفردات (الترادف والتضاد)','القواعد النحوية الأساسية','استيعاب النصوص الأدبية'],
+    'ثالث متوسط': ['الفهم القرائي التحليلي والنقدي','الفكرة العامة والتفصيلية','الدلالات اللغوية','القواعد النحوية والصرفية المتقدمة','النصوص الأدبية والبلاغية']
+  }
+};
+
+let skillsConfig = {};   // { subject: { grade: [skills] } }
+let qIndex = [];         // lightweight index
+let settings = { startDate: null, nextId: 1 };
+let editingId = null;
+let currentImageDataUrl = null;
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+async function safeGet(key){
+  try{
+    const r = await window.storage.get(key, false);
+    return r ? JSON.parse(r.value) : null;
+  }catch(e){ return null; }
+}
+async function safeSet(key, value){
+  try{ return await window.storage.set(key, JSON.stringify(value), false); }
+  catch(e){ console.error('storage set failed', key, e); return null; }
+}
+async function safeDelete(key){
+  try{ return await window.storage.delete(key, false); } catch(e){ return null; }
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+function fillSelect(sel, arr, placeholder){
+  sel.innerHTML = '';
+  if(placeholder){
+    const o = document.createElement('option'); o.value=''; o.textContent = placeholder; sel.appendChild(o);
+  }
+  arr.forEach(v=>{
+    const o = document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o);
+  });
+}
+
+function ensureSkillPath(subject, grade){
+  if(!skillsConfig[subject]) skillsConfig[subject] = {};
+  if(!skillsConfig[subject][grade]) skillsConfig[subject][grade] = [];
+  return skillsConfig[subject][grade];
+}
+
+function refreshSkillSelect(){
+  const subject = document.getElementById('fSubject').value;
+  const grade = document.getElementById('fGrade').value;
+  const list = ensureSkillPath(subject, grade);
+  fillSelect(document.getElementById('fSkill'), list, list.length ? null : 'لا توجد مهارات بعد — أضف واحدة أدناه');
+}
+
+function refreshFilterSkillSelect(){
+  const subject = document.getElementById('filterSubject').value;
+  const grade = document.getElementById('filterGrade').value;
+  let list = [];
+  if(subject && grade){ list = ensureSkillPath(subject, grade); }
+  else if(subject){
+    Object.values(skillsConfig[subject] || {}).forEach(arr => list = list.concat(arr));
+    list = [...new Set(list)];
+  } else {
+    Object.values(skillsConfig).forEach(g => Object.values(g).forEach(arr => list = list.concat(arr)));
+    list = [...new Set(list)];
+  }
+  fillSelect(document.getElementById('filterSkill'), list, 'كل المهارات');
+}
+
+function refreshSkillsTab(){
+  const subject = document.getElementById('skSubject').value;
+  const grade = document.getElementById('skGrade').value;
+  const list = ensureSkillPath(subject, grade);
+  const box = document.getElementById('skillTags');
+  box.innerHTML = '';
+  if(!list.length){ box.innerHTML = '<span style="color:#6b7570;font-size:0.85rem;">لا توجد مهارات مضافة لهذه المادة والصف بعد.</span>'; return; }
+  list.forEach((s,i)=>{
+    const tag = document.createElement('span');
+    tag.className = 'skill-tag';
+    tag.innerHTML = `<span>${s}</span>`;
+    const btn = document.createElement('button');
+    btn.textContent = '×';
+    btn.title = 'حذف المهارة';
+    btn.onclick = async ()=>{
+      list.splice(i,1);
+      await safeSet('skills-config', skillsConfig);
+      refreshSkillsTab(); refreshSkillSelect(); refreshFilterSkillSelect();
+    };
+    tag.appendChild(btn);
+    box.appendChild(tag);
+  });
+}
+
+function resetForm(keepSubjectGrade){
+  document.getElementById('fText').value = '';
+  document.getElementById('fExplain').value = '';
+  document.querySelectorAll('.optText').forEach(i=>i.value='');
+  document.querySelectorAll('input[name=correctOpt]').forEach(r=>r.checked=false);
+  currentImageDataUrl = null;
+  document.getElementById('imgPreview').style.display='none';
+  document.getElementById('imgRemoveBtn').style.display='none';
+  document.getElementById('fImage').value='';
+  document.getElementById('formErr').style.display='none';
+  if(!keepSubjectGrade){
+    document.getElementById('fSubject').selectedIndex = 0;
+    document.getElementById('fGrade').selectedIndex = 0;
+    refreshSkillSelect();
+  }
+  editingId = null;
+  document.getElementById('formTitle').textContent = 'إضافة سؤال جديد';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+}
+
+function compressImage(file){
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const maxW = 800;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function loadAll(){
+  skillsConfig = (await safeGet('skills-config')) || {};
+  qIndex = (await safeGet('questions-index')) || [];
+  settings = (await safeGet('settings')) || { startDate: todayStr(), nextId: 1 };
+  if(!settings.startDate){ settings.startDate = todayStr(); await safeSet('settings', settings); }
+}
+
+function renderDashboard(){
+  const total = qIndex.length;
+  const today = todayStr();
+  const todayCount = qIndex.filter(q=>q.createdAt===today).length;
+  const approved = qIndex.filter(q=>q.status==='approved').length;
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statToday').textContent = todayCount;
+  document.getElementById('statApproved').textContent = approved;
+
+  const start = new Date(settings.startDate);
+  const deadline = new Date(start); deadline.setDate(deadline.getDate() + TARGET_DAYS);
+  const now = new Date();
+  const daysLeft = Math.max(0, Math.ceil((deadline - now) / 86400000));
+  document.getElementById('statDaysLeft').textContent = daysLeft;
+
+  const pct = Math.min(100, (total / TARGET_TOTAL) * 100);
+  document.getElementById('progressFill').style.width = pct.toFixed(1) + '%';
+
+  const remaining = Math.max(0, TARGET_TOTAL - total);
+  const noteEl = document.getElementById('paceNote');
+  if(remaining === 0){
+    noteEl.textContent = 'تم الوصول إلى الهدف — 3000 سؤال 🎉';
+    noteEl.classList.add('ok');
+  } else if(daysLeft === 0){
+    noteEl.textContent = `تبقّى ${remaining} سؤالًا ولم يتبقَّ وقت ضمن الجدول الأصلي — يُنصح بمراجعة الجدول الزمني.`;
+    noteEl.classList.remove('ok');
+  } else {
+    const perDay = Math.ceil(remaining / daysLeft);
+    noteEl.textContent = `متبقٍ ${remaining} سؤالًا خلال ${daysLeft} يومًا — بمعدل ${perDay} سؤال/يوم للوصول إلى الهدف في الموعد.`;
+    noteEl.classList.remove('ok');
+  }
+
+  const box = document.getElementById('subjectBreakdown');
+  box.innerHTML = '';
+  const maxCount = Math.max(1, ...SUBJECTS.map(s=>qIndex.filter(q=>q.subject===s).length));
+  SUBJECTS.forEach(s=>{
+    const c = qIndex.filter(q=>q.subject===s).length;
+    const row = document.createElement('div');
+    row.className = 'skillrow';
+    row.innerHTML = `<div class="labels"><span>${s}</span><span>${c}</span></div>
+      <div class="track"><div class="fill" style="width:${(c/maxCount*100)}%"></div></div>`;
+    box.appendChild(row);
+  });
+}
+
+function renderList(){
+  const subject = document.getElementById('filterSubject').value;
+  const grade = document.getElementById('filterGrade').value;
+  const skill = document.getElementById('filterSkill').value;
+  const status = document.getElementById('filterStatus').value;
+  const search = document.getElementById('filterSearch').value.trim();
+
+  let list = qIndex.slice().sort((a,b)=> b.id.localeCompare(a.id));
+  if(subject) list = list.filter(q=>q.subject===subject);
+  if(grade) list = list.filter(q=>q.grade===grade);
+  if(skill) list = list.filter(q=>q.skill===skill);
+  if(status) list = list.filter(q=>q.status===status);
+  if(search) list = list.filter(q=>q.preview.includes(search));
+
+  const container = document.getElementById('qlist');
+  container.innerHTML = '<div class="qrow head"><span>الرقم</span><span>نص السؤال</span><span>المهارة</span><span>الحالة</span><span>إجراءات</span></div>';
+
+  if(!list.length){
+    const e = document.createElement('div'); e.className='empty-note'; e.textContent='لا توجد أسئلة مطابقة بعد.';
+    container.appendChild(e);
+    return;
+  }
+
+  list.forEach(q=>{
+    const row = document.createElement('div');
+    row.className = 'qrow';
+    row.innerHTML = `
+      <span class="qid">${q.id}</span>
+      <span class="qtext">${q.preview}</span>
+      <span>${q.skill || '—'}</span>
+      <span class="badge ${q.status}">${q.status==='approved' ? 'معتمد' : 'مسودة'}</span>
+      <span class="row-actions">
+        <button data-act="edit" data-id="${q.id}">تعديل</button>
+        <button data-act="toggle" data-id="${q.id}">${q.status==='approved' ? 'إرجاع لمسودة':'اعتماد'}</button>
+        <button data-act="del" data-id="${q.id}" class="del">حذف</button>
+      </span>`;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll('button[data-act]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id = btn.getAttribute('data-id');
+      const act = btn.getAttribute('data-act');
+      if(act==='del'){
+        if(!confirm(`حذف السؤال ${id}؟ لا يمكن التراجع.`)) return;
+        await safeDelete('question:'+id);
+        qIndex = qIndex.filter(q=>q.id!==id);
+        await safeSet('questions-index', qIndex);
+        renderList(); renderDashboard();
+        showToast('تم حذف السؤال');
+      } else if(act==='toggle'){
+        const full = await safeGet('question:'+id);
+        if(!full) return;
+        full.status = full.status==='approved' ? 'draft' : 'approved';
+        await safeSet('question:'+id, full);
+        const idxEntry = qIndex.find(q=>q.id===id);
+        if(idxEntry) idxEntry.status = full.status;
+        await safeSet('questions-index', qIndex);
+        renderList(); renderDashboard();
+      } else if(act==='edit'){
+        const full = await safeGet('question:'+id);
+        if(!full) return;
+        loadQuestionIntoForm(full);
+        switchTab('add');
+      }
+    };
+  });
+}
+
+function loadQuestionIntoForm(q){
+  editingId = q.id;
+  document.getElementById('formTitle').textContent = 'تعديل السؤال ' + q.id;
+  document.getElementById('cancelEditBtn').style.display = 'inline-block';
+  document.getElementById('fSubject').value = q.subject;
+  document.getElementById('fGrade').value = q.grade;
+  refreshSkillSelect();
+  document.getElementById('fSkill').value = q.skill;
+  document.getElementById('fDifficulty').value = q.difficulty;
+  document.getElementById('fText').value = q.text;
+  document.getElementById('fExplain').value = q.explanation || '';
+  document.querySelectorAll('.optText').forEach((el,i)=> el.value = q.options[i] || '');
+  document.querySelectorAll('input[name=correctOpt]').forEach(r=>{ r.checked = (parseInt(r.value)===q.correctIndex); });
+  currentImageDataUrl = q.imageDataUrl || null;
+  const prev = document.getElementById('imgPreview');
+  if(currentImageDataUrl){ prev.src = currentImageDataUrl; prev.style.display='block'; document.getElementById('imgRemoveBtn').style.display='inline-block'; }
+  else { prev.style.display='none'; document.getElementById('imgRemoveBtn').style.display='none'; }
+}
+
+async function saveQuestion(andNext){
+  const subject = document.getElementById('fSubject').value;
+  const grade = document.getElementById('fGrade').value;
+  const skill = document.getElementById('fSkill').value;
+  const difficulty = document.getElementById('fDifficulty').value;
+  const text = document.getElementById('fText').value.trim();
+  const explanation = document.getElementById('fExplain').value.trim();
+  const options = Array.from(document.querySelectorAll('.optText')).map(i=>i.value.trim());
+  const correctRadio = document.querySelector('input[name=correctOpt]:checked');
+
+  const errEl = document.getElementById('formErr');
+  if(!skill){ errEl.textContent = 'اختر مهارة أو أضف مهارة جديدة أولًا.'; errEl.style.display='block'; return; }
+  if(!text){ errEl.textContent = 'نص السؤال مطلوب.'; errEl.style.display='block'; return; }
+  if(options.some(o=>!o)){ errEl.textContent = 'يجب تعبئة الخيارات الأربعة.'; errEl.style.display='block'; return; }
+  if(!correctRadio){ errEl.textContent = 'حدّد الإجابة الصحيحة.'; errEl.style.display='block'; return; }
+  errEl.style.display='none';
+
+  const id = editingId || ('Q-' + String(settings.nextId).padStart(4,'0'));
+  const record = {
+    id, subject, grade, skill, difficulty, text, options,
+    correctIndex: parseInt(correctRadio.value),
+    explanation, imageDataUrl: currentImageDataUrl,
+    status: editingId ? (qIndex.find(q=>q.id===id)?.status || 'draft') : 'draft',
+    createdAt: editingId ? (qIndex.find(q=>q.id===id)?.createdAt || todayStr()) : todayStr()
+  };
+
+  await safeSet('question:'+id, record);
+
+  const lightweight = { id, subject, grade, skill, difficulty, status: record.status, createdAt: record.createdAt, preview: text.slice(0,70) };
+  if(editingId){
+    const i = qIndex.findIndex(q=>q.id===id);
+    if(i>-1) qIndex[i] = lightweight;
+  } else {
+    qIndex.push(lightweight);
+    settings.nextId += 1;
+    await safeSet('settings', settings);
+  }
+  await safeSet('questions-index', qIndex);
+
+  showToast(editingId ? `تم تحديث ${id}` : `تم حفظ ${id} — الإجمالي: ${qIndex.length}`);
+  renderDashboard();
+
+  if(andNext){ resetForm(true); }
+  else { resetForm(false); switchTab('browse'); renderList(); }
+}
+
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id === 'panel-'+name));
+  if(name==='browse'){ refreshFilterSkillSelect(); renderList(); }
+  if(name==='skills'){ refreshSkillsTab(); }
+  if(name==='dashboard'){ renderDashboard(); }
+}
+
+function exportBackup(){
+  (async ()=>{
+    const full = [];
+    for(const entry of qIndex){
+      const q = await safeGet('question:'+entry.id);
+      if(q) full.push(q);
+    }
+    const payload = { exportedAt: new Date().toISOString(), skillsConfig, questions: full };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'nafispro-questions-backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('تم تنزيل النسخة الاحتياطية');
+  })();
+}
+
+function wireEvents(){
+  document.querySelectorAll('.tab-btn').forEach(b=> b.onclick = ()=>switchTab(b.dataset.tab));
+  document.getElementById('exportBtn').onclick = exportBackup;
+
+  document.getElementById('fSubject').onchange = refreshSkillSelect;
+  document.getElementById('fGrade').onchange = refreshSkillSelect;
+
+  document.getElementById('addSkillInlineBtn').onclick = async ()=>{
+    const subject = document.getElementById('fSubject').value;
+    const grade = document.getElementById('fGrade').value;
+    const input = document.getElementById('newSkillInline');
+    const val = input.value.trim();
+    if(!val) return;
+    const list = ensureSkillPath(subject, grade);
+    if(!list.includes(val)) list.push(val);
+    await safeSet('skills-config', skillsConfig);
+    input.value = '';
+    refreshSkillSelect();
+    document.getElementById('fSkill').value = val;
+  };
+
+  document.getElementById('fImage').onchange = async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    currentImageDataUrl = await compressImage(file);
+    const prev = document.getElementById('imgPreview');
+    prev.src = currentImageDataUrl; prev.style.display='block';
+    document.getElementById('imgRemoveBtn').style.display='inline-block';
+  };
+  document.getElementById('imgRemoveBtn').onclick = ()=>{
+    currentImageDataUrl = null;
+    document.getElementById('imgPreview').style.display='none';
+    document.getElementById('imgRemoveBtn').style.display='none';
+    document.getElementById('fImage').value = '';
+  };
+
+  document.getElementById('saveNextBtn').onclick = ()=>saveQuestion(true);
+  document.getElementById('saveOnlyBtn').onclick = ()=>saveQuestion(false);
+  document.getElementById('cancelEditBtn').onclick = ()=>{ resetForm(false); };
+
+  ['filterSubject','filterGrade','filterSkill','filterStatus'].forEach(id=>{
+    document.getElementById(id).onchange = ()=>{ if(id==='filterSubject'||id==='filterGrade') refreshFilterSkillSelect(); renderList(); };
+  });
+  document.getElementById('filterSearch').oninput = renderList;
+
+  document.getElementById('skSubject').onchange = refreshSkillsTab;
+  document.getElementById('skGrade').onchange = refreshSkillsTab;
+  document.getElementById('skAddBtn').onclick = async ()=>{
+    const subject = document.getElementById('skSubject').value;
+    const grade = document.getElementById('skGrade').value;
+    const input = document.getElementById('skNewSkill');
+    const val = input.value.trim();
+    if(!val) return;
+    const list = ensureSkillPath(subject, grade);
+    if(!list.includes(val)) list.push(val);
+    await safeSet('skills-config', skillsConfig);
+    input.value='';
+    refreshSkillsTab(); refreshSkillSelect(); refreshFilterSkillSelect();
+  };
+
+  document.getElementById('seedSkillsBtn').onclick = async ()=>{
+    if(!confirm('سيتم إضافة المهارات المقترحة الناقصة لكل المواد والصفوف. لن يُحذف أي شيء موجود. متابعة؟')) return;
+    Object.keys(DEFAULT_SKILLS).forEach(subject=>{
+      Object.keys(DEFAULT_SKILLS[subject]).forEach(grade=>{
+        const list = ensureSkillPath(subject, grade);
+        DEFAULT_SKILLS[subject][grade].forEach(s=>{ if(!list.includes(s)) list.push(s); });
+      });
+    });
+    await safeSet('skills-config', skillsConfig);
+    refreshSkillsTab(); refreshSkillSelect(); refreshFilterSkillSelect();
+    showToast('تم تحميل القائمة المقترحة');
+  };
+}
+
+async function init(){
+  fillSelect(document.getElementById('fSubject'), SUBJECTS);
+  fillSelect(document.getElementById('fGrade'), GRADES);
+  fillSelect(document.getElementById('filterSubject'), SUBJECTS, 'كل المواد');
+  fillSelect(document.getElementById('filterGrade'), GRADES, 'كل الصفوف');
+  fillSelect(document.getElementById('skSubject'), SUBJECTS);
+  fillSelect(document.getElementById('skGrade'), GRADES);
+
+  await loadAll();
+  wireEvents();
+  refreshSkillSelect();
+  refreshFilterSkillSelect();
+  refreshSkillsTab();
+  renderDashboard();
+}
+
+init();
+</script>
+</body>
+</html>
