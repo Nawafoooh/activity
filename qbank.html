@@ -144,6 +144,21 @@
       <h3 class="section-title">التوزيع حسب المادة</h3>
       <div id="subjectBreakdown"></div>
     </div>
+
+    <div class="card">
+      <h3 class="section-title">تغطية المهارات (الهدف الإرشادي: 15 سؤالًا لكل مهارة)</h3>
+      <div class="grid2" style="margin-bottom:16px;">
+        <div class="field" style="margin-bottom:0;">
+          <label>المادة</label>
+          <select id="covSubject"></select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>الصف</label>
+          <select id="covGrade"></select>
+        </div>
+      </div>
+      <div id="coverageList"></div>
+    </div>
   </section>
 
   <!-- ADD QUESTION -->
@@ -288,6 +303,7 @@ const SUBJECT_GRADES = {
 };
 const TARGET_TOTAL = 3000;
 const TARGET_DAYS = 60;
+const TARGET_PER_SKILL = 15;
 
 // المصدر: وثيقة نواتج التعلم الرسمية — مجالات ثم مهارات تحت كل مجال
 const DEFAULT_SKILLS = {
@@ -621,6 +637,37 @@ function renderDashboard(){
       <div class="track"><div class="fill" style="width:${(c/maxCount*100)}%"></div></div>`;
     box.appendChild(row);
   });
+
+  renderSkillCoverage();
+}
+
+function renderSkillCoverage(){
+  const subject = document.getElementById('covSubject').value;
+  const grade = document.getElementById('covGrade').value;
+  const dm = ensureDomainPath(subject, grade);
+  const box = document.getElementById('coverageList');
+  box.innerHTML = '';
+  const domains = Object.keys(dm).filter(d => dm[d] && dm[d].length);
+  if(!domains.length){
+    box.innerHTML = '<span style="color:#6b7570;font-size:0.85rem;">لا توجد مهارات مضافة لهذه المادة والصف — حمّل القائمة المقترحة من تبويب إدارة المهارات.</span>';
+    return;
+  }
+  domains.forEach(domain=>{
+    const h = document.createElement('div');
+    h.style.cssText = 'font-weight:700;color:var(--pine);font-size:0.88rem;margin:14px 0 8px;';
+    h.textContent = domain;
+    box.appendChild(h);
+    dm[domain].forEach(skill=>{
+      const count = qIndex.filter(q=>q.subject===subject && q.grade===grade && q.skill===skill).length;
+      const pct = Math.min(100, (count / TARGET_PER_SKILL) * 100);
+      const barColor = count===0 ? 'var(--brick)' : (count < TARGET_PER_SKILL ? 'var(--amber)' : 'var(--green)');
+      const row = document.createElement('div');
+      row.className = 'skillrow';
+      row.innerHTML = `<div class="labels"><span>${skill}</span><span>${count} / ${TARGET_PER_SKILL}</span></div>
+        <div class="track"><div class="fill" style="width:${pct}%; background:${barColor};"></div></div>`;
+      box.appendChild(row);
+    });
+  });
 }
 
 function renderList(){
@@ -828,6 +875,7 @@ function wireEvents(){
   document.getElementById('filterSearch').oninput = renderList;
 
   wireLinkedSelects(document.getElementById('skSubject'), document.getElementById('skGrade'), refreshSkillsTab);
+  wireLinkedSelects(document.getElementById('covSubject'), document.getElementById('covGrade'), renderSkillCoverage);
   document.getElementById('skAddBtn').onclick = async ()=>{
     const subject = document.getElementById('skSubject').value;
     const grade = document.getElementById('skGrade').value;
