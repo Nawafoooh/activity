@@ -79,7 +79,7 @@
   .filters{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;}
   .filters select, .filters input{padding:8px 12px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--paper); font-size:0.88rem;}
   .qlist{border:1px solid var(--line); border-radius:var(--radius-m); overflow:hidden;}
-  .qrow{display:grid; grid-template-columns:90px 1fr 130px 100px 140px; gap:14px; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); font-size:0.88rem;}
+  .qrow{display:grid; grid-template-columns:90px 1fr 130px 100px 220px; gap:14px; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line); font-size:0.88rem;}
   .qrow:last-child{border-bottom:none;}
   .qrow.head{background:var(--paper-dim); font-weight:700; color:var(--pine);}
   .qid{font-family:'Cairo',sans-serif; font-weight:700; color:var(--pine-light); font-size:0.82rem;}
@@ -87,8 +87,8 @@
   .badge{display:inline-block; padding:3px 9px; border-radius:14px; font-size:0.76rem; font-weight:600;}
   .badge.draft{background:var(--amber-dim); color:#8A6413;}
   .badge.approved{background:var(--green-dim); color:#1C4A30;}
-  .row-actions{display:flex; gap:8px;}
-  .row-actions button{background:none; border:1px solid var(--line); border-radius:6px; padding:5px 10px; font-size:0.78rem; font-weight:600; color:var(--pine);}
+  .row-actions{display:flex; gap:6px; flex-wrap:wrap;}
+  .row-actions button{background:none; border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:0.74rem; font-weight:600; color:var(--pine);}
   .row-actions button.del{color:var(--brick); border-color:var(--brick-dim);}
   .empty-note{padding:40px; text-align:center; color:#6b7570; font-size:0.92rem;}
 
@@ -163,8 +163,20 @@
 
   <!-- ADD QUESTION -->
   <section class="panel" id="panel-add">
+    <div class="card" style="border-color:var(--pine); background:var(--paper-dim);">
+      <h3 class="section-title">استيراد دفعة أسئلة من ملف Excel/CSV</h3>
+      <p style="font-size:0.88rem; color:#4A534F; margin-bottom:16px;">
+        حمّل القالب، املأه بأسئلتك (سؤال واحد لكل صف)، ثم ارفعه. الصور تُضاف بعد الاستيراد لكل سؤال على حدة من تبويب "بنك الأسئلة".
+      </p>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+        <button type="button" class="btn-secondary" id="downloadTemplateBtn">تحميل قالب Excel فارغ</button>
+        <input type="file" id="importFile" accept=".xlsx,.xls,.csv">
+      </div>
+      <div id="importResult" style="margin-top:14px; font-size:0.88rem;"></div>
+    </div>
+
     <div class="card">
-      <h3 class="section-title" id="formTitle">إضافة سؤال جديد</h3>
+      <h3 class="section-title" id="formTitle">أو أضف سؤالًا واحدًا يدويًا</h3>
       <div class="grid3">
         <div class="field">
           <label>المادة</label>
@@ -292,6 +304,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const SUBJECTS = ['الرياضيات','العلوم','لغتي'];
 const GRADES = ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'];
@@ -561,8 +574,92 @@ function resetForm(keepSubjectGrade){
     refreshSkillSelect();
   }
   editingId = null;
-  document.getElementById('formTitle').textContent = 'إضافة سؤال جديد';
+  document.getElementById('formTitle').textContent = 'أو أضف سؤالًا واحدًا يدويًا';
   document.getElementById('cancelEditBtn').style.display = 'none';
+}
+
+const IMPORT_HEADERS = ['المادة','الصف','المهارة','الصعوبة','نص السؤال','الخيار الأول','الخيار الثاني','الخيار الثالث','الخيار الرابع','رقم الإجابة الصحيحة (1-4)','التفسير (اختياري)'];
+
+function downloadTemplate(){
+  const example = ['الرياضيات','سادس ابتدائي','الكسور الاعتيادية','متوسط','ناتج جمع 1/4 + 1/4 يساوي','1/8','1/2','2/4','1','2','لأن المقامات متساوية فنجمع البسطين فقط'];
+  const ws = XLSX.utils.aoa_to_sheet([IMPORT_HEADERS, example]);
+  ws['!cols'] = IMPORT_HEADERS.map(()=>({wch:22}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'أسئلة');
+  XLSX.writeFile(wb, 'قالب-أسئلة-نافس-برو.xlsx');
+}
+
+async function importFromRows(rows){
+  let ok = 0;
+  const errors = [];
+  for(let i=0; i<rows.length; i++){
+    const r = rows[i];
+    if(!r || r.every(c=>c===undefined || c==='')) continue; // صف فارغ
+    const [subject, grade, skill, difficulty, text, opt1, opt2, opt3, opt4, correctNum, explanation] = r.map(c=> c===undefined||c===null ? '' : String(c).trim());
+    const rowLabel = `الصف ${i+2}`; // +2 لأن الصف 1 عناوين والفهرسة تبدأ من صفر
+
+    if(!subject || !SUBJECT_GRADES[subject]){
+      errors.push(`${rowLabel}: اسم المادة "${subject}" غير معروف (تحقق من الإملاء المطابق تمامًا)`); continue;
+    }
+    if(!SUBJECT_GRADES[subject].includes(grade)){
+      errors.push(`${rowLabel}: الصف "${grade}" غير متاح للمادة "${subject}" (تحقق من الإملاء، أو أن الثالث الابتدائي بلا علوم)`); continue;
+    }
+    if(!skill){ errors.push(`${rowLabel}: المهارة فارغة`); continue; }
+    if(!text){ errors.push(`${rowLabel}: نص السؤال فارغ`); continue; }
+    const options = [opt1, opt2, opt3, opt4];
+    if(options.some(o=>!o)){ errors.push(`${rowLabel}: يجب تعبئة الخيارات الأربعة`); continue; }
+    const correctIndex = parseInt(correctNum) - 1;
+    if(isNaN(correctIndex) || correctIndex < 0 || correctIndex > 3){ errors.push(`${rowLabel}: رقم الإجابة الصحيحة يجب أن يكون من 1 إلى 4`); continue; }
+    const diff = ['سهل','متوسط','صعب'].includes(difficulty) ? difficulty : 'متوسط';
+
+    // إن لم تكن المهارة موجودة في القائمة المعتمدة، تُضاف تلقائيًا تحت مجال "من الاستيراد" حتى لا يُفقد السؤال
+    const dm = ensureDomainPath(subject, grade);
+    const existsAlready = flattenDomainMap(dm).includes(skill);
+    if(!existsAlready) addSkill(subject, grade, 'من الاستيراد', skill);
+
+    const id = 'Q-' + String(settings.nextId).padStart(4,'0');
+    const record = {
+      id, subject, grade, skill, difficulty: diff, text, options,
+      correctIndex, explanation: explanation || '', imageDataUrl: null,
+      status: 'draft', createdAt: todayStr()
+    };
+    await safeSet('question:'+id, record);
+    qIndex.push({ id, subject, grade, skill, difficulty: diff, status:'draft', createdAt: todayStr(), preview: text.slice(0,70), hasImage:false });
+    settings.nextId += 1;
+    ok++;
+  }
+  await safeSet('settings', settings);
+  await safeSet('skills-config', skillsConfig);
+  await safeSet('questions-index', qIndex);
+  return { ok, errors };
+}
+
+function handleImportFile(file){
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    try{
+      const wb = XLSX.read(e.target.result, {type:'binary'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+      rows.shift(); // إزالة صف العناوين
+      const resultBox = document.getElementById('importResult');
+      resultBox.innerHTML = 'جاري الاستيراد...';
+      const { ok, errors } = await importFromRows(rows);
+      let html = `<strong style="color:var(--pine);">تم استيراد ${ok} سؤالًا بنجاح.</strong>`;
+      if(errors.length){
+        html += `<div style="margin-top:8px; color:var(--brick);">تم تجاوز ${errors.length} صفًا بسبب أخطاء:</div>
+          <ul style="margin:6px 0 0; padding-right:18px; color:#5A4030; font-size:0.82rem;">${errors.slice(0,20).map(e=>`<li>${e}</li>`).join('')}</ul>`;
+        if(errors.length > 20) html += `<div style="font-size:0.8rem; color:#6b7570;">و${errors.length-20} أخطاء أخرى...</div>`;
+      }
+      resultBox.innerHTML = html;
+      renderDashboard();
+      showToast(`تم استيراد ${ok} سؤالًا`);
+    }catch(err){
+      document.getElementById('importResult').innerHTML = '<span style="color:var(--brick);">تعذّرت قراءة الملف — تأكد أنه بصيغة xlsx أو csv مطابقة للقالب.</span>';
+      console.error(err);
+    }
+  };
+  reader.readAsBinaryString(file);
 }
 
 function compressImage(file){
@@ -697,11 +794,12 @@ function renderList(){
     const row = document.createElement('div');
     row.className = 'qrow';
     row.innerHTML = `
-      <span class="qid">${q.id}</span>
+      <span class="qid">${q.id} ${q.hasImage ? '🖼' : ''}</span>
       <span class="qtext">${q.preview}</span>
       <span>${q.skill || '—'}</span>
       <span class="badge ${q.status}">${q.status==='approved' ? 'معتمد' : 'مسودة'}</span>
       <span class="row-actions">
+        <button data-act="img" data-id="${q.id}">${q.hasImage ? 'تغيير الصورة':'إضافة صورة'}</button>
         <button data-act="edit" data-id="${q.id}">تعديل</button>
         <button data-act="toggle" data-id="${q.id}">${q.status==='approved' ? 'إرجاع لمسودة':'اعتماد'}</button>
         <button data-act="del" data-id="${q.id}" class="del">حذف</button>
@@ -734,6 +832,25 @@ function renderList(){
         if(!full) return;
         loadQuestionIntoForm(full);
         switchTab('add');
+      } else if(act==='img'){
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async (e)=>{
+          const file = e.target.files[0];
+          if(!file) return;
+          const dataUrl = await compressImage(file);
+          const full = await safeGet('question:'+id);
+          if(!full) return;
+          full.imageDataUrl = dataUrl;
+          await safeSet('question:'+id, full);
+          const idxEntry = qIndex.find(q=>q.id===id);
+          if(idxEntry) idxEntry.hasImage = true;
+          await safeSet('questions-index', qIndex);
+          renderList();
+          showToast(`تم إرفاق الصورة بالسؤال ${id}`);
+        };
+        input.click();
       }
     };
   });
@@ -786,7 +903,7 @@ async function saveQuestion(andNext){
 
   await safeSet('question:'+id, record);
 
-  const lightweight = { id, subject, grade, skill, difficulty, status: record.status, createdAt: record.createdAt, preview: text.slice(0,70) };
+  const lightweight = { id, subject, grade, skill, difficulty, status: record.status, createdAt: record.createdAt, preview: text.slice(0,70), hasImage: !!currentImageDataUrl };
   if(editingId){
     const i = qIndex.findIndex(q=>q.id===id);
     if(i>-1) qIndex[i] = lightweight;
@@ -833,6 +950,12 @@ function exportBackup(){
 function wireEvents(){
   document.querySelectorAll('.tab-btn').forEach(b=> b.onclick = ()=>switchTab(b.dataset.tab));
   document.getElementById('exportBtn').onclick = exportBackup;
+
+  document.getElementById('downloadTemplateBtn').onclick = downloadTemplate;
+  document.getElementById('importFile').onchange = (e)=>{
+    const file = e.target.files[0];
+    if(file) handleImportFile(file);
+  };
 
   wireLinkedSelects(document.getElementById('fSubject'), document.getElementById('fGrade'), refreshSkillSelect);
 
