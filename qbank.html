@@ -248,16 +248,26 @@
         </div>
       </div>
       <div id="skillTags" style="margin:14px 0;"></div>
+      <div class="grid2">
+        <div class="field" style="margin-bottom:0;">
+          <label>المجال (اختياري — اختر من الموجود أو اكتب مجالًا جديدًا)</label>
+          <input type="text" id="skDomainInput" list="domainList" placeholder="مثال: الأعداد والعمليات">
+          <datalist id="domainList"></datalist>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>اسم المهارة</label>
+          <input type="text" id="skNewSkill" placeholder="اسم المهارة الجديدة">
+        </div>
+      </div>
       <div class="skill-add-row">
-        <input type="text" id="skNewSkill" placeholder="اسم المهارة الجديدة">
-        <button type="button" id="skAddBtn">إضافة مهارة</button>
+        <button type="button" id="skAddBtn" style="width:100%; text-align:center;">إضافة مهارة</button>
       </div>
     </div>
     <div class="card">
-      <h3 class="section-title">قائمة مهارات مقترحة لكل المواد والصفوف</h3>
+      <h3 class="section-title">قائمة مهارات معتمدة على وثيقة نواتج التعلم الرسمية</h3>
       <p style="font-size:0.88rem; color:#5A6560; margin-bottom:14px;">
-        قائمة مبدئية مبنية على معايير المنهج العامة — راجعها وعدّلها حسب خبرتك، وليست نسخة رسمية من هيئة قياس.
-        الضغط يضيف المهارات الناقصة فقط، ولا يحذف أي مهارة أضفتها مسبقًا.
+        مبنية على مجالات ومهارات المنهج الرسمية لكل صف ومادة (الثالث الابتدائي بلا علوم، فقط رياضيات وقراءة).
+        راجعها وعدّلها حسب ما تراه — الضغط يضيف المهارات الناقصة فقط، ولا يحذف أي مهارة أضفتها مسبقًا.
       </p>
       <button type="button" class="btn-secondary" id="seedSkillsBtn">تحميل القائمة المقترحة لكل المواد</button>
     </div>
@@ -270,28 +280,78 @@
 <script>
 const SUBJECTS = ['الرياضيات','العلوم','لغتي'];
 const GRADES = ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'];
+// الثالث الابتدائي لا يُختبر في العلوم رسميًا في نافس — رياضيات وقراءة فقط
+const SUBJECT_GRADES = {
+  'الرياضيات': ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'],
+  'لغتي': ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'],
+  'العلوم': ['سادس ابتدائي','ثالث متوسط']
+};
 const TARGET_TOTAL = 3000;
 const TARGET_DAYS = 60;
 
+// المصدر: وثيقة نواتج التعلم الرسمية — مجالات ثم مهارات تحت كل مجال
 const DEFAULT_SKILLS = {
   'الرياضيات': {
-    'ثالث ابتدائي': ['الأعداد حتى 10,000','الجمع والطرح','الضرب والقسمة الأساسية','الكسور البسيطة','القياس (طول/وزن/وقت)','الأشكال الهندسية الأساسية','قراءة البيانات البسيطة'],
-    'سادس ابتدائي': ['الأعداد الصحيحة','الكسور والأعداد العشرية','النسبة والتناسب','المعادلات الجبرية البسيطة','المساحة والمحيط والحجم','الأشكال الهندسية والتحويلات','تحليل البيانات والاحتمالات'],
-    'ثالث متوسط': ['الأعداد الحقيقية','المعادلات والمتباينات','الدوال الخطية','الهندسة (تطابق وتشابه)','المساحة والحجم المركب','الإحصاء والاحتمالات','حل المسائل اللفظية']
+    'ثالث ابتدائي': {
+      'الأعداد والعمليات': ['قراءة ووصف الأعداد حتى أربع منازل','الجمع والطرح','معرفة حقائق الضرب والقسمة','استخدام الحساب الذهني','استخدام التقدير','فهم خصائص العمليات والعلاقة بينها','تمييز كسور الوحدة ومضاعفاتها'],
+      'الأنماط': ['اكتشاف الأنماط العددية','اكتشاف الأنماط غير العددية','تكوين نمط واستكماله'],
+      'الهندسة': ['التعرف على الأشكال ثنائية الأبعاد','التعرف على الأشكال ثلاثية الأبعاد','تمييز خصائص الأشكال'],
+      'القياس': ['المحيط','المساحة','تقدير المساحة باستخدام شبكة المربعات','الطول','الكتلة','السعة','النقود وفئاتها','وحدات الزمن'],
+      'البيانات': ['جمع البيانات من البيئة','تنظيم البيانات','تمثيل البيانات','قراءة التمثيلات البيانية','تفسير البيانات']
+    },
+    'سادس ابتدائي': {
+      'الأعداد والعمليات': ['قراءة ووصف الأعداد متعددة المنازل','إجراء العمليات الأربع','العوامل والمضاعفات','القوى والأسس','التعامل مع الأعداد والعمليات عليها'],
+      'الكسور والنسب': ['الكسور الاعتيادية','الكسور العشرية','الأعداد الكسرية','إجراء العمليات الأربع على الكسور','النسبة','المعدل','التناسب','حل مسائل التناسب'],
+      'الجبر': ['العلاقات','العبارات العددية','العبارات الجبرية','إيجاد قيمة العبارة','حل المعادلات الخطية'],
+      'الهندسة': ['المفاهيم الهندسية الأساسية','خصائص المضلعات','المثلثات','الأشكال الرباعية','الدائرة','المنشور','رسم الأشكال'],
+      'القياس': ['المحيط','المساحة','الحجم','المساحة السطحية','الأشكال الثنائية والثلاثية الأبعاد','التحويل بين وحدات القياس المترية'],
+      'البيانات والاحتمالات': ['جمع البيانات الكمية والنوعية','تنظيم البيانات','تمثيلها','قراءة الرسوم والتمثيلات','تفسير البيانات','تحليل البيانات','مقاييس النزعة المركزية','نتائج التجربة العشوائية','احتمال وقوع حادثة']
+    },
+    'ثالث متوسط': {
+      'الأعداد': ['الأعداد الصحيحة','الأعداد النسبية','العمليات الأربع','الجذور التربيعية','الأعداد الحقيقية'],
+      'النسب': ['النسبة','معدل الوحدة','النسبة المئوية','العلاقات المتناسبة','حل التناسب'],
+      'الجبر': ['المتتابعات الحسابية','الدوال','كتابة العبارات الجبرية','تبسيط العبارات','إيجاد قيمة العبارات','تحليل العبارات','حل المعادلات الخطية','حل أنظمة المعادلات','حل المتباينات'],
+      'الهندسة': ['العلاقات بين الزوايا','نظرية فيثاغورس','النسب المثلثية','التماثل','التطابق','التشابه','رسم الأشكال','إيجاد القياسات','التحويلات الهندسية في المستوى الإحداثي'],
+      'القياس': ['محيط الأشكال المركبة','مساحة الأشكال المركبة','حجم الأشكال المركبة','التحويل بين الوحدات المترية والإنجليزية']
+    }
   },
   'العلوم': {
-    'ثالث ابتدائي': ['خصائص الكائنات الحية','دورات حياة النبات والحيوان','حالات المادة','القوى والحركة البسيطة','الطقس والفصول','الأرض ومواردها'],
-    'سادس ابتدائي': ['الخلية وتصنيف الكائنات','النظم البيئية والسلاسل الغذائية','خصائص المادة وتغيراتها','الطاقة وأشكالها','الكهرباء والمغناطيسية الأساسية','النظام الشمسي'],
-    'ثالث متوسط': ['التكاثر والوراثة','التفاعلات الكيميائية','قوانين نيوتن الأساسية','الطاقة وتحولاتها','الدوائر الكهربائية','الغلاف الجوي والتغير المناخي']
+    'سادس ابتدائي': {
+      'علوم الحياة — التركيب والوظيفة': ['مفهوم الخلية','الخلية النباتية والحيوانية','وظائف أجزاء الخلية','مستويات التنظيم في المخلوقات الحية','العلاقة بين التركيب والوظيفة'],
+      'علوم الحياة — تنوع المخلوقات': ['تصنيف المخلوقات','خصائص المخلوقات','الممالك وتصنيفها'],
+      'علوم الحياة — الأنظمة البيئية': ['مكونات النظام البيئي','العوامل الحيوية وغير الحيوية','العلاقات بين المخلوقات','انتقال المادة والطاقة','التكيف','أثر التغيرات البيئية','أثر النشاط البشري على البيئة'],
+      'علوم الحياة — الوراثة': ['الصفات الموروثة والمكتسبة','انتقال الصفات من الآباء إلى الأبناء','التباين في الصفات'],
+      'العلوم الفيزيائية': ['خصائص المادة','التغيرات الفيزيائية والكيميائية','التفاعلات','حفظ الكتلة','القوة وأنواعها','العوامل المؤثرة في الحركة','قوانين نيوتن','الطاقة','الشغل','الطاقة الحركية','انتقال الطاقة','الموجات','الصوت','الضوء','الكهرباء الساكنة والمتحركة','الشحنة الكهربائية','المغناطيسية'],
+      'علوم الأرض والفضاء': ['النظام الشمسي','الجاذبية','حركة مكونات النظام الشمسي','الظواهر المرتبطة بالشمس والأرض والقمر','أغلفة الأرض','مكونات الأرض','العمليات التي تحدث في الأرض وآثارها']
+    },
+    'ثالث متوسط': {
+      'علوم الحياة — الخلية': ['الخلية كوحدة أساسية للحياة','تركيب الخلية ووظائفها','نمو الخلية','انقسام الخلية','التقنيات المستخدمة في دراسة الخلايا'],
+      'الصوت والضوء': ['خصائص الموجات','سلوك موجات الصوت','سلوك موجات الضوء','تطبيقات الموجات','تفسير الظواهر المرتبطة بالصوت والضوء'],
+      'الكهرباء والمغناطيسية': ['التيار الكهربائي','طرق توليد الكهرباء','المجال الكهربائي','القوة الكهربائية','المجال المغناطيسي','العلاقة بين الكهرباء والمغناطيسية','الدوائر الكهربائية','نقل الطاقة','المواد الموصلة والعازلة','تحويل الطاقة الكهربائية إلى ميكانيكية والعكس'],
+      'الكون والفضاء': ['اتساع الكون','ضخامة الكون','البيانات المتعلقة بالكون','التقنيات المستخدمة في اكتشاف الكون','خصائص بعض الأجرام السماوية'],
+      'الأرض والموارد': ['تركيب الأرض','أغلفة الأرض','حركة المواد داخل الأرض','التغيرات التي تحدث في النظام الأرضي','الزلازل والبراكين','آثار الزلازل والبراكين','تحديد المناطق الأكثر تعرضًا لها','الموارد الطبيعية','استدامة الموارد','اقتراح حلول للمحافظة عليها']
+    }
   },
   'لغتي': {
-    'ثالث ابتدائي': ['الفهم القرائي المباشر','الفهم الاستنتاجي البسيط','المفردات والمعاني','التراكيب اللغوية الأساسية','الإملاء'],
-    'سادس ابتدائي': ['الفهم القرائي المباشر','الفهم الاستنتاجي والتحليلي','المفردات (الترادف والتضاد)','القواعد النحوية الأساسية','استيعاب النصوص الأدبية'],
-    'ثالث متوسط': ['الفهم القرائي التحليلي والنقدي','الفكرة العامة والتفصيلية','الدلالات اللغوية','القواعد النحوية والصرفية المتقدمة','النصوص الأدبية والبلاغية']
+    'ثالث ابتدائي': {
+      'المفردات والدلالات': ['تحديد معنى الكلمة من السياق','معرفة المرادف','معرفة الضد','تصنيف الكلمات','التمييز بين المذكر والمؤنث','التمييز بين المفرد والمثنى والجمع','التمييز بين الاسم والفعل والحرف','استخدام المفردات في جمل جديدة'],
+      'الفهم القرائي': ['تحديد المعلومات الصريحة في النص','استخراج الأفكار الأساسية','استنتاج الحقائق','تفسير المعلومات','تحليل النص','تحديد نوع النص','معرفة موضوع النص وغرضه','الربط بين السبب والنتيجة','المقارنة بين الشخصيات أو الأفكار','استنتاج أوجه الشبه والاختلاف'],
+      'التقويم والنقد': ['التمييز بين التعبيرات الجمالية','إبداء الرأي في النص','تبرير الرأي','الحكم على وضوح أو كفاية المعلومات','تقييم احتمالية حدوث الأحداث','اقتراح عنوان آخر','اقتراح نهاية مختلفة','اقتراح حلول أو بدائل للمشكلة الموجودة في النص']
+    },
+    'سادس ابتدائي': {
+      'المفردات': ['استنتاج معنى المفردة من السياق','المرادفات','الكلمات المتشابهة في المعنى','الأضداد','استخدام المفردة في جملة جديدة','فهم تغير معنى الكلمة بتغير السياق'],
+      'الفهم والتحليل': ['تحديد الفكرة الرئيسة','تحديد الأفكار الفرعية','استخراج الحقائق','تفسير المعلومات','تحليل النص','تحديد نوع النص','تحديد غرض النص ووظيفته','استنتاج المعلومات غير المباشرة','الربط بين الأفكار'],
+      'النقد والتقويم': ['تقويم النص','نقد النص','إبداء الرأي في وجهة نظر الكاتب','تحليل القيم والاتجاهات','تبرير الرأي','اقتراح حلول وبدائل','إعادة صياغة النص أو الفقرة','تنظيم معلومات النص في منظمات بيانية','استخدام وسائل الإقناع والتعليل','توظيف أفكار النص في حل مشكلات مدرسية أو حياتية أو مجتمعية']
+    },
+    'ثالث متوسط': {
+      'المفردات': ['استنتاج معنى المصطلح','استخدام الترادف','التضاد','السياق','التفسير','التعريف','التصنيف','التمثيل','الاستدلال على معنى المفردة من النص','تصنيف المفردات والعلاقات بينها','توظيف المفردات في سياقات جديدة'],
+      'تحليل النص': ['استخراج الأفكار الرئيسة','استخراج الأفكار الفرعية','استنتاج الأفكار الضمنية','تفسير العلاقات والروابط','الاستدلال من النص','تحديد موضوع النص','طرح أسئلة توضيحية وتحليلية واستنتاجية'],
+      'النقد والتقويم': ['تقويم النص','نقد النص','المقارنة بين نصوص مختلفة','تحديد وجهة نظر الكاتب','تقييم الحجج والأفكار','توظيف معلومات النص في مواقف حياتية','تلخيص النص']
+    }
   }
 };
 
-let skillsConfig = {};   // { subject: { grade: [skills] } }
+let skillsConfig = {};   // { subject: { grade: { domain: [skills] } } }
 let qIndex = [];         // lightweight index
 let settings = { startDate: null, nextId: 1 };
 let editingId = null;
@@ -330,56 +390,143 @@ function fillSelect(sel, arr, placeholder){
   });
 }
 
-function ensureSkillPath(subject, grade){
+function ensureDomainPath(subject, grade){
   if(!skillsConfig[subject]) skillsConfig[subject] = {};
-  if(!skillsConfig[subject][grade]) skillsConfig[subject][grade] = [];
+  if(!skillsConfig[subject][grade]) skillsConfig[subject][grade] = {};
   return skillsConfig[subject][grade];
+}
+function addSkill(subject, grade, domain, skillName){
+  const dm = ensureDomainPath(subject, grade);
+  if(!dm[domain]) dm[domain] = [];
+  if(!dm[domain].includes(skillName)) dm[domain].push(skillName);
+}
+function removeSkill(subject, grade, domain, skillName){
+  const dm = ensureDomainPath(subject, grade);
+  if(dm[domain]){
+    dm[domain] = dm[domain].filter(s=>s!==skillName);
+    if(!dm[domain].length) delete dm[domain];
+  }
+}
+function flattenDomainMap(dm){
+  let out = [];
+  Object.values(dm).forEach(arr => out = out.concat(arr));
+  return out;
+}
+function fillSkillSelect(sel, dm, placeholder){
+  sel.innerHTML = '';
+  if(placeholder){
+    const o = document.createElement('option'); o.value=''; o.textContent = placeholder; sel.appendChild(o);
+  }
+  Object.keys(dm).forEach(domain=>{
+    const skills = dm[domain];
+    if(!skills || !skills.length) return;
+    const og = document.createElement('optgroup');
+    og.label = domain;
+    skills.forEach(s=>{
+      const o = document.createElement('option'); o.value=s; o.textContent=s; og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
 }
 
 function refreshSkillSelect(){
   const subject = document.getElementById('fSubject').value;
   const grade = document.getElementById('fGrade').value;
-  const list = ensureSkillPath(subject, grade);
-  fillSelect(document.getElementById('fSkill'), list, list.length ? null : 'لا توجد مهارات بعد — أضف واحدة أدناه');
+  const dm = ensureDomainPath(subject, grade);
+  const hasAny = Object.values(dm).some(arr=>arr.length);
+  fillSkillSelect(document.getElementById('fSkill'), dm, hasAny ? null : 'لا توجد مهارات بعد — أضف واحدة أدناه أو حمّل القائمة المقترحة');
 }
 
 function refreshFilterSkillSelect(){
   const subject = document.getElementById('filterSubject').value;
   const grade = document.getElementById('filterGrade').value;
-  let list = [];
-  if(subject && grade){ list = ensureSkillPath(subject, grade); }
+  let flat = [];
+  if(subject && grade){ flat = flattenDomainMap(ensureDomainPath(subject, grade)); }
   else if(subject){
-    Object.values(skillsConfig[subject] || {}).forEach(arr => list = list.concat(arr));
-    list = [...new Set(list)];
+    Object.keys(skillsConfig[subject] || {}).forEach(g => flat = flat.concat(flattenDomainMap(skillsConfig[subject][g])));
   } else {
-    Object.values(skillsConfig).forEach(g => Object.values(g).forEach(arr => list = list.concat(arr)));
-    list = [...new Set(list)];
+    Object.keys(skillsConfig).forEach(s => Object.keys(skillsConfig[s]).forEach(g => flat = flat.concat(flattenDomainMap(skillsConfig[s][g]))));
   }
-  fillSelect(document.getElementById('filterSkill'), list, 'كل المهارات');
+  flat = [...new Set(flat)];
+  fillSelect(document.getElementById('filterSkill'), flat, 'كل المهارات');
 }
 
 function refreshSkillsTab(){
   const subject = document.getElementById('skSubject').value;
   const grade = document.getElementById('skGrade').value;
-  const list = ensureSkillPath(subject, grade);
+  const dm = ensureDomainPath(subject, grade);
   const box = document.getElementById('skillTags');
   box.innerHTML = '';
-  if(!list.length){ box.innerHTML = '<span style="color:#6b7570;font-size:0.85rem;">لا توجد مهارات مضافة لهذه المادة والصف بعد.</span>'; return; }
-  list.forEach((s,i)=>{
-    const tag = document.createElement('span');
-    tag.className = 'skill-tag';
-    tag.innerHTML = `<span>${s}</span>`;
-    const btn = document.createElement('button');
-    btn.textContent = '×';
-    btn.title = 'حذف المهارة';
-    btn.onclick = async ()=>{
-      list.splice(i,1);
-      await safeSet('skills-config', skillsConfig);
-      refreshSkillsTab(); refreshSkillSelect(); refreshFilterSkillSelect();
-    };
-    tag.appendChild(btn);
-    box.appendChild(tag);
-  });
+  const domains = Object.keys(dm).filter(d => dm[d] && dm[d].length);
+  if(!domains.length){
+    box.innerHTML = '<span style="color:#6b7570;font-size:0.85rem;">لا توجد مهارات مضافة لهذه المادة والصف بعد.</span>';
+  } else {
+    domains.forEach(domain=>{
+      const h = document.createElement('div');
+      h.style.cssText = 'font-weight:700;color:var(--pine);font-size:0.9rem;margin:14px 0 6px;';
+      h.textContent = domain;
+      box.appendChild(h);
+      const row = document.createElement('div');
+      dm[domain].forEach(s=>{
+        const tag = document.createElement('span');
+        tag.className = 'skill-tag';
+        tag.innerHTML = `<span>${s}</span>`;
+        const btn = document.createElement('button');
+        btn.textContent = '×';
+        btn.title = 'حذف المهارة';
+        btn.onclick = async ()=>{
+          removeSkill(subject, grade, domain, s);
+          await safeSet('skills-config', skillsConfig);
+          refreshSkillsTab(); refreshSkillSelect(); refreshFilterSkillSelect();
+        };
+        tag.appendChild(btn);
+        row.appendChild(tag);
+      });
+      box.appendChild(row);
+    });
+  }
+  const dl = document.getElementById('domainList');
+  if(dl){
+    dl.innerHTML = '';
+    Object.keys(dm).forEach(d=>{ const o = document.createElement('option'); o.value = d; dl.appendChild(o); });
+  }
+}
+
+// يربط قائمتي مادة/صف بحيث لا يظهر توليف غير صحيح (مثل العلوم مع ثالث ابتدائي)
+function wireLinkedSelects(subjectSel, gradeSel, afterChange){
+  function syncGradesForSubject(){
+    const subj = subjectSel.value;
+    const grades = SUBJECT_GRADES[subj] || GRADES;
+    const prev = gradeSel.value;
+    fillSelect(gradeSel, grades);
+    gradeSel.value = grades.includes(prev) ? prev : grades[0];
+  }
+  function syncSubjectsForGrade(){
+    const grade = gradeSel.value;
+    const subs = SUBJECTS.filter(s => (SUBJECT_GRADES[s] || GRADES).includes(grade));
+    const prev = subjectSel.value;
+    fillSelect(subjectSel, subs);
+    subjectSel.value = subs.includes(prev) ? prev : subs[0];
+  }
+  subjectSel.addEventListener('change', ()=>{ syncGradesForSubject(); afterChange && afterChange(); });
+  gradeSel.addEventListener('change', ()=>{ syncSubjectsForGrade(); afterChange && afterChange(); });
+  fillSelect(subjectSel, SUBJECTS);
+  syncGradesForSubject();
+}
+
+// نسخة بحقل "الكل" الاختياري، تُستخدم في فلاتر بنك الأسئلة
+function wireFilterSelects(subjectSel, gradeSel, afterChange){
+  function syncGrades(){
+    const subj = subjectSel.value;
+    const grades = subj ? (SUBJECT_GRADES[subj] || GRADES) : GRADES;
+    const prev = gradeSel.value;
+    fillSelect(gradeSel, grades, 'كل الصفوف');
+    gradeSel.value = grades.includes(prev) ? prev : '';
+  }
+  subjectSel.addEventListener('change', ()=>{ syncGrades(); afterChange && afterChange(); });
+  gradeSel.addEventListener('change', ()=>{ afterChange && afterChange(); });
+  fillSelect(subjectSel, SUBJECTS, 'كل المواد');
+  syncGrades();
 }
 
 function resetForm(keepSubjectGrade){
@@ -640,8 +787,7 @@ function wireEvents(){
   document.querySelectorAll('.tab-btn').forEach(b=> b.onclick = ()=>switchTab(b.dataset.tab));
   document.getElementById('exportBtn').onclick = exportBackup;
 
-  document.getElementById('fSubject').onchange = refreshSkillSelect;
-  document.getElementById('fGrade').onchange = refreshSkillSelect;
+  wireLinkedSelects(document.getElementById('fSubject'), document.getElementById('fGrade'), refreshSkillSelect);
 
   document.getElementById('addSkillInlineBtn').onclick = async ()=>{
     const subject = document.getElementById('fSubject').value;
@@ -649,8 +795,7 @@ function wireEvents(){
     const input = document.getElementById('newSkillInline');
     const val = input.value.trim();
     if(!val) return;
-    const list = ensureSkillPath(subject, grade);
-    if(!list.includes(val)) list.push(val);
+    addSkill(subject, grade, 'أخرى', val);
     await safeSet('skills-config', skillsConfig);
     input.value = '';
     refreshSkillSelect();
@@ -676,23 +821,24 @@ function wireEvents(){
   document.getElementById('saveOnlyBtn').onclick = ()=>saveQuestion(false);
   document.getElementById('cancelEditBtn').onclick = ()=>{ resetForm(false); };
 
-  ['filterSubject','filterGrade','filterSkill','filterStatus'].forEach(id=>{
-    document.getElementById(id).onchange = ()=>{ if(id==='filterSubject'||id==='filterGrade') refreshFilterSkillSelect(); renderList(); };
+  wireFilterSelects(document.getElementById('filterSubject'), document.getElementById('filterGrade'), ()=>{ refreshFilterSkillSelect(); renderList(); });
+  ['filterSkill','filterStatus'].forEach(id=>{
+    document.getElementById(id).onchange = renderList;
   });
   document.getElementById('filterSearch').oninput = renderList;
 
-  document.getElementById('skSubject').onchange = refreshSkillsTab;
-  document.getElementById('skGrade').onchange = refreshSkillsTab;
+  wireLinkedSelects(document.getElementById('skSubject'), document.getElementById('skGrade'), refreshSkillsTab);
   document.getElementById('skAddBtn').onclick = async ()=>{
     const subject = document.getElementById('skSubject').value;
     const grade = document.getElementById('skGrade').value;
+    const domainInput = document.getElementById('skDomainInput');
+    const domain = (domainInput.value.trim()) || 'أخرى';
     const input = document.getElementById('skNewSkill');
     const val = input.value.trim();
     if(!val) return;
-    const list = ensureSkillPath(subject, grade);
-    if(!list.includes(val)) list.push(val);
+    addSkill(subject, grade, domain, val);
     await safeSet('skills-config', skillsConfig);
-    input.value='';
+    input.value=''; domainInput.value='';
     refreshSkillsTab(); refreshSkillSelect(); refreshFilterSkillSelect();
   };
 
@@ -700,8 +846,10 @@ function wireEvents(){
     if(!confirm('سيتم إضافة المهارات المقترحة الناقصة لكل المواد والصفوف. لن يُحذف أي شيء موجود. متابعة؟')) return;
     Object.keys(DEFAULT_SKILLS).forEach(subject=>{
       Object.keys(DEFAULT_SKILLS[subject]).forEach(grade=>{
-        const list = ensureSkillPath(subject, grade);
-        DEFAULT_SKILLS[subject][grade].forEach(s=>{ if(!list.includes(s)) list.push(s); });
+        const domains = DEFAULT_SKILLS[subject][grade];
+        Object.keys(domains).forEach(domain=>{
+          domains[domain].forEach(skill=> addSkill(subject, grade, domain, skill));
+        });
       });
     });
     await safeSet('skills-config', skillsConfig);
@@ -711,13 +859,6 @@ function wireEvents(){
 }
 
 async function init(){
-  fillSelect(document.getElementById('fSubject'), SUBJECTS);
-  fillSelect(document.getElementById('fGrade'), GRADES);
-  fillSelect(document.getElementById('filterSubject'), SUBJECTS, 'كل المواد');
-  fillSelect(document.getElementById('filterGrade'), GRADES, 'كل الصفوف');
-  fillSelect(document.getElementById('skSubject'), SUBJECTS);
-  fillSelect(document.getElementById('skGrade'), GRADES);
-
   await loadAll();
   wireEvents();
   refreshSkillSelect();
