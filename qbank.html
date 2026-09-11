@@ -428,6 +428,22 @@ async function safeDelete(key){
   catch(e){ return null; }
 }
 
+// ---- نسخة عامة من الأسئلة المعتمدة فقط — تُقرأ من الطلاب بلا تسجيل دخول ----
+const PUBLIC_COLLECTION = 'approved_questions';
+async function syncApprovedCopy(id, record){
+  try{
+    await setDoc(doc(db, PUBLIC_COLLECTION, id), {
+      subject: record.subject, grade: record.grade, skill: record.skill,
+      difficulty: record.difficulty, text: record.text, options: record.options,
+      correctIndex: record.correctIndex, explanation: record.explanation || '',
+      imageDataUrl: record.imageDataUrl || null
+    });
+  }catch(e){ console.warn('public sync failed', id, e); }
+}
+async function removeApprovedCopy(id){
+  try{ await deleteDoc(doc(db, PUBLIC_COLLECTION, id)); }catch(e){}
+}
+
 // ---- فهرس الأسئلة مقسَّم إلى أجزاء لتفادي حد حجم مستند Firestore (1 ميجابايت) ----
 const INDEX_SHARD_SIZE = 400; // آمن لآلاف الأسئلة دون الاقتراب من الحد
 async function loadIndexSharded(){
@@ -996,6 +1012,7 @@ function renderList(){
       if(act==='del'){
         if(!confirm(`حذف السؤال ${id}؟ لا يمكن التراجع.`)) return;
         await safeDelete('question:'+id);
+        await removeApprovedCopy(id);
         qIndex = qIndex.filter(q=>q.id!==id);
         await saveIndexSharded(qIndex);
         renderList(); renderDashboard();
@@ -1005,6 +1022,8 @@ function renderList(){
         if(!full){ showToast(`تعذّر تحميل بيانات ${id} — قد تكون غير محفوظة فعليًا، أعد استيرادها`); return; }
         full.status = full.status==='approved' ? 'draft' : 'approved';
         await safeSet('question:'+id, full);
+        if(full.status==='approved'){ await syncApprovedCopy(id, full); }
+        else { await removeApprovedCopy(id); }
         const idxEntry = qIndex.find(q=>q.id===id);
         if(idxEntry) idxEntry.status = full.status;
         await saveIndexSharded(qIndex);
@@ -1026,6 +1045,7 @@ function renderList(){
           if(!full) return;
           full.imageDataUrl = dataUrl;
           await safeSet('question:'+id, full);
+          if(full.status==='approved'){ await syncApprovedCopy(id, full); }
           const idxEntry = qIndex.find(q=>q.id===id);
           if(idxEntry) idxEntry.hasImage = true;
           await saveIndexSharded(qIndex);
@@ -1084,6 +1104,7 @@ async function saveQuestion(andNext){
   };
 
   await safeSet('question:'+id, record);
+  if(record.status==='approved'){ await syncApprovedCopy(id, record); }
 
   const lightweight = { id, subject, grade, skill, difficulty, status: record.status, createdAt: record.createdAt, preview: text.slice(0,70), hasImage: !!currentImageDataUrl, hasExplanation: !!explanation };
   if(editingId){
@@ -1223,4 +1244,3 @@ async function init(){
 </script>
 </body>
 </html>
-
