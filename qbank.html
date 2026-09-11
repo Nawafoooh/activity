@@ -99,6 +99,20 @@
   .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--pine); color:#fff; padding:12px 22px; border-radius:24px; font-size:0.9rem; font-weight:600; box-shadow:0 12px 30px -10px rgba(13,59,54,.5); z-index:100; opacity:0; transition:opacity .25s;}
   .toast.show{opacity:1;}
 
+  /* login gate */
+  #loginGate{position:fixed; inset:0; background:var(--paper); z-index:200; display:flex; align-items:center; justify-content:center;}
+  #loginGate.hidden{display:none;}
+  .login-card{background:#fff; border:1px solid var(--line); border-radius:var(--radius-m); padding:36px; width:100%; max-width:360px; box-shadow:0 24px 48px -28px rgba(13,59,54,0.35);}
+  .login-card h2{font-size:1.2rem; margin-bottom:6px;}
+  .login-card p{font-size:0.85rem; color:#5A6560; margin-bottom:22px;}
+  .login-card input{width:100%; padding:11px 14px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--paper); margin-bottom:12px; font-family:inherit;}
+  .login-card button{width:100%; background:var(--pine); color:#fff; border:0; padding:12px; border-radius:var(--radius-s); font-weight:700; cursor:pointer;}
+  .login-card button:hover{background:var(--pine-light);}
+  .login-card .login-err{color:var(--brick); font-size:0.85rem; margin-top:10px; display:none;}
+  #appRoot{display:none;}
+  #appRoot.ready{display:block;}
+  .logout-btn{background:none; border:1px solid var(--line); border-radius:8px; padding:8px 14px; font-size:0.8rem; font-weight:600; color:var(--brick);}
+
   @media (max-width:860px){
     .stat-grid{grid-template-columns:1fr 1fr;}
     .grid2, .grid3{grid-template-columns:1fr;}
@@ -108,6 +122,19 @@
 </style>
 </head>
 <body>
+
+<div id="loginGate">
+  <div class="login-card">
+    <h2>لوحة إدارة الأسئلة — نافِس برو</h2>
+    <p>دخول المشرف فقط. البيانات محفوظة على Firebase ومحمية بحسابك.</p>
+    <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" autocomplete="username">
+    <input type="password" id="loginPassword" placeholder="كلمة المرور" autocomplete="current-password">
+    <button type="button" id="loginBtn">دخول</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<div id="appRoot">
 
 <header class="site">
   <nav class="wrap">
@@ -119,7 +146,10 @@
       <button class="tab-btn" data-tab="browse">بنك الأسئلة</button>
       <button class="tab-btn" data-tab="skills">إدارة المهارات</button>
     </div>
-    <button class="export-btn" id="exportBtn">تصدير نسخة احتياطية (JSON)</button>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="export-btn" id="exportBtn">تصدير نسخة احتياطية (JSON)</button>
+      <button class="logout-btn" id="logoutBtn">خروج</button>
+    </div>
   </nav>
 </header>
 
@@ -303,10 +333,129 @@
 
 </main>
 
+</div><!-- /#appRoot -->
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+// ضع بيانات مشروعك في Firebase Console هنا (Project settings → Your apps)
+const firebaseConfig = {
+  apiKey: "AIzaSyCwmnuN3GmXh-Snj_SGXVYxvC4BoksHuts",
+  authDomain: "naafis-platform.firebaseapp.com",
+  projectId: "naafis-platform",
+  storageBucket: "naafis-platform.firebasestorage.app",
+  messagingSenderId: "337917395597",
+  appId: "1:337917395597:web:6c90a2847ac51ed0c658c4"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+const QBANK_COLLECTION = 'qbank_data'; // مجموعة Firestore التي تُخزَّن فيها كل مفاتيح الأداة
+
+// ---- بوابة الدخول ----
+function showLoginGate(err){
+  document.getElementById('loginGate').classList.remove('hidden');
+  document.getElementById('appRoot').classList.remove('ready');
+  const errEl = document.getElementById('loginErr');
+  if(err){ errEl.textContent = err; errEl.style.display = 'block'; }
+  else { errEl.style.display = 'none'; }
+}
+function hideLoginGate(){
+  document.getElementById('loginGate').classList.add('hidden');
+  document.getElementById('appRoot').classList.add('ready');
+}
+
+document.getElementById('loginBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  try{
+    await signInWithEmailAndPassword(auth, email, password);
+  }catch(e){
+    const map = {
+      'auth/invalid-credential': 'البريد أو كلمة المرور غير صحيحة.',
+      'auth/invalid-email': 'صيغة البريد الإلكتروني غير صحيحة.',
+      'auth/too-many-requests': 'محاولات كثيرة متتالية — انتظر قليلًا وحاول مجددًا.'
+    };
+    showLoginGate(map[e.code] || 'تعذّر تسجيل الدخول. تحقق من الاتصال والبيانات.');
+  }
+});
+document.getElementById('logoutBtn').addEventListener('click', ()=> signOut(auth));
+
+let appInitialized = false;
+onAuthStateChanged(auth, (user)=>{
+  if(user){
+    hideLoginGate();
+    if(!appInitialized){ appInitialized = true; init(); }
+  } else {
+    showLoginGate();
+  }
+});
+
+// ---- طبقة التخزين — Firestore بدل window.storage/localStorage ----
+async function safeGet(key){
+  try{
+    const snap = await getDoc(doc(db, QBANK_COLLECTION, key));
+    return snap.exists() ? snap.data().value : null;
+  }catch(e){ console.warn('firestore get failed', key, e); return null; }
+}
+async function safeSet(key, value){
+  try{
+    await setDoc(doc(db, QBANK_COLLECTION, key), { value });
+    return true;
+  }catch(e){ console.error('firestore set failed', key, e); return null; }
+}
+function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
+async function safeSetWithRetry(key, value, attempts=4){
+  for(let i=0; i<attempts; i++){
+    const result = await safeSet(key, value);
+    if(result) return result;
+    await sleep(250 * (i+1));
+  }
+  return null;
+}
+async function safeDelete(key){
+  try{ await deleteDoc(doc(db, QBANK_COLLECTION, key)); return true; }
+  catch(e){ return null; }
+}
+
+// ---- فهرس الأسئلة مقسَّم إلى أجزاء لتفادي حد حجم مستند Firestore (1 ميجابايت) ----
+const INDEX_SHARD_SIZE = 400; // آمن لآلاف الأسئلة دون الاقتراب من الحد
+async function loadIndexSharded(){
+  let all = [];
+  let i = 0;
+  while(true){
+    const chunk = await safeGet('qindex_'+i);
+    if(chunk === null) break;
+    all = all.concat(chunk);
+    i++;
+  }
+  return all;
+}
+async function saveIndexSharded(arr){
+  const shards = [];
+  for(let i=0; i<arr.length; i+=INDEX_SHARD_SIZE) shards.push(arr.slice(i, i+INDEX_SHARD_SIZE));
+  if(!shards.length) shards.push([]);
+  for(let i=0; i<shards.length; i++) await safeSetWithRetry('qindex_'+i, shards[i]);
+  // حذف أي أجزاء قديمة زائدة إن تقلّص عدد الأسئلة (بعد حذف أسئلة كثيرة)
+  let j = shards.length;
+  while(true){
+    const exists = await safeGet('qindex_'+j);
+    if(exists === null) break;
+    await safeDelete('qindex_'+j);
+    j++;
+  }
+}
+
 const SUBJECTS = ['الرياضيات','العلوم','لغتي'];
 const GRADES = ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'];
 // الثالث الابتدائي لا يُختبر في العلوم رسميًا في نافس — رياضيات وقراءة فقط
@@ -389,39 +538,6 @@ let currentImageDataUrl = null;
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 
-async function safeGet(key){
-  try{
-    if(window.storage && typeof window.storage.get === 'function'){
-      const r = await window.storage.get(key, false);
-      return r ? JSON.parse(r.value) : null;
-    }
-    const raw = localStorage.getItem('nafispro:'+key);
-    return raw === null ? null : JSON.parse(raw);
-  }catch(e){ console.warn('storage get failed', key, e); return null; }
-}
-async function safeSet(key, value){
-  try{
-    const serialized = JSON.stringify(value);
-    if(window.storage && typeof window.storage.set === 'function') return await window.storage.set(key, serialized, false);
-    localStorage.setItem('nafispro:'+key, serialized); return {ok:true};
-  }
-  catch(e){ console.error('storage set failed', key, e); return null; }
-}
-function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
-async function safeSetWithRetry(key, value, attempts=4){
-  for(let i=0; i<attempts; i++){
-    const result = await safeSet(key, value);
-    if(result) return result;
-    await sleep(250 * (i+1)); // فاصل متزايد قبل كل إعادة محاولة
-  }
-  return null;
-}
-async function safeDelete(key){
-  try{
-    if(window.storage && typeof window.storage.delete === 'function') return await window.storage.delete(key, false);
-    localStorage.removeItem('nafispro:'+key); return {ok:true};
-  } catch(e){ return null; }
-}
 
 function showToast(msg){
   const t = document.getElementById('toast');
@@ -683,7 +799,7 @@ async function importFromRows(rows){
   }
   await safeSetWithRetry('settings', settings);
   await safeSetWithRetry('skills-config', skillsConfig);
-  await safeSetWithRetry('questions-index', qIndex);
+  await saveIndexSharded(qIndex);
   return { ok, errors };
 }
 
@@ -751,7 +867,7 @@ function compressImage(file){
 
 async function loadAll(){
   skillsConfig = (await safeGet('skills-config')) || {};
-  qIndex = (await safeGet('questions-index')) || [];
+  qIndex = await loadIndexSharded();
   settings = (await safeGet('settings')) || { startDate: todayStr(), nextId: 1 };
   if(!settings.startDate){ settings.startDate = todayStr(); await safeSet('settings', settings); }
 }
@@ -881,7 +997,7 @@ function renderList(){
         if(!confirm(`حذف السؤال ${id}؟ لا يمكن التراجع.`)) return;
         await safeDelete('question:'+id);
         qIndex = qIndex.filter(q=>q.id!==id);
-        await safeSet('questions-index', qIndex);
+        await saveIndexSharded(qIndex);
         renderList(); renderDashboard();
         showToast('تم حذف السؤال');
       } else if(act==='toggle'){
@@ -891,7 +1007,7 @@ function renderList(){
         await safeSet('question:'+id, full);
         const idxEntry = qIndex.find(q=>q.id===id);
         if(idxEntry) idxEntry.status = full.status;
-        await safeSet('questions-index', qIndex);
+        await saveIndexSharded(qIndex);
         renderList(); renderDashboard();
       } else if(act==='edit'){
         const full = await safeGet('question:'+id);
@@ -912,7 +1028,7 @@ function renderList(){
           await safeSet('question:'+id, full);
           const idxEntry = qIndex.find(q=>q.id===id);
           if(idxEntry) idxEntry.hasImage = true;
-          await safeSet('questions-index', qIndex);
+          await saveIndexSharded(qIndex);
           renderList();
           showToast(`تم إرفاق الصورة بالسؤال ${id}`);
         };
@@ -978,7 +1094,7 @@ async function saveQuestion(andNext){
     settings.nextId += 1;
     await safeSet('settings', settings);
   }
-  await safeSet('questions-index', qIndex);
+  await saveIndexSharded(qIndex);
 
   showToast(editingId ? `تم تحديث ${id}` : `تم حفظ ${id} — الإجمالي: ${qIndex.length}`);
   renderDashboard();
@@ -1104,7 +1220,6 @@ async function init(){
   renderDashboard();
 }
 
-init();
 </script>
 </body>
 </html>
