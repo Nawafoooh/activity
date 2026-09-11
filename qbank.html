@@ -623,8 +623,12 @@ async function importFromRows(rows){
       correctIndex, explanation: explanation || '', imageDataUrl: null,
       status: 'draft', createdAt: todayStr()
     };
-    await safeSet('question:'+id, record);
-    qIndex.push({ id, subject, grade, skill, difficulty: diff, status:'draft', createdAt: todayStr(), preview: text.slice(0,70), hasImage:false });
+    const saved = await safeSet('question:'+id, record);
+    if(!saved){
+      errors.push(`${rowLabel}: فشل حفظ السؤال في التخزين — لم يُضَف. أعد استيراد هذا الصف لاحقًا.`);
+      continue;
+    }
+    qIndex.push({ id, subject, grade, skill, difficulty: diff, status:'draft', createdAt: todayStr(), preview: text.slice(0,70), hasImage:false, hasExplanation: !!explanation });
     settings.nextId += 1;
     ok++;
   }
@@ -820,7 +824,7 @@ function renderList(){
         showToast('تم حذف السؤال');
       } else if(act==='toggle'){
         const full = await safeGet('question:'+id);
-        if(!full) return;
+        if(!full){ showToast(`تعذّر تحميل بيانات ${id} — قد تكون غير محفوظة فعليًا، أعد استيرادها`); return; }
         full.status = full.status==='approved' ? 'draft' : 'approved';
         await safeSet('question:'+id, full);
         const idxEntry = qIndex.find(q=>q.id===id);
@@ -829,7 +833,7 @@ function renderList(){
         renderList(); renderDashboard();
       } else if(act==='edit'){
         const full = await safeGet('question:'+id);
-        if(!full) return;
+        if(!full){ showToast(`تعذّر تحميل بيانات ${id} — قد تكون غير محفوظة فعليًا، أعد استيرادها`); return; }
         loadQuestionIntoForm(full);
         switchTab('add');
       } else if(act==='img'){
@@ -903,7 +907,7 @@ async function saveQuestion(andNext){
 
   await safeSet('question:'+id, record);
 
-  const lightweight = { id, subject, grade, skill, difficulty, status: record.status, createdAt: record.createdAt, preview: text.slice(0,70), hasImage: !!currentImageDataUrl };
+  const lightweight = { id, subject, grade, skill, difficulty, status: record.status, createdAt: record.createdAt, preview: text.slice(0,70), hasImage: !!currentImageDataUrl, hasExplanation: !!explanation };
   if(editingId){
     const i = qIndex.findIndex(q=>q.id===id);
     if(i>-1) qIndex[i] = lightweight;
