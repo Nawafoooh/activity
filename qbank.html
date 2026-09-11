@@ -164,14 +164,15 @@
   <!-- ADD QUESTION -->
   <section class="panel" id="panel-add">
     <div class="card" style="border-color:var(--pine); background:var(--paper-dim);">
-      <h3 class="section-title">استيراد دفعة أسئلة من ملف Excel/CSV</h3>
+      <h3 class="section-title">استيراد دفعة أسئلة — CSV أو TSV أو JSON</h3>
       <p style="font-size:0.88rem; color:#4A534F; margin-bottom:16px;">
-        حمّل القالب، املأه بأسئلتك (سؤال واحد لكل صف)، ثم ارفعه. الصور تُضاف بعد الاستيراد لكل سؤال على حدة من تبويب "بنك الأسئلة".
+        الصيغة الأسهل والأكثر توافقًا هي <strong>CSV UTF-8</strong> أو <strong>TSV</strong> (سؤال واحد لكل صف). يمكنك أيضًا رفع نسخة JSON الاحتياطية التي صدّرتها الصفحة. الصور تُضاف بعد الاستيراد لكل سؤال على حدة.
       </p>
       <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-        <button type="button" class="btn-secondary" id="downloadTemplateBtn">تحميل قالب Excel فارغ</button>
-        <input type="file" id="importFile" accept=".xlsx,.xls,.csv">
+        <button type="button" class="btn-secondary" id="downloadTemplateBtn">تحميل قالب CSV</button>
+        <input type="file" id="importFile" accept=".csv,.tsv,.txt,.json,.xlsx,.xls">
       </div>
+      <small style="display:block;color:#6b7570;margin-top:10px;">نصيحة: افتح القالب في Excel أو Google Sheets، ثم احفظه بصيغة CSV UTF-8 قبل الرفع. لا تغيّر أسماء الأعمدة.</small>
       <div id="importResult" style="margin-top:14px; font-size:0.88rem;"></div>
     </div>
 
@@ -390,12 +391,20 @@ function todayStr(){ return new Date().toISOString().slice(0,10); }
 
 async function safeGet(key){
   try{
-    const r = await window.storage.get(key, false);
-    return r ? JSON.parse(r.value) : null;
-  }catch(e){ return null; }
+    if(window.storage && typeof window.storage.get === 'function'){
+      const r = await window.storage.get(key, false);
+      return r ? JSON.parse(r.value) : null;
+    }
+    const raw = localStorage.getItem('nafispro:'+key);
+    return raw === null ? null : JSON.parse(raw);
+  }catch(e){ console.warn('storage get failed', key, e); return null; }
 }
 async function safeSet(key, value){
-  try{ return await window.storage.set(key, JSON.stringify(value), false); }
+  try{
+    const serialized = JSON.stringify(value);
+    if(window.storage && typeof window.storage.set === 'function') return await window.storage.set(key, serialized, false);
+    localStorage.setItem('nafispro:'+key, serialized); return {ok:true};
+  }
   catch(e){ console.error('storage set failed', key, e); return null; }
 }
 function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
@@ -408,7 +417,10 @@ async function safeSetWithRetry(key, value, attempts=4){
   return null;
 }
 async function safeDelete(key){
-  try{ return await window.storage.delete(key, false); } catch(e){ return null; }
+  try{
+    if(window.storage && typeof window.storage.delete === 'function') return await window.storage.delete(key, false);
+    localStorage.removeItem('nafispro:'+key); return {ok:true};
+  } catch(e){ return null; }
 }
 
 function showToast(msg){
@@ -591,11 +603,38 @@ const IMPORT_HEADERS = ['المادة','الصف','المهارة','الصعوب
 
 function downloadTemplate(){
   const example = ['الرياضيات','سادس ابتدائي','الكسور الاعتيادية','متوسط','ناتج جمع 1/4 + 1/4 يساوي','1/8','1/2','2/4','1','2','لأن المقامات متساوية فنجمع البسطين فقط'];
-  const ws = XLSX.utils.aoa_to_sheet([IMPORT_HEADERS, example]);
-  ws['!cols'] = IMPORT_HEADERS.map(()=>({wch:22}));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'أسئلة');
-  XLSX.writeFile(wb, 'قالب-أسئلة-نافس-برو.xlsx');
+  const csvEscape = value => '"' + String(value ?? '').replace(/"/g,'""') + '"';
+  const csv = [IMPORT_HEADERS, example].map(row => row.map(csvEscape).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'قالب-أسئلة-نافس-برو.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+}
+
+function parseDelimited(text, delimiter){
+  const rows=[]; let row=[], cell='', quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i], next=text[i+1];
+    if(ch==='"' && quoted && next==='"'){ cell+='"'; i++; continue; }
+    if(ch==='"'){ quoted=!quoted; continue; }
+    if(ch===delimiter && !quoted){ row.push(cell); cell=''; continue; }
+    if((ch==='\n' || ch==='\r') && !quoted){
+      if(ch==='\r' && next==='\n') i++;
+      row.push(cell); cell='';
+      if(row.some(v=>String(v).trim()!=='')) rows.push(row);
+      row=[]; continue;
+    }
+    cell+=ch;
+  }
+  if(cell!=='' || row.length){ row.push(cell); if(row.some(v=>String(v).trim()!=='')) rows.push(row); }
+  return rows;
+}
+
+function normalizeRows(rows){
+  if(!Array.isArray(rows) || !rows.length) throw new Error('الملف فارغ.');
+  const header = (rows[0]||[]).map(v=>String(v??'').replace(/^\uFEFF/,'').trim());
+  const hasHeader = IMPORT_HEADERS.every((h,i)=> header[i] === h);
+  if(!hasHeader) throw new Error('عناوين الأعمدة غير مطابقة للقالب. اضغط «تحميل قالب CSV» ولا تغيّر أسماء الأعمدة أو ترتيبها.');
+  return rows.slice(1);
 }
 
 async function importFromRows(rows){
@@ -648,14 +687,29 @@ async function importFromRows(rows){
   return { ok, errors };
 }
 
-function handleImportFile(file){
-  const reader = new FileReader();
-  reader.onload = async (e)=>{
-    try{
-      const wb = XLSX.read(e.target.result, {type:'binary'});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1});
-      rows.shift(); // إزالة صف العناوين
+async function handleImportFile(file){
+  const resultBox = document.getElementById('importResult');
+  resultBox.innerHTML = 'جاري فحص الملف...';
+  try{
+      let rows;
+      const ext = file.name.toLowerCase().split('.').pop();
+      if(ext === 'json'){
+        const payload = JSON.parse(await file.text());
+        const questions = Array.isArray(payload) ? payload : payload.questions;
+        if(!Array.isArray(questions)) throw new Error('ملف JSON لا يحتوي على قائمة questions صحيحة.');
+        rows = [IMPORT_HEADERS, ...questions.map(q=>[q.subject,q.grade,q.skill,q.difficulty,q.text,...(q.options||[]),Number(q.correctIndex)+1,q.explanation||''])];
+      } else if(ext === 'xlsx' || ext === 'xls'){
+        if(typeof XLSX === 'undefined') throw new Error('لم تُحمّل مكتبة Excel. استخدم CSV UTF-8 أو TSV، فهي الصيغة الموصى بها.');
+        const buffer = await file.arrayBuffer();
+        const wb = XLSX.read(buffer, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+      } else {
+        const text = (await file.text()).replace(/^\uFEFF/,'');
+        const delimiter = ext === 'tsv' || text.split('\n',1)[0].includes('\t') ? '\t' : ',';
+        rows = parseDelimited(text, delimiter);
+      }
+      rows = normalizeRows(rows);
       const resultBox = document.getElementById('importResult');
       resultBox.innerHTML = 'جاري الاستيراد...';
       const { ok, errors } = await importFromRows(rows);
@@ -668,12 +722,10 @@ function handleImportFile(file){
       resultBox.innerHTML = html;
       renderDashboard();
       showToast(`تم استيراد ${ok} سؤالًا`);
-    }catch(err){
-      document.getElementById('importResult').innerHTML = '<span style="color:var(--brick);">تعذّرت قراءة الملف — تأكد أنه بصيغة xlsx أو csv مطابقة للقالب.</span>';
-      console.error(err);
-    }
-  };
-  reader.readAsBinaryString(file);
+  }catch(err){
+    resultBox.innerHTML = `<span style="color:var(--brick);">تعذّر استيراد الملف: ${String(err.message || err).replace(/[<>]/g,'')}</span>`;
+    console.error(err);
+  }
 }
 
 function compressImage(file){
@@ -1056,3 +1108,4 @@ init();
 </script>
 </body>
 </html>
+
