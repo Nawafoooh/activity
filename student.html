@@ -145,6 +145,12 @@
       <div class="result-emoji" id="resultEmoji">🌟</div>
       <div class="result-score" id="resultScore">0%</div>
       <div class="result-msg" id="resultMsg"></div>
+      <div id="badgeBox" style="display:none; background:var(--amber-dim); border-radius:12px; padding:14px 16px; margin-bottom:20px; text-align:center;">
+        <div style="font-size:1.6rem;">🏅</div>
+        <div style="font-family:'Cairo',sans-serif; font-weight:800; color:#5A430F; font-size:1rem; margin-top:4px;">شارة إتقان جديدة!</div>
+        <div id="badgeSkillName" style="font-size:0.9rem; color:#5A430F; margin-top:2px;"></div>
+      </div>
+      <button class="btn-outline" id="shareResultBtn" style="width:100%; margin-bottom:14px;">📤 مشاركة النتيجة مع ولي الأمر</button>
       <div class="result-actions">
         <button class="big-btn" id="retrySkillBtn">إعادة نفس المهارة</button>
         <button class="btn-outline" id="anotherSkillBtn">تدريب مهارة أخرى</button>
@@ -193,6 +199,21 @@ const SUBJECT_META = {
 const MAX_QUESTIONS_PER_QUIZ = 10;
 
 let state = { name:'', grade:'', subject:'', skill:'', questions:[], qIndex:0, correctCount:0 };
+const MASTERY_THRESHOLD = 80;
+
+function masteryKey(subject, grade, skill){ return subject+'|'+grade+'|'+skill; }
+function loadMastery(){
+  try{ return JSON.parse(localStorage.getItem('nafispro_mastery') || '{}'); }catch(e){ return {}; }
+}
+function recordMastery(subject, grade, skill, pct){
+  const map = loadMastery();
+  const key = masteryKey(subject, grade, skill);
+  const prevBest = map[key] || 0;
+  const isNewBadge = pct >= MASTERY_THRESHOLD && prevBest < MASTERY_THRESHOLD;
+  if(pct > prevBest) map[key] = pct;
+  try{ localStorage.setItem('nafispro_mastery', JSON.stringify(map)); }catch(e){}
+  return isNewBadge;
+}
 
 function show(screenId){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -258,11 +279,17 @@ async function loadSkillChoices(){
     show('empty');
     return;
   }
+  const mastery = loadMastery();
   skills.forEach(skill=>{
     const count = bySkill[skill].length;
+    const best = mastery[masteryKey(state.subject, state.grade, skill)];
     const b = document.createElement('button');
     b.className = 'choice-card';
-    b.innerHTML = `<span class="icon">📝</span><span>${skill}</span><span class="badge-count">${count} سؤال</span>`;
+    let badgeHtml;
+    if(best >= MASTERY_THRESHOLD) badgeHtml = `<span class="badge-count" style="background:var(--green-dim); color:#1C4A30;">متقن ✅ ${best}%</span>`;
+    else if(best !== undefined) badgeHtml = `<span class="badge-count">آخر نتيجة ${best}%</span>`;
+    else badgeHtml = `<span class="badge-count">${count} سؤال</span>`;
+    b.innerHTML = `<span class="icon">${best >= MASTERY_THRESHOLD ? '⭐' : '📝'}</span><span>${skill}</span>${badgeHtml}`;
     b.onclick = ()=> startQuiz(skill, bySkill[skill]);
     box.appendChild(b);
   });
@@ -332,6 +359,19 @@ document.getElementById('nextQBtn').onclick = ()=>{
 };
 
 // ---- شاشة 6: النتيجة ----
+async function shareResult(pct){
+  const text = `📊 نتيجة ${state.name} في نافِس برو\nالمهارة: ${state.skill}\nالمادة: ${state.subject} — ${state.grade}\nالنتيجة: ${pct}% (${state.correctCount} من ${state.questions.length})`;
+  if(navigator.share){
+    try{ await navigator.share({ text }); return; }catch(e){ /* المستخدم ألغى المشاركة، لا حاجة لأي إجراء */ }
+  }
+  try{
+    await navigator.clipboard.writeText(text);
+    alert('تم نسخ النتيجة — الصقها الآن في واتساب أو أي تطبيق تريده لولي أمرك.');
+  }catch(e){
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  }
+}
+
 async function finishQuiz(){
   const total = state.questions.length;
   const pct = Math.round((state.correctCount/total)*100);
@@ -343,6 +383,16 @@ async function finishQuiz(){
   else { emoji='💪'; msg='بداية جيدة! جرّب هذه المهارة مرة أخرى لتتحسن أكثر.'; }
   document.getElementById('resultEmoji').textContent = emoji;
   document.getElementById('resultMsg').textContent = msg;
+
+  const isNewBadge = recordMastery(state.subject, state.grade, state.skill, pct);
+  const badgeBox = document.getElementById('badgeBox');
+  if(isNewBadge){
+    document.getElementById('badgeSkillName').textContent = state.skill;
+    badgeBox.style.display = 'block';
+  } else {
+    badgeBox.style.display = 'none';
+  }
+  document.getElementById('shareResultBtn').onclick = ()=> shareResult(pct);
 
   try{
     await addDoc(collection(db, 'attempts'), {
