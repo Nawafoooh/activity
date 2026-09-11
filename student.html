@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>منصة الطالب — نافِس برو</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16211F; --pine:#0D3B36; --pine-light:#155048; --paper:#FBFAF6; --paper-dim:#F1F0E9;
+    --amber:#D9A441; --amber-dim:#F3E2BB; --brick:#C1502E; --brick-dim:#F5DCD3; --green:#2F7A4D; --green-dim:#DCEEDF;
+    --line:#DFDCD1; --radius-m:14px; --radius-l:20px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans Arabic',sans-serif; line-height:1.6;}
+  h1,h2,h3{font-family:'Cairo',sans-serif; color:var(--pine); margin:0;}
+  button{font-family:inherit; cursor:pointer;}
+  :focus-visible{outline:3px solid var(--amber); outline-offset:2px;}
+
+  .shell{max-width:640px; margin:0 auto; padding:28px 20px 60px; min-height:100vh; display:flex; flex-direction:column;}
+  .brandbar{display:flex; align-items:center; gap:10px; margin-bottom:28px;}
+  .brandbar .mark{width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,var(--pine),var(--pine-light)); color:var(--amber); display:flex; align-items:center; justify-content:center; font-weight:800; font-family:'Cairo',sans-serif;}
+  .brandbar span{font-family:'Cairo',sans-serif; font-weight:800; color:var(--pine); font-size:1.15rem;}
+
+  .screen{display:none; flex:1; flex-direction:column;}
+  .screen.active{display:flex;}
+
+  /* شاشات الترحيب والاختيار */
+  .center-card{background:#fff; border:1px solid var(--line); border-radius:var(--radius-l); padding:32px 26px; text-align:center; box-shadow:0 20px 44px -26px rgba(13,59,54,.3);}
+  .center-card h1{font-size:1.5rem; margin-bottom:10px;}
+  .center-card p{color:#4A534F; font-size:0.98rem; margin-bottom:24px;}
+  .name-input{width:100%; padding:16px 18px; font-size:1.1rem; border:2px solid var(--line); border-radius:12px; text-align:center; margin-bottom:18px; font-family:inherit;}
+  .name-input:focus{border-color:var(--pine);}
+  .big-btn{width:100%; background:var(--pine); color:#fff; border:0; padding:16px; border-radius:12px; font-weight:700; font-size:1.05rem; font-family:'Cairo',sans-serif;}
+  .big-btn:hover{background:var(--pine-light);}
+  .big-btn:disabled{background:#B9C4C0; cursor:not-allowed;}
+
+  .choice-grid{display:grid; gap:14px; margin-top:6px;}
+  .choice-card{
+    background:#fff; border:2px solid var(--line); border-radius:var(--radius-m); padding:20px;
+    display:flex; align-items:center; gap:16px; text-align:right; font-family:inherit; font-size:1.05rem; font-weight:600; color:var(--ink);
+  }
+  .choice-card:hover{border-color:var(--pine-light); background:var(--paper-dim);}
+  .choice-card .icon{font-size:1.8rem; flex-shrink:0;}
+  .choice-card .sub{display:block; font-size:0.8rem; font-weight:400; color:#6b7570; margin-top:2px;}
+  .choice-card .badge-count{margin-right:auto; background:var(--amber-dim); color:#8A6413; font-size:0.78rem; font-weight:700; padding:4px 10px; border-radius:14px; white-space:nowrap;}
+
+  .top-nav{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;}
+  .back-link{background:none; border:none; color:#6b7570; font-size:0.9rem; font-weight:600;}
+  .hello{font-size:0.9rem; color:var(--pine-light); font-weight:600;}
+
+  .empty-state{text-align:center; padding:50px 20px; color:#6b7570;}
+  .empty-state .emoji{font-size:2.4rem; margin-bottom:14px;}
+
+  /* شاشة الاختبار */
+  .progress-wrap{margin-bottom:22px;}
+  .progress-track{background:var(--paper-dim); border-radius:20px; height:10px; overflow:hidden;}
+  .progress-fill{height:100%; background:var(--pine); border-radius:20px; transition:width .3s;}
+  .progress-label{font-size:0.85rem; color:#5A6560; margin-top:8px; text-align:center; font-weight:600;}
+
+  .q-card{background:#fff; border:1px solid var(--line); border-radius:var(--radius-l); padding:26px; box-shadow:0 20px 44px -26px rgba(13,59,54,.3); flex:1;}
+  .q-text{font-size:1.25rem; font-weight:700; color:var(--ink); line-height:1.7; margin-bottom:18px;}
+  .q-image{width:100%; border-radius:12px; margin-bottom:18px; border:1px solid var(--line);}
+  .opt-list{display:grid; gap:12px;}
+  .opt-btn{
+    background:var(--paper); border:2px solid var(--line); border-radius:12px; padding:16px 18px;
+    text-align:right; font-size:1.02rem; font-weight:600; color:var(--ink); transition:.15s;
+  }
+  .opt-btn:hover:not(:disabled){border-color:var(--pine-light);}
+  .opt-btn.correct{background:var(--green-dim); border-color:var(--green); color:#1C4A30;}
+  .opt-btn.wrong{background:var(--brick-dim); border-color:var(--brick); color:#7A2E18;}
+  .opt-btn:disabled{cursor:default;}
+  .explain-box{margin-top:16px; background:var(--amber-dim); border-radius:10px; padding:14px 16px; font-size:0.92rem; color:#5A430F; display:none;}
+  .next-wrap{margin-top:20px; display:none;}
+
+  /* شاشة النتيجة */
+  .result-emoji{font-size:3.4rem; margin-bottom:6px;}
+  .result-score{font-family:'Cairo',sans-serif; font-weight:800; font-size:2.4rem; color:var(--pine); margin:10px 0 4px;}
+  .result-msg{font-size:1.05rem; color:#3A4441; margin-bottom:26px;}
+  .result-actions{display:grid; gap:12px; margin-top:6px;}
+  .btn-outline{background:transparent; border:1.5px solid var(--pine); color:var(--pine); padding:14px; border-radius:12px; font-weight:700; font-family:'Cairo',sans-serif;}
+
+  @media (max-width:420px){
+    .center-card{padding:26px 18px;}
+    .q-text{font-size:1.1rem;}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="brandbar"><span class="mark">ن</span><span>نافِس برو</span></div>
+
+  <!-- 1) الترحيب -->
+  <section class="screen active" id="screen-welcome">
+    <div class="center-card">
+      <h1>مرحبًا بك! 👋</h1>
+      <p>اكتب اسمك لنبدأ رحلتك في التدريب على اختبار نافس.</p>
+      <input type="text" id="studentName" class="name-input" placeholder="اسمك هنا">
+      <button class="big-btn" id="startBtn">التالي</button>
+    </div>
+  </section>
+
+  <!-- 2) اختيار الصف -->
+  <section class="screen" id="screen-grade">
+    <div class="top-nav"><span class="hello" id="helloLabel"></span></div>
+    <h2 style="margin-bottom:16px;">في أي صف أنت؟</h2>
+    <div class="choice-grid" id="gradeChoices"></div>
+  </section>
+
+  <!-- 3) اختيار المادة -->
+  <section class="screen" id="screen-subject">
+    <div class="top-nav"><button class="back-link" data-back="grade">‹ رجوع</button></div>
+    <h2 style="margin-bottom:16px;">اختر المادة</h2>
+    <div class="choice-grid" id="subjectChoices"></div>
+  </section>
+
+  <!-- 4) اختيار المهارة -->
+  <section class="screen" id="screen-skill">
+    <div class="top-nav"><button class="back-link" data-back="subject">‹ رجوع</button></div>
+    <h2 style="margin-bottom:16px;">اختر مهارة للتدريب عليها</h2>
+    <div class="choice-grid" id="skillChoices"></div>
+  </section>
+
+  <!-- 5) الاختبار -->
+  <section class="screen" id="screen-quiz">
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="quizProgressFill" style="width:0%"></div></div>
+      <div class="progress-label" id="quizProgressLabel"></div>
+    </div>
+    <div class="q-card">
+      <img id="qImage" class="q-image" style="display:none">
+      <div class="q-text" id="qText"></div>
+      <div class="opt-list" id="qOptions"></div>
+      <div class="explain-box" id="qExplain"></div>
+      <div class="next-wrap" id="nextWrap"><button class="big-btn" id="nextQBtn">السؤال التالي</button></div>
+    </div>
+  </section>
+
+  <!-- 6) النتيجة -->
+  <section class="screen" id="screen-result">
+    <div class="center-card" style="margin-top:20px;">
+      <div class="result-emoji" id="resultEmoji">🌟</div>
+      <div class="result-score" id="resultScore">0%</div>
+      <div class="result-msg" id="resultMsg"></div>
+      <div class="result-actions">
+        <button class="big-btn" id="retrySkillBtn">إعادة نفس المهارة</button>
+        <button class="btn-outline" id="anotherSkillBtn">تدريب مهارة أخرى</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- حالة عدم توفر أسئلة -->
+  <section class="screen" id="screen-empty">
+    <div class="empty-state">
+      <div class="emoji">🧑‍🏫</div>
+      <p>لا توجد أسئلة متاحة لهذا الاختيار بعد — جرّب مادة أو صفًا آخر.</p>
+      <button class="btn-outline" id="emptyBackBtn" style="margin-top:16px;">رجوع</button>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {
+  getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCwmnuN3GmXh-Snj_SGXVYxvC4BoksHuts",
+  authDomain: "naafis-platform.firebaseapp.com",
+  projectId: "naafis-platform",
+  storageBucket: "naafis-platform.firebasestorage.app",
+  messagingSenderId: "337917395597",
+  appId: "1:337917395597:web:6c90a2847ac51ed0c658c4"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const PUBLIC_COLLECTION = 'approved_questions';
+
+const SUBJECT_GRADES = {
+  'الرياضيات': ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'],
+  'لغتي': ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'],
+  'العلوم': ['سادس ابتدائي','ثالث متوسط']
+};
+const SUBJECT_META = {
+  'الرياضيات': {icon:'➗'},
+  'العلوم': {icon:'🔬'},
+  'لغتي': {icon:'📖'}
+};
+const MAX_QUESTIONS_PER_QUIZ = 10;
+
+let state = { name:'', grade:'', subject:'', skill:'', questions:[], qIndex:0, correctCount:0 };
+
+function show(screenId){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+screenId).classList.add('active');
+}
+
+// ---- شاشة 1: الاسم ----
+document.getElementById('startBtn').onclick = ()=>{
+  const name = document.getElementById('studentName').value.trim();
+  if(!name) { document.getElementById('studentName').focus(); return; }
+  state.name = name;
+  document.getElementById('helloLabel').textContent = `مرحبًا ${name} 👋`;
+  buildGradeChoices();
+  show('grade');
+};
+
+// ---- شاشة 2: الصف ----
+function buildGradeChoices(){
+  const grades = ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'];
+  const box = document.getElementById('gradeChoices');
+  box.innerHTML = '';
+  grades.forEach(g=>{
+    const b = document.createElement('button');
+    b.className = 'choice-card';
+    b.innerHTML = `<span class="icon">🎒</span><span>${g}</span>`;
+    b.onclick = ()=>{ state.grade = g; buildSubjectChoices(); show('subject'); };
+    box.appendChild(b);
+  });
+}
+
+// ---- شاشة 3: المادة ----
+function buildSubjectChoices(){
+  const box = document.getElementById('subjectChoices');
+  box.innerHTML = '';
+  Object.keys(SUBJECT_GRADES).forEach(subject=>{
+    if(!SUBJECT_GRADES[subject].includes(state.grade)) return; // مثال: لا علوم للثالث الابتدائي
+    const b = document.createElement('button');
+    b.className = 'choice-card';
+    b.innerHTML = `<span class="icon">${SUBJECT_META[subject].icon}</span><span>${subject}</span>`;
+    b.onclick = ()=>{ state.subject = subject; loadSkillChoices(); };
+    box.appendChild(b);
+  });
+}
+
+// ---- شاشة 4: المهارة (تُبنى من الأسئلة المعتمدة الفعلية) ----
+async function loadSkillChoices(){
+  show('skill');
+  const box = document.getElementById('skillChoices');
+  box.innerHTML = '<p style="color:#6b7570;">جاري التحميل...</p>';
+  const q = query(collection(db, PUBLIC_COLLECTION),
+    where('subject','==', state.subject), where('grade','==', state.grade));
+  const snap = await getDocs(q);
+  const bySkill = {};
+  snap.forEach(d=>{
+    const data = d.data();
+    if(!bySkill[data.skill]) bySkill[data.skill] = [];
+    bySkill[data.skill].push({ id:d.id, ...data });
+  });
+  const skills = Object.keys(bySkill);
+  box.innerHTML = '';
+  if(!skills.length){
+    document.getElementById('emptyBackBtn').onclick = ()=> show('subject');
+    show('empty');
+    return;
+  }
+  skills.forEach(skill=>{
+    const count = bySkill[skill].length;
+    const b = document.createElement('button');
+    b.className = 'choice-card';
+    b.innerHTML = `<span class="icon">📝</span><span>${skill}</span><span class="badge-count">${count} سؤال</span>`;
+    b.onclick = ()=> startQuiz(skill, bySkill[skill]);
+    box.appendChild(b);
+  });
+}
+
+// ---- شاشة 5: الاختبار ----
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function startQuiz(skill, allQuestions){
+  state.skill = skill;
+  state.questions = shuffle(allQuestions).slice(0, MAX_QUESTIONS_PER_QUIZ);
+  state.qIndex = 0;
+  state.correctCount = 0;
+  show('quiz');
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const total = state.questions.length;
+  const q = state.questions[state.qIndex];
+  document.getElementById('quizProgressFill').style.width = ((state.qIndex)/total*100) + '%';
+  document.getElementById('quizProgressLabel').textContent = `السؤال ${state.qIndex+1} من ${total}`;
+
+  const img = document.getElementById('qImage');
+  if(q.imageDataUrl){ img.src = q.imageDataUrl; img.style.display='block'; } else { img.style.display='none'; }
+
+  document.getElementById('qText').textContent = q.text;
+  document.getElementById('qExplain').style.display = 'none';
+  document.getElementById('nextWrap').style.display = 'none';
+
+  const optBox = document.getElementById('qOptions');
+  optBox.innerHTML = '';
+  q.options.forEach((optText, i)=>{
+    const b = document.createElement('button');
+    b.className = 'opt-btn';
+    b.textContent = optText;
+    b.onclick = ()=> answerQuestion(i);
+    optBox.appendChild(b);
+  });
+}
+
+function answerQuestion(chosenIndex){
+  const q = state.questions[state.qIndex];
+  const buttons = document.querySelectorAll('#qOptions .opt-btn');
+  buttons.forEach((b,i)=>{
+    b.disabled = true;
+    if(i===q.correctIndex) b.classList.add('correct');
+    else if(i===chosenIndex) b.classList.add('wrong');
+  });
+  if(chosenIndex === q.correctIndex) state.correctCount++;
+  if(q.explanation){
+    const ex = document.getElementById('qExplain');
+    ex.textContent = q.explanation;
+    ex.style.display = 'block';
+  }
+  document.getElementById('nextWrap').style.display = 'block';
+}
+
+document.getElementById('nextQBtn').onclick = ()=>{
+  state.qIndex++;
+  if(state.qIndex >= state.questions.length){ finishQuiz(); }
+  else { renderQuestion(); }
+};
+
+// ---- شاشة 6: النتيجة ----
+async function finishQuiz(){
+  const total = state.questions.length;
+  const pct = Math.round((state.correctCount/total)*100);
+  document.getElementById('resultScore').textContent = pct + '%';
+
+  let emoji, msg;
+  if(pct >= 80){ emoji='🌟'; msg='ممتاز! أتقنت هذه المهارة بشكل رائع.'; }
+  else if(pct >= 50){ emoji='👍'; msg='جيد جدًا! مع تدريب أكثر ستتقن هذه المهارة تمامًا.'; }
+  else { emoji='💪'; msg='بداية جيدة! جرّب هذه المهارة مرة أخرى لتتحسن أكثر.'; }
+  document.getElementById('resultEmoji').textContent = emoji;
+  document.getElementById('resultMsg').textContent = msg;
+
+  try{
+    await addDoc(collection(db, 'attempts'), {
+      studentName: state.name, grade: state.grade, subject: state.subject, skill: state.skill,
+      correctCount: state.correctCount, total, score: pct, timestamp: serverTimestamp()
+    });
+  }catch(e){ console.warn('attempt log failed', e); }
+
+  show('result');
+}
+
+document.getElementById('retrySkillBtn').onclick = ()=> loadSkillChoices().then(()=>{
+  // إعادة نفس المهارة تحديدًا لو ما زالت متاحة
+});
+document.getElementById('retrySkillBtn').onclick = async ()=>{
+  const q = query(collection(db, PUBLIC_COLLECTION),
+    where('subject','==', state.subject), where('grade','==', state.grade), where('skill','==', state.skill));
+  const snap = await getDocs(q);
+  const list = [];
+  snap.forEach(d=> list.push({id:d.id, ...d.data()}));
+  if(list.length) startQuiz(state.skill, list);
+  else loadSkillChoices();
+};
+document.getElementById('anotherSkillBtn').onclick = ()=> loadSkillChoices();
+
+// ---- أزرار الرجوع ----
+document.querySelectorAll('[data-back]').forEach(btn=>{
+  btn.onclick = ()=> show(btn.getAttribute('data-back'));
+});
+</script>
+</body>
+</html>
