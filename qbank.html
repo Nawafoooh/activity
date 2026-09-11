@@ -284,7 +284,9 @@
           <option value="approved">معتمد</option>
         </select>
         <input type="text" id="filterSearch" placeholder="بحث في نص السؤال...">
+        <button type="button" class="export-btn" id="approveAllBtn" style="margin-right:auto;">اعتماد الكل (حسب الفلتر الحالي)</button>
       </div>
+      <div id="approveAllResult" style="font-size:0.85rem; margin-bottom:12px;"></div>
       <div class="qlist" id="qlist">
         <div class="qrow head"><span>الرقم</span><span>نص السؤال</span><span>المهارة</span><span>الحالة</span><span>إجراءات</span></div>
       </div>
@@ -965,7 +967,33 @@ function renderSkillCoverage(){
   });
 }
 
-function renderList(){
+async function approveAllFiltered(){
+  const list = getFilteredList().filter(q=>q.status!=='approved');
+  if(!list.length){ showToast('لا توجد أسئلة مسودة ضمن الفلتر الحالي'); return; }
+  if(!confirm(`سيتم اعتماد ${list.length} سؤالًا مطابقًا للفلتر الحالي وإظهارها للطلاب فورًا. متابعة؟`)) return;
+
+  const resultBox = document.getElementById('approveAllResult');
+  let done = 0, failed = 0;
+  for(const entry of list){
+    resultBox.textContent = `جاري الاعتماد... (${done+failed}/${list.length})`;
+    const full = await safeGet('question:'+entry.id);
+    if(!full){ failed++; continue; }
+    full.status = 'approved';
+    const saved = await safeSetWithRetry('question:'+entry.id, full);
+    if(!saved){ failed++; continue; }
+    await syncApprovedCopy(entry.id, full);
+    const idxEntry = qIndex.find(q=>q.id===entry.id);
+    if(idxEntry) idxEntry.status = 'approved';
+    done++;
+    await sleep(120);
+  }
+  await saveIndexSharded(qIndex);
+  resultBox.textContent = failed ? `تم اعتماد ${done} سؤالًا، وفشل ${failed} — أعد المحاولة عليها لاحقًا.` : `تم اعتماد ${done} سؤالًا بنجاح.`;
+  showToast(`تم اعتماد ${done} سؤالًا`);
+  renderList(); renderDashboard();
+}
+
+function getFilteredList(){
   const subject = document.getElementById('filterSubject').value;
   const grade = document.getElementById('filterGrade').value;
   const skill = document.getElementById('filterSkill').value;
@@ -978,6 +1006,11 @@ function renderList(){
   if(skill) list = list.filter(q=>q.skill===skill);
   if(status) list = list.filter(q=>q.status===status);
   if(search) list = list.filter(q=>q.preview.includes(search));
+  return list;
+}
+
+function renderList(){
+  const list = getFilteredList();
 
   const container = document.getElementById('qlist');
   container.innerHTML = '<div class="qrow head"><span>الرقم</span><span>نص السؤال</span><span>المهارة</span><span>الحالة</span><span>إجراءات</span></div>';
@@ -1199,6 +1232,7 @@ function wireEvents(){
     document.getElementById(id).onchange = renderList;
   });
   document.getElementById('filterSearch').oninput = renderList;
+  document.getElementById('approveAllBtn').onclick = approveAllFiltered;
 
   wireLinkedSelects(document.getElementById('skSubject'), document.getElementById('skGrade'), refreshSkillsTab);
   wireLinkedSelects(document.getElementById('covSubject'), document.getElementById('covGrade'), renderSkillCoverage);
