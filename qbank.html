@@ -285,6 +285,7 @@
         </select>
         <input type="text" id="filterSearch" placeholder="بحث في نص السؤال...">
         <button type="button" class="export-btn" id="approveAllBtn" style="margin-right:auto;">اعتماد الكل (حسب الفلتر الحالي)</button>
+        <button type="button" class="export-btn" id="resyncApprovedBtn">إعادة مزامنة كل المعتمد مع صفحة الطلاب</button>
       </div>
       <div id="approveAllResult" style="font-size:0.85rem; margin-bottom:12px;"></div>
       <div class="qlist" id="qlist">
@@ -440,7 +441,8 @@ async function syncApprovedCopy(id, record){
       correctIndex: record.correctIndex, explanation: record.explanation || '',
       imageDataUrl: record.imageDataUrl || null
     });
-  }catch(e){ console.warn('public sync failed', id, e); }
+    return true;
+  }catch(e){ console.warn('public sync failed', id, e); return false; }
 }
 async function removeApprovedCopy(id){
   try{ await deleteDoc(doc(db, PUBLIC_COLLECTION, id)); }catch(e){}
@@ -967,6 +969,25 @@ function renderSkillCoverage(){
   });
 }
 
+async function resyncAllApproved(){
+  const approvedList = qIndex.filter(q=>q.status==='approved');
+  if(!approvedList.length){ showToast('لا توجد أسئلة معتمدة أصلًا'); return; }
+  if(!confirm(`سيتم التأكد من مزامنة ${approvedList.length} سؤالًا معتمدًا مع صفحة الطلاب (حتى لو كانت متزامنة من قبل). متابعة؟`)) return;
+
+  const resultBox = document.getElementById('approveAllResult');
+  let done = 0, failed = 0;
+  for(const entry of approvedList){
+    resultBox.textContent = `جاري إعادة المزامنة... (${done+failed}/${approvedList.length})`;
+    const full = await safeGet('question:'+entry.id);
+    if(!full){ failed++; continue; }
+    const synced = await syncApprovedCopy(entry.id, full);
+    if(synced) done++; else failed++;
+    await sleep(120);
+  }
+  resultBox.textContent = `تمت إعادة مزامنة ${done} سؤالًا${failed ? ' — وفشل '+failed : ''}.`;
+  showToast(`تمت إعادة مزامنة ${done} سؤالًا`);
+}
+
 async function approveAllFiltered(){
   const list = getFilteredList().filter(q=>q.status!=='approved');
   if(!list.length){ showToast('لا توجد أسئلة مسودة ضمن الفلتر الحالي'); return; }
@@ -1233,6 +1254,7 @@ function wireEvents(){
   });
   document.getElementById('filterSearch').oninput = renderList;
   document.getElementById('approveAllBtn').onclick = approveAllFiltered;
+  document.getElementById('resyncApprovedBtn').onclick = resyncAllApproved;
 
   wireLinkedSelects(document.getElementById('skSubject'), document.getElementById('skGrade'), refreshSkillsTab);
   wireLinkedSelects(document.getElementById('covSubject'), document.getElementById('covGrade'), renderSkillCoverage);
