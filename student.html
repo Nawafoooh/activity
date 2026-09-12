@@ -97,22 +97,66 @@
   <section class="screen active" id="screen-welcome">
     <div class="center-card">
       <h1>مرحبًا بك! 👋</h1>
-      <p>اكتب اسمك لنبدأ رحلتك في التدريب على اختبار نافس.</p>
-      <input type="text" id="studentName" class="name-input" placeholder="اسمك هنا">
-      <button class="big-btn" id="startBtn">التالي</button>
+      <p>منصة نافِس برو للتدريب على اختبار نافس.</p>
+      <div class="result-actions">
+        <button class="big-btn" id="newStudentBtn">طالب جديد — أول مرة</button>
+        <button class="btn-outline" id="haveCodeBtn">لدي رمز دخول</button>
+      </div>
     </div>
   </section>
 
-  <!-- 2) اختيار الصف -->
-  <section class="screen" id="screen-grade">
-    <div class="top-nav"><span class="hello" id="helloLabel"></span></div>
-    <h2 style="margin-bottom:16px;">في أي صف أنت؟</h2>
-    <div class="choice-grid" id="gradeChoices"></div>
+  <!-- 1ب) تسجيل طالب جديد -->
+  <section class="screen" id="screen-register">
+    <div class="top-nav"><button class="back-link" data-back="welcome">‹ رجوع</button></div>
+    <div class="center-card" style="text-align:right;">
+      <h1 style="text-align:center; margin-bottom:18px;">تسجيل جديد</h1>
+      <label style="font-size:0.85rem; font-weight:700; color:var(--pine); display:block; margin-bottom:6px;">الاسم الثلاثي</label>
+      <input type="text" id="regName" class="name-input" style="text-align:right;" placeholder="مثال: أحمد سالم الحربي">
+
+      <label style="font-size:0.85rem; font-weight:700; color:var(--pine); display:block; margin:14px 0 6px;">الصف</label>
+      <select id="regGrade" class="name-input" style="text-align:right;">
+        <option value="ثالث ابتدائي">ثالث ابتدائي</option>
+        <option value="سادس ابتدائي">سادس ابتدائي</option>
+        <option value="ثالث متوسط">ثالث متوسط</option>
+      </select>
+
+      <label style="font-size:0.85rem; font-weight:700; color:var(--pine); display:block; margin:14px 0 6px;">الشعبة (الفصل)</label>
+      <select id="regSection" class="name-input" style="text-align:right;"></select>
+
+      <label style="font-size:0.85rem; font-weight:700; color:var(--pine); display:block; margin:14px 0 6px;">اسم المعلم</label>
+      <select id="regTeacher" class="name-input" style="text-align:right;"></select>
+
+      <div id="registerErr" style="color:var(--brick); font-size:0.85rem; margin-bottom:12px; display:none;"></div>
+      <button class="big-btn" id="registerBtn">تسجيل والحصول على رمز الدخول</button>
+    </div>
+  </section>
+
+  <!-- 1ج) عرض الرمز بعد التسجيل -->
+  <section class="screen" id="screen-code-display">
+    <div class="center-card">
+      <div class="result-emoji">🔑</div>
+      <h1 style="margin-bottom:10px;">احفظ رمزك جيدًا!</h1>
+      <p>ستحتاج هذا الرمز في كل مرة تدخل فيها المنصة. اطلب من المعلم أو المشرف كتابته لك في دفترك.</p>
+      <div class="result-score" id="displayedCode" style="letter-spacing:6px;">00000</div>
+      <button class="big-btn" id="codeContinueBtn" style="margin-top:20px;">فهمت، متابعة</button>
+    </div>
+  </section>
+
+  <!-- 1د) الدخول برمز -->
+  <section class="screen" id="screen-login-code">
+    <div class="top-nav"><button class="back-link" data-back="welcome">‹ رجوع</button></div>
+    <div class="center-card">
+      <h1>أدخل رمزك المكوَّن من 5 أرقام</h1>
+      <input type="tel" inputmode="numeric" maxlength="5" id="loginCode" class="name-input" style="text-align:center; letter-spacing:8px; font-size:1.4rem;" placeholder="00000">
+      <div id="loginCodeErr" style="color:var(--brick); font-size:0.85rem; margin-bottom:12px; display:none;"></div>
+      <button class="big-btn" id="loginCodeBtn">دخول</button>
+      <p style="margin-top:16px; font-size:0.85rem;">نسيت رمزك؟ اسأل المشرف في مدرستك.</p>
+    </div>
   </section>
 
   <!-- 3) اختيار المادة -->
   <section class="screen" id="screen-subject">
-    <div class="top-nav"><button class="back-link" data-back="grade">‹ رجوع</button></div>
+    <div class="top-nav"><span class="hello" id="helloLabel"></span></div>
     <h2 style="margin-bottom:16px;">اختر المادة</h2>
     <div class="choice-grid" id="subjectChoices"></div>
   </section>
@@ -171,7 +215,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {
-  getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc
+  getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -198,7 +242,7 @@ const SUBJECT_META = {
 };
 const MAX_QUESTIONS_PER_QUIZ = 10;
 
-let state = { name:'', grade:'', subject:'', skill:'', questions:[], qIndex:0, correctCount:0 };
+let state = { name:'', grade:'', section:'', teacherName:'', code:'', subject:'', skill:'', questions:[], qIndex:0, correctCount:0 };
 const MASTERY_THRESHOLD = 80;
 
 function masteryKey(subject, grade, skill){ return subject+'|'+grade+'|'+skill; }
@@ -220,29 +264,105 @@ function show(screenId){
   document.getElementById('screen-'+screenId).classList.add('active');
 }
 
-// ---- شاشة 1: الاسم ----
-document.getElementById('startBtn').onclick = ()=>{
-  const name = document.getElementById('studentName').value.trim();
-  if(!name) { document.getElementById('studentName').focus(); return; }
-  state.name = name;
-  document.getElementById('helloLabel').textContent = `مرحبًا ${name} 👋`;
-  buildGradeChoices();
-  show('grade');
+// ---- شاشة 1: الترحيب ----
+document.getElementById('newStudentBtn').onclick = async ()=>{
+  const sectionSel = document.getElementById('regSection');
+  sectionSel.innerHTML = '';
+  for(let i=1;i<=15;i++){
+    const o = document.createElement('option'); o.value = i; o.textContent = 'الشعبة ' + i; sectionSel.appendChild(o);
+  }
+  const teacherSel = document.getElementById('regTeacher');
+  teacherSel.innerHTML = '<option value="">جاري التحميل...</option>';
+  const teachers = await getTeachersList();
+  teacherSel.innerHTML = '';
+  if(!teachers.length){
+    teacherSel.innerHTML = '<option value="">لا يوجد معلمون مضافون بعد — راجع المشرف</option>';
+  } else {
+    teachers.forEach(t=>{ const o = document.createElement('option'); o.value = t; o.textContent = t; teacherSel.appendChild(o); });
+  }
+  show('register');
 };
 
-// ---- شاشة 2: الصف ----
-function buildGradeChoices(){
-  const grades = ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'];
-  const box = document.getElementById('gradeChoices');
-  box.innerHTML = '';
-  grades.forEach(g=>{
-    const b = document.createElement('button');
-    b.className = 'choice-card';
-    b.innerHTML = `<span class="icon">🎒</span><span>${g}</span>`;
-    b.onclick = ()=>{ state.grade = g; buildSubjectChoices(); show('subject'); };
-    box.appendChild(b);
-  });
+document.getElementById('haveCodeBtn').onclick = ()=> show('login-code');
+
+async function getTeachersList(){
+  try{
+    const snap = await getDoc(doc(db, 'public_config', 'teachers'));
+    return snap.exists() ? (snap.data().list || []) : [];
+  }catch(e){ console.warn('teachers list read failed', e); return []; }
 }
+
+function generateCode(){
+  return String(Math.floor(10000 + Math.random()*90000));
+}
+async function generateUniqueCode(){
+  for(let i=0;i<8;i++){
+    const code = generateCode();
+    const snap = await getDoc(doc(db, 'students', code));
+    if(!snap.exists()) return code;
+  }
+  return generateCode() + Math.floor(Math.random()*9); // احتياط بعيد الاحتمال
+}
+
+document.getElementById('registerBtn').onclick = async ()=>{
+  const name = document.getElementById('regName').value.trim();
+  const grade = document.getElementById('regGrade').value;
+  const section = document.getElementById('regSection').value;
+  const teacherName = document.getElementById('regTeacher').value;
+  const errEl = document.getElementById('registerErr');
+
+  if(name.split(/\s+/).filter(Boolean).length < 3){
+    errEl.textContent = 'اكتب اسمك الثلاثي كاملًا (3 أسماء على الأقل).';
+    errEl.style.display = 'block'; return;
+  }
+  if(!teacherName){
+    errEl.textContent = 'اختر اسم المعلم.';
+    errEl.style.display = 'block'; return;
+  }
+  errEl.style.display = 'none';
+
+  const btn = document.getElementById('registerBtn');
+  btn.disabled = true; btn.textContent = 'جاري التسجيل...';
+  try{
+    const code = await generateUniqueCode();
+    await setDoc(doc(db, 'students', code), {
+      fullName: name, grade, section, teacherName, createdAt: serverTimestamp()
+    });
+    state.name = name; state.grade = grade; state.section = section; state.teacherName = teacherName; state.code = code;
+    document.getElementById('displayedCode').textContent = code;
+    document.getElementById('helloLabel').textContent = `مرحبًا ${name} 👋`;
+    show('code-display');
+  }catch(e){
+    errEl.textContent = 'تعذّر التسجيل — تحقق من الاتصال بالإنترنت وحاول مجددًا.';
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'تسجيل والحصول على رمز الدخول';
+};
+
+document.getElementById('codeContinueBtn').onclick = ()=>{ buildSubjectChoices(); show('subject'); };
+
+document.getElementById('loginCodeBtn').onclick = async ()=>{
+  const code = document.getElementById('loginCode').value.trim();
+  const errEl = document.getElementById('loginCodeErr');
+  if(!/^\d{5}$/.test(code)){
+    errEl.textContent = 'الرمز 5 أرقام فقط.'; errEl.style.display = 'block'; return;
+  }
+  try{
+    const snap = await getDoc(doc(db, 'students', code));
+    if(!snap.exists()){
+      errEl.textContent = 'الرمز غير صحيح — تحقق منه مع المشرف.'; errEl.style.display = 'block'; return;
+    }
+    const data = snap.data();
+    state.code = code; state.name = data.fullName; state.grade = data.grade;
+    state.section = data.section; state.teacherName = data.teacherName;
+    document.getElementById('helloLabel').textContent = `مرحبًا ${data.fullName} 👋`;
+    errEl.style.display = 'none';
+    buildSubjectChoices();
+    show('subject');
+  }catch(e){
+    errEl.textContent = 'تعذّر التحقق من الرمز — تحقق من الاتصال.'; errEl.style.display = 'block';
+  }
+};
 
 // ---- شاشة 3: المادة ----
 function buildSubjectChoices(){
@@ -410,7 +530,8 @@ async function finishQuiz(){
 
   try{
     await addDoc(collection(db, 'attempts'), {
-      studentName: state.name, grade: state.grade, subject: state.subject, skill: state.skill,
+      studentName: state.name, studentCode: state.code, section: state.section, teacherName: state.teacherName,
+      grade: state.grade, subject: state.subject, skill: state.skill,
       correctCount: state.correctCount, total, score: pct, timestamp: serverTimestamp()
     });
   }catch(e){ console.warn('attempt log failed', e); }
