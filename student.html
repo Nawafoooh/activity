@@ -211,7 +211,7 @@
   <section class="screen" id="screen-empty">
     <div class="empty-state">
       <div class="emoji">🧑‍🏫</div>
-      <p>لا توجد أسئلة متاحة لهذا الاختيار بعد — جرّب مادة أو صفًا آخر.</p>
+      <p>لم يفتح معلمك أي مهارة لهذه المادة بعد، أو لا توجد أسئلة متاحة لها حتى الآن — اسأل معلمك أو جرّب مادة أخرى.</p>
       <button class="btn-outline" id="emptyBackBtn" style="margin-top:16px;">رجوع</button>
     </div>
   </section>
@@ -404,19 +404,18 @@ async function loadSkillChoices(){
     bySkill[data.skill].push({ id:d.id, ...data });
   });
 
-  // احترام قائمة المهارات التي فتحها المعلم لهذا الأسبوع — إن لم يضبطها المعلم بعد لهذه المادة/الصف، تُعرض كل المهارات المتاحة
-  let allowedSkills = null;
+  // لا تظهر أي مهارة للطالب إلا بعد فتحها صراحة من المعلم في تبويب "تحكم المعلم"
+  let allowedSkills = [];
   try{
     const cfgSnap = await getDoc(doc(db, 'public_config', 'unlocked_skills'));
     if(cfgSnap.exists()){
       const cfg = cfgSnap.data();
       const key = state.subject + '|' + state.grade;
-      if(cfg[key] && cfg[key].length) allowedSkills = cfg[key];
+      allowedSkills = cfg[key] || [];
     }
   }catch(e){ console.warn('unlocked config read failed', e); }
 
-  let skills = Object.keys(bySkill);
-  if(allowedSkills) skills = skills.filter(s=> allowedSkills.includes(s));
+  let skills = Object.keys(bySkill).filter(s=> allowedSkills.includes(s));
 
   box.innerHTML = '';
   if(!skills.length){
