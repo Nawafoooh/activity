@@ -123,9 +123,6 @@
       <label style="font-size:0.85rem; font-weight:700; color:var(--pine); display:block; margin:14px 0 6px;">الشعبة (الفصل)</label>
       <select id="regSection" class="name-input" style="text-align:right;"></select>
 
-      <label style="font-size:0.85rem; font-weight:700; color:var(--pine); display:block; margin:14px 0 6px;">اسم المعلم</label>
-      <select id="regTeacher" class="name-input" style="text-align:right;"></select>
-
       <div id="registerErr" style="color:var(--brick); font-size:0.85rem; margin-bottom:12px; display:none;"></div>
       <button class="big-btn" id="registerBtn">تسجيل والحصول على رمز الدخول</button>
     </div>
@@ -161,12 +158,20 @@
     <div class="choice-grid" id="subjectChoices"></div>
   </section>
 
+  <!-- 3ب) اختيار معلم المادة -->
+  <section class="screen" id="screen-choose-teacher">
+    <div class="top-nav"><button class="back-link" data-back="subject">‹ رجوع</button></div>
+    <h2 style="margin-bottom:16px;" id="chooseTeacherTitle">من معلمك في هذه المادة؟</h2>
+    <div class="choice-grid" id="teacherChoices"></div>
+  </section>
+
   <!-- 4) اختيار المهارة -->
   <section class="screen" id="screen-skill">
     <div class="top-nav"><button class="back-link" data-back="subject">‹ رجوع</button></div>
     <h2 style="margin-bottom:16px;">اختر مهارة للتدريب عليها</h2>
     <div class="choice-grid" id="skillChoices"></div>
   </section>
+
 
   <!-- 5) الاختبار -->
   <section class="screen" id="screen-quiz">
@@ -265,32 +270,16 @@ function show(screenId){
 }
 
 // ---- شاشة 1: الترحيب ----
-document.getElementById('newStudentBtn').onclick = async ()=>{
+document.getElementById('newStudentBtn').onclick = ()=>{
   const sectionSel = document.getElementById('regSection');
   sectionSel.innerHTML = '';
   for(let i=1;i<=15;i++){
     const o = document.createElement('option'); o.value = i; o.textContent = 'الشعبة ' + i; sectionSel.appendChild(o);
   }
-  const teacherSel = document.getElementById('regTeacher');
-  teacherSel.innerHTML = '<option value="">جاري التحميل...</option>';
-  const teachers = await getTeachersList();
-  teacherSel.innerHTML = '';
-  if(!teachers.length){
-    teacherSel.innerHTML = '<option value="">لا يوجد معلمون مضافون بعد — راجع المشرف</option>';
-  } else {
-    teachers.forEach(t=>{ const o = document.createElement('option'); o.value = t; o.textContent = t; teacherSel.appendChild(o); });
-  }
   show('register');
 };
 
 document.getElementById('haveCodeBtn').onclick = ()=> show('login-code');
-
-async function getTeachersList(){
-  try{
-    const snap = await getDoc(doc(db, 'public_config', 'teachers'));
-    return snap.exists() ? (snap.data().list || []) : [];
-  }catch(e){ console.warn('teachers list read failed', e); return []; }
-}
 
 function generateCode(){
   return String(Math.floor(10000 + Math.random()*90000));
@@ -308,15 +297,10 @@ document.getElementById('registerBtn').onclick = async ()=>{
   const name = document.getElementById('regName').value.trim();
   const grade = document.getElementById('regGrade').value;
   const section = document.getElementById('regSection').value;
-  const teacherName = document.getElementById('regTeacher').value;
   const errEl = document.getElementById('registerErr');
 
   if(name.split(/\s+/).filter(Boolean).length < 3){
     errEl.textContent = 'اكتب اسمك الثلاثي كاملًا (3 أسماء على الأقل).';
-    errEl.style.display = 'block'; return;
-  }
-  if(!teacherName){
-    errEl.textContent = 'اختر اسم المعلم.';
     errEl.style.display = 'block'; return;
   }
   errEl.style.display = 'none';
@@ -326,9 +310,9 @@ document.getElementById('registerBtn').onclick = async ()=>{
   try{
     const code = await generateUniqueCode();
     await setDoc(doc(db, 'students', code), {
-      fullName: name, grade, section, teacherName, createdAt: serverTimestamp()
+      fullName: name, grade, section, createdAt: serverTimestamp()
     });
-    state.name = name; state.grade = grade; state.section = section; state.teacherName = teacherName; state.code = code;
+    state.name = name; state.grade = grade; state.section = section; state.code = code;
     document.getElementById('displayedCode').textContent = code;
     document.getElementById('helloLabel').textContent = `مرحبًا ${name} 👋`;
     show('code-display');
@@ -353,8 +337,7 @@ document.getElementById('loginCodeBtn').onclick = async ()=>{
       errEl.textContent = 'الرمز غير صحيح — تحقق منه مع المشرف.'; errEl.style.display = 'block'; return;
     }
     const data = snap.data();
-    state.code = code; state.name = data.fullName; state.grade = data.grade;
-    state.section = data.section; state.teacherName = data.teacherName;
+    state.code = code; state.name = data.fullName; state.grade = data.grade; state.section = data.section;
     document.getElementById('helloLabel').textContent = `مرحبًا ${data.fullName} 👋`;
     errEl.style.display = 'none';
     buildSubjectChoices();
@@ -373,7 +356,35 @@ function buildSubjectChoices(){
     const b = document.createElement('button');
     b.className = 'choice-card';
     b.innerHTML = `<span class="icon">${SUBJECT_META[subject].icon}</span><span>${subject}</span>`;
-    b.onclick = ()=>{ state.subject = subject; loadSkillChoices(); };
+    b.onclick = ()=>{ state.subject = subject; showChooseTeacher(subject); };
+    box.appendChild(b);
+  });
+}
+
+// ---- شاشة 3ب: معلم المادة المختارة ----
+async function getTeachersList(){
+  try{
+    const snap = await getDoc(doc(db, 'public_config', 'teachers'));
+    return snap.exists() ? (snap.data().list || []) : [];
+  }catch(e){ console.warn('teachers list read failed', e); return []; }
+}
+
+async function showChooseTeacher(subject){
+  document.getElementById('chooseTeacherTitle').textContent = `من معلمك في مادة ${subject}؟`;
+  const box = document.getElementById('teacherChoices');
+  box.innerHTML = '<p style="color:#6b7570;">جاري التحميل...</p>';
+  show('choose-teacher');
+  const teachers = await getTeachersList();
+  box.innerHTML = '';
+  if(!teachers.length){
+    box.innerHTML = '<p style="color:#6b7570;">لا يوجد معلمون مضافون بعد — راجع المشرف.</p>';
+    return;
+  }
+  teachers.forEach(t=>{
+    const b = document.createElement('button');
+    b.className = 'choice-card';
+    b.innerHTML = `<span class="icon">🧑‍🏫</span><span>${t}</span>`;
+    b.onclick = ()=>{ state.teacherName = t; loadSkillChoices(); };
     box.appendChild(b);
   });
 }
