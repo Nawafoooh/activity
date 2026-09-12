@@ -372,8 +372,13 @@
       <p style="font-size:0.88rem; color:#5A6560; margin-bottom:16px;">
         فعّل فقط المهارات التي يعمل عليها الطلاب هذا الأسبوع حسب خطتك. أي مهارة غير مفعَّلة هنا لن تظهر في صفحة الطالب إطلاقًا،
         حتى لو كانت معتمدة. لا تفعّل مهارة لا تملك فيها أسئلة معتمدة كافية.
+        <strong>كل معلم يتحكّم بمهاراته الخاصة بمعزل تام عن أي معلم آخر لنفس المادة والصف.</strong>
       </p>
-      <div class="grid2">
+      <div class="grid3">
+        <div class="field">
+          <label>المعلم</label>
+          <select id="teachTeacher"></select>
+        </div>
         <div class="field">
           <label>المادة</label>
           <select id="teachSubject"></select>
@@ -521,18 +526,21 @@ async function safeDelete(key){
 
 // ---- نسخة عامة من الأسئلة المعتمدة فقط — تُقرأ من الطلاب بلا تسجيل دخول ----
 const PUBLIC_COLLECTION = 'approved_questions';
-// ---- إعداد المهارات المفتوحة للطلاب — مستند عام واحد يتحكم به المعلم ----
-async function getUnlockedConfig(){
+
+// ---- المهارات المفتوحة — مستند واحد لكل (مادة، صف، معلم) ----
+function unlockedDocId(subject, grade, teacherName){ return `${subject}::${grade}::${teacherName}`; }
+async function getUnlockedSkills(subject, grade, teacherName){
   try{
-    const snap = await getDoc(doc(db, 'public_config', 'unlocked_skills'));
-    return snap.exists() ? snap.data() : {};
-  }catch(e){ console.warn('unlocked config read failed', e); return {}; }
+    const snap = await getDoc(doc(db, 'unlocked_skills', unlockedDocId(subject, grade, teacherName)));
+    return snap.exists() ? (snap.data().skills || []) : [];
+  }catch(e){ console.warn('unlocked skills read failed', e); return []; }
 }
-async function setUnlockedConfig(cfg){
-  try{ await setDoc(doc(db, 'public_config', 'unlocked_skills'), cfg); return true; }
-  catch(e){ console.error('unlocked config write failed', e); return null; }
+async function setUnlockedSkills(subject, grade, teacherName, skills){
+  try{
+    await setDoc(doc(db, 'unlocked_skills', unlockedDocId(subject, grade, teacherName)), { subject, grade, teacherName, skills });
+    return true;
+  }catch(e){ console.error('unlocked skills write failed', e); return null; }
 }
-function subjectGradeKey(subject, grade){ return subject + '|' + grade; }
 
 async function syncApprovedCopy(id, record){
   try{
@@ -1381,15 +1389,33 @@ async function renderReports(){
   renderStudentList('excellingList', excelling, 'لا يوجد طلاب تجاوزوا 90% بعد.');
 }
 
-let unlockedConfig = {}; // { "subject|grade": ["skill1","skill2", ...] }
+async function populateTeachTeacherSelect(){
+  const sel = document.getElementById('teachTeacher');
+  const teachers = await getTeachersDoc();
+  const prev = sel.value;
+  sel.innerHTML = '';
+  if(!teachers.length){
+    sel.innerHTML = '<option value="">أضف معلمًا أولًا من تبويب إدارة المدرسة</option>';
+    return;
+  }
+  teachers.forEach(t=>{ const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
+  if(teachers.includes(prev)) sel.value = prev;
+}
 
 async function renderTeacherControl(){
-  unlockedConfig = await getUnlockedConfig();
+  await populateTeachTeacherSelect();
+  const teacherName = document.getElementById('teachTeacher').value;
   const subject = document.getElementById('teachSubject').value;
   const grade = document.getElementById('teachGrade').value;
+  const box = document.getElementById('teacherSkillList');
+
+  if(!teacherName){
+    box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">أضف معلمًا واحدًا على الأقل من تبويب "إدارة المدرسة" أولًا.</p>';
+    return;
+  }
+
   const dm = ensureDomainPath(subject, grade);
-  const key = subjectGradeKey(subject, grade);
-  const unlockedList = unlockedConfig[key] || [];
+  const unlockedList = await getUnlockedSkills(subject, grade, teacherName);
 
   const approvedCounts = {};
   qIndex.forEach(q=>{
@@ -1398,7 +1424,6 @@ async function renderTeacherControl(){
     }
   });
 
-  const box = document.getElementById('teacherSkillList');
   box.innerHTML = '';
   const domains = Object.keys(dm).filter(d=>dm[d] && dm[d].length);
   if(!domains.length){
@@ -1421,12 +1446,11 @@ async function renderTeacherControl(){
         <span style="font-size:0.78rem; color:${count===0?'var(--brick)':'#6b7570'};">${count===0 ? 'لا توجد أسئلة معتمدة' : count+' سؤال معتمد'}</span>`;
       const checkbox = row.querySelector('input');
       checkbox.onchange = async ()=>{
-        const list = new Set(unlockedConfig[key] || []);
-        if(checkbox.checked) list.add(skill); else list.delete(skill);
-        unlockedConfig[key] = Array.from(list);
+        const current = new Set(await getUnlockedSkills(subject, grade, teacherName));
+        if(checkbox.checked) current.add(skill); else current.delete(skill);
         row.style.background = checkbox.checked ? 'var(--green-dim)' : '#fff';
-        const saved = await setUnlockedConfig(unlockedConfig);
-        showToast(saved ? `تم ${checkbox.checked?'فتح':'إغلاق'} "${skill}" للطلاب` : 'تعذّر الحفظ — حاول مجددًا');
+        const saved = await setUnlockedSkills(subject, grade, teacherName, Array.from(current));
+        showToast(saved ? `تم ${checkbox.checked?'فتح':'إغلاق'} "${skill}" لطلاب ${teacherName}` : 'تعذّر الحفظ — حاول مجددًا');
       };
       box.appendChild(row);
     });
@@ -1445,8 +1469,22 @@ async function setTeachersDoc(list){
   catch(e){ console.error('teachers write failed', e); return null; }
 }
 
+async function getTeacherAccountsMap(){
+  const map = {}; // teacherName -> email
+  try{
+    const snap = await getDocs(collection(db, 'teacher_accounts'));
+    snap.forEach(d=>{ map[d.data().teacherName] = d.id; });
+  }catch(e){ console.warn('teacher_accounts read failed', e); }
+  return map;
+}
+async function linkTeacherEmail(teacherName, email){
+  try{ await setDoc(doc(db, 'teacher_accounts', email), { teacherName }); return true; }
+  catch(e){ console.error('link failed', e); return null; }
+}
+
 async function renderTeachersManage(){
   const list = await getTeachersDoc();
+  const accountsMap = await getTeacherAccountsMap();
   const box = document.getElementById('teachersManageList');
   box.innerHTML = '';
   if(!list.length){
@@ -1454,19 +1492,27 @@ async function renderTeachersManage(){
     return;
   }
   list.forEach((name, i)=>{
-    const tag = document.createElement('span');
-    tag.className = 'skill-tag';
-    tag.innerHTML = `<span>${name}</span>`;
-    const btn = document.createElement('button');
-    btn.textContent = '×'; btn.title = 'حذف المعلم';
-    btn.onclick = async ()=>{
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; flex-wrap:wrap;';
+    row.innerHTML = `
+      <span style="font-weight:700; color:var(--pine); min-width:110px;">${name}</span>
+      <input type="email" class="teacherEmailInput" placeholder="بريد دخول هذا المعلم (Firebase Auth)"
+        value="${accountsMap[name] || ''}" style="flex:1; min-width:200px; padding:8px 10px; border:1px solid var(--line); border-radius:6px;">
+      <button type="button" class="linkBtn" style="background:var(--paper-dim); border:1px solid var(--line); border-radius:6px; padding:8px 14px; font-size:0.82rem; font-weight:600;">ربط</button>
+      <button type="button" class="delBtn" style="background:none; border:1px solid var(--brick-dim); color:var(--brick); border-radius:6px; padding:8px 14px; font-size:0.82rem; font-weight:600;">حذف المعلم</button>`;
+    row.querySelector('.linkBtn').onclick = async ()=>{
+      const email = row.querySelector('.teacherEmailInput').value.trim();
+      if(!email){ showToast('اكتب بريد المعلم أولًا'); return; }
+      const saved = await linkTeacherEmail(name, email);
+      showToast(saved ? `تم ربط "${name}" بالبريد ${email}` : 'تعذّر الربط — تحقق من القواعد');
+    };
+    row.querySelector('.delBtn').onclick = async ()=>{
       if(!confirm(`حذف "${name}" من قائمة المعلمين؟ الطلاب المسجَّلون تحته سيبقون كما هم في السجلات.`)) return;
       const newList = list.filter((_,idx)=>idx!==i);
       await setTeachersDoc(newList);
       renderTeachersManage();
     };
-    tag.appendChild(btn);
-    box.appendChild(tag);
+    box.appendChild(row);
   });
 }
 
@@ -1627,6 +1673,7 @@ function wireEvents(){
   wireLinkedSelects(document.getElementById('skSubject'), document.getElementById('skGrade'), refreshSkillsTab);
   wireLinkedSelects(document.getElementById('covSubject'), document.getElementById('covGrade'), renderSkillCoverage);
   wireLinkedSelects(document.getElementById('teachSubject'), document.getElementById('teachGrade'), renderTeacherControl);
+  document.getElementById('teachTeacher').onchange = renderTeacherControl;
   document.getElementById('addTeacherBtn').onclick = addTeacher;
   document.getElementById('studentSearchBtn').onclick = searchStudent;
   document.getElementById('refreshTeacherReportBtn').onclick = renderTeacherPerformance;
