@@ -171,7 +171,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {
-  getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp
+  getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -272,7 +272,21 @@ async function loadSkillChoices(){
     if(!bySkill[data.skill]) bySkill[data.skill] = [];
     bySkill[data.skill].push({ id:d.id, ...data });
   });
-  const skills = Object.keys(bySkill);
+
+  // احترام قائمة المهارات التي فتحها المعلم لهذا الأسبوع — إن لم يضبطها المعلم بعد لهذه المادة/الصف، تُعرض كل المهارات المتاحة
+  let allowedSkills = null;
+  try{
+    const cfgSnap = await getDoc(doc(db, 'public_config', 'unlocked_skills'));
+    if(cfgSnap.exists()){
+      const cfg = cfgSnap.data();
+      const key = state.subject + '|' + state.grade;
+      if(cfg[key] && cfg[key].length) allowedSkills = cfg[key];
+    }
+  }catch(e){ console.warn('unlocked config read failed', e); }
+
+  let skills = Object.keys(bySkill);
+  if(allowedSkills) skills = skills.filter(s=> allowedSkills.includes(s));
+
   box.innerHTML = '';
   if(!skills.length){
     document.getElementById('emptyBackBtn').onclick = ()=> show('subject');
