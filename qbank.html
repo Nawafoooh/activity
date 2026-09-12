@@ -147,6 +147,7 @@
       <button class="tab-btn" data-tab="skills">إدارة المهارات</button>
       <button class="tab-btn" data-tab="reports">تقارير الطلاب</button>
       <button class="tab-btn" data-tab="teacher">تحكم المعلم</button>
+      <button class="tab-btn" data-tab="school">إدارة المدرسة</button>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
       <button class="export-btn" id="exportBtn">تصدير نسخة احتياطية (JSON)</button>
@@ -386,6 +387,41 @@
     </div>
   </section>
 
+  <!-- SCHOOL MANAGEMENT -->
+  <section class="panel" id="panel-school">
+    <div class="card">
+      <h3 class="section-title">قائمة المعلمين</h3>
+      <p style="font-size:0.88rem; color:#5A6560; margin-bottom:14px;">
+        هذه القائمة تظهر للطلاب عند التسجيل ليختاروا معلمهم. أضف أسماء مبدئية (معلم 1، معلم 2...) وحدّثها لاحقًا بالأسماء الفعلية.
+      </p>
+      <div id="teachersManageList" style="margin-bottom:14px;"></div>
+      <div class="skill-add-row">
+        <input type="text" id="newTeacherName" placeholder="اسم المعلم (اختياري — اتركه فارغًا للتوليد التلقائي)">
+        <button type="button" id="addTeacherBtn">إضافة معلم</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">البحث عن رمز طالب (لمن نسي رمزه)</h3>
+      <div class="skill-add-row">
+        <input type="text" id="studentSearchInput" placeholder="اكتب جزءًا من اسم الطالب...">
+        <button type="button" id="studentSearchBtn">بحث</button>
+      </div>
+      <div id="studentSearchResult" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 class="section-title" style="margin-bottom:0;">الأداء حسب المعلم</h3>
+        <button type="button" class="export-btn" id="refreshTeacherReportBtn">تحديث</button>
+      </div>
+      <p style="font-size:0.85rem; color:#5A6560; margin-bottom:14px;">
+        يوضّح مدى نشاط طلاب كل معلم — مفيد لمدير المدرسة لمتابعة من يستخدم المنصة فعليًا مع طلابه.
+      </p>
+      <div id="teacherPerfList"><p style="color:#6b7570; font-size:0.9rem;">لا توجد بيانات بعد.</p></div>
+    </div>
+  </section>
+
 </main>
 
 </div><!-- /#appRoot -->
@@ -399,7 +435,7 @@ import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, getDocs
+  getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, getDocs, where
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // ضع بيانات مشروعك في Firebase Console هنا (Project settings → Your apps)
@@ -1251,6 +1287,7 @@ function switchTab(name){
   if(name==='dashboard'){ renderDashboard(); }
   if(name==='reports'){ renderReports(); }
   if(name==='teacher'){ renderTeacherControl(); }
+  if(name==='school'){ renderTeachersManage(); renderTeacherPerformance(); }
 }
 
 async function renderReports(){
@@ -1396,6 +1433,126 @@ async function renderTeacherControl(){
   });
 }
 
+// ---- إدارة المدرسة: قائمة المعلمين ----
+async function getTeachersDoc(){
+  try{
+    const snap = await getDoc(doc(db, 'public_config', 'teachers'));
+    return snap.exists() ? (snap.data().list || []) : [];
+  }catch(e){ console.warn('teachers read failed', e); return []; }
+}
+async function setTeachersDoc(list){
+  try{ await setDoc(doc(db, 'public_config', 'teachers'), { list }); return true; }
+  catch(e){ console.error('teachers write failed', e); return null; }
+}
+
+async function renderTeachersManage(){
+  const list = await getTeachersDoc();
+  const box = document.getElementById('teachersManageList');
+  box.innerHTML = '';
+  if(!list.length){
+    box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا يوجد معلمون بعد.</p>';
+    return;
+  }
+  list.forEach((name, i)=>{
+    const tag = document.createElement('span');
+    tag.className = 'skill-tag';
+    tag.innerHTML = `<span>${name}</span>`;
+    const btn = document.createElement('button');
+    btn.textContent = '×'; btn.title = 'حذف المعلم';
+    btn.onclick = async ()=>{
+      if(!confirm(`حذف "${name}" من قائمة المعلمين؟ الطلاب المسجَّلون تحته سيبقون كما هم في السجلات.`)) return;
+      const newList = list.filter((_,idx)=>idx!==i);
+      await setTeachersDoc(newList);
+      renderTeachersManage();
+    };
+    tag.appendChild(btn);
+    box.appendChild(tag);
+  });
+}
+
+async function addTeacher(){
+  const input = document.getElementById('newTeacherName');
+  const list = await getTeachersDoc();
+  let name = input.value.trim();
+  if(!name) name = 'معلم ' + (list.length + 1);
+  if(list.includes(name)){ showToast('هذا الاسم موجود بالفعل'); return; }
+  list.push(name);
+  await setTeachersDoc(list);
+  input.value = '';
+  renderTeachersManage();
+  showToast(`تمت إضافة "${name}"`);
+}
+
+// ---- البحث عن رمز طالب ----
+async function searchStudent(){
+  const term = document.getElementById('studentSearchInput').value.trim();
+  const box = document.getElementById('studentSearchResult');
+  if(!term){ box.innerHTML = ''; return; }
+  box.innerHTML = 'جاري البحث...';
+  try{
+    const snap = await getDocs(collection(db, 'students'));
+    const matches = [];
+    snap.forEach(d=>{
+      const data = d.data();
+      if(data.fullName && data.fullName.includes(term)) matches.push({ code:d.id, ...data });
+    });
+    if(!matches.length){ box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا يوجد طالب مطابق.</p>'; return; }
+    box.innerHTML = '<div class="qrow head"><span>الاسم</span><span>الرمز</span><span>الصف والشعبة</span><span>المعلم</span><span></span></div>';
+    matches.forEach(m=>{
+      const row = document.createElement('div');
+      row.className = 'qrow';
+      row.innerHTML = `<span>${m.fullName}</span><span class="qid">${m.code}</span><span style="font-size:0.82rem;">${m.grade} — شعبة ${m.section}</span><span style="font-size:0.82rem;">${m.teacherName || '—'}</span><span></span>`;
+      box.appendChild(row);
+    });
+  }catch(e){
+    box.innerHTML = '<p style="color:var(--brick);">تعذّر البحث — تحقق من قواعد Firestore.</p>';
+  }
+}
+
+// ---- الأداء حسب المعلم ----
+async function renderTeacherPerformance(){
+  const box = document.getElementById('teacherPerfList');
+  box.innerHTML = 'جاري التحميل...';
+  let attempts = [];
+  try{
+    const q = query(collection(db, 'attempts'), orderBy('timestamp','desc'), limit(500));
+    const snap = await getDocs(q);
+    snap.forEach(d=> attempts.push(d.data()));
+  }catch(e){ box.innerHTML = '<p style="color:var(--brick);">تعذّر تحميل البيانات.</p>'; return; }
+
+  if(!attempts.length){ box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا توجد محاولات مسجَّلة بعد.</p>'; return; }
+
+  const byTeacher = {};
+  attempts.forEach(a=>{
+    const t = a.teacherName || 'بلا معلم محدَّد';
+    if(!byTeacher[t]) byTeacher[t] = { students:new Set(), total:0, count:0, lastDate:null };
+    byTeacher[t].students.add(a.studentCode || a.studentName);
+    byTeacher[t].total += a.score;
+    byTeacher[t].count += 1;
+    const d = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : null;
+    if(d && (!byTeacher[t].lastDate || d > byTeacher[t].lastDate)) byTeacher[t].lastDate = d;
+  });
+
+  const rows = Object.keys(byTeacher).map(t=>({
+    teacher:t, studentCount: byTeacher[t].students.size,
+    avg: Math.round(byTeacher[t].total / byTeacher[t].count),
+    count: byTeacher[t].count, lastDate: byTeacher[t].lastDate
+  })).sort((a,b)=> (b.lastDate||0) - (a.lastDate||0));
+
+  box.innerHTML = '<div class="qrow head"><span>المعلم</span><span>الطلاب</span><span>المحاولات</span><span>المتوسط</span><span>آخر نشاط</span></div>';
+  const now = new Date();
+  rows.forEach(r=>{
+    const daysSince = r.lastDate ? Math.floor((now - r.lastDate)/86400000) : null;
+    const stale = daysSince !== null && daysSince > 7;
+    const row = document.createElement('div');
+    row.className = 'qrow';
+    row.innerHTML = `<span>${r.teacher}${stale?' ⚠️':''}</span><span>${r.studentCount}</span><span>${r.count}</span>
+      <span class="badge ${r.avg>=70?'approved':'draft'}">${r.avg}%</span>
+      <span style="font-size:0.78rem; color:${stale?'var(--brick)':'#6b7570'};">${r.lastDate ? r.lastDate.toLocaleDateString('ar-SA',{dateStyle:'medium'}) : '—'}</span>`;
+    box.appendChild(row);
+  });
+}
+
 function exportBackup(){
   (async ()=>{
     const full = [];
@@ -1470,6 +1627,9 @@ function wireEvents(){
   wireLinkedSelects(document.getElementById('skSubject'), document.getElementById('skGrade'), refreshSkillsTab);
   wireLinkedSelects(document.getElementById('covSubject'), document.getElementById('covGrade'), renderSkillCoverage);
   wireLinkedSelects(document.getElementById('teachSubject'), document.getElementById('teachGrade'), renderTeacherControl);
+  document.getElementById('addTeacherBtn').onclick = addTeacher;
+  document.getElementById('studentSearchBtn').onclick = searchStudent;
+  document.getElementById('refreshTeacherReportBtn').onclick = renderTeacherPerformance;
   document.getElementById('skAddBtn').onclick = async ()=>{
     const subject = document.getElementById('skSubject').value;
     const grade = document.getElementById('skGrade').value;
