@@ -146,6 +146,7 @@
       <button class="tab-btn" data-tab="browse">بنك الأسئلة</button>
       <button class="tab-btn" data-tab="skills">إدارة المهارات</button>
       <button class="tab-btn" data-tab="reports">تقارير الطلاب</button>
+      <button class="tab-btn" data-tab="teacher">تحكم المعلم</button>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
       <button class="export-btn" id="exportBtn">تصدير نسخة احتياطية (JSON)</button>
@@ -363,6 +364,28 @@
     </div>
   </section>
 
+  <!-- TEACHER CONTROL -->
+  <section class="panel" id="panel-teacher">
+    <div class="card">
+      <h3 class="section-title">تحكّم المعلم بالمهارات المتاحة للطلاب</h3>
+      <p style="font-size:0.88rem; color:#5A6560; margin-bottom:16px;">
+        فعّل فقط المهارات التي يعمل عليها الطلاب هذا الأسبوع حسب خطتك. أي مهارة غير مفعَّلة هنا لن تظهر في صفحة الطالب إطلاقًا،
+        حتى لو كانت معتمدة. لا تفعّل مهارة لا تملك فيها أسئلة معتمدة كافية.
+      </p>
+      <div class="grid2">
+        <div class="field">
+          <label>المادة</label>
+          <select id="teachSubject"></select>
+        </div>
+        <div class="field">
+          <label>الصف</label>
+          <select id="teachGrade"></select>
+        </div>
+      </div>
+      <div id="teacherSkillList" style="margin-top:10px;"></div>
+    </div>
+  </section>
+
 </main>
 
 </div><!-- /#appRoot -->
@@ -462,6 +485,19 @@ async function safeDelete(key){
 
 // ---- نسخة عامة من الأسئلة المعتمدة فقط — تُقرأ من الطلاب بلا تسجيل دخول ----
 const PUBLIC_COLLECTION = 'approved_questions';
+// ---- إعداد المهارات المفتوحة للطلاب — مستند عام واحد يتحكم به المعلم ----
+async function getUnlockedConfig(){
+  try{
+    const snap = await getDoc(doc(db, 'public_config', 'unlocked_skills'));
+    return snap.exists() ? snap.data() : {};
+  }catch(e){ console.warn('unlocked config read failed', e); return {}; }
+}
+async function setUnlockedConfig(cfg){
+  try{ await setDoc(doc(db, 'public_config', 'unlocked_skills'), cfg); return true; }
+  catch(e){ console.error('unlocked config write failed', e); return null; }
+}
+function subjectGradeKey(subject, grade){ return subject + '|' + grade; }
+
 async function syncApprovedCopy(id, record){
   try{
     await setDoc(doc(db, PUBLIC_COLLECTION, id), {
@@ -1214,6 +1250,7 @@ function switchTab(name){
   if(name==='skills'){ refreshSkillsTab(); }
   if(name==='dashboard'){ renderDashboard(); }
   if(name==='reports'){ renderReports(); }
+  if(name==='teacher'){ renderTeacherControl(); }
 }
 
 async function renderReports(){
@@ -1307,6 +1344,58 @@ async function renderReports(){
   renderStudentList('excellingList', excelling, 'لا يوجد طلاب تجاوزوا 90% بعد.');
 }
 
+let unlockedConfig = {}; // { "subject|grade": ["skill1","skill2", ...] }
+
+async function renderTeacherControl(){
+  unlockedConfig = await getUnlockedConfig();
+  const subject = document.getElementById('teachSubject').value;
+  const grade = document.getElementById('teachGrade').value;
+  const dm = ensureDomainPath(subject, grade);
+  const key = subjectGradeKey(subject, grade);
+  const unlockedList = unlockedConfig[key] || [];
+
+  const approvedCounts = {};
+  qIndex.forEach(q=>{
+    if(q.subject===subject && q.grade===grade && q.status==='approved'){
+      approvedCounts[q.skill] = (approvedCounts[q.skill]||0) + 1;
+    }
+  });
+
+  const box = document.getElementById('teacherSkillList');
+  box.innerHTML = '';
+  const domains = Object.keys(dm).filter(d=>dm[d] && dm[d].length);
+  if(!domains.length){
+    box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا توجد مهارات مضافة لهذه المادة والصف بعد.</p>';
+    return;
+  }
+  domains.forEach(domain=>{
+    const h = document.createElement('div');
+    h.style.cssText = 'font-weight:700;color:var(--pine);font-size:0.9rem;margin:16px 0 8px;';
+    h.textContent = domain;
+    box.appendChild(h);
+    dm[domain].forEach(skill=>{
+      const count = approvedCounts[skill] || 0;
+      const isOn = unlockedList.includes(skill);
+      const row = document.createElement('label');
+      row.style.cssText = 'display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; cursor:pointer; background:'+(isOn?'var(--green-dim)':'#fff')+';';
+      row.innerHTML = `
+        <input type="checkbox" ${isOn?'checked':''} ${count===0?'disabled':''} style="width:18px; height:18px;">
+        <span style="flex:1;">${skill}</span>
+        <span style="font-size:0.78rem; color:${count===0?'var(--brick)':'#6b7570'};">${count===0 ? 'لا توجد أسئلة معتمدة' : count+' سؤال معتمد'}</span>`;
+      const checkbox = row.querySelector('input');
+      checkbox.onchange = async ()=>{
+        const list = new Set(unlockedConfig[key] || []);
+        if(checkbox.checked) list.add(skill); else list.delete(skill);
+        unlockedConfig[key] = Array.from(list);
+        row.style.background = checkbox.checked ? 'var(--green-dim)' : '#fff';
+        const saved = await setUnlockedConfig(unlockedConfig);
+        showToast(saved ? `تم ${checkbox.checked?'فتح':'إغلاق'} "${skill}" للطلاب` : 'تعذّر الحفظ — حاول مجددًا');
+      };
+      box.appendChild(row);
+    });
+  });
+}
+
 function exportBackup(){
   (async ()=>{
     const full = [];
@@ -1380,6 +1469,7 @@ function wireEvents(){
 
   wireLinkedSelects(document.getElementById('skSubject'), document.getElementById('skGrade'), refreshSkillsTab);
   wireLinkedSelects(document.getElementById('covSubject'), document.getElementById('covGrade'), renderSkillCoverage);
+  wireLinkedSelects(document.getElementById('teachSubject'), document.getElementById('teachGrade'), renderTeacherControl);
   document.getElementById('skAddBtn').onclick = async ()=>{
     const subject = document.getElementById('skSubject').value;
     const grade = document.getElementById('skGrade').value;
