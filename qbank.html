@@ -145,6 +145,7 @@
       <button class="tab-btn" data-tab="add">إضافة سؤال</button>
       <button class="tab-btn" data-tab="browse">بنك الأسئلة</button>
       <button class="tab-btn" data-tab="skills">إدارة المهارات</button>
+      <button class="tab-btn" data-tab="reports">تقارير الطلاب</button>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
       <button class="export-btn" id="exportBtn">تصدير نسخة احتياطية (JSON)</button>
@@ -334,6 +335,29 @@
     </div>
   </section>
 
+  <!-- REPORTS -->
+  <section class="panel" id="panel-reports">
+    <div class="stat-grid">
+      <div class="stat"><div class="num" id="repStudents">—</div><div class="lbl">طلاب فريدون جرّبوا المنصة</div></div>
+      <div class="stat"><div class="num" id="repAttempts">—</div><div class="lbl">إجمالي المحاولات</div></div>
+      <div class="stat"><div class="num" id="repAvg">—</div><div class="lbl">متوسط النتيجة العام</div></div>
+      <div class="stat"><div class="num" id="repToday">—</div><div class="lbl">محاولات اليوم</div></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 class="section-title" style="margin-bottom:0;">الأداء حسب المهارة</h3>
+        <button type="button" class="export-btn" id="refreshReportsBtn">تحديث</button>
+      </div>
+      <div id="skillPerfList"><p style="color:#6b7570; font-size:0.9rem;">لا توجد محاولات مسجَّلة بعد.</p></div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">آخر المحاولات</h3>
+      <div class="qlist" id="recentAttemptsList"></div>
+    </div>
+  </section>
+
 </main>
 
 </div><!-- /#appRoot -->
@@ -347,7 +371,7 @@ import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, deleteDoc
+  getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, getDocs
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // ضع بيانات مشروعك في Firebase Console هنا (Project settings → Your apps)
@@ -1184,6 +1208,79 @@ function switchTab(name){
   if(name==='browse'){ refreshFilterSkillSelect(); renderList(); }
   if(name==='skills'){ refreshSkillsTab(); }
   if(name==='dashboard'){ renderDashboard(); }
+  if(name==='reports'){ renderReports(); }
+}
+
+async function renderReports(){
+  const setNum = (id, val)=> document.getElementById(id).textContent = val;
+  setNum('repStudents','...'); setNum('repAttempts','...'); setNum('repAvg','...'); setNum('repToday','...');
+
+  let attempts = [];
+  try{
+    const q = query(collection(db, 'attempts'), orderBy('timestamp','desc'), limit(300));
+    const snap = await getDocs(q);
+    snap.forEach(d=> attempts.push({ id:d.id, ...d.data() }));
+  }catch(e){
+    console.error('reports fetch failed', e);
+    document.getElementById('skillPerfList').innerHTML = '<p style="color:var(--brick);">تعذّر تحميل التقارير — تحقق من قواعد Firestore.</p>';
+    return;
+  }
+
+  if(!attempts.length){
+    setNum('repStudents','0'); setNum('repAttempts','0'); setNum('repAvg','—'); setNum('repToday','0');
+    document.getElementById('skillPerfList').innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا توجد محاولات مسجَّلة بعد.</p>';
+    document.getElementById('recentAttemptsList').innerHTML = '';
+    return;
+  }
+
+  const today = todayStr();
+  const uniqueStudents = new Set(attempts.map(a=>a.studentName)).size;
+  const avgAll = Math.round(attempts.reduce((s,a)=>s+a.score,0) / attempts.length);
+  const todayCount = attempts.filter(a=>{
+    const d = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : null;
+    return d && d.toISOString().slice(0,10) === today;
+  }).length;
+
+  setNum('repStudents', uniqueStudents);
+  setNum('repAttempts', attempts.length + (attempts.length===300 ? '+' : ''));
+  setNum('repAvg', avgAll + '%');
+  setNum('repToday', todayCount);
+
+  // الأداء حسب المهارة
+  const bySkill = {};
+  attempts.forEach(a=>{
+    const key = `${a.subject} — ${a.grade} — ${a.skill}`;
+    if(!bySkill[key]) bySkill[key] = { total:0, count:0 };
+    bySkill[key].total += a.score;
+    bySkill[key].count += 1;
+  });
+  const rows = Object.keys(bySkill).map(key=>({
+    key, avg: Math.round(bySkill[key].total / bySkill[key].count), count: bySkill[key].count
+  })).sort((a,b)=> a.avg - b.avg);
+
+  const perfBox = document.getElementById('skillPerfList');
+  perfBox.innerHTML = '';
+  rows.forEach(r=>{
+    const barColor = r.avg < 50 ? 'var(--brick)' : (r.avg < 80 ? 'var(--amber)' : 'var(--green)');
+    const row = document.createElement('div');
+    row.className = 'skillrow';
+    row.innerHTML = `<div class="labels"><span>${r.key} ${r.avg < 50 ? '⚠️' : ''}</span><span>${r.avg}% (${r.count} محاولة)</span></div>
+      <div class="track"><div class="fill" style="width:${r.avg}%; background:${barColor};"></div></div>`;
+    perfBox.appendChild(row);
+  });
+
+  // آخر المحاولات
+  const listBox = document.getElementById('recentAttemptsList');
+  listBox.innerHTML = '<div class="qrow head"><span>الطالب</span><span>المهارة</span><span>الصف</span><span>النتيجة</span><span>الوقت</span></div>';
+  attempts.slice(0, 25).forEach(a=>{
+    const d = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : null;
+    const timeLabel = d ? d.toLocaleString('ar-SA', {dateStyle:'short', timeStyle:'short'}) : '—';
+    const row = document.createElement('div');
+    row.className = 'qrow';
+    row.innerHTML = `<span>${a.studentName}</span><span class="qtext">${a.skill}</span><span>${a.grade}</span>
+      <span class="badge ${a.score>=80?'approved':'draft'}">${a.score}%</span><span style="font-size:0.78rem; color:#6b7570;">${timeLabel}</span>`;
+    listBox.appendChild(row);
+  });
 }
 
 function exportBackup(){
@@ -1207,6 +1304,7 @@ function exportBackup(){
 function wireEvents(){
   document.querySelectorAll('.tab-btn').forEach(b=> b.onclick = ()=>switchTab(b.dataset.tab));
   document.getElementById('exportBtn').onclick = exportBackup;
+  document.getElementById('refreshReportsBtn').onclick = renderReports;
 
   document.getElementById('downloadTemplateBtn').onclick = downloadTemplate;
   document.getElementById('importFile').onchange = (e)=>{
