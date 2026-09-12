@@ -353,8 +353,13 @@
     </div>
 
     <div class="card">
-      <h3 class="section-title">آخر المحاولات</h3>
-      <div class="qlist" id="recentAttemptsList"></div>
+      <h3 class="section-title">🔴 يحتاجون متابعة من المعلم (آخر نتيجة أقل من 60%)</h3>
+      <div class="qlist" id="needsAttentionList"></div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">🌟 متميزون — يستحقون تشجيعًا (آخر نتيجة أكثر من 90%)</h3>
+      <div class="qlist" id="excellingList"></div>
     </div>
   </section>
 
@@ -1229,7 +1234,8 @@ async function renderReports(){
   if(!attempts.length){
     setNum('repStudents','0'); setNum('repAttempts','0'); setNum('repAvg','—'); setNum('repToday','0');
     document.getElementById('skillPerfList').innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا توجد محاولات مسجَّلة بعد.</p>';
-    document.getElementById('recentAttemptsList').innerHTML = '';
+    document.getElementById('needsAttentionList').innerHTML = '';
+    document.getElementById('excellingList').innerHTML = '';
     return;
   }
 
@@ -1269,18 +1275,36 @@ async function renderReports(){
     perfBox.appendChild(row);
   });
 
-  // آخر المحاولات
-  const listBox = document.getElementById('recentAttemptsList');
-  listBox.innerHTML = '<div class="qrow head"><span>الطالب</span><span>المهارة</span><span>الصف</span><span>النتيجة</span><span>الوقت</span></div>';
-  attempts.slice(0, 25).forEach(a=>{
-    const d = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : null;
-    const timeLabel = d ? d.toLocaleString('ar-SA', {dateStyle:'short', timeStyle:'short'}) : '—';
-    const row = document.createElement('div');
-    row.className = 'qrow';
-    row.innerHTML = `<span>${a.studentName}</span><span class="qtext">${a.skill}</span><span>${a.grade}</span>
-      <span class="badge ${a.score>=80?'approved':'draft'}">${a.score}%</span><span style="font-size:0.78rem; color:#6b7570;">${timeLabel}</span>`;
-    listBox.appendChild(row);
+  // آخر حالة كل طالب في كل مهارة (لتصنيف يحتاج متابعة / متميز)
+  const byStudentSkill = {};
+  attempts.forEach(a=>{
+    const key = `${a.studentName}||${a.subject}||${a.grade}||${a.skill}`;
+    const d = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : new Date(0);
+    if(!byStudentSkill[key] || d > byStudentSkill[key]._date){
+      byStudentSkill[key] = { ...a, _date: d };
+    }
   });
+  const latestPerStudentSkill = Object.values(byStudentSkill);
+
+  const needsAttention = latestPerStudentSkill.filter(a=>a.score < 60).sort((a,b)=> a.score - b.score);
+  const excelling = latestPerStudentSkill.filter(a=>a.score > 90).sort((a,b)=> b.score - a.score);
+
+  function renderStudentList(containerId, list, emptyMsg){
+    const box = document.getElementById(containerId);
+    if(!list.length){ box.innerHTML = `<p style="color:#6b7570; font-size:0.9rem; padding:10px 0;">${emptyMsg}</p>`; return; }
+    box.innerHTML = '<div class="qrow head"><span>الطالب</span><span>المهارة</span><span>الصف والمادة</span><span>النتيجة</span><span>آخر محاولة</span></div>';
+    list.forEach(a=>{
+      const timeLabel = a._date ? a._date.toLocaleDateString('ar-SA', {dateStyle:'medium'}) : '—';
+      const row = document.createElement('div');
+      row.className = 'qrow';
+      row.innerHTML = `<span>${a.studentName}</span><span class="qtext">${a.skill}</span><span style="font-size:0.82rem;">${a.grade} — ${a.subject}</span>
+        <span class="badge ${a.score>=90?'approved':'draft'}">${a.score}%</span><span style="font-size:0.78rem; color:#6b7570;">${timeLabel}</span>`;
+      box.appendChild(row);
+    });
+  }
+
+  renderStudentList('needsAttentionList', needsAttention, 'لا يوجد طلاب أقل من 60% حاليًا — ممتاز.');
+  renderStudentList('excellingList', excelling, 'لا يوجد طلاب تجاوزوا 90% بعد.');
 }
 
 function exportBackup(){
