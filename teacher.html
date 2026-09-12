@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة المعلم — نافِس برو</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16211F; --pine:#0D3B36; --pine-light:#155048; --paper:#FBFAF6; --paper-dim:#F1F0E9;
+    --amber:#D9A441; --amber-dim:#F3E2BB; --brick:#C1502E; --brick-dim:#F5DCD3; --green:#2F7A4D; --green-dim:#DCEEDF;
+    --line:#DFDCD1; --radius-s:6px; --radius-m:10px; --maxw:900px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans Arabic',sans-serif; line-height:1.65; font-size:15.5px;}
+  h1,h2,h3{font-family:'Cairo',sans-serif; color:var(--pine); margin:0;}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px;}
+  button{font-family:inherit; cursor:pointer;}
+  :focus-visible{outline:3px solid var(--amber); outline-offset:2px;}
+
+  header.site{position:sticky; top:0; z-index:40; background:rgba(251,250,246,0.95); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
+  nav.wrap{display:flex; align-items:center; justify-content:space-between; padding:14px 24px; flex-wrap:wrap; gap:12px;}
+  .brand{display:flex; align-items:center; gap:10px; font-family:'Cairo',sans-serif; font-weight:800; font-size:1.1rem; color:var(--pine);}
+  .brand .mark{width:28px; height:28px; border-radius:7px; background:linear-gradient(135deg,var(--pine),var(--pine-light)); color:var(--amber); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem;}
+  .logout-btn{background:none; border:1px solid var(--line); border-radius:8px; padding:8px 14px; font-size:0.8rem; font-weight:600; color:var(--brick);}
+
+  main{padding:30px 0 70px;}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius-m); padding:24px;}
+  .card + .card{margin-top:20px;}
+  .section-title{font-size:1.1rem; margin-bottom:14px;}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .field label{display:block; font-size:0.85rem; font-weight:600; color:#3A4441; margin-bottom:6px;}
+  .field select{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--paper);}
+
+  .skillrow{display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; cursor:pointer;}
+  .skillrow input{width:18px; height:18px;}
+  .skillrow .name{flex:1;}
+  .skillrow .count{font-size:0.78rem; color:#6b7570;}
+  .domain-h{font-weight:700; color:var(--pine); font-size:0.9rem; margin:16px 0 8px;}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px;}
+  .stat{background:#fff; border:1px solid var(--line); border-radius:var(--radius-m); padding:18px;}
+  .stat .num{font-family:'Cairo',sans-serif; font-weight:800; font-size:1.6rem; color:var(--pine);}
+  .stat .lbl{font-size:0.82rem; color:#5A6560; margin-top:4px;}
+
+  .qrow{display:grid; grid-template-columns:1.2fr 1.4fr 1fr 0.8fr; gap:10px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); font-size:0.85rem;}
+  .qrow.head{background:var(--paper-dim); font-weight:700; color:var(--pine);}
+  .badge{display:inline-block; padding:3px 9px; border-radius:14px; font-size:0.76rem; font-weight:600;}
+  .badge.good{background:var(--green-dim); color:#1C4A30;}
+  .badge.bad{background:var(--brick-dim); color:#7A2E18;}
+
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--pine); color:#fff; padding:12px 22px; border-radius:24px; font-size:0.9rem; font-weight:600; box-shadow:0 12px 30px -10px rgba(13,59,54,.5); z-index:100; opacity:0; transition:opacity .25s;}
+  .toast.show{opacity:1;}
+
+  #loginGate{position:fixed; inset:0; background:var(--paper); z-index:200; display:flex; align-items:center; justify-content:center;}
+  #loginGate.hidden{display:none;}
+  .login-card{background:#fff; border:1px solid var(--line); border-radius:var(--radius-m); padding:36px; width:100%; max-width:360px; box-shadow:0 24px 48px -28px rgba(13,59,54,0.35);}
+  .login-card h2{font-size:1.2rem; margin-bottom:6px;}
+  .login-card p{font-size:0.85rem; color:#5A6560; margin-bottom:22px;}
+  .login-card input{width:100%; padding:11px 14px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--paper); margin-bottom:12px; font-family:inherit;}
+  .login-card button{width:100%; background:var(--pine); color:#fff; border:0; padding:12px; border-radius:var(--radius-s); font-weight:700; cursor:pointer;}
+  .login-card .login-err{color:var(--brick); font-size:0.85rem; margin-top:10px; display:none;}
+  #appRoot{display:none;}
+  #appRoot.ready{display:block;}
+
+  @media (max-width:640px){
+    .grid2, .stat-grid{grid-template-columns:1fr;}
+    .qrow{grid-template-columns:1fr; gap:4px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+  <div class="login-card">
+    <h2>لوحة المعلم — نافِس برو</h2>
+    <p>سجّل الدخول ببريدك الذي زوّدك به المشرف.</p>
+    <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" autocomplete="username">
+    <input type="password" id="loginPassword" placeholder="كلمة المرور" autocomplete="current-password">
+    <button type="button" id="loginBtn">دخول</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<div id="appRoot">
+<header class="site">
+  <nav class="wrap">
+    <span class="brand"><span class="mark">ن</span> <span id="teacherNameLabel">لوحة المعلم</span></span>
+    <button class="logout-btn" id="logoutBtn">خروج</button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <div class="stat-grid">
+    <div class="stat"><div class="num" id="statStudents">—</div><div class="lbl">طلابي الفريدون</div></div>
+    <div class="stat"><div class="num" id="statAttempts">—</div><div class="lbl">إجمالي محاولاتهم</div></div>
+    <div class="stat"><div class="num" id="statAvg">—</div><div class="lbl">متوسط أدائهم</div></div>
+  </div>
+
+  <div class="card">
+    <h3 class="section-title">تحكّم بالمهارات المفتوحة لطلابي</h3>
+    <div class="grid2" style="margin-bottom:14px;">
+      <div class="field">
+        <label>المادة</label>
+        <select id="tSubject"></select>
+      </div>
+      <div class="field">
+        <label>الصف</label>
+        <select id="tGrade"></select>
+      </div>
+    </div>
+    <div id="tSkillList"></div>
+  </div>
+
+  <div class="card">
+    <h3 class="section-title">🔴 طلابي الذين يحتاجون متابعة (أقل من 60%)</h3>
+    <div id="needsList"><p style="color:#6b7570; font-size:0.9rem;">لا يوجد.</p></div>
+  </div>
+
+  <div class="card">
+    <h3 class="section-title">🌟 طلابي المتميزون (أكثر من 90%)</h3>
+    <div id="excelList"><p style="color:#6b7570; font-size:0.9rem;">لا يوجد.</p></div>
+  </div>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, collection, query, where, orderBy, limit, getDocs
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCwmnuN3GmXh-Snj_SGXVYxvC4BoksHuts",
+  authDomain: "naafis-platform.firebaseapp.com",
+  projectId: "naafis-platform",
+  storageBucket: "naafis-platform.firebasestorage.app",
+  messagingSenderId: "337917395597",
+  appId: "1:337917395597:web:6c90a2847ac51ed0c658c4"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+const SUBJECTS = ['الرياضيات','العلوم','لغتي'];
+const GRADES = ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'];
+const SUBJECT_GRADES = {
+  'الرياضيات': ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'],
+  'لغتي': ['ثالث ابتدائي','سادس ابتدائي','ثالث متوسط'],
+  'العلوم': ['سادس ابتدائي','ثالث متوسط']
+};
+
+let myTeacherName = null;
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function showLoginGate(err){
+  document.getElementById('loginGate').classList.remove('hidden');
+  document.getElementById('appRoot').classList.remove('ready');
+  const el = document.getElementById('loginErr');
+  if(err){ el.textContent = err; el.style.display = 'block'; } else { el.style.display = 'none'; }
+}
+function hideLoginGate(){
+  document.getElementById('loginGate').classList.add('hidden');
+  document.getElementById('appRoot').classList.add('ready');
+}
+
+document.getElementById('loginBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  try{ await signInWithEmailAndPassword(auth, email, password); }
+  catch(e){
+    const map = {
+      'auth/invalid-credential': 'البريد أو كلمة المرور غير صحيحة.',
+      'auth/invalid-email': 'صيغة البريد الإلكتروني غير صحيحة.',
+      'auth/too-many-requests': 'محاولات كثيرة متتالية — انتظر قليلًا.'
+    };
+    showLoginGate(map[e.code] || 'تعذّر تسجيل الدخول.');
+  }
+});
+document.getElementById('logoutBtn').addEventListener('click', ()=> signOut(auth));
+
+let appInitialized = false;
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){ showLoginGate(); appInitialized = false; return; }
+  try{
+    const snap = await getDoc(doc(db, 'teacher_accounts', user.email));
+    if(!snap.exists()){
+      showLoginGate('حسابك غير مرتبط بأي معلم بعد — راجع المشرف لربط بريدك.');
+      await signOut(auth);
+      return;
+    }
+    myTeacherName = snap.data().teacherName;
+    document.getElementById('teacherNameLabel').textContent = myTeacherName;
+    hideLoginGate();
+    if(!appInitialized){ appInitialized = true; init(); }
+  }catch(e){
+    showLoginGate('تعذّر التحقق من حسابك — حاول مجددًا.');
+  }
+});
+
+// ---- تحكم المهارات (لهذا المعلم فقط) ----
+function fillSelect(sel, arr){ sel.innerHTML = ''; arr.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); }); }
+function wireLinkedSelects(subjectSel, gradeSel, afterChange){
+  function syncGrades(){
+    const grades = SUBJECT_GRADES[subjectSel.value] || GRADES;
+    const prev = gradeSel.value;
+    fillSelect(gradeSel, grades);
+    gradeSel.value = grades.includes(prev) ? prev : grades[0];
+  }
+  function syncSubjects(){
+    const subs = SUBJECTS.filter(s=> (SUBJECT_GRADES[s]||GRADES).includes(gradeSel.value));
+    const prev = subjectSel.value;
+    fillSelect(subjectSel, subs);
+    subjectSel.value = subs.includes(prev) ? prev : subs[0];
+  }
+  subjectSel.addEventListener('change', ()=>{ syncGrades(); afterChange(); });
+  gradeSel.addEventListener('change', ()=>{ syncSubjects(); afterChange(); });
+  fillSelect(subjectSel, SUBJECTS);
+  syncGrades();
+}
+
+function unlockedDocId(subject, grade, teacherName){ return `${subject}::${grade}::${teacherName}`; }
+
+async function renderSkillControl(){
+  const subject = document.getElementById('tSubject').value;
+  const grade = document.getElementById('tGrade').value;
+  const box = document.getElementById('tSkillList');
+  box.innerHTML = 'جاري التحميل...';
+
+  // مهارات المادة/الصف من الأسئلة المعتمدة الفعلية (لا حاجة لصلاحية قراءة بنك الأسئلة الإداري)
+  const snap = await getDocs(query(collection(db,'approved_questions'), where('subject','==',subject), where('grade','==',grade)));
+  const countBySkill = {};
+  snap.forEach(d=>{ const s = d.data().skill; countBySkill[s] = (countBySkill[s]||0)+1; });
+  const allSkills = Object.keys(countBySkill);
+
+  let unlocked = [];
+  try{
+    const cfgSnap = await getDoc(doc(db, 'unlocked_skills', unlockedDocId(subject, grade, myTeacherName)));
+    if(cfgSnap.exists()) unlocked = cfgSnap.data().skills || [];
+  }catch(e){}
+
+  box.innerHTML = '';
+  if(!allSkills.length){
+    box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا توجد أسئلة معتمدة لهذه المادة والصف بعد — راجع المشرف.</p>';
+    return;
+  }
+  allSkills.forEach(skill=>{
+    const isOn = unlocked.includes(skill);
+    const row = document.createElement('label');
+    row.className = 'skillrow';
+    row.style.background = isOn ? 'var(--green-dim)' : '#fff';
+    row.innerHTML = `<input type="checkbox" ${isOn?'checked':''}>
+      <span class="name">${skill}</span><span class="count">${countBySkill[skill]} سؤال معتمد</span>`;
+    row.querySelector('input').onchange = async (e)=>{
+      const current = new Set(unlocked);
+      if(e.target.checked) current.add(skill); else current.delete(skill);
+      unlocked = Array.from(current);
+      row.style.background = e.target.checked ? 'var(--green-dim)' : '#fff';
+      try{
+        await setDoc(doc(db, 'unlocked_skills', unlockedDocId(subject, grade, myTeacherName)), {
+          subject, grade, teacherName: myTeacherName, skills: unlocked
+        });
+        showToast(`تم ${e.target.checked?'فتح':'إغلاق'} "${skill}"`);
+      }catch(err){ showToast('تعذّر الحفظ'); }
+    };
+    box.appendChild(row);
+  });
+}
+
+// ---- تقارير طلابي فقط ----
+async function renderMyReports(){
+  let attempts = [];
+  try{
+    const q = query(collection(db,'attempts'), where('teacherName','==', myTeacherName), orderBy('timestamp','desc'), limit(300));
+    const snap = await getDocs(q);
+    snap.forEach(d=> attempts.push(d.data()));
+  }catch(e){ console.error(e); }
+
+  const uniqueStudents = new Set(attempts.map(a=>a.studentCode || a.studentName)).size;
+  document.getElementById('statStudents').textContent = uniqueStudents;
+  document.getElementById('statAttempts').textContent = attempts.length;
+  document.getElementById('statAvg').textContent = attempts.length ? Math.round(attempts.reduce((s,a)=>s+a.score,0)/attempts.length)+'%' : '—';
+
+  const byStudentSkill = {};
+  attempts.forEach(a=>{
+    const key = `${a.studentName}||${a.subject}||${a.grade}||${a.skill}`;
+    const d = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : new Date(0);
+    if(!byStudentSkill[key] || d > byStudentSkill[key]._date) byStudentSkill[key] = { ...a, _date: d };
+  });
+  const latest = Object.values(byStudentSkill);
+  const needs = latest.filter(a=>a.score<60).sort((a,b)=>a.score-b.score);
+  const excel = latest.filter(a=>a.score>90).sort((a,b)=>b.score-a.score);
+
+  function renderList(id, list, badgeGood){
+    const box = document.getElementById(id);
+    if(!list.length){ box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا يوجد.</p>'; return; }
+    box.innerHTML = '<div class="qrow head"><span>الطالب</span><span>المهارة</span><span>المادة والصف</span><span>النتيجة</span></div>';
+    list.forEach(a=>{
+      const row = document.createElement('div');
+      row.className = 'qrow';
+      row.innerHTML = `<span>${a.studentName}</span><span>${a.skill}</span><span style="font-size:0.8rem;">${a.grade} — ${a.subject}</span>
+        <span class="badge ${badgeGood?'good':'bad'}">${a.score}%</span>`;
+      box.appendChild(row);
+    });
+  }
+  renderList('needsList', needs, false);
+  renderList('excelList', excel, true);
+}
+
+function init(){
+  wireLinkedSelects(document.getElementById('tSubject'), document.getElementById('tGrade'), renderSkillControl);
+  renderSkillControl();
+  renderMyReports();
+}
+</script>
+</body>
+</html>
