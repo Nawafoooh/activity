@@ -404,16 +404,13 @@ async function loadSkillChoices(){
     bySkill[data.skill].push({ id:d.id, ...data });
   });
 
-  // لا تظهر أي مهارة للطالب إلا بعد فتحها صراحة من المعلم في تبويب "تحكم المعلم"
+  // لا تظهر أي مهارة للطالب إلا بعد فتحها صراحة من معلمه تحديدًا (لكل معلم مستنداته الخاصة)
   let allowedSkills = [];
   try{
-    const cfgSnap = await getDoc(doc(db, 'public_config', 'unlocked_skills'));
-    if(cfgSnap.exists()){
-      const cfg = cfgSnap.data();
-      const key = state.subject + '|' + state.grade;
-      allowedSkills = cfg[key] || [];
-    }
-  }catch(e){ console.warn('unlocked config read failed', e); }
+    const docId = `${state.subject}::${state.grade}::${state.teacherName}`;
+    const cfgSnap = await getDoc(doc(db, 'unlocked_skills', docId));
+    if(cfgSnap.exists()) allowedSkills = cfgSnap.data().skills || [];
+  }catch(e){ console.warn('unlocked skills read failed', e); }
 
   let skills = Object.keys(bySkill).filter(s=> allowedSkills.includes(s));
 
