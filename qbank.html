@@ -404,15 +404,36 @@
   <!-- SCHOOL MANAGEMENT -->
   <section class="panel" id="panel-school">
     <div class="card">
-      <h3 class="section-title">قائمة المعلمين</h3>
+      <h3 class="section-title">إضافة معلم جديد</h3>
       <p style="font-size:0.88rem; color:#5A6560; margin-bottom:14px;">
-        هذه القائمة تظهر للطلاب عند التسجيل ليختاروا معلمهم. أضف أسماء مبدئية (معلم 1، معلم 2...) وحدّثها لاحقًا بالأسماء الفعلية.
+        اختر المادة، واترك بقية الحقول كما هي (تُملأ تلقائيًا) أو عدّلها، ثم اضغط الزر — يُنشئ المعلم وحسابه دفعة واحدة.
       </p>
-      <div id="teachersManageList" style="margin-bottom:14px;"></div>
-      <div class="skill-add-row">
-        <input type="text" id="newTeacherName" placeholder="اسم المعلم (اختياري — اتركه فارغًا للتوليد التلقائي)">
-        <button type="button" id="addTeacherBtn">إضافة معلم</button>
+      <div class="grid3" style="margin-bottom:12px;">
+        <div class="field" style="margin-bottom:0;">
+          <label>المادة</label>
+          <select id="newTeacherSubject"></select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>اسم المعلم (اختياري)</label>
+          <input type="text" id="newTeacherName" placeholder="يُولَّد تلقائيًا إن تُرك فارغًا">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>اسم المستخدم (بريد صوري يكفي)</label>
+          <input type="email" id="newTeacherEmail">
+        </div>
       </div>
+      <div class="grid2" style="margin-bottom:12px; align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label>كلمة المرور</label>
+          <input type="text" id="newTeacherPassword" style="font-family:'Cairo',sans-serif;">
+        </div>
+        <button type="button" id="addTeacherBtn" class="btn-primary" style="height:42px;">إضافة المعلم وإنشاء حسابه</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">المعلمون الحاليون</h3>
+      <div id="teachersManageList"></div>
     </div>
 
     <div class="card">
@@ -568,18 +589,31 @@ async function removeApprovedCopy(id){
 
 // ---- فهرس الأسئلة مقسَّم إلى أجزاء لتفادي حد حجم مستند Firestore (1 ميجابايت) ----
 const INDEX_SHARD_SIZE = 400; // آمن لآلاف الأسئلة دون الاقتراب من الحد
+let indexLoadedOk = false; // لا يُسمح بحفظ الفهرس أبدًا إلا بعد تأكيد تحميله بنجاح هذه الجلسة
+
 async function loadIndexSharded(){
   let all = [];
   let i = 0;
   while(true){
-    const chunk = await safeGet('qindex_'+i);
-    if(chunk === null) break;
-    all = all.concat(chunk);
+    let snap;
+    try{
+      snap = await getDoc(doc(db, QBANK_COLLECTION, 'qindex_'+i));
+    }catch(e){
+      // فشل قراءة فعلي (صلاحيات/اتصال) — يجب ألا يُعامَل كـ"لا يوجد جزء آخر"
+      console.error('CRITICAL: index shard read failed', i, e);
+      throw new Error('تعذّرت قراءة جزء الفهرس رقم ' + i + ' — على الأرجح مشكلة صلاحيات أو اتصال.');
+    }
+    if(!snap.exists()) break; // توقف طبيعي: لا يوجد جزء آخر فعليًا
+    all = all.concat(snap.data().value || []);
     i++;
   }
   return all;
 }
 async function saveIndexSharded(arr){
+  if(!indexLoadedOk){
+    alert('تم إيقاف الحفظ وقائيًا: الفهرس لم يُحمَّل بنجاح في هذه الجلسة، والمتابعة قد تُفقد أسئلة سابقة. أعد تحميل الصفحة بالكامل وحاول مجددًا قبل إجراء أي تعديل.');
+    throw new Error('index not loaded — refusing to save');
+  }
   const shards = [];
   for(let i=0; i<arr.length; i+=INDEX_SHARD_SIZE) shards.push(arr.slice(i, i+INDEX_SHARD_SIZE));
   if(!shards.length) shards.push([]);
@@ -1032,6 +1066,7 @@ async function rebuildIndexFromQuestions(){
     }
 
     qIndex = rebuilt;
+    indexLoadedOk = true; // إعادة البناء هذه مبنية على فحص فعلي شامل، آمنة للحفظ حتى لو فشل التحميل العادي سابقًا
     await saveIndexSharded(qIndex);
     if(maxNum >= settings.nextId){
       settings.nextId = maxNum + 1;
@@ -1048,7 +1083,14 @@ async function rebuildIndexFromQuestions(){
 
 async function loadAll(){
   skillsConfig = (await safeGet('skills-config')) || {};
-  qIndex = await loadIndexSharded();
+  try{
+    qIndex = await loadIndexSharded();
+    indexLoadedOk = true;
+  }catch(e){
+    indexLoadedOk = false;
+    qIndex = [];
+    alert('تعذّر تحميل فهرس الأسئلة بأمان بسبب خطأ في القراءة (صلاحيات أو اتصال).\n\nلن تُحفظ أي إضافة أو تعديل على الأسئلة حتى تُحل هذه المشكلة، حماية لبياناتك من الفقد.\nأعد تحميل الصفحة، وتأكد من نشر قواعد Firestore الصحيحة، ثم حاول مجددًا.');
+  }
   settings = (await safeGet('settings')) || { startDate: todayStr(), nextId: 1 };
   if(!settings.startDate){ settings.startDate = todayStr(); await safeSet('settings', settings); }
 }
@@ -1347,7 +1389,7 @@ function switchTab(name){
   if(name==='dashboard'){ renderDashboard(); }
   if(name==='reports'){ renderReports(); }
   if(name==='teacher'){ renderTeacherControl(); }
-  if(name==='school'){ renderTeachersManage(); renderTeacherPerformance(); }
+  if(name==='school'){ initNewTeacherForm(); renderTeachersManage(); renderTeacherPerformance(); }
 }
 
 async function renderReports(){
@@ -1443,15 +1485,17 @@ async function renderReports(){
 
 async function populateTeachTeacherSelect(){
   const sel = document.getElementById('teachTeacher');
-  const teachers = await getTeachersDoc();
+  const subject = document.getElementById('teachSubject').value;
+  const allTeachers = await getTeachersDoc();
+  const teachers = allTeachers.filter(t => !t.subject || t.subject === subject);
   const prev = sel.value;
   sel.innerHTML = '';
   if(!teachers.length){
-    sel.innerHTML = '<option value="">أضف معلمًا أولًا من تبويب إدارة المدرسة</option>';
+    sel.innerHTML = '<option value="">لا يوجد معلم لهذه المادة — أضِفه من تبويب إدارة المدرسة</option>';
     return;
   }
-  teachers.forEach(t=>{ const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
-  if(teachers.includes(prev)) sel.value = prev;
+  teachers.forEach(t=>{ const o = document.createElement('option'); o.value = t.name; o.textContent = t.name; sel.appendChild(o); });
+  if(teachers.some(t=>t.name===prev)) sel.value = prev;
 }
 
 async function renderTeacherControl(){
@@ -1509,11 +1553,13 @@ async function renderTeacherControl(){
   });
 }
 
-// ---- إدارة المدرسة: قائمة المعلمين ----
+// ---- إدارة المدرسة: قائمة المعلمين (كل معلم مرتبط بمادة واحدة) ----
 async function getTeachersDoc(){
   try{
     const snap = await getDoc(doc(db, 'public_config', 'teachers'));
-    return snap.exists() ? (snap.data().list || []) : [];
+    const list = snap.exists() ? (snap.data().list || []) : [];
+    // توافق مع بيانات قديمة كانت مجرد نصوص بلا مادة محدَّدة
+    return list.map(t => typeof t === 'string' ? { name: t, subject: null } : t);
   }catch(e){ console.warn('teachers read failed', e); return []; }
 }
 async function setTeachersDoc(list){
@@ -1529,8 +1575,8 @@ async function getTeacherAccountsMap(){
   }catch(e){ console.warn('teacher_accounts read failed', e); }
   return map;
 }
-async function linkTeacherEmail(teacherName, email){
-  try{ await setDoc(doc(db, 'teacher_accounts', email), { teacherName }); return true; }
+async function linkTeacherEmail(teacherName, email, subject){
+  try{ await setDoc(doc(db, 'teacher_accounts', email), { teacherName, subject }); return true; }
   catch(e){ console.error('link failed', e); return null; }
 }
 
@@ -1554,6 +1600,12 @@ async function createTeacherAuthAccount(email, password){
   }
 }
 
+function initNewTeacherForm(){
+  fillSelect(document.getElementById('newTeacherSubject'), SUBJECTS);
+  document.getElementById('newTeacherEmail').value = 'teacher' + (Math.floor(Math.random()*9000)+100) + '@nafispro.local';
+  document.getElementById('newTeacherPassword').value = generateTeacherPassword();
+}
+
 async function renderTeachersManage(){
   const list = await getTeachersDoc();
   const accountsMap = await getTeacherAccountsMap();
@@ -1563,44 +1615,17 @@ async function renderTeachersManage(){
     box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا يوجد معلمون بعد.</p>';
     return;
   }
-  list.forEach((name, i)=>{
+  list.forEach((t, i)=>{
+    const name = t.name;
     const hasAccount = !!accountsMap[name];
-    const suggestedEmail = 'teacher' + (i+1) + '@nafispro.local';
     const row = document.createElement('div');
     row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; flex-wrap:wrap;';
     row.innerHTML = `
-      <span style="font-weight:700; color:var(--pine); min-width:110px;">${name}</span>
-      <input type="email" class="teacherEmailInput" placeholder="بريد دخول هذا المعلم"
-        value="${accountsMap[name] || (hasAccount ? '' : suggestedEmail)}" ${hasAccount ? 'disabled' : ''} style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:${hasAccount?'var(--paper-dim)':'#fff'};">
-      ${hasAccount
-        ? `<span class="badge approved">حساب مفعَّل ✓</span>`
-        : `<input type="text" class="teacherPasswordInput" value="${generateTeacherPassword()}" style="width:110px; padding:8px 10px; border:1px solid var(--line); border-radius:6px; text-align:center; font-family:'Cairo',sans-serif;">
-           <button type="button" class="createBtn" style="background:var(--pine); color:#fff; border:0; border-radius:6px; padding:8px 14px; font-size:0.82rem; font-weight:700;">إنشاء الحساب</button>`}
+      <span style="font-weight:700; color:var(--pine); min-width:150px;">${name}</span>
+      <span class="badge" style="background:var(--paper-dim); color:var(--pine-light);">${t.subject || 'كل المواد'}</span>
+      <span style="flex:1; min-width:120px; font-size:0.82rem; color:#6b7570;">${accountsMap[name] || 'بلا حساب بعد'}</span>
+      ${hasAccount ? `<span class="badge approved">حساب مفعَّل ✓</span>` : `<span class="badge draft">بانتظار الحساب</span>`}
       <button type="button" class="delBtn" style="background:none; border:1px solid var(--brick-dim); color:var(--brick); border-radius:6px; padding:8px 14px; font-size:0.82rem; font-weight:600;">حذف المعلم</button>`;
-
-    if(!hasAccount){
-      row.querySelector('.createBtn').onclick = async ()=>{
-        const email = row.querySelector('.teacherEmailInput').value.trim();
-        const password = row.querySelector('.teacherPasswordInput').value.trim();
-        if(!email || !/^\S+@\S+\.\S+$/.test(email)){ showToast('اكتب بريدًا صحيحًا للمعلم'); return; }
-        if(password.length < 6){ showToast('كلمة المرور 6 أحرف/أرقام على الأقل'); return; }
-        const btn = row.querySelector('.createBtn');
-        btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
-        const result = await createTeacherAuthAccount(email, password);
-        if(result.ok){
-          await linkTeacherEmail(name, email);
-          alert(`تم إنشاء حساب "${name}" بنجاح:\n\nالبريد: ${email}\nكلمة المرور: ${password}\n\nسلّم هذه البيانات للمعلم الآن — لن تظهر كلمة المرور مرة أخرى.`);
-          renderTeachersManage();
-        } else if(result.code === 'auth/email-already-in-use'){
-          await linkTeacherEmail(name, email);
-          showToast('هذا البريد له حساب مسبقًا — تم الربط باسم المعلم فقط (بلا تغيير كلمة المرور).');
-          renderTeachersManage();
-        } else {
-          showToast('تعذّر إنشاء الحساب: ' + (result.code || 'خطأ غير معروف'));
-          btn.disabled = false; btn.textContent = 'إنشاء الحساب';
-        }
-      };
-    }
     row.querySelector('.delBtn').onclick = async ()=>{
       if(!confirm(`حذف "${name}" من قائمة المعلمين؟ الطلاب المسجَّلون تحته سيبقون كما هم في السجلات.`)) return;
       const newList = list.filter((_,idx)=>idx!==i);
@@ -1612,16 +1637,44 @@ async function renderTeachersManage(){
 }
 
 async function addTeacher(){
-  const input = document.getElementById('newTeacherName');
+  const subject = document.getElementById('newTeacherSubject').value;
+  const nameInput = document.getElementById('newTeacherName');
+  const emailInput = document.getElementById('newTeacherEmail');
+  const passwordInput = document.getElementById('newTeacherPassword');
+
   const list = await getTeachersDoc();
-  let name = input.value.trim();
-  if(!name) name = 'معلم ' + (list.length + 1);
-  if(list.includes(name)){ showToast('هذا الاسم موجود بالفعل'); return; }
-  list.push(name);
-  await setTeachersDoc(list);
-  input.value = '';
-  renderTeachersManage();
-  showToast(`تمت إضافة "${name}"`);
+  let name = nameInput.value.trim();
+  if(!name){
+    const countSameSubject = list.filter(t=>t.subject===subject).length;
+    name = `معلم ${subject} ${countSameSubject + 1}`;
+  }
+  if(list.some(t=>t.name===name)){ showToast('هذا الاسم موجود بالفعل'); return; }
+
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+  if(!email || !/^\S+@\S+\.\S+$/.test(email)){ showToast('اكتب بريدًا/اسم مستخدم بصيغة بريد صحيحة'); return; }
+  if(password.length < 6){ showToast('كلمة المرور 6 أحرف/أرقام على الأقل'); return; }
+
+  const btn = document.getElementById('addTeacherBtn');
+  btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
+
+  const result = await createTeacherAuthAccount(email, password);
+  if(result.ok || result.code === 'auth/email-already-in-use'){
+    list.push({ name, subject });
+    await setTeachersDoc(list);
+    await linkTeacherEmail(name, email, subject);
+    if(result.ok){
+      alert(`تم إنشاء "${name}" (${subject}) بنجاح:\n\nاسم المستخدم: ${email}\nكلمة المرور: ${password}\n\nسلّم هذه البيانات للمعلم الآن — لن تظهر كلمة المرور مرة أخرى.`);
+    } else {
+      showToast('هذا البريد له حساب مسبقًا — تم إضافة المعلم والربط بدون تغيير كلمة المرور.');
+    }
+    nameInput.value = '';
+    initNewTeacherForm();
+    renderTeachersManage();
+  } else {
+    showToast('تعذّر إنشاء الحساب: ' + (result.code || 'خطأ غير معروف'));
+  }
+  btn.disabled = false; btn.textContent = 'إضافة المعلم وإنشاء حسابه';
 }
 
 // ---- البحث عن رمز طالب ----
