@@ -174,6 +174,15 @@
     </div>
 
     <div class="card">
+      <h3 class="section-title">صيانة</h3>
+      <p style="font-size:0.85rem; color:#5A6560; margin-bottom:12px;">
+        إذا اختفت القائمة من تبويب "بنك الأسئلة" رغم بقاء الأسئلة محفوظة، اضغط هذا الزر لإعادة بناء الفهرس تلقائيًا من الأسئلة الفعلية — آمن تمامًا ولا يحذف أو يكرر شيئًا.
+      </p>
+      <button type="button" class="btn-secondary" id="rebuildIndexBtn">إعادة بناء الفهرس من الأسئلة المحفوظة</button>
+      <div id="rebuildResult" style="margin-top:10px; font-size:0.85rem;"></div>
+    </div>
+
+    <div class="card">
       <h3 class="section-title">التوزيع حسب المادة</h3>
       <div id="subjectBreakdown"></div>
     </div>
@@ -440,7 +449,7 @@ import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, getDocs, where
+  getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, getDocs, where, documentId
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // ضع بيانات مشروعك في Firebase Console هنا (Project settings → Your apps)
@@ -992,6 +1001,49 @@ function compressImage(file){
     };
     reader.readAsDataURL(file);
   });
+}
+
+async function rebuildIndexFromQuestions(){
+  const resultBox = document.getElementById('rebuildResult');
+  if(!confirm('سيتم فحص كل الأسئلة المحفوظة فعليًا وإعادة بناء الفهرس منها بالكامل. لن يُحذف أو يُكرَّر أي سؤال. متابعة؟')) return;
+  resultBox.textContent = 'جاري الفحص...';
+  try{
+    const q = query(collection(db, QBANK_COLLECTION),
+      where(documentId(), '>=', 'question:'),
+      where(documentId(), '<', 'question:\uf8ff'));
+    const snap = await getDocs(q);
+    const rebuilt = [];
+    let maxNum = 0;
+    snap.forEach(d=>{
+      const record = d.data().value;
+      if(!record || !record.id) return;
+      rebuilt.push({
+        id: record.id, subject: record.subject, grade: record.grade, skill: record.skill,
+        difficulty: record.difficulty, status: record.status || 'draft', createdAt: record.createdAt || todayStr(),
+        preview: (record.text || '').slice(0,70), hasImage: !!record.imageDataUrl, hasExplanation: !!record.explanation
+      });
+      const num = parseInt((record.id || '').replace('Q-',''), 10);
+      if(!isNaN(num) && num > maxNum) maxNum = num;
+    });
+
+    if(!rebuilt.length){
+      resultBox.textContent = 'لم يُعثر على أي سؤال محفوظ فعليًا — قد تكون البيانات فُقدت فعليًا وليست مسألة فهرس فقط.';
+      return;
+    }
+
+    qIndex = rebuilt;
+    await saveIndexSharded(qIndex);
+    if(maxNum >= settings.nextId){
+      settings.nextId = maxNum + 1;
+      await safeSetWithRetry('settings', settings);
+    }
+    resultBox.textContent = `تم بناء الفهرس من ${rebuilt.length} سؤالًا بنجاح.`;
+    showToast(`تمت استعادة ${rebuilt.length} سؤالًا`);
+    renderDashboard();
+  }catch(e){
+    console.error('rebuild failed', e);
+    resultBox.textContent = 'تعذّرت إعادة البناء — تحقق من قواعد Firestore ومن اتصالك.';
+  }
 }
 
 async function loadAll(){
@@ -1662,6 +1714,7 @@ function exportBackup(){
 function wireEvents(){
   document.querySelectorAll('.tab-btn').forEach(b=> b.onclick = ()=>switchTab(b.dataset.tab));
   document.getElementById('exportBtn').onclick = exportBackup;
+  document.getElementById('rebuildIndexBtn').onclick = rebuildIndexFromQuestions;
   document.getElementById('refreshReportsBtn').onclick = renderReports;
 
   document.getElementById('downloadTemplateBtn').onclick = downloadTemplate;
