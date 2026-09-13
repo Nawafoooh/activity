@@ -366,7 +366,7 @@ async function getTeachersList(){
   try{
     const snap = await getDoc(doc(db, 'public_config', 'teachers'));
     const list = snap.exists() ? (snap.data().list || []) : [];
-    return list.map(t => typeof t === 'string' ? { name: t, subject: null } : t);
+    return list.map(t => typeof t === 'string' ? { name: t, subject: null, grade: null } : t);
   }catch(e){ console.warn('teachers list read failed', e); return []; }
 }
 
@@ -376,10 +376,11 @@ async function showChooseTeacher(subject){
   box.innerHTML = '<p style="color:#6b7570;">جاري التحميل...</p>';
   show('choose-teacher');
   const allTeachers = await getTeachersList();
-  const teachers = allTeachers.filter(t => !t.subject || t.subject === subject);
+  const teachers = allTeachers.filter(t =>
+    (!t.subject || t.subject === subject) && (!t.grade || t.grade === state.grade));
   box.innerHTML = '';
   if(!teachers.length){
-    box.innerHTML = '<p style="color:#6b7570;">لا يوجد معلمون مضافون لهذه المادة بعد — راجع المشرف.</p>';
+    box.innerHTML = '<p style="color:#6b7570;">لا يوجد معلمون مضافون لهذه المادة والصف بعد — راجع المشرف.</p>';
     return;
   }
   teachers.forEach(t=>{
