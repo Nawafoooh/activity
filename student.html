@@ -365,7 +365,8 @@ function buildSubjectChoices(){
 async function getTeachersList(){
   try{
     const snap = await getDoc(doc(db, 'public_config', 'teachers'));
-    return snap.exists() ? (snap.data().list || []) : [];
+    const list = snap.exists() ? (snap.data().list || []) : [];
+    return list.map(t => typeof t === 'string' ? { name: t, subject: null } : t);
   }catch(e){ console.warn('teachers list read failed', e); return []; }
 }
 
@@ -374,17 +375,18 @@ async function showChooseTeacher(subject){
   const box = document.getElementById('teacherChoices');
   box.innerHTML = '<p style="color:#6b7570;">جاري التحميل...</p>';
   show('choose-teacher');
-  const teachers = await getTeachersList();
+  const allTeachers = await getTeachersList();
+  const teachers = allTeachers.filter(t => !t.subject || t.subject === subject);
   box.innerHTML = '';
   if(!teachers.length){
-    box.innerHTML = '<p style="color:#6b7570;">لا يوجد معلمون مضافون بعد — راجع المشرف.</p>';
+    box.innerHTML = '<p style="color:#6b7570;">لا يوجد معلمون مضافون لهذه المادة بعد — راجع المشرف.</p>';
     return;
   }
   teachers.forEach(t=>{
     const b = document.createElement('button');
     b.className = 'choice-card';
-    b.innerHTML = `<span class="icon">🧑‍🏫</span><span>${t}</span>`;
-    b.onclick = ()=>{ state.teacherName = t; loadSkillChoices(); };
+    b.innerHTML = `<span class="icon">🧑‍🏫</span><span>${t.name}</span>`;
+    b.onclick = ()=>{ state.teacherName = t.name; loadSkillChoices(); };
     box.appendChild(b);
   });
 }
