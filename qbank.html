@@ -414,20 +414,24 @@
           <select id="newTeacherSubject"></select>
         </div>
         <div class="field" style="margin-bottom:0;">
+          <label>الصف</label>
+          <select id="newTeacherGrade"></select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
           <label>اسم المعلم (اختياري)</label>
           <input type="text" id="newTeacherName" placeholder="يُولَّد تلقائيًا إن تُرك فارغًا">
         </div>
+      </div>
+      <div class="grid3" style="margin-bottom:12px;">
         <div class="field" style="margin-bottom:0;">
           <label>اسم المستخدم (بريد صوري يكفي)</label>
           <input type="email" id="newTeacherEmail">
         </div>
-      </div>
-      <div class="grid2" style="margin-bottom:12px; align-items:end;">
         <div class="field" style="margin-bottom:0;">
           <label>كلمة المرور</label>
           <input type="text" id="newTeacherPassword" style="font-family:'Cairo',sans-serif;">
         </div>
-        <button type="button" id="addTeacherBtn" class="btn-primary" style="height:42px;">إضافة المعلم وإنشاء حسابه</button>
+        <button type="button" id="addTeacherBtn" class="btn-primary" style="height:42px; align-self:end;">إضافة المعلم وإنشاء حسابه</button>
       </div>
     </div>
 
@@ -1487,12 +1491,13 @@ async function renderReports(){
 async function populateTeachTeacherSelect(){
   const sel = document.getElementById('teachTeacher');
   const subject = document.getElementById('teachSubject').value;
+  const grade = document.getElementById('teachGrade').value;
   const allTeachers = await getTeachersDoc();
-  const teachers = allTeachers.filter(t => !t.subject || t.subject === subject);
+  const teachers = allTeachers.filter(t => (!t.subject || t.subject === subject) && (!t.grade || t.grade === grade));
   const prev = sel.value;
   sel.innerHTML = '';
   if(!teachers.length){
-    sel.innerHTML = '<option value="">لا يوجد معلم لهذه المادة — أضِفه من تبويب إدارة المدرسة</option>';
+    sel.innerHTML = '<option value="">لا يوجد معلم لهذه المادة والصف — أضِفه من تبويب إدارة المدرسة</option>';
     return;
   }
   teachers.forEach(t=>{ const o = document.createElement('option'); o.value = t.name; o.textContent = t.name; sel.appendChild(o); });
@@ -1559,8 +1564,8 @@ async function getTeachersDoc(){
   try{
     const snap = await getDoc(doc(db, 'public_config', 'teachers'));
     const list = snap.exists() ? (snap.data().list || []) : [];
-    // توافق مع بيانات قديمة كانت مجرد نصوص بلا مادة محدَّدة
-    return list.map(t => typeof t === 'string' ? { name: t, subject: null } : t);
+    // توافق مع بيانات قديمة كانت مجرد نصوص بلا مادة/صف محدَّد
+    return list.map(t => typeof t === 'string' ? { name: t, subject: null, grade: null } : t);
   }catch(e){ console.warn('teachers read failed', e); return []; }
 }
 async function setTeachersDoc(list){
@@ -1576,8 +1581,8 @@ async function getTeacherAccountsMap(){
   }catch(e){ console.warn('teacher_accounts read failed', e); }
   return map;
 }
-async function linkTeacherEmail(teacherName, email, subject){
-  try{ await setDoc(doc(db, 'teacher_accounts', email), { teacherName, subject }); return true; }
+async function linkTeacherEmail(teacherName, email, subject, grade){
+  try{ await setDoc(doc(db, 'teacher_accounts', email), { teacherName, subject, grade }); return true; }
   catch(e){ console.error('link failed', e); return null; }
 }
 
@@ -1603,7 +1608,6 @@ async function createTeacherAuthAccount(email, password){
 }
 
 function initNewTeacherForm(){
-  fillSelect(document.getElementById('newTeacherSubject'), SUBJECTS);
   document.getElementById('newTeacherEmail').value = 'teacher' + (Math.floor(Math.random()*9000)+100) + '@nafispro.local';
   document.getElementById('newTeacherPassword').value = generateTeacherPassword();
 }
@@ -1624,7 +1628,7 @@ async function renderTeachersManage(){
     row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; flex-wrap:wrap;';
     row.innerHTML = `
       <span style="font-weight:700; color:var(--pine); min-width:150px;">${name}</span>
-      <span class="badge" style="background:var(--paper-dim); color:var(--pine-light);">${t.subject || 'كل المواد'}</span>
+      <span class="badge" style="background:var(--paper-dim); color:var(--pine-light);">${t.subject || 'كل المواد'}${t.grade ? ' — ' + t.grade : ''}</span>
       <span style="flex:1; min-width:120px; font-size:0.82rem; color:#6b7570;">${accountsMap[name] || 'بلا حساب بعد'}</span>
       ${hasAccount ? `<span class="badge approved">حساب مفعَّل ✓</span>` : `<span class="badge draft">بانتظار الحساب</span>`}
       <button type="button" class="delBtn" style="background:none; border:1px solid var(--brick-dim); color:var(--brick); border-radius:6px; padding:8px 14px; font-size:0.82rem; font-weight:600;">حذف المعلم</button>`;
@@ -1640,6 +1644,7 @@ async function renderTeachersManage(){
 
 async function addTeacher(){
   const subject = document.getElementById('newTeacherSubject').value;
+  const grade = document.getElementById('newTeacherGrade').value;
   const nameInput = document.getElementById('newTeacherName');
   const emailInput = document.getElementById('newTeacherEmail');
   const passwordInput = document.getElementById('newTeacherPassword');
@@ -1647,8 +1652,8 @@ async function addTeacher(){
   const list = await getTeachersDoc();
   let name = nameInput.value.trim();
   if(!name){
-    const countSameSubject = list.filter(t=>t.subject===subject).length;
-    name = `معلم ${subject} ${countSameSubject + 1}`;
+    const countSame = list.filter(t=>t.subject===subject && t.grade===grade).length;
+    name = `معلم ${subject} - ${grade} ${countSame + 1}`;
   }
   if(list.some(t=>t.name===name)){ showToast('هذا الاسم موجود بالفعل'); return; }
 
@@ -1670,11 +1675,11 @@ async function addTeacher(){
   }
 
   if(result.ok || result.code === 'auth/email-already-in-use'){
-    list.push({ name, subject });
+    list.push({ name, subject, grade });
     await setTeachersDoc(list);
-    await linkTeacherEmail(name, email, subject);
+    await linkTeacherEmail(name, email, subject, grade);
     if(result.ok){
-      alert(`تم إنشاء "${name}" (${subject}) بنجاح:\n\nاسم المستخدم: ${email}\nكلمة المرور: ${password}\n\nسلّم هذه البيانات للمعلم الآن — لن تظهر كلمة المرور مرة أخرى.`);
+      alert(`تم إنشاء "${name}" (${subject} — ${grade}) بنجاح:\n\nاسم المستخدم: ${email}\nكلمة المرور: ${password}\n\nسلّم هذه البيانات للمعلم الآن — لن تظهر كلمة المرور مرة أخرى.`);
     } else {
       showToast('هذا البريد له حساب مسبقًا — تم إضافة المعلم والربط بدون تغيير كلمة المرور.');
     }
@@ -1833,6 +1838,7 @@ function wireEvents(){
   wireLinkedSelects(document.getElementById('covSubject'), document.getElementById('covGrade'), renderSkillCoverage);
   wireLinkedSelects(document.getElementById('teachSubject'), document.getElementById('teachGrade'), renderTeacherControl);
   document.getElementById('teachTeacher').onchange = renderTeacherControl;
+  wireLinkedSelects(document.getElementById('newTeacherSubject'), document.getElementById('newTeacherGrade'), ()=>{});
   document.getElementById('addTeacherBtn').onclick = addTeacher;
   document.getElementById('studentSearchBtn').onclick = searchStudent;
   document.getElementById('refreshTeacherReportBtn').onclick = renderTeacherPerformance;
