@@ -435,9 +435,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import {
-  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, orderBy, limit, getDocs, where
@@ -1482,6 +1482,26 @@ async function linkTeacherEmail(teacherName, email){
   catch(e){ console.error('link failed', e); return null; }
 }
 
+function generateTeacherPassword(){
+  return String(Math.floor(100000 + Math.random()*900000)); // 6 أرقام — الحد الأدنى المطلوب من Firebase
+}
+
+// ينشئ حساب Firebase Auth فعليًا للمعلم عبر نسخة تطبيق ثانوية مؤقتة،
+// حتى لا يُخرِج العملية المشرف الحالي من جلسته الخاصة
+async function createTeacherAuthAccount(email, password){
+  const secondaryApp = initializeApp(firebaseConfig, 'secondary-' + Date.now());
+  try{
+    const secondaryAuth = getAuth(secondaryApp);
+    await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    await signOut(secondaryAuth);
+    await deleteApp(secondaryApp);
+    return { ok: true };
+  }catch(e){
+    try{ await deleteApp(secondaryApp); }catch(_){}
+    return { ok: false, code: e.code };
+  }
+}
+
 async function renderTeachersManage(){
   const list = await getTeachersDoc();
   const accountsMap = await getTeacherAccountsMap();
@@ -1492,20 +1512,42 @@ async function renderTeachersManage(){
     return;
   }
   list.forEach((name, i)=>{
+    const hasAccount = !!accountsMap[name];
     const row = document.createElement('div');
     row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; flex-wrap:wrap;';
     row.innerHTML = `
       <span style="font-weight:700; color:var(--pine); min-width:110px;">${name}</span>
-      <input type="email" class="teacherEmailInput" placeholder="بريد دخول هذا المعلم (Firebase Auth)"
-        value="${accountsMap[name] || ''}" style="flex:1; min-width:200px; padding:8px 10px; border:1px solid var(--line); border-radius:6px;">
-      <button type="button" class="linkBtn" style="background:var(--paper-dim); border:1px solid var(--line); border-radius:6px; padding:8px 14px; font-size:0.82rem; font-weight:600;">ربط</button>
+      <input type="email" class="teacherEmailInput" placeholder="بريد دخول هذا المعلم"
+        value="${accountsMap[name] || ''}" ${hasAccount ? 'disabled' : ''} style="flex:1; min-width:180px; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:${hasAccount?'var(--paper-dim)':'#fff'};">
+      ${hasAccount
+        ? `<span class="badge approved">حساب مفعَّل ✓</span>`
+        : `<input type="text" class="teacherPasswordInput" value="${generateTeacherPassword()}" style="width:110px; padding:8px 10px; border:1px solid var(--line); border-radius:6px; text-align:center; font-family:'Cairo',sans-serif;">
+           <button type="button" class="createBtn" style="background:var(--pine); color:#fff; border:0; border-radius:6px; padding:8px 14px; font-size:0.82rem; font-weight:700;">إنشاء الحساب</button>`}
       <button type="button" class="delBtn" style="background:none; border:1px solid var(--brick-dim); color:var(--brick); border-radius:6px; padding:8px 14px; font-size:0.82rem; font-weight:600;">حذف المعلم</button>`;
-    row.querySelector('.linkBtn').onclick = async ()=>{
-      const email = row.querySelector('.teacherEmailInput').value.trim();
-      if(!email){ showToast('اكتب بريد المعلم أولًا'); return; }
-      const saved = await linkTeacherEmail(name, email);
-      showToast(saved ? `تم ربط "${name}" بالبريد ${email}` : 'تعذّر الربط — تحقق من القواعد');
-    };
+
+    if(!hasAccount){
+      row.querySelector('.createBtn').onclick = async ()=>{
+        const email = row.querySelector('.teacherEmailInput').value.trim();
+        const password = row.querySelector('.teacherPasswordInput').value.trim();
+        if(!email || !/^\S+@\S+\.\S+$/.test(email)){ showToast('اكتب بريدًا صحيحًا للمعلم'); return; }
+        if(password.length < 6){ showToast('كلمة المرور 6 أحرف/أرقام على الأقل'); return; }
+        const btn = row.querySelector('.createBtn');
+        btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
+        const result = await createTeacherAuthAccount(email, password);
+        if(result.ok){
+          await linkTeacherEmail(name, email);
+          alert(`تم إنشاء حساب "${name}" بنجاح:\n\nالبريد: ${email}\nكلمة المرور: ${password}\n\nسلّم هذه البيانات للمعلم الآن — لن تظهر كلمة المرور مرة أخرى.`);
+          renderTeachersManage();
+        } else if(result.code === 'auth/email-already-in-use'){
+          await linkTeacherEmail(name, email);
+          showToast('هذا البريد له حساب مسبقًا — تم الربط باسم المعلم فقط (بلا تغيير كلمة المرور).');
+          renderTeachersManage();
+        } else {
+          showToast('تعذّر إنشاء الحساب: ' + (result.code || 'خطأ غير معروف'));
+          btn.disabled = false; btn.textContent = 'إنشاء الحساب';
+        }
+      };
+    }
     row.querySelector('.delBtn').onclick = async ()=>{
       if(!confirm(`حذف "${name}" من قائمة المعلمين؟ الطلاب المسجَّلون تحته سيبقون كما هم في السجلات.`)) return;
       const newList = list.filter((_,idx)=>idx!==i);
