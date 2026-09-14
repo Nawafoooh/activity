@@ -174,6 +174,12 @@
     </div>
 
     <div class="card">
+      <h3 class="section-title">النسخة الاحتياطية</h3>
+      <div id="backupReminder" class="pace-note">جاري التحقق...</div>
+      <button type="button" class="btn-secondary" id="dashboardExportBtn" style="margin-top:12px;">تصدير نسخة احتياطية الآن</button>
+    </div>
+
+    <div class="card">
       <h3 class="section-title">صيانة</h3>
       <p style="font-size:0.85rem; color:#5A6560; margin-bottom:12px;">
         إذا اختفت القائمة من تبويب "بنك الأسئلة" رغم بقاء الأسئلة محفوظة، اضغط هذا الزر لإعادة بناء الفهرس تلقائيًا من الأسئلة الفعلية — آمن تمامًا ولا يحذف أو يكرر شيئًا.
@@ -1101,6 +1107,7 @@ async function loadAll(){
 }
 
 function renderDashboard(){
+  renderBackupReminder();
   const total = qIndex.length;
   const today = todayStr();
   const todayCount = qIndex.filter(q=>q.createdAt===today).length;
@@ -1776,13 +1783,37 @@ function exportBackup(){
     a.href = url; a.download = 'nafispro-questions-backup.json';
     a.click();
     URL.revokeObjectURL(url);
+    settings.lastExportAt = todayStr();
+    await safeSetWithRetry('settings', settings);
     showToast('تم تنزيل النسخة الاحتياطية');
+    renderBackupReminder();
   })();
+}
+
+function renderBackupReminder(){
+  const box = document.getElementById('backupReminder');
+  if(!box) return;
+  const last = settings.lastExportAt;
+  let daysSince = null;
+  if(last){
+    daysSince = Math.floor((new Date(todayStr()) - new Date(last)) / 86400000);
+  }
+  if(!last){
+    box.innerHTML = '⚠️ لم تُصدَّر أي نسخة احتياطية بعد — يُنصح بتصدير واحدة الآن.';
+    box.className = 'pace-note';
+  } else if(daysSince >= 7){
+    box.innerHTML = `⚠️ آخر نسخة احتياطية قبل ${daysSince} يومًا — يُنصح بتصدير نسخة جديدة الآن.`;
+    box.className = 'pace-note';
+  } else {
+    box.innerHTML = `✓ آخر نسخة احتياطية قبل ${daysSince===0?'اليوم':daysSince+' يوم'}.`;
+    box.className = 'pace-note ok';
+  }
 }
 
 function wireEvents(){
   document.querySelectorAll('.tab-btn').forEach(b=> b.onclick = ()=>switchTab(b.dataset.tab));
   document.getElementById('exportBtn').onclick = exportBackup;
+  document.getElementById('dashboardExportBtn').onclick = exportBackup;
   document.getElementById('rebuildIndexBtn').onclick = rebuildIndexFromQuestions;
   document.getElementById('refreshReportsBtn').onclick = renderReports;
 
