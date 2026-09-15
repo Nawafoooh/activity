@@ -93,11 +93,20 @@
 <div class="shell">
   <div class="brandbar"><span class="mark">ن</span><span>نافِس برو</span></div>
 
+  <!-- 0) رابط غير صحيح -->
+  <section class="screen" id="screen-invalid-link">
+    <div class="center-card">
+      <div class="result-emoji">⚠️</div>
+      <h1 style="margin-bottom:10px;">رابط غير صحيح</h1>
+      <p>هذا الرابط لا يخص أي مدرسة مسجَّلة. اطلب الرابط الصحيح من مدرستك أو معلمك، ولا تستخدم رابطًا عامًا.</p>
+    </div>
+  </section>
+
   <!-- 1) الترحيب -->
-  <section class="screen active" id="screen-welcome">
+  <section class="screen" id="screen-welcome">
     <div class="center-card">
       <h1>مرحبًا بك! 👋</h1>
-      <p>منصة نافِس برو للتدريب على اختبار نافس.</p>
+      <p id="schoolWelcomeName">منصة نافِس برو للتدريب على اختبار نافس.</p>
       <div class="result-actions">
         <button class="big-btn" id="newStudentBtn">طالب جديد — أول مرة</button>
         <button class="btn-outline" id="haveCodeBtn">لدي رمز دخول</button>
@@ -114,11 +123,7 @@
       <input type="text" id="regName" class="name-input" style="text-align:right;" placeholder="مثال: أحمد سالم الحربي">
 
       <label style="font-size:0.85rem; font-weight:700; color:var(--pine); display:block; margin:14px 0 6px;">الصف</label>
-      <select id="regGrade" class="name-input" style="text-align:right;">
-        <option value="ثالث ابتدائي">ثالث ابتدائي</option>
-        <option value="سادس ابتدائي">سادس ابتدائي</option>
-        <option value="ثالث متوسط">ثالث متوسط</option>
-      </select>
+      <select id="regGrade" class="name-input" style="text-align:right;"></select>
 
       <label style="font-size:0.85rem; font-weight:700; color:var(--pine); display:block; margin:14px 0 6px;">الشعبة (الفصل)</label>
       <select id="regSection" class="name-input" style="text-align:right;"></select>
@@ -247,7 +252,7 @@ const SUBJECT_META = {
 };
 const MAX_QUESTIONS_PER_QUIZ = 10;
 
-let state = { name:'', grade:'', section:'', teacherName:'', code:'', subject:'', skill:'', questions:[], qIndex:0, correctCount:0 };
+let state = { schoolId:'', schoolName:'', name:'', grade:'', section:'', teacherName:'', code:'', subject:'', skill:'', questions:[], qIndex:0, correctCount:0 };
 const MASTERY_THRESHOLD = 80;
 
 function masteryKey(subject, grade, skill){ return subject+'|'+grade+'|'+skill; }
@@ -269,8 +274,30 @@ function show(screenId){
   document.getElementById('screen-'+screenId).classList.add('active');
 }
 
+// ---- تحديد المدرسة من الرابط قبل أي شيء آخر ----
+let schoolAllowedGrades = [];
+async function resolveSchoolFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get('school');
+  if(!slug){ show('invalid-link'); return false; }
+  try{
+    const snap = await getDoc(doc(db, 'schools', slug));
+    if(!snap.exists()){ show('invalid-link'); return false; }
+    state.schoolId = slug;
+    state.schoolName = snap.data().name || slug;
+    schoolAllowedGrades = snap.data().allowedGrades || [];
+    document.getElementById('schoolWelcomeName').textContent = `منصة نافِس برو — ${state.schoolName}`;
+    show('welcome');
+    return true;
+  }catch(e){
+    show('invalid-link');
+    return false;
+  }
+}
+
 // ---- شاشة 1: الترحيب ----
 document.getElementById('newStudentBtn').onclick = ()=>{
+  fillSelectPlain(document.getElementById('regGrade'), schoolAllowedGrades);
   const sectionSel = document.getElementById('regSection');
   sectionSel.innerHTML = '';
   for(let i=1;i<=15;i++){
@@ -278,6 +305,10 @@ document.getElementById('newStudentBtn').onclick = ()=>{
   }
   show('register');
 };
+function fillSelectPlain(sel, arr){
+  sel.innerHTML = '';
+  arr.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+}
 
 document.getElementById('haveCodeBtn').onclick = ()=> show('login-code');
 
@@ -310,7 +341,7 @@ document.getElementById('registerBtn').onclick = async ()=>{
   try{
     const code = await generateUniqueCode();
     await setDoc(doc(db, 'students', code), {
-      fullName: name, grade, section, createdAt: serverTimestamp()
+      schoolId: state.schoolId, fullName: name, grade, section, createdAt: serverTimestamp()
     });
     state.name = name; state.grade = grade; state.section = section; state.code = code;
     document.getElementById('displayedCode').textContent = code;
@@ -337,6 +368,9 @@ document.getElementById('loginCodeBtn').onclick = async ()=>{
       errEl.textContent = 'الرمز غير صحيح — تحقق منه مع المشرف.'; errEl.style.display = 'block'; return;
     }
     const data = snap.data();
+    if(data.schoolId && data.schoolId !== state.schoolId){
+      errEl.textContent = 'هذا الرمز مسجَّل لمدرسة أخرى — استخدم رابط مدرستك الصحيح.'; errEl.style.display = 'block'; return;
+    }
     state.code = code; state.name = data.fullName; state.grade = data.grade; state.section = data.section;
     document.getElementById('helloLabel').textContent = `مرحبًا ${data.fullName} 👋`;
     errEl.style.display = 'none';
@@ -364,9 +398,10 @@ function buildSubjectChoices(){
 // ---- شاشة 3ب: معلم المادة المختارة ----
 async function getTeachersList(){
   try{
-    const snap = await getDoc(doc(db, 'public_config', 'teachers'));
-    const list = snap.exists() ? (snap.data().list || []) : [];
-    return list.map(t => typeof t === 'string' ? { name: t, subject: null, grade: null } : t);
+    const snap = await getDocs(query(collection(db,'teachers'), where('schoolId','==', state.schoolId)));
+    const list = [];
+    snap.forEach(d=> list.push(d.data()));
+    return list;
   }catch(e){ console.warn('teachers list read failed', e); return []; }
 }
 
@@ -410,7 +445,7 @@ async function loadSkillChoices(){
   // لا تظهر أي مهارة للطالب إلا بعد فتحها صراحة من معلمه تحديدًا (لكل معلم مستنداته الخاصة)
   let allowedSkills = [];
   try{
-    const docId = `${state.subject}::${state.grade}::${state.teacherName}`;
+    const docId = `${state.schoolId}::${state.subject}::${state.grade}::${state.teacherName}`;
     const cfgSnap = await getDoc(doc(db, 'unlocked_skills', docId));
     if(cfgSnap.exists()) allowedSkills = cfgSnap.data().skills || [];
   }catch(e){ console.warn('unlocked skills read failed', e); }
@@ -540,7 +575,7 @@ async function finishQuiz(){
 
   try{
     await addDoc(collection(db, 'attempts'), {
-      studentName: state.name, studentCode: state.code, section: state.section, teacherName: state.teacherName,
+      schoolId: state.schoolId, studentName: state.name, studentCode: state.code, section: state.section, teacherName: state.teacherName,
       grade: state.grade, subject: state.subject, skill: state.skill,
       correctCount: state.correctCount, total, score: pct, timestamp: serverTimestamp()
     });
@@ -567,6 +602,8 @@ document.getElementById('anotherSkillBtn').onclick = ()=> loadSkillChoices();
 document.querySelectorAll('[data-back]').forEach(btn=>{
   btn.onclick = ()=> show(btn.getAttribute('data-back'));
 });
+
+resolveSchoolFromUrl();
 </script>
 </body>
 </html>
