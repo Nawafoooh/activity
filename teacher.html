@@ -159,6 +159,7 @@ const SUBJECT_GRADES = {
 };
 
 let myTeacherName = null;
+let mySchoolId = null;
 
 function showToast(msg){
   const t = document.getElementById('toast');
@@ -202,6 +203,7 @@ onAuthStateChanged(auth, async (user)=>{
       return;
     }
     myTeacherName = snap.data().teacherName;
+    mySchoolId = snap.data().schoolId || null;
     document.getElementById('teacherNameLabel').textContent = myTeacherName;
     hideLoginGate();
     if(!appInitialized){ appInitialized = true; init(); }
@@ -231,7 +233,7 @@ function wireLinkedSelects(subjectSel, gradeSel, afterChange){
   syncGrades();
 }
 
-function unlockedDocId(subject, grade, teacherName){ return `${subject}::${grade}::${teacherName}`; }
+function unlockedDocId(subject, grade, teacherName){ return `${mySchoolId}::${subject}::${grade}::${teacherName}`; }
 
 async function renderSkillControl(){
   const subject = document.getElementById('tSubject').value;
@@ -270,7 +272,7 @@ async function renderSkillControl(){
       row.style.background = e.target.checked ? 'var(--green-dim)' : '#fff';
       try{
         await setDoc(doc(db, 'unlocked_skills', unlockedDocId(subject, grade, myTeacherName)), {
-          subject, grade, teacherName: myTeacherName, skills: unlocked
+          schoolId: mySchoolId, subject, grade, teacherName: myTeacherName, skills: unlocked
         });
         showToast(`تم ${e.target.checked?'فتح':'إغلاق'} "${skill}"`);
       }catch(err){ showToast('تعذّر الحفظ'); }
