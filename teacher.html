@@ -286,9 +286,14 @@ async function renderSkillControl(){
 async function renderMyReports(){
   let attempts = [];
   try{
-    const q = query(collection(db,'attempts'), where('teacherName','==', myTeacherName), orderBy('timestamp','desc'), limit(300));
+    const q = query(collection(db,'attempts'), where('teacherName','==', myTeacherName), limit(300));
     const snap = await getDocs(q);
     snap.forEach(d=> attempts.push(d.data()));
+    attempts.sort((a,b)=>{
+      const da = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : 0;
+      const db_ = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate() : 0;
+      return db_ - da;
+    });
   }catch(e){ console.error(e); }
 
   const uniqueStudents = new Set(attempts.map(a=>a.studentCode || a.studentName)).size;
