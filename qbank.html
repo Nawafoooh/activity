@@ -145,7 +145,6 @@
       <button class="tab-btn" data-tab="add">إضافة سؤال</button>
       <button class="tab-btn" data-tab="browse">بنك الأسئلة</button>
       <button class="tab-btn" data-tab="skills">إدارة المهارات</button>
-      <button class="tab-btn" data-tab="reports">تقارير الطلاب</button>
       <button class="tab-btn" data-tab="schools">إدارة المدارس</button>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
@@ -351,33 +350,6 @@
     </div>
   </section>
 
-  <!-- REPORTS -->
-  <section class="panel" id="panel-reports">
-    <div class="stat-grid">
-      <div class="stat"><div class="num" id="repStudents">—</div><div class="lbl">طلاب فريدون جرّبوا المنصة</div></div>
-      <div class="stat"><div class="num" id="repAttempts">—</div><div class="lbl">إجمالي المحاولات</div></div>
-      <div class="stat"><div class="num" id="repAvg">—</div><div class="lbl">متوسط النتيجة العام</div></div>
-      <div class="stat"><div class="num" id="repToday">—</div><div class="lbl">محاولات اليوم</div></div>
-    </div>
-
-    <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-        <h3 class="section-title" style="margin-bottom:0;">الأداء حسب المهارة</h3>
-        <button type="button" class="export-btn" id="refreshReportsBtn">تحديث</button>
-      </div>
-      <div id="skillPerfList"><p style="color:#6b7570; font-size:0.9rem;">لا توجد محاولات مسجَّلة بعد.</p></div>
-    </div>
-
-    <div class="card">
-      <h3 class="section-title">🔴 يحتاجون متابعة من المعلم (آخر نتيجة أقل من 60%)</h3>
-      <div class="qlist" id="needsAttentionList"></div>
-    </div>
-
-    <div class="card">
-      <h3 class="section-title">🌟 متميزون — يستحقون تشجيعًا (آخر نتيجة أكثر من 90%)</h3>
-      <div class="qlist" id="excellingList"></div>
-    </div>
-  </section>
 
 
   <!-- SCHOOLS MANAGEMENT (institution level) -->
@@ -1338,220 +1310,9 @@ function switchTab(name){
   if(name==='browse'){ refreshFilterSkillSelect(); renderList(); }
   if(name==='skills'){ refreshSkillsTab(); }
   if(name==='dashboard'){ renderDashboard(); }
-  if(name==='reports'){ renderReports(); }
   if(name==='schools'){ initNewSchoolForm(); renderSchoolsList(); }
 }
 
-async function renderReports(){
-  const setNum = (id, val)=> document.getElementById(id).textContent = val;
-  setNum('repStudents','...'); setNum('repAttempts','...'); setNum('repAvg','...'); setNum('repToday','...');
-
-  let attempts = [];
-  try{
-    const q = query(collection(db, 'attempts'), orderBy('timestamp','desc'), limit(300));
-    const snap = await getDocs(q);
-    snap.forEach(d=> attempts.push({ id:d.id, ...d.data() }));
-  }catch(e){
-    console.error('reports fetch failed', e);
-    document.getElementById('skillPerfList').innerHTML = '<p style="color:var(--brick);">تعذّر تحميل التقارير — تحقق من قواعد Firestore.</p>';
-    return;
-  }
-
-  if(!attempts.length){
-    setNum('repStudents','0'); setNum('repAttempts','0'); setNum('repAvg','—'); setNum('repToday','0');
-    document.getElementById('skillPerfList').innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا توجد محاولات مسجَّلة بعد.</p>';
-    document.getElementById('needsAttentionList').innerHTML = '';
-    document.getElementById('excellingList').innerHTML = '';
-    return;
-  }
-
-  const today = todayStr();
-  const uniqueStudents = new Set(attempts.map(a=>a.studentName)).size;
-  const avgAll = Math.round(attempts.reduce((s,a)=>s+a.score,0) / attempts.length);
-  const todayCount = attempts.filter(a=>{
-    const d = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : null;
-    return d && d.toISOString().slice(0,10) === today;
-  }).length;
-
-  setNum('repStudents', uniqueStudents);
-  setNum('repAttempts', attempts.length + (attempts.length===300 ? '+' : ''));
-  setNum('repAvg', avgAll + '%');
-  setNum('repToday', todayCount);
-
-  // الأداء حسب المهارة
-  const bySkill = {};
-  attempts.forEach(a=>{
-    const key = `${a.subject} — ${a.grade} — ${a.skill}`;
-    if(!bySkill[key]) bySkill[key] = { total:0, count:0 };
-    bySkill[key].total += a.score;
-    bySkill[key].count += 1;
-  });
-  const rows = Object.keys(bySkill).map(key=>({
-    key, avg: Math.round(bySkill[key].total / bySkill[key].count), count: bySkill[key].count
-  })).sort((a,b)=> a.avg - b.avg);
-
-  const perfBox = document.getElementById('skillPerfList');
-  perfBox.innerHTML = '';
-  rows.forEach(r=>{
-    const barColor = r.avg < 50 ? 'var(--brick)' : (r.avg < 80 ? 'var(--amber)' : 'var(--green)');
-    const row = document.createElement('div');
-    row.className = 'skillrow';
-    row.innerHTML = `<div class="labels"><span>${r.key} ${r.avg < 50 ? '⚠️' : ''}</span><span>${r.avg}% (${r.count} محاولة)</span></div>
-      <div class="track"><div class="fill" style="width:${r.avg}%; background:${barColor};"></div></div>`;
-    perfBox.appendChild(row);
-  });
-
-  // آخر حالة كل طالب في كل مهارة (لتصنيف يحتاج متابعة / متميز)
-  const byStudentSkill = {};
-  attempts.forEach(a=>{
-    const key = `${a.studentName}||${a.subject}||${a.grade}||${a.skill}`;
-    const d = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : new Date(0);
-    if(!byStudentSkill[key] || d > byStudentSkill[key]._date){
-      byStudentSkill[key] = { ...a, _date: d };
-    }
-  });
-  const latestPerStudentSkill = Object.values(byStudentSkill);
-
-  const needsAttention = latestPerStudentSkill.filter(a=>a.score < 60).sort((a,b)=> a.score - b.score);
-  const excelling = latestPerStudentSkill.filter(a=>a.score > 90).sort((a,b)=> b.score - a.score);
-
-  function renderStudentList(containerId, list, emptyMsg){
-    const box = document.getElementById(containerId);
-    if(!list.length){ box.innerHTML = `<p style="color:#6b7570; font-size:0.9rem; padding:10px 0;">${emptyMsg}</p>`; return; }
-    box.innerHTML = '<div class="qrow head"><span>الطالب</span><span>المهارة</span><span>الصف والمادة</span><span>النتيجة</span><span>آخر محاولة</span></div>';
-    list.forEach(a=>{
-      const timeLabel = a._date ? a._date.toLocaleDateString('ar-SA', {dateStyle:'medium'}) : '—';
-      const row = document.createElement('div');
-      row.className = 'qrow';
-      row.innerHTML = `<span>${a.studentName}</span><span class="qtext">${a.skill}</span><span style="font-size:0.82rem;">${a.grade} — ${a.subject}</span>
-        <span class="badge ${a.score>=90?'approved':'draft'}">${a.score}%</span><span style="font-size:0.78rem; color:#6b7570;">${timeLabel}</span>`;
-      box.appendChild(row);
-    });
-  }
-
-  renderStudentList('needsAttentionList', needsAttention, 'لا يوجد طلاب أقل من 60% حاليًا — ممتاز.');
-  renderStudentList('excellingList', excelling, 'لا يوجد طلاب تجاوزوا 90% بعد.');
-}
-// ---- إدارة المدارس (مستوى المؤسسة) ----
-function generatePassword(){ return String(Math.floor(100000 + Math.random()*900000)); }
-
-async function createAuthAccount(email, password){
-  const secondaryApp = initializeApp(firebaseConfig, 'secondary-' + Date.now());
-  try{
-    const secondaryAuth = getAuth(secondaryApp);
-    await setPersistence(secondaryAuth, inMemoryPersistence); // يمنع أي تسرّب للجلسة إلى حساب المؤسسة
-    await createUserWithEmailAndPassword(secondaryAuth, email, password);
-    await signOut(secondaryAuth);
-    await deleteApp(secondaryApp);
-    return { ok: true };
-  }catch(e){
-    try{ await deleteApp(secondaryApp); }catch(_){}
-    return { ok: false, code: e.code };
-  }
-}
-
-function initNewSchoolForm(){
-  const box = document.getElementById('newSchoolGrades');
-  box.innerHTML = '';
-  GRADES.forEach(g=>{
-    const label = document.createElement('label');
-    label.style.cssText = 'display:flex; align-items:center; gap:6px; font-size:0.85rem; cursor:pointer;';
-    label.innerHTML = `<input type="checkbox" value="${g}" checked style="width:16px; height:16px;"> ${g}`;
-    box.appendChild(label);
-  });
-  document.getElementById('newSchoolEmail').value = 'school' + (Math.floor(Math.random()*9000)+100) + '@nafispro.local';
-  document.getElementById('newSchoolPassword').value = generatePassword();
-}
-
-async function getSchoolsList(){
-  try{
-    const snap = await getDocs(collection(db, 'schools'));
-    const list = [];
-    snap.forEach(d=> list.push({ id: d.id, ...d.data() }));
-    return list;
-  }catch(e){ console.warn('schools read failed', e); return []; }
-}
-async function getSchoolAccountsMap(){
-  const map = {}; // schoolId -> email
-  try{
-    const snap = await getDocs(collection(db, 'school_accounts'));
-    snap.forEach(d=>{ map[d.data().schoolId] = d.id; });
-  }catch(e){ console.warn(e); }
-  return map;
-}
-
-async function renderSchoolsList(){
-  const schools = await getSchoolsList();
-  const accountsMap = await getSchoolAccountsMap();
-  const box = document.getElementById('schoolsList');
-  box.innerHTML = '';
-  if(!schools.length){ box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا توجد مدارس مشتركة بعد.</p>'; return; }
-  schools.forEach(s=>{
-    const hasAccount = !!accountsMap[s.id];
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; flex-wrap:wrap;';
-    row.innerHTML = `
-      <span style="font-weight:700; color:var(--pine); min-width:160px;">${s.name}</span>
-      <span class="badge draft" style="background:var(--paper-dim); color:var(--pine-light);">${s.id}</span>
-      <span style="font-size:0.8rem; color:#6b7570;">${(s.allowedGrades||[]).join('، ')}</span>
-      <span style="flex:1; text-align:left; font-size:0.8rem; color:#6b7570;">${accountsMap[s.id] || 'بلا حساب مدير'}</span>
-      ${hasAccount ? '<span class="badge approved">حساب مفعَّل ✓</span>' : ''}
-      <button type="button" class="delBtn" style="background:none; border:1px solid var(--brick-dim); color:var(--brick); border-radius:6px; padding:7px 12px; font-size:0.8rem;">حذف</button>`;
-    row.querySelector('.delBtn').onclick = async ()=>{
-      if(!confirm(`حذف مدرسة "${s.name}"؟ هذا لا يحذف بيانات طلابها الفعلية.`)) return;
-      await deleteDoc(doc(db,'schools', s.id));
-      renderSchoolsList();
-    };
-    box.appendChild(row);
-  });
-}
-
-async function addSchool(){
-  const name = document.getElementById('newSchoolName').value.trim();
-  const slugInput = document.getElementById('newSchoolSlug');
-  let slug = slugInput.value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'-');
-  const grades = Array.from(document.querySelectorAll('#newSchoolGrades input:checked')).map(i=>i.value);
-  const email = document.getElementById('newSchoolEmail').value.trim();
-  const password = document.getElementById('newSchoolPassword').value.trim();
-
-  if(!name){ showToast('اكتب اسم المدرسة'); return; }
-  if(!slug){ showToast('اكتب معرّف رابط بالإنجليزية'); return; }
-  if(!grades.length){ showToast('اختر صفًا واحدًا على الأقل'); return; }
-  if(!email || !/^\S+@\S+\.\S+$/.test(email)){ showToast('اكتب بريدًا/اسم مستخدم بصيغة صحيحة'); return; }
-  if(password.length < 6){ showToast('كلمة المرور 6 خانات على الأقل'); return; }
-
-  const existing = await getDoc(doc(db,'schools', slug));
-  if(existing.exists()){ showToast('هذا المعرّف مستخدَم بالفعل — اختر معرّفًا آخر'); return; }
-
-  const myEmailBefore = auth.currentUser ? auth.currentUser.email : null;
-  const btn = document.getElementById('addSchoolBtn');
-  btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
-
-  const result = await createAuthAccount(email, password);
-
-  if(!auth.currentUser || auth.currentUser.email !== myEmailBefore){
-    showToast('تنبيه: جلستك تأثرت — أعد تحميل الصفحة وسجّل دخولك من جديد قبل المتابعة.');
-    btn.disabled = false; btn.textContent = 'إنشاء المدرسة وحساب مديرها';
-    return;
-  }
-
-  if(result.ok || result.code === 'auth/email-already-in-use'){
-    await setDoc(doc(db,'schools', slug), { name, allowedGrades: grades, createdAt: todayStr() });
-    await setDoc(doc(db,'school_accounts', email), { schoolId: slug });
-    if(result.ok){
-      alert(`تم إنشاء مدرسة "${name}" بنجاح:\n\nرابط تسجيل الطلاب: student.html?school=${slug}\nبريد دخول المدير: ${email}\nكلمة المرور: ${password}\n\nسلّم رابط الطلاب والحساب للمدرسة الآن.`);
-    } else {
-      showToast('هذا البريد له حساب مسبقًا — تم إنشاء المدرسة والربط بدون تغيير كلمة المرور.');
-    }
-    document.getElementById('newSchoolName').value = '';
-    slugInput.value = '';
-    initNewSchoolForm();
-    renderSchoolsList();
-  } else {
-    showToast('تعذّر إنشاء الحساب: ' + (result.code || 'خطأ غير معروف'));
-  }
-  btn.disabled = false; btn.textContent = 'إنشاء المدرسة وحساب مديرها';
-}
 
 function exportBackup(){
   (async ()=>{
@@ -1599,7 +1360,6 @@ function wireEvents(){
   document.getElementById('exportBtn').onclick = exportBackup;
   document.getElementById('dashboardExportBtn').onclick = exportBackup;
   document.getElementById('rebuildIndexBtn').onclick = rebuildIndexFromQuestions;
-  document.getElementById('refreshReportsBtn').onclick = renderReports;
 
   document.getElementById('downloadTemplateBtn').onclick = downloadTemplate;
   document.getElementById('importFile').onchange = (e)=>{
