@@ -108,6 +108,7 @@
       <button class="tab-btn" data-tab="control">تحكّم المهارات</button>
       <button class="tab-btn" data-tab="search">بحث عن طالب</button>
       <button class="tab-btn" data-tab="reports">التقارير</button>
+      <button class="tab-btn" data-tab="compare">مقارنة الأداء</button>
     </div>
     <a href="help-school.html" style="font-size:0.82rem; color:var(--pine); text-decoration:none; font-weight:600;">؟ مساعدة</a>
     <button class="logout-btn" id="logoutBtn">خروج</button>
@@ -180,6 +181,31 @@
     <div class="card">
       <h3 class="section-title">🌟 متميزون (أكثر من 90%)</h3>
       <div id="excelList"></div>
+    </div>
+  </section>
+
+  <!-- مقارنة الأداء -->
+  <section class="panel" id="panel-compare">
+    <div class="card">
+      <h3 class="section-title">عدد طلاب كل صف (العدد الفعلي في المدرسة)</h3>
+      <p style="font-size:0.85rem; color:#5A6560; margin-bottom:14px;">
+        يُستخدم لحساب نسبة مشاركة الطلاب الفعليين على المنصة من إجمالي عدد كل صف.
+      </p>
+      <div id="gradeCountsForm" class="grid3" style="margin-bottom:12px;"></div>
+      <button type="button" id="saveGradeCountsBtn" class="btn-secondary">حفظ الأعداد</button>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">مقارنة الأداء — الفصل مقابل الصف مقابل كل المدارس المشاركة</h3>
+      <p style="font-size:0.85rem; color:#5A6560; margin-bottom:14px;">
+        "كل المدارس المشاركة" رقم مجمَّع واحد يضم كل المدارس على المنصة بلا كشف هوية أي مدرسة بعينها.
+      </p>
+      <div class="grid2" style="margin-bottom:16px;">
+        <div class="field"><label>المادة</label><select id="cmpSubject"></select></div>
+        <div class="field"><label>الصف</label><select id="cmpGrade"></select></div>
+      </div>
+      <div id="participationNote" style="margin-bottom:14px; font-size:0.88rem;"></div>
+      <div id="compareTable"></div>
     </div>
   </section>
 
@@ -550,12 +576,132 @@ async function renderReports(){
 }
 
 // ---- تبويبات ----
+// ---- عدد طلاب كل صف ----
+let mySchoolInfo = null;
+async function loadSchoolInfo(){
+  try{
+    const snap = await getDoc(doc(db,'schools', mySchoolId));
+    mySchoolInfo = snap.exists() ? snap.data() : {};
+  }catch(e){ mySchoolInfo = {}; }
+  return mySchoolInfo;
+}
+async function renderGradeCountsForm(){
+  const info = await loadSchoolInfo();
+  const grades = info.allowedGrades || GRADES;
+  const counts = info.gradeCounts || {};
+  const box = document.getElementById('gradeCountsForm');
+  box.innerHTML = '';
+  grades.forEach(g=>{
+    const field = document.createElement('div');
+    field.className = 'field';
+    field.innerHTML = `<label>${g}</label><input type="number" min="0" class="gradeCountInput" data-grade="${g}" value="${counts[g] || ''}" placeholder="عدد الطلاب">`;
+    box.appendChild(field);
+  });
+}
+async function saveGradeCounts(){
+  const counts = {};
+  document.querySelectorAll('.gradeCountInput').forEach(input=>{
+    const v = parseInt(input.value);
+    if(!isNaN(v)) counts[input.dataset.grade] = v;
+  });
+  try{
+    await setDoc(doc(db,'schools', mySchoolId), { ...mySchoolInfo, gradeCounts: counts }, { merge:true });
+    mySchoolInfo.gradeCounts = counts;
+    showToast('تم حفظ أعداد الطلاب');
+  }catch(e){ showToast('تعذّر الحفظ'); }
+}
+
+// ---- مقارنة الأداء ----
+function statsDocId(schoolId, subject, grade){ return `${schoolId}::${subject}::${grade}`; }
+
+async function renderComparison(){
+  const subject = document.getElementById('cmpSubject').value;
+  const grade = document.getElementById('cmpGrade').value;
+  const tableBox = document.getElementById('compareTable');
+  const noteBox = document.getElementById('participationNote');
+  tableBox.innerHTML = 'جاري الحساب...'; noteBox.innerHTML = '';
+
+  // محاولات مدرستي لهذه المادة والصف
+  let attempts = [];
+  try{
+    const snap = await getDocs(query(collection(db,'attempts'),
+      where('schoolId','==', mySchoolId), where('subject','==', subject), where('grade','==', grade)));
+    snap.forEach(d=> attempts.push(d.data()));
+  }catch(e){ tableBox.innerHTML = '<p style="color:var(--brick);">تعذّر تحميل البيانات.</p>'; return; }
+
+  if(!attempts.length){
+    tableBox.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا توجد محاولات بعد لهذه المادة والصف.</p>';
+    return;
+  }
+
+  // أحدث محاولة لكل طالب لكل مهارة، لحساب متوسط عادل لا يُضخَّم بتكرار المحاولات
+  const byStudentSkill = {};
+  attempts.forEach(a=>{
+    const key = `${a.studentCode||a.studentName}||${a.skill}`;
+    const d = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : new Date(0);
+    if(!byStudentSkill[key] || d > byStudentSkill[key]._date) byStudentSkill[key] = { ...a, _date: d };
+  });
+  const latest = Object.values(byStudentSkill);
+
+  // حساب متوسط كل فصل (شعبة)
+  const bySection = {};
+  latest.forEach(a=>{
+    const sec = a.section || '—';
+    if(!bySection[sec]) bySection[sec] = { total:0, count:0 };
+    bySection[sec].total += a.score; bySection[sec].count++;
+  });
+  const sectionRows = Object.keys(bySection).sort((a,b)=>a-b).map(sec=>({
+    section: sec, avg: Math.round(bySection[sec].total / bySection[sec].count)
+  }));
+
+  // متوسط الصف كاملًا بالمدرسة
+  const gradeAvg = Math.round(latest.reduce((s,a)=>s+a.score,0) / latest.length);
+  const uniqueStudents = new Set(latest.map(a=>a.studentCode||a.studentName)).size;
+
+  // نشر متوسط مدرستي المجمَّع (بلا أي بيانات فردية) ليستفيد منه الجميع كبند ضمن "كل المدارس"
+  try{
+    await setDoc(doc(db,'school_stats', statsDocId(mySchoolId, subject, grade)), {
+      schoolId: mySchoolId, subject, grade, avgScore: gradeAvg, studentCount: uniqueStudents, updatedAt: todayStr()
+    });
+  }catch(e){ console.warn('school_stats publish failed', e); }
+
+  // جلب متوسط كل المدارس المشاركة (رقم مجمَّع واحد، بلا أي كشف هوية)
+  let crossSchoolAvg = null;
+  try{
+    const allStats = await getDocs(query(collection(db,'school_stats'), where('subject','==',subject), where('grade','==',grade)));
+    let total = 0, cnt = 0;
+    allStats.forEach(d=>{ total += d.data().avgScore; cnt++; });
+    if(cnt) crossSchoolAvg = Math.round(total/cnt);
+  }catch(e){ console.warn(e); }
+
+  // نسبة المشاركة إن وُجد عدد الطلاب الكلي لهذا الصف
+  const totalForGrade = (mySchoolInfo && mySchoolInfo.gradeCounts) ? mySchoolInfo.gradeCounts[grade] : null;
+  if(totalForGrade){
+    const pct = Math.round((uniqueStudents/totalForGrade)*100);
+    noteBox.innerHTML = `شارك ${uniqueStudents} من أصل ${totalForGrade} طالبًا مسجَّلين في هذا الصف (${pct}%).`;
+  } else {
+    noteBox.innerHTML = `عدد الطلاب المشاركين فعليًا: ${uniqueStudents} (أدخل العدد الكلي أعلاه لمعرفة نسبة المشاركة).`;
+  }
+
+  tableBox.innerHTML = `<div class="qrow head"><span>الفصل (الشعبة)</span><span>متوسط الفصل</span><span>متوسط الصف بالمدرسة</span><span>متوسط كل المدارس المشاركة</span></div>`;
+  sectionRows.forEach(r=>{
+    const row = document.createElement('div');
+    row.className = 'qrow';
+    row.innerHTML = `<span>شعبة ${r.section}</span>
+      <span class="badge ${r.avg>=gradeAvg?'approved':'draft'}">${r.avg}%</span>
+      <span class="badge info">${gradeAvg}%</span>
+      <span class="badge info">${crossSchoolAvg!==null ? crossSchoolAvg+'%' : '—'}</span>`;
+    tableBox.appendChild(row);
+  });
+}
+
 function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
   if(name==='teachers') renderTeachersList();
   if(name==='control') renderSkillControl();
   if(name==='reports') renderReports();
+  if(name==='compare'){ renderGradeCountsForm(); renderComparison(); }
 }
 
 function init(){
@@ -565,6 +711,8 @@ function init(){
   document.getElementById('ctrlTeacher').onchange = renderSkillControl;
   document.getElementById('addTeacherBtn').onclick = addTeacher;
   document.getElementById('studentSearchBtn').onclick = searchStudent;
+  document.getElementById('saveGradeCountsBtn').onclick = saveGradeCounts;
+  wireLinkedSelects(document.getElementById('cmpSubject'), document.getElementById('cmpGrade'), renderComparison);
 
   initNewTeacherForm();
   renderTeachersList();
