@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>لوحة مدير المدرسة — نافِس برو</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
@@ -103,6 +104,7 @@
 <header class="site">
   <nav class="wrap">
     <span class="brand"><span class="mark">ن</span> <span id="schoolNameLabel">مدرستي</span></span>
+    <span id="subStatusBadge"></span>
     <div class="tabs">
       <button class="tab-btn active" data-tab="teachers">المعلمون</button>
       <button class="tab-btn" data-tab="control">تحكّم المهارات</button>
@@ -303,6 +305,17 @@ document.getElementById('loginBtn').addEventListener('click', async ()=>{
 });
 document.getElementById('logoutBtn').addEventListener('click', ()=> signOut(auth));
 
+function renderSubStatusBadge(expiry){
+  const el = document.getElementById('subStatusBadge');
+  if(!expiry){ el.innerHTML = ''; return; }
+  const daysLeft = Math.floor((new Date(expiry) - new Date()) / 86400000);
+  let html;
+  if(daysLeft < 0) html = `<span style="background:#F5DCD3; color:#7A2E18; padding:4px 10px; border-radius:14px; font-size:0.78rem; font-weight:600;">الاشتراك منتهٍ — راجع المؤسسة</span>`;
+  else if(daysLeft <= 14) html = `<span style="background:var(--amber-dim); color:#8A6413; padding:4px 10px; border-radius:14px; font-size:0.78rem; font-weight:600;">الاشتراك ينتهي خلال ${daysLeft} يوم</span>`;
+  else html = `<span style="background:var(--green-dim); color:#1C4A30; padding:4px 10px; border-radius:14px; font-size:0.78rem; font-weight:600;">الاشتراك ساري</span>`;
+  el.innerHTML = html;
+}
+
 let appInitialized = false;
 onAuthStateChanged(auth, async (user)=>{
   if(!user){ showLoginGate(); appInitialized = false; return; }
@@ -315,8 +328,10 @@ onAuthStateChanged(auth, async (user)=>{
     }
     mySchoolId = snap.data().schoolId;
     const schoolSnap = await getDoc(doc(db, 'schools', mySchoolId));
-    mySchoolName = schoolSnap.exists() ? schoolSnap.data().name : mySchoolId;
+    const schoolData = schoolSnap.exists() ? schoolSnap.data() : {};
+    mySchoolName = schoolData.name || mySchoolId;
     document.getElementById('schoolNameLabel').textContent = mySchoolName;
+    renderSubStatusBadge(schoolData.subscriptionExpiry);
     hideLoginGate();
     if(!appInitialized){ appInitialized = true; init(); }
   }catch(e){
