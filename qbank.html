@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>بنك الأسئلة — نافِس برو</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
@@ -382,7 +383,26 @@
           <label>كلمة المرور</label>
           <input type="text" id="newSchoolPassword" style="font-family:'Cairo',sans-serif;">
         </div>
-        <button type="button" id="addSchoolBtn" class="btn-primary" style="height:42px;">إنشاء المدرسة وحساب مديرها</button>
+        <div class="field" style="margin-bottom:0;">
+          <label>الاشتراك ساري حتى</label>
+          <input type="date" id="newSchoolExpiry">
+        </div>
+      </div>
+      <button type="button" id="addSchoolBtn" class="btn-primary" style="height:42px; width:100%;">إنشاء المدرسة وحساب مديرها</button>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">تجديد اشتراك مدرسة</h3>
+      <div class="grid3" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label>المدرسة</label>
+          <select id="renewSchoolSelect"></select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>تاريخ الانتهاء الجديد</label>
+          <input type="date" id="renewSchoolExpiry">
+        </div>
+        <button type="button" id="renewSchoolBtn" class="btn-secondary">تحديث الاشتراك</button>
       </div>
     </div>
 
@@ -1367,15 +1387,30 @@ async function renderSchoolsList(){
   const accountsMap = await getSchoolAccountsMap();
   const box = document.getElementById('schoolsList');
   box.innerHTML = '';
+
+  const renewSel = document.getElementById('renewSchoolSelect');
+  renewSel.innerHTML = '';
+  schools.forEach(s=>{ const o=document.createElement('option'); o.value=s.id; o.textContent=s.name; renewSel.appendChild(o); });
+
   if(!schools.length){ box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا توجد مدارس مشتركة بعد.</p>'; return; }
+  const today = todayStr();
   schools.forEach(s=>{
     const hasAccount = !!accountsMap[s.id];
+    const expiry = s.subscriptionExpiry || null;
+    let subBadge = '<span class="badge draft">بلا تاريخ اشتراك</span>';
+    if(expiry){
+      const daysLeft = Math.floor((new Date(expiry) - new Date(today)) / 86400000);
+      if(daysLeft < 0) subBadge = `<span class="badge" style="background:#F5DCD3; color:#7A2E18;">منتهٍ منذ ${Math.abs(daysLeft)} يوم</span>`;
+      else if(daysLeft <= 14) subBadge = `<span class="badge" style="background:var(--amber-dim); color:#8A6413;">ينتهي خلال ${daysLeft} يوم</span>`;
+      else subBadge = `<span class="badge approved">ساري حتى ${expiry}</span>`;
+    }
     const row = document.createElement('div');
     row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; flex-wrap:wrap;';
     row.innerHTML = `
       <span style="font-weight:700; color:var(--pine); min-width:160px;">${s.name}</span>
       <span class="badge draft" style="background:var(--paper-dim); color:var(--pine-light);">${s.id}</span>
       <span style="font-size:0.8rem; color:#6b7570;">${(s.allowedGrades||[]).join('، ')}</span>
+      ${subBadge}
       <span style="flex:1; text-align:left; font-size:0.8rem; color:#6b7570;">${accountsMap[s.id] || 'بلا حساب مدير'}</span>
       ${hasAccount ? '<span class="badge approved">حساب مفعَّل ✓</span>' : ''}
       <button type="button" class="delBtn" style="background:none; border:1px solid var(--brick-dim); color:var(--brick); border-radius:6px; padding:7px 12px; font-size:0.8rem;">حذف</button>`;
@@ -1388,6 +1423,18 @@ async function renderSchoolsList(){
   });
 }
 
+async function renewSchoolSubscription(){
+  const schoolId = document.getElementById('renewSchoolSelect').value;
+  const expiry = document.getElementById('renewSchoolExpiry').value;
+  if(!schoolId){ showToast('لا توجد مدارس بعد'); return; }
+  if(!expiry){ showToast('اختر تاريخ الانتهاء الجديد'); return; }
+  try{
+    await setDoc(doc(db,'schools', schoolId), { subscriptionExpiry: expiry }, { merge:true });
+    showToast('تم تحديث الاشتراك');
+    renderSchoolsList();
+  }catch(e){ showToast('تعذّر التحديث'); }
+}
+
 async function addSchool(){
   const name = document.getElementById('newSchoolName').value.trim();
   const slugInput = document.getElementById('newSchoolSlug');
@@ -1395,6 +1442,7 @@ async function addSchool(){
   const grades = Array.from(document.querySelectorAll('#newSchoolGrades input:checked')).map(i=>i.value);
   const email = document.getElementById('newSchoolEmail').value.trim();
   const password = document.getElementById('newSchoolPassword').value.trim();
+  const expiry = document.getElementById('newSchoolExpiry').value;
 
   if(!name){ showToast('اكتب اسم المدرسة'); return; }
   if(!slug){ showToast('اكتب معرّف رابط بالإنجليزية'); return; }
@@ -1418,10 +1466,10 @@ async function addSchool(){
   }
 
   if(result.ok || result.code === 'auth/email-already-in-use'){
-    await setDoc(doc(db,'schools', slug), { name, allowedGrades: grades, createdAt: todayStr() });
+    await setDoc(doc(db,'schools', slug), { name, allowedGrades: grades, subscriptionExpiry: expiry || null, createdAt: todayStr() });
     await setDoc(doc(db,'school_accounts', email), { schoolId: slug });
     if(result.ok){
-      alert(`تم إنشاء مدرسة "${name}" بنجاح:\n\nرابط تسجيل الطلاب: student.html?school=${slug}\nبريد دخول المدير: ${email}\nكلمة المرور: ${password}\n\nسلّم رابط الطلاب والحساب للمدرسة الآن.`);
+      alert(`تم إنشاء مدرسة "${name}" بنجاح:\n\nرابط تسجيل الطلاب: student.html?school=${slug}\nبريد دخول المدير: ${email}\nكلمة المرور: ${password}${expiry ? '\nالاشتراك ساري حتى: '+expiry : ''}\n\nسلّم رابط الطلاب والحساب للمدرسة الآن.`);
     } else {
       showToast('هذا البريد له حساب مسبقًا — تم إنشاء المدرسة والربط بدون تغيير كلمة المرور.');
     }
@@ -1533,6 +1581,7 @@ function wireEvents(){
   wireLinkedSelects(document.getElementById('skSubject'), document.getElementById('skGrade'), refreshSkillsTab);
   wireLinkedSelects(document.getElementById('covSubject'), document.getElementById('covGrade'), renderSkillCoverage);
   document.getElementById('addSchoolBtn').onclick = addSchool;
+  document.getElementById('renewSchoolBtn').onclick = renewSchoolSubscription;
   document.getElementById('skAddBtn').onclick = async ()=>{
     const subject = document.getElementById('skSubject').value;
     const grade = document.getElementById('skGrade').value;
