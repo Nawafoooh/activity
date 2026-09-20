@@ -1,18 +1,255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>غرفة عمليات التخطيط التشغيلي 2.0</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 20px; line-height: 1.5; }
+    .header { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+    .header h1 { font-size: 1.5rem; color: var(--accent); }
+    .nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .navbtn { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    .navbtn.active { background: var(--accent); color: #000; font-weight: bold; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+    .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+    input, select, textarea { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; outline: none; }
+    input[type="text"] { flex: 1; min-width: 200px; }
+    table { width: 100%; border-collapse: collapse; text-align: right; }
+    th, td { border: 1px solid var(--border); padding: 10px; font-size: 0.9rem; }
+    th { background: rgba(255,255,255,0.05); color: var(--accent); }
+    .status { padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
+    .status.green { background: rgba(34,197,94,0.2); color: var(--green); }
+    .status.amber { background: rgba(245,158,11,0.2); color: var(--amber); }
+    .status.red { background: rgba(239,68,68,0.2); color: var(--red); }
+    .status.blue { background: rgba(56,189,248,0.2); color: var(--accent); }
+    .empty { text-align: center; color: var(--muted); padding: 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 15px; text-align: center; }
+    .stat-card .val { font-size: 1.8rem; font-weight: bold; color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>غرفة عمليات التخطيط التشغيلي 2.0 - متوسطة المنذر بن عمرو الأنصاري</h1>
+  </div>
+
+  <div class="nav">
+    <button class="navbtn active" data-view="dashView">لوحة القيادة</button>
+    <button class="navbtn" data-view="dataView">البيانات والأرقام</button>
+    <button class="navbtn" data-view="covView">المؤشرات (44)</button>
+    <button class="navbtn" data-view="progView">البرامج (18)</button>
+    <button class="navbtn" data-view="kpiView">المؤشرات (37)</button>
+    <button class="navbtn" data-view="actView">الإجراءات (49)</button>
+    <button class="navbtn" data-view="raciView">مصفوفة RACI</button>
+    <button class="navbtn" data-view="riskView">إدارة المخاطر</button>
+    <button class="navbtn" data-view="followView">سجل المتابعة</button>
+    <button class="navbtn" data-view="noteView">القرارات والتكليفات</button>
+  </div>
+
+  <!-- 1. Dashboard View -->
+  <div id="dashView" class="view active">
+    <div class="grid">
+      <div class="stat-card">
+        <div>خط الأساس العام</div>
+        <div class="val">60%</div>
+        <small class="muted">التقويم الخارجي 2025</small>
+      </div>
+      <div class="stat-card">
+        <div>اجتياز نافس المجمل</div>
+        <div class="val">7.4%</div>
+        <small class="muted">نافس 1447هـ</small>
+      </div>
+      <div class="stat-card">
+        <div>البرامج التشغيلية</div>
+        <div class="val">18</div>
+        <small class="muted">برنامجاً معتمداً</small>
+      </div>
+      <div class="stat-card">
+        <div>الإجراءات المزمتة</div>
+        <div class="val">49</div>
+        <small class="muted">إجراءً تنفيذياً</small>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>الهرم التنفيذي للغرفة</h3>
+      <p style="margin-top: 10px; color: var(--muted);">
+        البيانات والنتائج الحقيقية ← تحديد الفجوات والمؤشرات ← البرامج التشغيلية ← الإجراءات والشواهد المعتمدة.
+      </p>
+    </div>
+  </div>
+
+  <!-- 2. Data View -->
+  <div id="dataView" class="view">
+    <div class="panel">
+      <div class="controls">
+        <input type="text" id="dataSearch" placeholder="بحث في البيانات..." oninput="renderData()">
+      </div>
+      <table>
+        <thead>
+          <tr><th>المصدر</th><th>المؤشر / المجال</th><th>القيمة / النسبة</th><th>الفترة</th><th>ملاحظات وتوجيهات</th></tr>
+        </thead>
+        <tbody id="dataRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 3. Coverage View -->
+  <div id="covView" class="view">
+    <div class="panel">
+      <div class="controls">
+        <input type="text" id="covSearch" placeholder="بحث في المؤشرات..." oninput="renderCoverage()">
+        <select id="covFilter" onchange="renderCoverage()">
+          <option value="">جميع الحالات</option>
+          <option value="معالج">معالج</option>
+          <option value="يحتاج إجراء">يحتاج إجراء</option>
+          <option value="لا ينطبق حاليًا">لا ينطبق حاليًا</option>
+        </select>
+      </div>
+      <table>
+        <thead>
+          <tr><th>كود المؤشر</th><th>اسم المؤشر</th><th>المستوى الحالي</th><th>الحالة</th><th>البرنامج المغطي</th></tr>
+        </thead>
+        <tbody id="coverageRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 4. Programs View -->
+  <div id="progView" class="view">
+    <div class="panel">
+      <div class="controls">
+        <input type="text" id="progSearch" placeholder="بحث في البرامج..." oninput="renderPrograms()">
+      </div>
+      <table>
+        <thead>
+          <tr><th>البرنامج</th><th>المجال</th><th>الهدف التشغيلي</th><th>المؤشرات المرتبطة</th><th>النوع</th></tr>
+        </thead>
+        <tbody id="programRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5. KPIs View -->
+  <div id="kpiView" class="view">
+    <div class="panel">
+      <div class="controls">
+        <input type="text" id="kpiSearch" placeholder="بحث في المؤشرات..." oninput="renderKPIs()">
+        <select id="kpiStatus" onchange="renderKPIs()">
+          <option value="">جميع الألوان</option>
+          <option value="أخضر">أخضر</option>
+          <option value="أصفر">أصفر</option>
+          <option value="أحمر">أحمر</option>
+        </select>
+      </div>
+      <table>
+        <thead>
+          <tr><th>البرنامج</th><th>المؤشر التفصيلي</th><th>الأساس</th><th>المهدف</th><th>الفعلي</th><th>Signal</th><th>المسؤول</th></tr>
+        </thead>
+        <tbody id="kpiRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 6. Actions View -->
+  <div id="actView" class="view">
+    <div class="panel">
+      <div class="controls">
+        <input type="text" id="actionSearch" placeholder="بحث في الإجراءات..." oninput="renderActions()">
+        <select id="actionStatus" onchange="renderActions()">
+          <option value="">جميع الحالات</option>
+          <option value="مكتمل">مكتمل</option>
+          <option value="قيد التنفيذ">قيد التنفيذ</option>
+          <option value="لم يبدأ">لم يبدأ</option>
+        </select>
+      </div>
+      <table>
+        <thead>
+          <tr><th>الكود</th><th>الإجراء التنفيذي</th><th>المنفذ</th><th>البداية</th><th>النهاية</th><th>الشاهد المطلوبة</th><th>الحالة</th></tr>
+        </thead>
+        <tbody id="actionRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 7. RACI View -->
+  <div id="raciView" class="view">
+    <div class="panel">
+      <table>
+        <thead>
+          <tr><th>المهمة / المسار</th><th>Responsible (المسؤول)</th><th>Accountable (المعتمد)</th><th>Consulted (المستشار)</th><th>Informed (المُبلغ)</th></tr>
+        </thead>
+        <tbody id="raciRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 8. Risk View -->
+  <div id="riskView" class="view">
+    <div class="panel">
+      <table>
+        <thead>
+          <tr><th>الخطر المتوقع</th><th>الأثر</th><th>مؤشر الإنذار</th><th>إجراء التخفيف</th><th>المسؤول</th><th>الحالة</th></tr>
+        </thead>
+        <tbody id="riskRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 9. Follow View -->
+  <div id="followView" class="view">
+    <div class="panel">
+      <table>
+        <thead>
+          <tr><th>البرنامج / المجال</th><th>المؤشر المتابع</th><th>القيمة الحالية</th><th>الحالة</th><th>الإجراء التصحيحي</th><th>موعد المراجعة</th></tr>
+        </thead>
+        <tbody id="followRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 10. Notes View -->
+  <div id="noteView" class="view">
+    <div class="panel">
+      <h3>تسجيل القرارات والتكليفات الفورية</h3>
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+        <input type="text" id="noteTitle" placeholder="عنوان القرار / التكليف">
+        <textarea id="noteText" rows="3" placeholder="تفاصيل القرار والمكلف به..."></textarea>
+        <button class="navbtn active" style="width: 120px;" onclick="addNote()">حفظ القرار</button>
+      </div>
+    </div>
+    <div id="notesList"></div>
+  </div>
+
 <script>
-// 1. البيانات الحقيقية المحدثة من التقرير وبطاقة نافس 1447هـ
+// البيانات الأساسية
 const data = [
   {s:"التقويم الخارجي 2025", i:"الأداء العام للمدرسة", v:"60% (الانطلاق)", p:"2025", n:"دورة التقويم الأولى - تقتضي رفع مؤشرات التهيئة"},
   {s:"التقويم الخارجي 2025", i:"التخطيط (1-1-1-1)", v:"60.75%", p:"2025", n:"تم التحديث للإصدار 2.0 وربطه بالأكواد الـ 44"},
   {s:"التقويم الخارجي 2025", i:"التعليم والتعلم", v:"58%", p:"2025", n:"أدنى مجال قابل للمعالجة مباشرة الممارسات الصفية"},
-  {s:"التقويم الخارجي 2025", i:"التحصيل التعليمي", v:"54.25%", p:"2025", n:"فجوة جوهرية تتطلب خطط علاجية وتطوير التقويم[cite: 3]"},
-  {s:"التقويم الخارجي 2025", i:"المبنى المدرسي والمرافق", v:"37.5%", p:"2025", n:"نتيجة المبنى السابق؛ المدرسة حالياً في مبنى جديد مجهز بالكامل[cite: 3]"},
-  {s:"نافس 1447هـ", i:"الاجتياز الثلاثي المجمل", v:"7.4%", p:"1447", n:"مؤشر قياس خط الأساس لنواتج التعلم[cite: 3]"},
-  {s:"نافس 1447هـ - القراءة", i:"نسبة الاجتياز / منخفض جداً", v:"17.1% / 63.9%", p:"1447", n:"الأولوية القصوى: مهارة دلالات الألفاظ (13.7% فقط)[cite: 3]"},
-  {s:"نافس 1447هـ - الرياضيات", i:"نسبة الاجتياز", v:"24.6%", p:"1447", n:"التركيز على مهارات الهندسة والقياس (26.9%)[cite: 3]"},
-  {s:"نافس 1447هـ - العلوم", i:"نسبة الاجتياز", v:"31.4%", p:"1447", n:"ممارسة ناجحة في علوم الحياة، وتوجيه الدعم للفيزيائية والكيميائية (25.1%)[cite: 3]"}
+  {s:"التقويم الخارجي 2025", i:"التحصيل التعليمي", v:"54.25%", p:"2025", n:"فجوة جوهرية تتطلب خطط علاجية وتطوير التقويم"},
+  {s:"التقويم الخارجي 2025", i:"المبنى المدرسي والمرافق", v:"37.5%", p:"2025", n:"نتيجة المبنى السابق؛ المدرسة حالياً في مبنى جديد مجهز بالكامل"},
+  {s:"نافس 1447هـ", i:"الاجتياز الثلاثي المجمل", v:"7.4%", p:"1447", n:"مؤشر قياس خط الأساس لنواتج التعلم"},
+  {s:"نافس 1447هـ - القراءة", i:"نسبة الاجتياز / منخفض جداً", v:"17.1% / 63.9%", p:"1447", n:"الأولوية القصوى: مهارة دلالات الألفاظ (13.7% فقط)"},
+  {s:"نافس 1447هـ - الرياضيات", i:"نسبة الاجتياز", v:"24.6%", p:"1447", n:"التركيز على مهارات الهندسة والقياس (26.9%)"},
+  {s:"نافس 1447هـ - العلوم", i:"نسبة الاجتياز", v:"31.4%", p:"1447", n:"ممارسة ناجحة في علوم الحياة، وتوجيه الدعم للفيزيائية والكيميائية (25.1%)"}
 ];
 
-// 2. قائمة الـ 18 برنامجاً الشاملة (الـ 16 الأصلية + البرنامجين الجديدين)
 const programs = [
   ["P1: بياناتنا تصنع التحسين", "الإدارة المدرسية", "تحليل البيانات وتحديد أولويات التحسين", "3-1-1-1 / 1-1-1-1", "مستمر"],
   ["P2: أثر مستدام", "الإدارة المدرسية", "قياس أثر البرامج والتحقق من الشواهد", "1-4-1-4 / K37", "مستمر"],
@@ -34,131 +271,154 @@ const programs = [
   ["P18: نمو مهني ورخصة (جديد)", "الإدارة المدرسية", "خطط النمو المهني الفردية ودعم الرخصة المهنية", "1-4-1-1 / 1-4-1-2 (تهيئة)", "جديد"]
 ];
 
-// 3. خريطة الـ 44 مؤشراً مقسمة بدقة مع التركيز على مؤشرات التهيئة
-const coverage = Array.from({length:44},(_,i)=>{
-  const code = `مؤشر ${i+1}`;
-  return {code: code, name: "مؤشر ضمن المعيار الوطني للتقويم المدرسية", level: "انطلاق", status: "معالج", program: "مغطي ضمن البرامج الـ 18[cite: 3]"};
+const coverage = Array.from({length:44}, (_, i) => {
+  return {code: `مؤشر ${i+1}`, name: "مؤشر ضمن المعيار الوطني للتقويم المدرسية", level: "انطلاق", status: "معالج", program: "مغطي ضمن البرامج الـ 18"};
 });
 
-// تعيين مؤشرات التهيئة والنقاط الجوهرية التسع[cite: 3]
-coverage[0] = {code:"1-1-1-1", name:"التخطيط التشغيلي وبناء الخطة", level:"60.75%", status:"معالج", program:"P1: بياناتنا تصنع التحسين[cite: 3]"};
+coverage[0] = {code:"1-1-1-1", name:"التخطيط التشغيلي وبناء الخطة", level:"60.75%", status:"معالج", program:"P1: بياناتنا تصنع التحسين"};
 coverage[1] = {code:"1-1-1-2", name:"متابعة تنفيذ الخطة التشغيلية", level:"تهيئة", status:"يحتاج إجراء", program:"P4: تنفيذ منضبط + سجل المتابعة"};
-coverage[6] = {code:"1-3-1-3", name:"الشراكة المجتمعية مع المؤسسات", level:"تهيئة", status:"يحتاج إجراء", program:"P17: شراكة مؤثرة (برنامج جديد)[cite: 3]"};
-coverage[7] = {code:"1-4-1-1", name:"التطوير المهني والتطوير الذاتي", level:"تهيئة", status:"يحتاج إجراء", program:"P18: نمو مهني ورخصة (برنامج جديد)[cite: 3]"};
-coverage[8] = {code:"1-4-1-2", name:"تقويم أثر التطوير المهني", level:"تهيئة", status:"يحتاج إجراء", program:"P18: نمو مهني ورخصة[cite: 3]"};
-coverage[14] = {code:"2-1-1-4", name:"تنويع أدوات التقويم وتحليل النتائج", level:"تهيئة", status:"يحتاج إجراء", program:"P8: تقويم يصنع التقدم[cite: 3]"};
-coverage[20] = {code:"3-1-1-1", name:"نواتج التعلم واختبارات نافس", level:"تهيئة (7.4%)", status:"يحتاج إجراء", program:"P9: جاهزون للمرحلة التالية[cite: 3]"};
-coverage[35] = {code:"4-1-1-1", name:"جودة المبنى المدرسي والسلامة", level:"لا ينطبق (37.5%)", status:"لا ينطبق حاليًا", program:"P13: بيئة آمنة ومحفزة (تحديث شواهد المبنى الجديد)[cite: 3]"};
-coverage[36] = {code:"4-1-1-2", name:"التجهيزات والمرافق المساندة", level:"لا ينطبق", status:"لا ينطبق حاليًا", program:"P13: توثيق المختبر والمصادر بقرارات داخلية[cite: 3]"};
+coverage[6] = {code:"1-3-1-3", name:"الشراكة المجتمعية مع المؤسسات", level:"تهيئة", status:"يحتاج إجراء", program:"P17: شراكة مؤثرة (برنامج جديد)"};
+coverage[7] = {code:"1-4-1-1", name:"التطوير المهني والتطوير الذاتي", level:"تهيئة", status:"يحتاج إجراء", program:"P18: نمو مهني ورخصة (برنامج جديد)"};
+coverage[8] = {code:"1-4-1-2", name:"تقويم أثر التطوير المهني", level:"تهيئة", status:"يحتاج إجراء", program:"P18: نمو مهني ورخصة"};
+coverage[14] = {code:"2-1-1-4", name:"تنويع أدوات التقويم وتحليل النتائج", level:"تهيئة", status:"يحتاج إجراء", program:"P8: تقويم يصنع التقدم"};
+coverage[20] = {code:"3-1-1-1", name:"نواتج التعلم واختبارات نافس", level:"تهيئة (7.4%)", status:"يحتاج إجراء", program:"P9: جاهزون للمرحلة التالية"};
+coverage[35] = {code:"4-1-1-1", name:"جودة المبنى المدرسي والسلامة", level:"لا ينطبق (37.5%)", status:"لا ينطبق حاليًا", program:"P13: بيئة آمنة ومحفزة (تحديث شواهد المبنى الجديد)"};
+coverage[36] = {code:"4-1-1-2", name:"التجهيزات والمرافق المساندة", level:"لا ينطبق", status:"لا ينطبق حاليًا", program:"P13: توثيق المختبر والمصادر بقرارات داخلية"};
 
-// 4. لوحة مؤشرات الأداء (37 KPI)
 const kpis = [
   ["P9: نافس", "معدل التحول من الفئات المنخفضة إلى العالية في القراءة", "63.9% منخفض", "تقليص 15%", "—", "أصفر", "منسق نافس / معلمو العربي"],
-  ["P9: نافس", "درجة مهارة دلالات الألفاظ في الاختبارات المحاكية", "13.7%", "30%", "—", "أحمر", "معلمو اللغة العربية[cite: 3]"],
-  ["P5: تمكّن", "نسبة إتقان المهارات الأساسية في المواد الشفهية والتحريرية", "60%", "75%", "—", "أصفر", "معلمو المواد[cite: 3]"],
-  ["P4: تنفيذ منضبط", "نسبة الالتزام بتنفيذ الإجراءات في أوقاتها المزمنة", "خط أساس فعلي", "90%", "—", "أخضر", "وكيل المدرسة (نواف الصبحي)[cite: 2, 3]"],
-  ["P3: أسرة شريكة", "نسبة مشاركة أولياء الأمور في اللقاءات والاستبانات", "خط أساس فعلي", "70%", "—", "أصفر", "الموجه الطلابي[cite: 3]"],
-  ["P13: بيئة آمنة", "توثيق واكتمال سجل جاهزية مرافق المبنى الجديد", "0%", "100%", "—", "أخضر", "مسؤول السلامة والوكيل[cite: 3]"],
-  ["P18: نمو مهني", "نسبة المعلمين الملتزمين بخطة التنمية المهنية للحصول على الرخصة", "خط أساس فعلي", "80%", "—", "أصفر", "مقرر لجنة التميز (عبدالله الحربي)[cite: 2, 3]"]
+  ["P9: نافس", "درجة مهارة دلالات الألفاظ في الاختبارات المحاكية", "13.7%", "30%", "—", "أحمر", "معلمو اللغة العربية"],
+  ["P5: تمكّن", "نسبة إتقان المهارات الأساسية في المواد الشفهية والتحريرية", "60%", "75%", "—", "أصفر", "معلمو المواد"],
+  ["P4: تنفيذ منضبط", "نسبة الالتزام بتنفيذ الإجراءات في أوقاتها المزمنة", "خط أساس فعلي", "90%", "—", "أخضر", "وكيل المدرسة (نواف الصبحي)"],
+  ["P3: أسرة شريكة", "نسبة مشاركة أولياء الأمور في اللقاءات والاستبانات", "خط أساس فعلي", "70%", "—", "أصفر", "الموجه الطلابي"],
+  ["P13: بيئة آمنة", "توثيق واكتمال سجل جاهزية مرافق المبنى الجديد", "0%", "100%", "—", "أخضر", "مسؤول السلامة والوكيل"],
+  ["P18: نمو مهني", "نسبة المعلمين الملتزمين بخطة التنمية المهنية للحصول على الرخصة", "خط أساس فعلي", "80%", "—", "أصفر", "مقرر لجنة التميز (عبدالله الحربي)"]
 ];
 
-// 5. سجل الإجراءات الـ 49 المزمّنة
 const actions = [
-  ["A01", "تحليل بيانات التقويم وتحديد الأولويات والأكواد المرتبطة", "فريق التميز", "الأسبوع 1", "الأسبوع 2", "تقرير تحليل معتمد", "مكتمل[cite: 3]"],
-  ["A02", "تشريح نتائج نافس تفصيلياً (القراءة/دلالات الألفاظ)", "منسق نافس", "الأسبوع 2", "الأسبوع 3", "بطاقة تشخيص المهارات", "قيد التنفيذ[cite: 3]"],
-  ["A03", "تطبيق الاختبارات المحاكية لـ نافس وتوثيق نتائجها", "معلمو المواد", "الأسبوع 4", "دوري", "سجل درجات الاختبار المحاكي", "لم يبدأ[cite: 2, 3]"],
-  ["A04", "تحديث سجل المرافق والمجهودات للمبنى الجديد بشواهد مصورة", "وكيل المدرسة", "الأسبوع 1", "الأسبوع 4", "ملف الشواهد المصورة K28", "قيد التنفيذ[cite: 3]"],
-  ["A05", "تفريغ أرقام الاستبانات الفعلية وتحديد خط الأساس للأسر والمعلمين", "الموجه الطلابي", "الأسبوع 2", "الأسبوع 3", "تقرير تفريغ الاستبانات", "قيد التنفيذ[cite: 3]"],
-  ["A06", "رفع خطاب احتياج رسمي لكادر محضر المختبر وأمين المصادر", "مدير المدرسة", "الأسبوع 2", "الأسبوع 3", "صورة الخطاب المعتمد بـ نور", "مكتمل[cite: 3]"]
+  ["A01", "تحليل بيانات التقويم وتحديد الأولويات والأكواد المرتبطة", "فريق التميز", "الأسبوع 1", "الأسبوع 2", "تقرير تحليل معتمد", "مكتمل"],
+  ["A02", "تشريح نتائج نافس تفصيلياً (القراءة/دلالات الألفاظ)", "منسق نافس", "الأسبوع 2", "الأسبوع 3", "بطاقة تشخيص المهارات", "قيد التنفيذ"],
+  ["A03", "تطبيق الاختبارات المحاكية لـ نافس وتوثيق نتائجها", "معلمو المواد", "الأسبوع 4", "دوري", "سجل درجات الاختبار المحاكي", "لم يبدأ"],
+  ["A04", "تحديث سجل المرافق والمجهودات للمبنى الجديد بشواهد مصورة", "وكيل المدرسة", "الأسبوع 1", "الأسبوع 4", "ملف الشواهد المصورة K28", "قيد التنفيذ"],
+  ["A05", "تفريغ أرقام الاستبانات الفعلية وتحديد خط الأساس للأسر والمعلمين", "الموجه الطلابي", "الأسبوع 2", "الأسبوع 3", "تقرير تفريغ الاستبانات", "قيد التنفيذ"],
+  ["A06", "رفع خطاب احتياج رسمي لكادر محضر المختبر وأمين المصادر", "مدير المدرسة", "الأسبوع 2", "الأسبوع 3", "صورة الخطاب المعتمد بـ نور", "مكتمل"]
 ];
 
 const raci = [
-  ["تحليل التقويم وربط المؤشرات", "وكيل المدرسة (نواف الصبحي)[cite: 2]", "مدير المدرسة (خالد المطيري)[cite: 2]", "مقرر التميز (عبدالله الحربي)[cite: 2]", "جميع المعلمين[cite: 3]"],
-  ["تنفيذ خطة نافس والاختبارات المحاكية", "معلمو المواد الأساسية[cite: 3]", "منسق نافس[cite: 3]", "الموجه الطلابي[cite: 3]", "أولياء الأمور[cite: 3]"],
-  ["توثيق جاهزية المبنى والشواهد", "وكيل المدرسة / مسئول السلامة[cite: 3]", "مدير المدرسة[cite: 2]", "لجنة التميز[cite: 2]", "إدارة التعليم[cite: 3]"],
-  ["فحص جودة الشواهد قبل الأرشفة", "مقرر لجنة التميز (عبدالله الحربي)[cite: 2]", "مدير المدرسة[cite: 2]", "مالك البرنامج[cite: 2, 3]", "فريق القيادة[cite: 2]"]
+  ["تحليل التقويم وربط المؤشرات", "وكيل المدرسة (نواف الصبحي)", "مدير المدرسة (خالد المطيري)", "مقرر التميز (عبدالله الحربي)", "جميع المعلمين"],
+  ["تنفيذ خطة نافس والاختبارات المحاكية", "معلمو المواد الأساسية", "منسق نافس", "الموجه الطلابي", "أولياء الأمور"],
+  ["توثيق جاهزية المبنى والشواهد", "وكيل المدرسة / مسئول السلامة", "مدير المدرسة", "لجنة التميز", "إدارة التعليم"],
+  ["فحص جودة الشواهد قبل الأرشفة", "مقرر لجنة التميز (عبدالله الحربي)", "مدير المدرسة", "مالك البرنامج", "فريق القيادة"]
 ];
 
 const risks = [
-  ["تأخر تنفيذ الإجراءات المزمّنة", "تراجع مؤشر التنفيذ المنضبط (1-1-1-2)", "تجاوز موعد الإجراء بـ 5 أيام", "تفعيل اجتماعات المتابعة السريعة (45 دقيقة)[cite: 2]", "وكيل المدرسة[cite: 2]", "مراقب"],
-  ["عدم دقة المقامات والتضارب الأركامي", "تضارب أعداد الطلاب في المؤشرات", "وجود أرقام غير متطابقة في التقارير", "اعتماد تقرير نظام نور كمصدر موحد وحيد[cite: 3]", "وكيل المدرسة[cite: 3]", "مراقب"],
-  ["رفض الشواهد في منصة تميز", "تراجع درجة التقييم المؤسسي", "شاهد لا يظهر الأثر أو بدون كود", "تطبيق قائمة الفحص بـ النموذج (7) وتسمية الملفات[cite: 2, 3]", "مقرر التميز[cite: 2]", "مراقب"],
-  ["نقص كادر المختبر والمصادر", "تعثر الأنشطة والتجارب العلمية", "شغور المعامل وعدم استخدامها", "تكليف داخلي منظم + جدولة الحصص[cite: 3]", "مدير المدرسة[cite: 3]", "مراقب"]
+  ["تأخر تنفيذ الإجراءات المزمّنة", "تراجع مؤشر التنفيذ المنضبط (1-1-1-2)", "تجاوز موعد الإجراء بـ 5 أيام", "تفعيل اجتماعات المتابعة السريعة (45 دقيقة)", "وكيل المدرسة", "مراقب"],
+  ["عدم دقة المقامات والتضارب الأركامي", "تضارب أعداد الطلاب في المؤشرات", "وجود أرقام غير متطابقة في التقارير", "اعتماد تقرير نظام نور كمصدر موحد وحيد", "وكيل المدرسة", "مراقب"],
+  ["رفض الشواهد في منصة تميز", "تراجع درجة التقييم المؤسسي", "شاهد لا يظهر الأثر أو بدون كود", "تطبيق قائمة الفحص بـ النموذج (7) وتسمية الملفات", "مقرر التميز", "مراقب"],
+  ["نقص كادر المختبر والمصادر", "تعثر الأنشطة والتجارب العلمية", "شغور المعامل وعدم استخدامها", "تكليف داخلي منظم + جدولة الحصص", "مدير المدرسة", "مراقب"]
 ];
 
 const follow = [
-  ["P9: نافس", "مستوى مهارة دلالات الألفاظ بالقراءة", "13.7%", "🔴 أحمر", "تطبيق خطة الدعم الفوري وتدريب الطلاب على الألفاظ[cite: 3]", "مراجعة ربيع الآخر[cite: 2]"],
-  ["P13: بيئة آمنة", "شواهد جاهزية المبنى الجديد", "جاري الجمع", "🟡 أصفر", "استكمال الصور ورُفع سجل صيانة المرافق[cite: 3]", "الأسبوع القادم[cite: 3]"],
-  ["P17: شراكة مؤثرة", "توقيع الشراكات المجتمعية", "لم يبدأ", "🟡 أصفر", "التواصل مع الجهات وعقد عقد شراكة مخرج برقم[cite: 3]", "مراجعة جمادى الآخرة[cite: 2]"]
+  ["P9: نافس", "مستوى مهارة دلالات الألفاظ بالقراءة", "13.7%", "🔴 أحمر", "تطبيق خطة الدعم الفوري وتدريب الطلاب على الألفاظ", "مراجعة ربيع الآخر"],
+  ["P13: بيئة آمنة", "شواهد جاهزية المبنى الجديد", "جاري الجمع", "🟡 أصفر", "استكمال الصور ورُفع سجل صيانة المرافق", "الأسبوع القادم"],
+  ["P17: شراكة مؤثرة", "توقيع الشراكات المجتمعية", "لم يبدأ", "🟡 أصفر", "التواصل مع الجهات وعقد عقد شراكة مخرج برقم", "مراجعة جمادى الآخرة"]
 ];
 
 // دمج الوظائف التشغيلية
 function statusClass(s){
-  if((s||"").includes("أخضر")||(s||"").includes("معالج")||(s||"").includes("مكتمل")) return "green";
-  if((s||"").includes("أصفر")||(s||"").includes("يحتاج")||(s||"").includes("قيد")) return "amber";
-  if((s||"").includes("أحمر")||(s||"").includes("متعثر")) return "red";
+  if(!s) return "blue";
+  if(s.includes("أخضر") || s.includes("معالج") || s.includes("مكتمل")) return "green";
+  if(s.includes("أصفر") || s.includes("يحتاج") || s.includes("قيد")) return "amber";
+  if(s.includes("أحمر") || s.includes("متعثر")) return "red";
   return "blue";
 }
 
 function row(cells){
-  return "<tr>"+cells.map((x,i)=>`<td>${i===cells.length-1?`<span class="status ${statusClass(x)}">${x}</span>`:x}</td>`).join("")+"</tr>";
+  return "<tr>" + cells.map((x, i) => {
+    if (i === cells.length - 1) {
+      return "<td><span class='status " + statusClass(x) + "'>" + x + "</span></td>";
+    }
+    return "<td>" + x + "</td>";
+  }).join("") + "</tr>";
 }
 
 function renderData(){
-  const q=(document.getElementById("dataSearch").value||"").toLowerCase();
-  document.getElementById("dataRows").innerHTML=data.filter(x=>Object.values(x).join(" ").toLowerCase().includes(q)).map(x=>row([x.s,x.i,x.v,x.p,x.n])).join("")||'<tr><td colspan="5" class="empty">لا توجد نتائج</td></tr>';
+  const q = (document.getElementById("dataSearch").value || "").toLowerCase();
+  document.getElementById("dataRows").innerHTML = data.filter(x => Object.values(x).join(" ").toLowerCase().includes(q)).map(x => row([x.s, x.i, x.v, x.p, x.n])).join("") || "<tr><td colspan='5' class='empty'>لا توجد نتائج</td></tr>";
 }
 
 function renderCoverage(){
-  const q=(document.getElementById("covSearch").value||"").toLowerCase(), f=document.getElementById("covFilter").value;
-  document.getElementById("coverageRows").innerHTML=coverage.filter(x=>(!f||x.status===f)&&Object.values(x).join(" ").toLowerCase().includes(q)).map(x=>row([x.code,x.name,x.level,x.status,x.program||"—"])).join("");
+  const q = (document.getElementById("covSearch").value || "").toLowerCase();
+  const f = document.getElementById("covFilter").value;
+  document.getElementById("coverageRows").innerHTML = coverage.filter(x => (!f || x.status === f) && Object.values(x).join(" ").toLowerCase().includes(q)).map(x => row([x.code, x.name, x.level, x.status, x.program || "—"])).join("");
 }
 
 function renderPrograms(){
-  const q=(document.getElementById("progSearch").value||"").toLowerCase();
-  document.getElementById("programRows").innerHTML=programs.filter(x=>x.join(" ").toLowerCase().includes(q)).map(x=>row(x)).join("");
+  const q = (document.getElementById("progSearch").value || "").toLowerCase();
+  document.getElementById("programRows").innerHTML = programs.filter(x => x.join(" ").toLowerCase().includes(q)).map(x => row(x)).join("");
 }
 
 function renderKPIs(){
-  const q=(document.getElementById("kpiSearch").value||"").toLowerCase(), f=document.getElementById("kpiStatus").value;
-  document.getElementById("kpiRows").innerHTML=kpis.filter(x=>(!f||x[5]===f)&&x.join(" ").toLowerCase().includes(q)).map(x=>row(x)).join("");
+  const q = (document.getElementById("kpiSearch").value || "").toLowerCase();
+  const f = document.getElementById("kpiStatus").value;
+  document.getElementById("kpiRows").innerHTML = kpis.filter(x => (!f || x[5] === f) && x.join(" ").toLowerCase().includes(q)).map(x => row(x)).join("");
 }
 
 function renderActions(){
-  const q=(document.getElementById("actionSearch").value||"").toLowerCase(), f=document.getElementById("actionStatus").value;
-  document.getElementById("actionRows").innerHTML=actions.filter(x=>(!f||x[6]===f)&&x.join(" ").toLowerCase().includes(q)).map(x=>row(x)).join("");
+  const q = (document.getElementById("actionSearch").value || "").toLowerCase();
+  const f = document.getElementById("actionStatus").value;
+  document.getElementById("actionRows").innerHTML = actions.filter(x => (!f || x[6] === f) && x.join(" ").toLowerCase().includes(q)).map(x => row(x)).join("");
 }
 
-function renderRaci(){document.getElementById("raciRows").innerHTML=raci.map(x=>"<tr>"+x.map(y=>`<td>${y}</td>`).join("")+"</tr>").join("");}
-function renderRisks(){document.getElementById("riskRows").innerHTML=risks.map(x=>row(x)).join("");}
-function renderFollow(){document.getElementById("followRows").innerHTML=follow.map(x=>row(x)).join("");}
+function renderRaci(){
+  document.getElementById("raciRows").innerHTML = raci.map(x => "<tr>" + x.map(y => "<td>" + y + "</td>").join("") + "</tr>").join("");
+}
+
+function renderRisks(){
+  document.getElementById("riskRows").innerHTML = risks.map(x => row(x)).join("");
+}
+
+function renderFollow(){
+  document.getElementById("followRows").innerHTML = follow.map(x => row(x)).join("");
+}
 
 function addNote(){
-  const t=document.getElementById("noteTitle").value.trim(), n=document.getElementById("noteText").value.trim();
-  if(!t||!n)return;
-  const arr=JSON.parse(localStorage.getItem("planNotes")||"[]");
-  arr.unshift({t,n,d:new Date().toLocaleString("ar-SA")});
-  localStorage.setItem("planNotes",JSON.stringify(arr));
-  document.getElementById("noteTitle").value="";
-  document.getElementById("noteText").value="";
+  const t = document.getElementById("noteTitle").value.trim();
+  const n = document.getElementById("noteText").value.trim();
+  if(!t || !n) return;
+  const arr = JSON.parse(localStorage.getItem("planNotes") || "[]");
+  arr.unshift({t: t, n: n, d: new Date().toLocaleString("ar-SA")});
+  localStorage.setItem("planNotes", JSON.stringify(arr));
+  document.getElementById("noteTitle").value = "";
+  document.getElementById("noteText").value = "";
   renderNotes();
 }
 
 function renderNotes(){
-  const arr=JSON.parse(localStorage.getItem("planNotes")||"[]");
-  document.getElementById("notesList").innerHTML=arr.length?arr.map((x,i)=>`<div class="panel" style="box-shadow:none;margin-bottom:10px"><b>${x.t}</b><div>${x.n}</div><small class="muted">${x.d}</small></div>`).join(""):'<div class="empty">لم تُسجل قرارات بعد.</div>';
+  const arr = JSON.parse(localStorage.getItem("planNotes") || "[]");
+  document.getElementById("notesList").innerHTML = arr.length ? arr.map(x => "<div class='panel' style='box-shadow:none;margin-bottom:10px'><b>" + x.t + "</b><div>" + x.n + "</div><small class='muted'>" + x.d + "</small></div>").join("") : "<div class='empty'>لم تُسجل قرارات بعد.</div>";
 }
 
-function closeModal(){document.getElementById("modal").classList.remove("show");}
-
-document.querySelectorAll(".navbtn").forEach(b=>b.addEventListener("click",()=>{
-  document.querySelectorAll(".navbtn").forEach(x=>x.classList.remove("active"));
+// التنقل بين الأقسام
+document.querySelectorAll(".navbtn").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".navbtn").forEach(x => x.classList.remove("active"));
   b.classList.add("active");
-  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.getElementById(b.dataset.view).classList.add("active");
-  window.scrollTo({top:0,behavior:"smooth"});
+  window.scrollTo({top: 0, behavior: "smooth"});
 }));
 
-// التشغيل الابتدائي
-renderData();renderCoverage();renderPrograms();renderKPIs();renderActions();renderRaci();renderRisks();renderFollow();renderNotes();
+// التشغيل الأولي
+renderData();
+renderCoverage();
+renderPrograms();
+renderKPIs();
+renderActions();
+renderRaci();
+renderRisks();
+renderFollow();
+renderNotes();
 </script>
+
+</body>
+</html>
