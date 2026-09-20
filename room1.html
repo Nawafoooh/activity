@@ -639,6 +639,32 @@
 
 </div>
 
+<!-- Firebase Modular SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // Firebase Configuration - استبدل القيم ببيانات مشروعك في Firebase
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Export Firebase functions to window scope for global UI usage
+    window.db = db;
+    window.doc = doc;
+    window.setDoc = setDoc;
+    window.getDoc = getDoc;
+</script>
+
 <script>
     // Tab Switch Logic
     function switchTab(tabId, btn) {
@@ -705,11 +731,21 @@
         calculateSupervisorStats();
     }
 
-    function saveSingleSupervisorData(id) {
+    async function saveSingleSupervisorData(id) {
         const statusVal = document.getElementById(`sup_status_${id}`).value;
         const ownerVal = document.getElementById(`sup_owner_${id}`).value;
         const noteVal = document.getElementById(`sup_note_${id}`).value;
-        localStorage.setItem(`sup_item_${id}`, JSON.stringify({ status: statusVal, owner: ownerVal, note: noteVal }));
+        const payload = { status: statusVal, owner: ownerVal, note: noteVal };
+        
+        localStorage.setItem(`sup_item_${id}`, JSON.stringify(payload));
+
+        if (window.db) {
+            try {
+                await window.setDoc(window.doc(window.db, "supervisor_feedback", `item_${id}`), payload);
+            } catch(e) {
+                console.error("Firebase sync error:", e);
+            }
+        }
     }
 
     function saveAllSupervisorData() {
@@ -777,10 +813,20 @@
         });
     }
 
-    function saveSingleReq(id) {
+    async function saveSingleReq(id) {
         const status = document.getElementById(`req_status_${id}`).value;
         const note = document.getElementById(`req_note_${id}`).value;
-        localStorage.setItem(`req_item_${id}`, JSON.stringify({ status, note }));
+        const payload = { status, note };
+
+        localStorage.setItem(`req_item_${id}`, JSON.stringify(payload));
+
+        if (window.db) {
+            try {
+                await window.setDoc(window.doc(window.db, "requirements", `req_${id}`), payload);
+            } catch(e) {
+                console.error("Firebase sync error:", e);
+            }
+        }
     }
 
     function saveReqData() {
@@ -843,10 +889,20 @@
         });
     }
 
-    function saveSingleProgram(code) {
+    async function saveSingleProgram(code) {
         const status = document.getElementById(`prog_status_${code}`).value;
         const note = document.getElementById(`prog_note_${code}`).value;
-        localStorage.setItem(`prog_${code}`, JSON.stringify({ status, note }));
+        const payload = { status, note };
+
+        localStorage.setItem(`prog_${code}`, JSON.stringify(payload));
+
+        if (window.db) {
+            try {
+                await window.setDoc(window.doc(window.db, "approved_programs", code), payload);
+            } catch(e) {
+                console.error("Firebase sync error:", e);
+            }
+        }
     }
 
     function saveProgramsData() {
@@ -894,10 +950,20 @@
         });
     }
 
-    function saveSingleKpi(id) {
+    async function saveSingleKpi(id) {
         const status = document.getElementById(`kpi_status_${id}`).value;
         const note = document.getElementById(`kpi_note_${id}`).value;
-        localStorage.setItem(`kpi_item_${id}`, JSON.stringify({ status, note }));
+        const payload = { status, note };
+
+        localStorage.setItem(`kpi_item_${id}`, JSON.stringify(payload));
+
+        if (window.db) {
+            try {
+                await window.setDoc(window.doc(window.db, "live_kpis", id), payload);
+            } catch(e) {
+                console.error("Firebase sync error:", e);
+            }
+        }
     }
 
     function saveKpiData() {
