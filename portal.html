@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بوابة الدخول — نافِس برو</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16211F; --pine:#0D3B36; --pine-light:#155048; --paper:#FBFAF6; --paper-dim:#F1F0E9;
+    --amber:#D9A441; --amber-dim:#F3E2BB; --line:#DFDCD1; --radius-l:16px; --maxw:520px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans Arabic',sans-serif; line-height:1.6;}
+  h1,h2{font-family:'Cairo',sans-serif; color:var(--pine); margin:0;}
+  a{text-decoration:none;}
+
+  .shell{max-width:var(--maxw); margin:0 auto; padding:36px 20px 60px;}
+  .brandbar{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .brandbar .mark{width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,var(--pine),var(--pine-light)); color:var(--amber); display:flex; align-items:center; justify-content:center; font-weight:800; font-family:'Cairo',sans-serif;}
+  .brandbar span{font-family:'Cairo',sans-serif; font-weight:800; color:var(--pine); font-size:1.1rem;}
+  .schoolName{color:#5A6560; font-size:0.92rem; margin-bottom:30px;}
+
+  h1{font-size:1.5rem; text-align:center; margin-bottom:30px;}
+
+  .role-card{
+    display:block; background:#fff; border:1.5px solid var(--line); border-radius:var(--radius-l);
+    padding:26px; margin-bottom:16px; text-align:center; color:inherit;
+    transition:.15s;
+  }
+  .role-card:hover{border-color:var(--pine); box-shadow:0 14px 30px -18px rgba(13,59,54,.35);}
+  .role-card .icon{
+    width:76px; height:76px; border-radius:50%; background:var(--amber-dim); color:#8A6413;
+    display:flex; align-items:center; justify-content:center; font-size:2.1rem; margin:0 auto 16px;
+  }
+  .role-card h2{font-size:1.15rem; margin-bottom:8px;}
+  .role-card p{color:#5A6560; font-size:0.9rem; margin:0;}
+
+  .empty-state{text-align:center; padding:60px 20px; color:#6b7570;}
+  .empty-state .emoji{font-size:2.4rem; margin-bottom:14px;}
+
+  footer{text-align:center; margin-top:30px;}
+  footer a{color:#6b7570; font-size:0.8rem;}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div id="content">
+    <p style="text-align:center; color:#6b7570;">جاري التحميل...</p>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCwmnuN3GmXh-Snj_SGXVYxvC4BoksHuts",
+  authDomain: "naafis-platform.firebaseapp.com",
+  projectId: "naafis-platform",
+  storageBucket: "naafis-platform.firebasestorage.app",
+  messagingSenderId: "337917395597",
+  appId: "1:337917395597:web:6c90a2847ac51ed0c658c4"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+async function render(){
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get('school');
+  const box = document.getElementById('content');
+
+  if(!slug){
+    box.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">⚠️</div>
+        <p>هذا رابط غير مكتمل — اطلب رابط بوابة مدرستك الصحيح من إدارتها.</p>
+      </div>`;
+    return;
+  }
+
+  let schoolName = slug;
+  try{
+    const snap = await getDoc(doc(db, 'schools', slug));
+    if(snap.exists()) schoolName = snap.data().name || slug;
+    else {
+      box.innerHTML = `
+        <div class="empty-state">
+          <div class="emoji">⚠️</div>
+          <p>هذا الرابط لا يخص أي مدرسة مسجَّلة. اطلب الرابط الصحيح من مدرستك.</p>
+        </div>`;
+      return;
+    }
+  }catch(e){
+    box.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div><p>تعذّر تحميل بيانات المدرسة — تحقق من الاتصال وحاول مجددًا.</p></div>`;
+    return;
+  }
+
+  box.innerHTML = `
+    <div class="brandbar"><span class="mark">ن</span><span>نافِس برو</span></div>
+    <div class="schoolName">${schoolName}</div>
+    <h1>اختر نوع حسابك</h1>
+
+    <a class="role-card" href="student.html?school=${encodeURIComponent(slug)}">
+      <div class="icon">🎓</div>
+      <h2>طالب</h2>
+      <p>التسجيل وحل الاختبارات التدريبية</p>
+    </a>
+
+    <a class="role-card" href="teacher.html">
+      <div class="icon">🧑‍🏫</div>
+      <h2>معلم</h2>
+      <p>فتح المهارات ومتابعة نتائج طلابك</p>
+    </a>
+
+    <a class="role-card" href="school-admin.html">
+      <div class="icon">🏫</div>
+      <h2>مدير مدرسة</h2>
+      <p>إدارة المعلمين والطلاب والاشتراك</p>
+    </a>
+
+    <footer><a href="privacy-policy.html">سياسة الخصوصية</a></footer>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>
