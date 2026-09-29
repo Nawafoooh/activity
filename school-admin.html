@@ -122,6 +122,14 @@
   <!-- المعلمون -->
   <section class="panel active" id="panel-teachers">
     <div class="card">
+      <h3 class="section-title">رابط دخول المعلمين لمدرستي</h3>
+      <p style="font-size:0.85rem; color:#6b7570; margin-bottom:10px;">انسخ هذا الرابط وسلّمه لكل معلم — يفتح صفحة المعلم مرتبطة بمدرستك مباشرة.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="text" id="teacherLinkInput" readonly dir="ltr" style="flex:1; min-width:240px; padding:9px 11px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--paper); font-size:0.85rem;">
+        <button type="button" id="copyLinkBtn" class="btn-primary">نسخ الرابط</button>
+      </div>
+    </div>
+    <div class="card">
       <h3 class="section-title">إضافة معلم جديد لمدرستي</h3>
       <div class="grid3" style="margin-bottom:12px;">
         <div class="field"><label>المادة</label><select id="newTeacherSubject"></select></div>
@@ -132,6 +140,10 @@
         <div class="field"><label>اسم المستخدم (بريد صوري يكفي)</label><input type="email" id="newTeacherEmail"></div>
         <div class="field"><label>كلمة المرور</label><input type="text" id="newTeacherPassword" style="font-family:'Cairo',sans-serif;"></div>
         <button type="button" id="addTeacherBtn" class="btn-primary" style="height:40px;">إضافة وإنشاء الحساب</button>
+      </div>
+      <div id="newTeacherResult" style="display:none; margin-top:6px; padding:14px; border:1.5px solid var(--pine); border-radius:var(--radius-s); background:var(--paper);">
+        <div id="newTeacherResultText" style="white-space:pre-line; font-size:0.9rem; line-height:1.9; margin-bottom:10px;"></div>
+        <button type="button" id="copyMsgBtn" class="btn-primary">نسخ الرسالة كاملة (الرابط + بيانات الدخول)</button>
       </div>
     </div>
     <div class="card">
@@ -330,6 +342,7 @@ onAuthStateChanged(auth, async (user)=>{
     const schoolSnap = await getDoc(doc(db, 'schools', mySchoolId));
     const schoolData = schoolSnap.exists() ? schoolSnap.data() : {};
     mySchoolName = schoolData.name || mySchoolId;
+    mySchoolSlug = schoolData.slug || mySchoolId;
     document.getElementById('schoolNameLabel').textContent = mySchoolName;
     renderSubStatusBadge(schoolData.subscriptionExpiry);
     hideLoginGate();
@@ -354,6 +367,29 @@ async function createAuthAccount(email, password){
     try{ await deleteApp(secondaryApp); }catch(_){}
     return { ok: false, code: e.code };
   }
+}
+
+// ---- رابط المعلم ----
+const TEACHER_PAGE_URL = 'https://nawafoooh.github.io/activity/teacher.html';
+let mySchoolSlug = '';
+function getTeacherLink(){
+  return `${TEACHER_PAGE_URL}?school=${encodeURIComponent(mySchoolSlug || mySchoolId)}`;
+}
+async function copyText(text, okMsg){
+  try{
+    await navigator.clipboard.writeText(text);
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(_){}
+    document.body.removeChild(ta);
+  }
+  showToast(okMsg || 'تم النسخ ✓');
+}
+function refreshTeacherLink(){
+  const inp = document.getElementById('teacherLinkInput');
+  if(inp) inp.value = getTeacherLink();
 }
 
 // ---- المعلمون ----
@@ -392,7 +428,9 @@ async function renderTeachersList(){
       <span class="badge info">${t.subject} — ${t.grade}</span>
       <span style="flex:1; font-size:0.8rem; color:#6b7570;">${accountsMap[t.name] || 'بلا حساب'}</span>
       <span class="badge ${hasAccount?'approved':'draft'}">${hasAccount ? 'حساب مفعَّل ✓' : 'بانتظار الحساب'}</span>
+      <button type="button" class="linkBtn" style="background:none; border:1px solid var(--pine); color:var(--pine); border-radius:6px; padding:7px 12px; font-size:0.8rem;">نسخ الرابط</button>
       <button type="button" class="delBtn" style="background:none; border:1px solid var(--brick-dim); color:var(--brick); border-radius:6px; padding:7px 12px; font-size:0.8rem;">حذف</button>`;
+    row.querySelector('.linkBtn').onclick = ()=> copyText(getTeacherLink(), 'تم نسخ رابط المعلم ✓');
     row.querySelector('.delBtn').onclick = async ()=>{
       if(!confirm(`حذف "${t.name}"؟`)) return;
       await deleteDoc(doc(db,'teachers', t.id));
@@ -437,7 +475,7 @@ async function addTeacher(){
     await addDoc(collection(db,'teachers'), { schoolId: mySchoolId, name, subject, grade });
     await setDoc(doc(db,'teacher_accounts', email), { teacherName: name, subject, grade, schoolId: mySchoolId });
     if(result.ok){
-      alert(`تم إنشاء "${name}" بنجاح:\n\nاسم المستخدم: ${email}\nكلمة المرور: ${password}\n\nسلّمها للمعلم الآن.`);
+      showNewTeacherResult(name, email, password);
     } else {
       showToast('هذا البريد له حساب مسبقًا — تم الربط فقط.');
     }
@@ -448,6 +486,14 @@ async function addTeacher(){
     showToast('تعذّر إنشاء الحساب: ' + (result.code || 'خطأ غير معروف'));
   }
   btn.disabled = false; btn.textContent = 'إضافة وإنشاء الحساب';
+}
+
+function showNewTeacherResult(name, email, password){
+  const link = getTeacherLink();
+  const msg = `مرحبًا، تم إنشاء حسابك في منصة نافس (${mySchoolName}):\n\nالرابط: ${link}\nاسم المستخدم: ${email}\nكلمة المرور: ${password}`;
+  document.getElementById('newTeacherResultText').textContent = `تم إنشاء "${name}" بنجاح ✓\n` + msg;
+  document.getElementById('newTeacherResult').style.display = 'block';
+  document.getElementById('copyMsgBtn').onclick = ()=> copyText(msg, 'تم نسخ الرسالة ✓');
 }
 
 // ---- تحكم المهارات ----
@@ -725,6 +771,8 @@ function init(){
   wireLinkedSelects(document.getElementById('ctrlSubject'), document.getElementById('ctrlGrade'), renderSkillControl);
   document.getElementById('ctrlTeacher').onchange = renderSkillControl;
   document.getElementById('addTeacherBtn').onclick = addTeacher;
+  document.getElementById('copyLinkBtn').onclick = ()=> copyText(getTeacherLink(), 'تم نسخ الرابط ✓');
+  refreshTeacherLink();
   document.getElementById('studentSearchBtn').onclick = searchStudent;
   document.getElementById('saveGradeCountsBtn').onclick = saveGradeCounts;
   wireLinkedSelects(document.getElementById('cmpSubject'), document.getElementById('cmpGrade'), renderComparison);
