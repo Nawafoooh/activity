@@ -163,6 +163,8 @@ const SUBJECT_GRADES = {
 
 let myTeacherName = null;
 let mySchoolId = null;
+let mySubject = null;
+let myGrade = null;
 
 function showToast(msg){
   const t = document.getElementById('toast');
@@ -207,6 +209,27 @@ onAuthStateChanged(auth, async (user)=>{
     }
     myTeacherName = snap.data().teacherName;
     mySchoolId = snap.data().schoolId || null;
+    mySubject = snap.data().subject || null;
+    myGrade = snap.data().grade || null;
+    if(!mySubject || !myGrade){
+      showLoginGate('حسابك غير مرتبط بمادة وصف محددين — راجع مدير المدرسة.');
+      await signOut(auth);
+      return;
+    }
+    // تحقق: رابط المدرسة (?school=) يجب أن يطابق مدرسة حساب المعلم
+    const urlSchool = new URLSearchParams(location.search).get('school');
+    if(urlSchool){
+      let mySlug = mySchoolId;
+      try{
+        const sc = await getDoc(doc(db, 'schools', mySchoolId));
+        if(sc.exists() && sc.data().slug) mySlug = sc.data().slug;
+      }catch(e){}
+      if(urlSchool !== mySlug && urlSchool !== mySchoolId){
+        showLoginGate('هذا الحساب لا يتبع المدرسة الموجودة في الرابط — تأكد من الرابط الذي سلّمه لك المدير.');
+        await signOut(auth);
+        return;
+      }
+    }
     document.getElementById('teacherNameLabel').textContent = myTeacherName;
     hideLoginGate();
     if(!appInitialized){ appInitialized = true; init(); }
@@ -239,8 +262,9 @@ function wireLinkedSelects(subjectSel, gradeSel, afterChange){
 function unlockedDocId(subject, grade, teacherName){ return `${mySchoolId}::${subject}::${grade}::${teacherName}`; }
 
 async function renderSkillControl(){
-  const subject = document.getElementById('tSubject').value;
-  const grade = document.getElementById('tGrade').value;
+  // المادة والصف ثابتان من حساب المعلم — لا يُقرآن من القوائم
+  const subject = mySubject;
+  const grade = myGrade;
   const box = document.getElementById('tSkillList');
   box.innerHTML = 'جاري التحميل...';
 
@@ -330,7 +354,11 @@ async function renderMyReports(){
 }
 
 function init(){
-  wireLinkedSelects(document.getElementById('tSubject'), document.getElementById('tGrade'), renderSkillControl);
+  // تثبيت القائمتين على مادة وصف المعلم فقط وتعطيلهما
+  const subSel = document.getElementById('tSubject');
+  const graSel = document.getElementById('tGrade');
+  fillSelect(subSel, [mySubject]); fillSelect(graSel, [myGrade]);
+  subSel.disabled = true; graSel.disabled = true;
   renderSkillControl();
   renderMyReports();
 }
