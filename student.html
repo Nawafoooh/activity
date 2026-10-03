@@ -249,7 +249,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app-check.js";
 import {
-  getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, setDoc
+  getFirestore, collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, setDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -454,19 +454,33 @@ async function showChooseTeacher(subject){
 }
 
 // ---- شاشة 4: المهارة (تُبنى من الأسئلة المعتمدة الفعلية) ----
+// تخزين مؤقت لأسئلة المهارات داخل الجلسة — لتقليل قراءات Firebase
+const skillCache = {};
+function skillKey(skill){ return `${state.schoolId}|${state.subject}|${state.grade}|${skill}`; }
+async function fetchSkillQuestions(skill){
+  const key = skillKey(skill);
+  if(skillCache[key]) return skillCache[key];
+  const q = query(collection(db, PUBLIC_COLLECTION),
+    where('subject','==', state.subject), where('grade','==', state.grade), where('skill','==', skill));
+  const snap = await getDocs(q);
+  const list = [];
+  snap.forEach(d=> list.push({ id:d.id, ...d.data() }));
+  if(list.length) skillCache[key] = list;
+  return list;
+}
+async function countSkill(skill){
+  try{
+    const c = await getCountFromServer(query(collection(db, PUBLIC_COLLECTION),
+      where('subject','==', state.subject), where('grade','==', state.grade), where('skill','==', skill)));
+    return c.data().count;
+  }catch(e){ console.warn('count failed', skill, e); return null; }
+}
+
+// ---- شاشة 4: المهارة (المهارات التي فتحها المعلم فقط — بدون قراءة بنك الأسئلة كله) ----
 async function loadSkillChoices(){
   show('skill');
   const box = document.getElementById('skillChoices');
   box.innerHTML = '<p style="color:#6b7570;">جاري التحميل...</p>';
-  const q = query(collection(db, PUBLIC_COLLECTION),
-    where('subject','==', state.subject), where('grade','==', state.grade));
-  const snap = await getDocs(q);
-  const bySkill = {};
-  snap.forEach(d=>{
-    const data = d.data();
-    if(!bySkill[data.skill]) bySkill[data.skill] = [];
-    bySkill[data.skill].push({ id:d.id, ...data });
-  });
 
   // لا تظهر أي مهارة للطالب إلا بعد فتحها صراحة من معلمه تحديدًا (لكل معلم مستنداته الخاصة)
   let allowedSkills = [];
@@ -476,7 +490,13 @@ async function loadSkillChoices(){
     if(cfgSnap.exists()) allowedSkills = cfgSnap.data().skills || [];
   }catch(e){ console.warn('unlocked skills read failed', e); }
 
-  let skills = Object.keys(bySkill).filter(s=> allowedSkills.includes(s));
+  const counts = await Promise.all(allowedSkills.map(countSkill));
+  const skills = [];
+  const countOf = {};
+  allowedSkills.forEach((sk, idx)=>{
+    if(counts[idx] === 0) return;            // مهارة بلا أسئلة
+    skills.push(sk); countOf[sk] = counts[idx];
+  });
 
   box.innerHTML = '';
   if(!skills.length){
@@ -486,19 +506,28 @@ async function loadSkillChoices(){
   }
   const mastery = loadMastery();
   skills.forEach(skill=>{
-    const count = bySkill[skill].length;
+    const count = countOf[skill];
     const best = mastery[masteryKey(state.subject, state.grade, skill)];
     const b = document.createElement('button');
     b.className = 'choice-card';
     let badgeHtml;
     if(best >= MASTERY_THRESHOLD) badgeHtml = `<span class="badge-count" style="background:var(--green-dim); color:#1C4A30;">متقن ✅ ${best}%</span>`;
     else if(best !== undefined) badgeHtml = `<span class="badge-count">آخر نتيجة ${best}%</span>`;
-    else badgeHtml = `<span class="badge-count">${count} سؤال</span>`;
+    else badgeHtml = count ? `<span class="badge-count">${count} سؤال</span>` : '';
     b.innerHTML = `<span class="icon">${best >= MASTERY_THRESHOLD ? '⭐' : '📝'}</span><span>${skill}</span>${badgeHtml}`;
-    b.onclick = ()=> showTips(skill, bySkill[skill]);
+    b.onclick = async ()=>{
+      b.disabled = true;
+      try{
+        const list = await fetchSkillQuestions(skill);
+        if(list.length) showTips(skill, list);
+        else showToastSafe('لا توجد أسئلة لهذه المهارة الآن');
+      }catch(e){ console.warn('skill questions read failed', e); showToastSafe('تعذّر تحميل الأسئلة — حاول مرة أخرى'); }
+      b.disabled = false;
+    };
     box.appendChild(b);
   });
 }
+function showToastSafe(msg){ try{ alert(msg); }catch(e){} }
 
 // ---- شاشة 4.5: نصائح قبل الاختبار ----
 let pendingQuiz = null;
@@ -620,17 +649,12 @@ async function finishQuiz(){
   show('result');
 }
 
-document.getElementById('retrySkillBtn').onclick = ()=> loadSkillChoices().then(()=>{
-  // إعادة نفس المهارة تحديدًا لو ما زالت متاحة
-});
 document.getElementById('retrySkillBtn').onclick = async ()=>{
-  const q = query(collection(db, PUBLIC_COLLECTION),
-    where('subject','==', state.subject), where('grade','==', state.grade), where('skill','==', state.skill));
-  const snap = await getDocs(q);
-  const list = [];
-  snap.forEach(d=> list.push({id:d.id, ...d.data()}));
-  if(list.length) startQuiz(state.skill, list);
-  else loadSkillChoices();
+  try{
+    const list = await fetchSkillQuestions(state.skill);   // من الذاكرة المؤقتة إن وُجدت
+    if(list.length) startQuiz(state.skill, list);
+    else loadSkillChoices();
+  }catch(e){ console.warn('retry read failed', e); loadSkillChoices(); }
 };
 document.getElementById('anotherSkillBtn').onclick = ()=> loadSkillChoices();
 
