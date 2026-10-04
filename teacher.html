@@ -73,6 +73,17 @@
     .grid2, .stat-grid{grid-template-columns:1fr;}
     .qrow{grid-template-columns:1fr; gap:4px;}
   }
+
+  .tabs{display:flex;gap:8px;margin:0 0 18px;border-bottom:1px solid var(--line)}
+  .tabbtn{background:none;border:0;padding:11px 18px;font-family:inherit;font-weight:700;font-size:.95rem;color:#5A6560;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+  .tabbtn.active{color:var(--pine);border-bottom-color:var(--amber)}
+  .bq{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px;background:#fff;break-inside:avoid}
+  .bq .qn{font-size:.8rem;color:#6b7570;margin-bottom:4px}.bq .qt{font-weight:600;margin-bottom:10px;line-height:1.8}
+  .bq img{max-width:100%;max-height:260px;display:block;margin:0 auto 10px;border-radius:8px}
+  .bq .op{padding:7px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:.93rem}
+  .bq .op.ok{background:var(--green-dim,#DDEFE3);border-color:#7DB394;font-weight:700}
+  .bq .ex{background:var(--paper-dim,#F1F0E9);border-radius:8px;padding:9px 12px;font-size:.88rem;margin-top:8px;color:#3A4441}
+  @media print{header.site,.tabs,#bankControls,#loginGate,.toast,#tabDash{display:none !important}#tabBank{display:block !important}body{background:#fff}}
 </style>
 </head>
 <body>
@@ -99,6 +110,11 @@
 </header>
 
 <main class="wrap">
+  <div class="tabs">
+    <button type="button" class="tabbtn active" id="tabBtnDash">📊 لوحتي</button>
+    <button type="button" class="tabbtn" id="tabBtnBank">📖 الأسئلة (للشرح والمراجعة)</button>
+  </div>
+  <div id="tabDash">
   <div class="stat-grid">
     <div class="stat"><div class="num" id="statStudents">—</div><div class="lbl">طلابي الفريدون</div></div>
     <div class="stat"><div class="num" id="statAttempts">—</div><div class="lbl">إجمالي محاولاتهم</div></div>
@@ -128,6 +144,17 @@
   <div class="card">
     <h3 class="section-title">🌟 طلابي المتميزون (أكثر من 90%)</h3>
     <div id="excelList"><p style="color:#6b7570; font-size:0.9rem;">لا يوجد.</p></div>
+  </div>
+  </div><!-- /tabDash -->
+
+  <div id="tabBank" style="display:none">
+    <div class="card" id="bankControls">
+      <h3 class="section-title">أسئلة مهاراتي — للمعلم فقط</h3>
+      <p style="font-size:0.88rem;color:#5A6560;margin:0 0 12px">اطّلع على أسئلة كل مهارة مع الإجابة الصحيحة قبل شرحها لطلابك. لا تُحتسب لك محاولات ولا تظهر للطلاب.</p>
+      <div class="field"><label>المهارة</label><select id="bankSkillSel"></select></div>
+      <button type="button" id="bankPrintBtn" style="margin-top:10px;background:none;border:1px solid var(--pine);color:var(--pine);border-radius:6px;padding:8px 14px;font-weight:700;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
+    </div>
+    <div id="bankList"></div>
   </div>
 </main>
 </div>
@@ -267,6 +294,49 @@ function wireLinkedSelects(subjectSel, gradeSel, afterChange){
 
 function unlockedDocId(subject, grade, teacherName){ return `${mySchoolId}::${subject}::${grade}::${teacherName}`; }
 
+
+// ---- تبويب الأسئلة للمعلم (من نفس القراءة المخزنة — بدون قراءات إضافية) ----
+let bankQuestions = [];
+function fillBankSkills(skills){
+  const sel = document.getElementById('bankSkillSel');
+  sel.innerHTML = '';
+  skills.forEach(sk=>{ const o = document.createElement('option'); o.value = sk; o.textContent = sk; sel.appendChild(o); });
+  renderBankList();
+}
+function renderBankList(){
+  const skill = document.getElementById('bankSkillSel').value;
+  const box = document.getElementById('bankList');
+  box.innerHTML = '';
+  const list = bankQuestions.filter(q=> q.skill === skill).sort((a,b)=> String(a.id).localeCompare(String(b.id)));
+  if(!list.length){ box.innerHTML = '<p style="color:#6b7570">لا توجد أسئلة لهذه المهارة.</p>'; return; }
+  const head = document.createElement('p');
+  head.style.cssText = 'font-weight:700;color:var(--pine);margin:6px 2px 12px';
+  head.textContent = `${skill} — ${list.length} سؤال (${mySubject} — ${myGrade})`;
+  box.appendChild(head);
+  list.forEach((q,i)=>{
+    const card = document.createElement('div'); card.className = 'bq';
+    const n = document.createElement('div'); n.className = 'qn'; n.textContent = `سؤال ${i+1}`; card.appendChild(n);
+    if(q.imageDataUrl){ const im = document.createElement('img'); im.src = q.imageDataUrl; im.alt = ''; card.appendChild(im); }
+    const t = document.createElement('div'); t.className = 'qt'; t.textContent = q.text || ''; card.appendChild(t);
+    (q.options||[]).forEach((o,oi)=>{
+      const d = document.createElement('div'); d.className = 'op' + (oi===q.correctIndex ? ' ok' : '');
+      d.textContent = (oi===q.correctIndex ? '✓ ' : '') + o; card.appendChild(d);
+    });
+    if(q.explanation){ const e = document.createElement('div'); e.className = 'ex'; e.textContent = 'التوضيح: ' + q.explanation; card.appendChild(e); }
+    box.appendChild(card);
+  });
+}
+function showTab(which){
+  document.getElementById('tabDash').style.display = which==='dash' ? 'block' : 'none';
+  document.getElementById('tabBank').style.display = which==='bank' ? 'block' : 'none';
+  document.getElementById('tabBtnDash').classList.toggle('active', which==='dash');
+  document.getElementById('tabBtnBank').classList.toggle('active', which==='bank');
+}
+document.getElementById('tabBtnDash').onclick = ()=> showTab('dash');
+document.getElementById('tabBtnBank').onclick = ()=> showTab('bank');
+document.getElementById('bankSkillSel').onchange = renderBankList;
+document.getElementById('bankPrintBtn').onclick = ()=> window.print();
+
 async function renderSkillControl(){
   // المادة والصف ثابتان من حساب المعلم — لا يُقرآن من القوائم
   const subject = mySubject;
@@ -277,8 +347,10 @@ async function renderSkillControl(){
   // مهارات المادة/الصف من الأسئلة المعتمدة الفعلية (لا حاجة لصلاحية قراءة بنك الأسئلة الإداري)
   const snap = await getDocs(query(collection(db,'approved_questions'), where('subject','==',subject), where('grade','==',grade)));
   const countBySkill = {};
-  snap.forEach(d=>{ const s = d.data().skill; countBySkill[s] = (countBySkill[s]||0)+1; });
+  bankQuestions = [];
+  snap.forEach(d=>{ const dd = d.data(); countBySkill[dd.skill] = (countBySkill[dd.skill]||0)+1; bankQuestions.push({ id:d.id, ...dd }); });
   const allSkills = Object.keys(countBySkill);
+  fillBankSkills(allSkills);
 
   let unlocked = [];
   try{
