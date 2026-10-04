@@ -411,7 +411,7 @@ async function getMyTeacherAccountsMap(){
   const map = {};
   try{
     const snap = await getDocs(query(collection(db,'teacher_accounts'), where('schoolId','==', mySchoolId)));
-    snap.forEach(d=>{ map[d.data().teacherName] = d.id; });
+    snap.forEach(d=>{ const n = d.data().teacherName; (map[n] = map[n] || []).push(d.id); });
   }catch(e){ console.warn(e); }
   return map;
 }
@@ -426,13 +426,17 @@ async function renderTeachersList(){
   box.innerHTML = '';
   if(!teachers.length){ box.innerHTML = '<p style="color:#6b7570; font-size:0.9rem;">لا يوجد معلمون بعد.</p>'; return; }
   teachers.forEach(t=>{
-    const hasAccount = !!accountsMap[t.name];
+    const candidates = accountsMap[t.name] || [];
+    const shownEmail = t.email ? t.email
+      : (candidates.length === 1 ? candidates[0]
+      : (candidates.length > 1 ? candidates.join(' / ') + ' ⚠️ (أكثر من حساب بنفس الاسم)' : ''));
+    const hasAccount = !!shownEmail;
     const row = document.createElement('div');
     row.className = 'row';
     row.innerHTML = `
       <span style="font-weight:700; color:var(--pine); min-width:130px;">${t.name}</span>
       <span class="badge info">${t.subject} — ${t.grade}</span>
-      <span style="flex:1; font-size:0.8rem; color:#6b7570;">${accountsMap[t.name] || 'بلا حساب'}</span>
+      <span style="flex:1; font-size:0.8rem; color:#6b7570;">${shownEmail || 'بلا حساب'}</span>
       <span class="badge ${hasAccount?'approved':'draft'}">${hasAccount ? 'حساب مفعَّل ✓' : 'بانتظار الحساب'}</span>
       <button type="button" class="linkBtn" style="background:none; border:1px solid var(--pine); color:var(--pine); border-radius:6px; padding:7px 12px; font-size:0.8rem;">نسخ الرابط</button>
       <button type="button" class="delBtn" style="background:none; border:1px solid var(--brick-dim); color:var(--brick); border-radius:6px; padding:7px 12px; font-size:0.8rem;">حذف</button>`;
@@ -460,7 +464,7 @@ async function addTeacher(){
   }
   if(existing.some(t=>t.name===name)){ showToast('هذا الاسم موجود بالفعل'); return; }
 
-  const email = emailInput.value.trim();
+  const email = emailInput.value.trim().toLowerCase();   // Firebase يحفظ البريد بأحرف صغيرة دائمًا
   const password = passwordInput.value.trim();
   if(!email || !/^\S+@\S+\.\S+$/.test(email)){ showToast('اكتب اسم مستخدم بصيغة بريد صحيحة'); return; }
   if(password.length < 6){ showToast('كلمة المرور 6 خانات على الأقل'); return; }
@@ -478,7 +482,7 @@ async function addTeacher(){
   }
 
   if(result.ok || result.code === 'auth/email-already-in-use'){
-    await addDoc(collection(db,'teachers'), { schoolId: mySchoolId, name, subject, grade });
+    await addDoc(collection(db,'teachers'), { schoolId: mySchoolId, name, subject, grade, email });
     await setDoc(doc(db,'teacher_accounts', email), { teacherName: name, subject, grade, schoolId: mySchoolId });
     if(result.ok){
       showNewTeacherResult(name, email, password);
