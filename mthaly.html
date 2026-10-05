@@ -90,6 +90,12 @@ tr.leader .leader-tag { display:inline; }
 .pop .custom { display:flex; gap:6px; width:100%; }
 .pop .custom input { flex:1; min-width:0; padding:8px; border:1px solid var(--input-line); background:var(--input-bg); color:var(--text); border-radius:6px; text-align:center; font-size:15px; }
 .pop .custom button { flex:0 0 auto; background:var(--noor-blue); color:#fff; border-color:var(--noor-blue); padding:8px 14px; }
+.score-input { width:96px; padding:6px; border:2px solid var(--noor-light-blue); background:var(--input-bg); color:var(--text); border-radius:8px; text-align:center; font-weight:700; font-size:19px; }
+.score-input:focus { background:var(--row-alt); }
+button.dirty { background:var(--gold); color:#000; border-color:var(--gold); }
+@keyframes flash { from { background:var(--gold); } to { background:transparent; } }
+tr.flash td { animation:flash 1.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { tr.flash td { animation:none; } }
 .view-hint { background:var(--prize-bg); color:var(--gold-text); border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:14px; }
 .quick { display:flex; gap:6px; flex-wrap:nowrap; }
 .quick button { padding:5px 10px; font-size:14px; border-radius:6px; border:1px solid var(--input-line); background:var(--input-bg); color:var(--text); min-width:48px; }
@@ -159,7 +165,7 @@ tr.leader .leader-tag { display:inline; }
       <div class="table-title">📊 لوحة رصد درجات الفصول وتحديد المتصدر</div>
       <div class="btns">
         <span class="mode-pill" id="modePill">عرض فقط</span>
-        <button class="btn-primary admin-only hidden" id="btnSort">ترتيب الفصول 🔄</button>
+        <button class="btn-primary admin-only hidden" id="btnSave">حفظ التغييرات 💾</button>
         <button class="btn-danger admin-only hidden" id="btnReset">بدء أسبوع جديد</button>
         <button class="btn-ghost" id="btnPrint">طباعة / PDF 🖨️</button>
         <button class="btn-ghost admin-only hidden" id="btnExit">إنهاء وضع التعديل</button>
@@ -225,7 +231,6 @@ function detectAdmin() {
   return ok;
 }
 let isAdmin = detectAdmin();
-let saveTimer = null;
 let state = { classes: buildDefaults(), sorted: false };
 
 function buildDefaults() {
@@ -246,53 +251,24 @@ const esc = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(
 const setStatus = (t) => { $("status").textContent = t; };
 
 const round1 = (n) => Math.round(n * 10) / 10;
+let dirty = false;
 
-// نافذة التعديل السريع للدرجة
-const pop = document.createElement("div");
-pop.className = "pop hidden";
-pop.innerHTML =
-  '<button type="button" class="q-minus" data-d="-1">−1</button>' +
-  '<button type="button" class="q-minus" data-d="-0.5">−0.5</button>' +
-  '<button type="button" class="q-plus" data-d="0.5">+0.5</button>' +
-  '<button type="button" class="q-plus" data-d="1">+1</button>' +
-  '<div class="custom"><input type="number" step="0.5" id="popCustom" placeholder="أو اكتب الدرجة"><button type="button" id="popApply">تطبيق</button></div>';
-document.body.appendChild(pop);
-let popTarget = null;
-
-function closePop() { pop.classList.add("hidden"); popTarget = null; }
-function openPop(c, btn) {
-  popTarget = { c, btn };
-  pop.classList.remove("hidden");
-  const r = btn.getBoundingClientRect();
-  pop.style.top = Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8) + "px";
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
-  $("popCustom").value = "";
+function setDirty(v) {
+  dirty = v;
+  $("btnSave").classList.toggle("dirty", v);
+  if (v) setStatus("⚠️ توجد تغييرات غير محفوظة. اضغط «حفظ التغييرات» ليراها الجميع.");
 }
-function setScore(v) {
-  if (!popTarget) return;
-  popTarget.c.score = round1(v);
-  popTarget.btn.textContent = popTarget.c.score;
-  queueSave();
-}
-pop.querySelectorAll("[data-d]").forEach(b => b.addEventListener("click", () => {
-  if (popTarget) setScore(popTarget.c.score + parseFloat(b.dataset.d));
-}));
-function applyCustom() { const v = parseFloat($("popCustom").value); if (!isNaN(v)) { setScore(v); $("popCustom").value = ""; } }
-$("popApply").addEventListener("click", applyCustom);
-$("popCustom").addEventListener("keydown", (e) => { if (e.key === "Enter") applyCustom(); });
-document.addEventListener("click", (e) => { if (!pop.contains(e.target) && !e.target.closest(".score-btn")) closePop(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
-window.addEventListener("scroll", closePop, true);
 
-function render() {
-  closePop();
+window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+function render(flashId) {
   const scores = state.classes.map(c => c.score);
   const top = Math.max(...scores), bottom = Math.min(...scores);
   const showLeader = state.sorted && top !== bottom;
   tbody.innerHTML = "";
   state.classes.forEach((c, i) => {
     const tr = document.createElement("tr");
-    if (showLeader && c.score === top) tr.className = "leader";
+    tr.className = (showLeader && c.score === top ? "leader" : "") + (c.id === flashId ? " flash" : "");
     const dis = isAdmin ? "" : "disabled";
     tr.innerHTML =
       `<td><span class="rank-badge">${state.sorted ? i + 1 : "–"}</span></td>` +
@@ -302,49 +278,56 @@ function render() {
       `<td><input class="input-notes" type="text" value="${esc(c.notes)}" ${dis} placeholder="${isAdmin ? "اكتب نوع المخالفة أو الملاحظة هنا" : ""}" aria-label="ملاحظات ${esc(c.grade)} ${esc(c.name)}"></td>`;
     const cell = tr.querySelector(".score-cell");
     if (isAdmin) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "score-btn";
-      btn.textContent = c.score;
-      btn.setAttribute("aria-label", `تعديل درجة ${c.grade} ${c.name}`);
-      btn.addEventListener("click", () => openPop(c, btn));
-      cell.appendChild(btn);
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.step = "0.5";
+      inp.inputMode = "decimal";
+      inp.className = "score-input";
+      inp.value = c.score;
+      inp.setAttribute("aria-label", `درجة ${c.grade} ${c.name}`);
+      inp.addEventListener("focus", () => inp.select());
+      // عند تغيير الرقم: يُعاد ترتيب الفصول فوراً
+      inp.addEventListener("change", () => {
+        const v = parseFloat(inp.value);
+        if (isNaN(v)) { inp.value = c.score; return; }
+        c.score = round1(v);
+        state.classes.sort((a, b) => b.score - a.score);
+        state.sorted = true;
+        setDirty(true);
+        render(c.id);
+      });
+      cell.appendChild(inp);
     } else {
       cell.innerHTML = `<span class="score-view">${c.score}</span>`;
     }
-    tr.querySelector(".input-notes").addEventListener("input", (e) => { c.notes = e.target.value; queueSave(); });
+    tr.querySelector(".input-notes").addEventListener("input", (e) => { c.notes = e.target.value; setDirty(true); });
     tbody.appendChild(tr);
   });
 }
 
-function queueSave() {
+async function saveNow() {
   if (!isAdmin) return;
   setStatus("جاري الحفظ…");
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveNow, 700);
-}
-
-async function saveNow() {
-  saveTimer = null;
   try {
     await setDoc(ref, { classes: state.classes, sorted: state.sorted, updatedAt: serverTimestamp() });
+    setDirty(false);
     setStatus("تم الحفظ ✔ وتظهر التغييرات للجميع مباشرة.");
   } catch (e) {
     setStatus(e.code === "permission-denied"
-      ? "لا تملك صلاحية التعديل. تأكد أن بريدك مضاف في قواعد Firestore."
+      ? "تعذّر الحفظ: راجع قواعد Firestore (يجب أن تسمح بالكتابة)."
       : "تعذّر الحفظ: " + e.message);
   }
 }
 
 // المزامنة المباشرة لجميع من يفتح الصفحة
 onSnapshot(ref, (snap) => {
-  if (snap.metadata.hasPendingWrites || saveTimer) return;   // لا نكتب فوق تعديل جارٍ
+  if (dirty || snap.metadata.hasPendingWrites) return;   // لا نكتب فوق تعديل لم يُحفظ
   if (snap.exists()) {
     const d = snap.data();
     if (Array.isArray(d.classes) && d.classes.length === 20) state = { classes: d.classes, sorted: !!d.sorted };
   }
   render();
-  setStatus(snap.exists() ? "البيانات محدّثة مباشرة." : "لا توجد بيانات محفوظة بعد. سجّل دخول الإدارة وابدأ الرصد.");
+  setStatus(snap.exists() ? "البيانات محدّثة مباشرة." : "لا توجد بيانات محفوظة بعد. ابدأ الرصد ثم اضغط «حفظ التغييرات».");
 }, (err) => {
   setStatus(err.code === "permission-denied"
     ? "لا يمكن قراءة البيانات. راجع قواعد Firestore."
@@ -359,20 +342,13 @@ $("modePill").textContent = isAdmin ? "وضع التعديل" : "عرض فقط";
 $("modePill").classList.toggle("edit", isAdmin);
 $("btnExit").addEventListener("click", () => { try { localStorage.removeItem("ic-admin"); } catch (e) {} location.reload(); });
 
-$("btnSort").addEventListener("click", () => {
-  state.classes.sort((a, b) => b.score - a.score);
-  state.sorted = true;
-  render();
-  clearTimeout(saveTimer);
-  saveNow();
-});
+$("btnSave").addEventListener("click", saveNow);
 
 $("btnReset").addEventListener("click", () => {
-  if (!confirm("سيتم إعادة جميع الفصول إلى " + START_SCORE + " نقطة ومسح الملاحظات للجميع. هل تريد المتابعة؟")) return;
+  if (!confirm("سيتم إعادة جميع الفصول إلى " + START_SCORE + " نقطة ومسح الملاحظات. هل تريد المتابعة؟")) return;
   state = { classes: buildDefaults(), sorted: false };
   render();
-  clearTimeout(saveTimer);
-  saveNow();
+  setDirty(true);
 });
 
 $("btnPrint").addEventListener("click", () => window.print());
