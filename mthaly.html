@@ -81,6 +81,16 @@ tbody tr.leader { background:var(--gold-bg) !important; box-shadow:inset 0 0 0 2
 tr.leader .rank-badge { background:var(--gold); color:#000; }
 .leader-tag { display:none; color:var(--gold-text); font-weight:700; font-size:13px; margin-inline-start:8px; }
 tr.leader .leader-tag { display:inline; }
+.score-btn { font-weight:700; font-size:19px; min-width:84px; padding:6px 12px; border:2px dashed var(--noor-light-blue); background:var(--input-bg); color:var(--text); border-radius:8px; cursor:pointer; }
+.score-btn:hover { background:var(--row-alt); }
+.pop { position:fixed; z-index:50; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; display:flex; flex-wrap:wrap; gap:6px; width:250px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+.pop button { flex:1; min-width:52px; padding:9px 4px; font-size:16px; border-radius:6px; border:1px solid var(--input-line); background:var(--input-bg); color:var(--text); }
+.pop .q-minus { color:var(--danger); border-color:var(--danger); }
+.pop .q-plus { color:var(--success); border-color:var(--success); }
+.pop .custom { display:flex; gap:6px; width:100%; }
+.pop .custom input { flex:1; min-width:0; padding:8px; border:1px solid var(--input-line); background:var(--input-bg); color:var(--text); border-radius:6px; text-align:center; font-size:15px; }
+.pop .custom button { flex:0 0 auto; background:var(--noor-blue); color:#fff; border-color:var(--noor-blue); padding:8px 14px; }
+.view-hint { background:var(--prize-bg); color:var(--gold-text); border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:14px; }
 .quick { display:flex; gap:6px; flex-wrap:nowrap; }
 .quick button { padding:5px 10px; font-size:14px; border-radius:6px; border:1px solid var(--input-line); background:var(--input-bg); color:var(--text); min-width:48px; }
 .quick .q-minus { color:var(--danger); border-color:var(--danger); }
@@ -91,7 +101,7 @@ tr.leader .leader-tag { display:inline; }
 @media print {
   :root { --bg:#fff; --card:#fff; --text:#000; --line:#bbb; --row-alt:#f5f5f5; --gold-bg:#FFF7DB; }
   body { padding:0; }
-  .btns, .status, .rules-grid, .login-panel, .mode-pill { display:none !important; }
+  .btns, .status, .rules-grid, .login-panel, .mode-pill, .pop, .view-hint { display:none !important; }
   .header-card, th, tbody tr.leader, .rank-badge { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .input-score, .input-notes { border:none; }
   .table-section { border:none; padding:0; }
@@ -156,6 +166,8 @@ tr.leader .leader-tag { display:inline; }
       </div>
     </div>
 
+    <div class="view-hint hidden" id="viewHint">هذه نسخة للعرض فقط. للتعديل افتح رابط المشرف (الذي ينتهي بـ <span dir="ltr">#m=…</span>) مرة واحدة على هذا الجهاز.</div>
+
     <div class="table-wrap">
       <table>
         <thead>
@@ -163,8 +175,7 @@ tr.leader .leader-tag { display:inline; }
             <th style="width:70px">الترتيب</th>
             <th style="width:190px">المرحلة الدراسية</th>
             <th style="width:150px">الفصل / الشعبة</th>
-            <th style="width:150px">إجمالي النقاط</th>
-            <th class="admin-only hidden" style="width:190px">تعديل سريع</th>
+            <th style="width:170px">إجمالي النقاط</th>
             <th>الملاحظات ورصد المخالفات</th>
           </tr>
         </thead>
@@ -234,7 +245,47 @@ function buildDefaults() {
 const esc = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const setStatus = (t) => { $("status").textContent = t; };
 
+const round1 = (n) => Math.round(n * 10) / 10;
+
+// نافذة التعديل السريع للدرجة
+const pop = document.createElement("div");
+pop.className = "pop hidden";
+pop.innerHTML =
+  '<button type="button" class="q-minus" data-d="-1">−1</button>' +
+  '<button type="button" class="q-minus" data-d="-0.5">−0.5</button>' +
+  '<button type="button" class="q-plus" data-d="0.5">+0.5</button>' +
+  '<button type="button" class="q-plus" data-d="1">+1</button>' +
+  '<div class="custom"><input type="number" step="0.5" id="popCustom" placeholder="أو اكتب الدرجة"><button type="button" id="popApply">تطبيق</button></div>';
+document.body.appendChild(pop);
+let popTarget = null;
+
+function closePop() { pop.classList.add("hidden"); popTarget = null; }
+function openPop(c, btn) {
+  popTarget = { c, btn };
+  pop.classList.remove("hidden");
+  const r = btn.getBoundingClientRect();
+  pop.style.top = Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8) + "px";
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + "px";
+  $("popCustom").value = "";
+}
+function setScore(v) {
+  if (!popTarget) return;
+  popTarget.c.score = round1(v);
+  popTarget.btn.textContent = popTarget.c.score;
+  queueSave();
+}
+pop.querySelectorAll("[data-d]").forEach(b => b.addEventListener("click", () => {
+  if (popTarget) setScore(popTarget.c.score + parseFloat(b.dataset.d));
+}));
+function applyCustom() { const v = parseFloat($("popCustom").value); if (!isNaN(v)) { setScore(v); $("popCustom").value = ""; } }
+$("popApply").addEventListener("click", applyCustom);
+$("popCustom").addEventListener("keydown", (e) => { if (e.key === "Enter") applyCustom(); });
+document.addEventListener("click", (e) => { if (!pop.contains(e.target) && !e.target.closest(".score-btn")) closePop(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
+window.addEventListener("scroll", closePop, true);
+
 function render() {
+  closePop();
   const scores = state.classes.map(c => c.score);
   const top = Math.max(...scores), bottom = Math.min(...scores);
   const showLeader = state.sorted && top !== bottom;
@@ -247,21 +298,21 @@ function render() {
       `<td><span class="rank-badge">${state.sorted ? i + 1 : "–"}</span></td>` +
       `<td>${esc(c.grade)}</td>` +
       `<td><strong>${esc(c.name)}</strong><span class="leader-tag">المتصدر 👑</span></td>` +
-      `<td><input class="input-score" type="number" step="0.5" value="${c.score}" ${dis} aria-label="نقاط ${esc(c.grade)} ${esc(c.name)}"></td>` +
-      (isAdmin ? `<td><div class="quick">
-         <button type="button" class="q-minus" data-d="-1" aria-label="خصم 1">−1</button>
-         <button type="button" class="q-minus" data-d="-0.5" aria-label="خصم نصف">−0.5</button>
-         <button type="button" class="q-plus" data-d="1" aria-label="زيادة 1">+1</button></div></td>` : "") +
-      `<td><input class="input-notes" type="text" value="${esc(c.notes)}" ${dis} placeholder="${isAdmin ? "مثال: مخالفة سلوكية - المستوى الثاني (-2)" : ""}" aria-label="ملاحظات ${esc(c.grade)} ${esc(c.name)}"></td>`;
-    const scoreIn = tr.querySelector(".input-score");
-    const notesIn = tr.querySelector(".input-notes");
-    scoreIn.addEventListener("input", () => { const v = parseFloat(scoreIn.value); c.score = isNaN(v) ? 0 : v; queueSave(); });
-    tr.querySelectorAll(".quick button").forEach(btn => btn.addEventListener("click", () => {
-      c.score = Math.round((c.score + parseFloat(btn.dataset.d)) * 10) / 10;
-      scoreIn.value = c.score;
-      queueSave();
-    }));
-    notesIn.addEventListener("input", () => { c.notes = notesIn.value; queueSave(); });
+      `<td class="score-cell"></td>` +
+      `<td><input class="input-notes" type="text" value="${esc(c.notes)}" ${dis} placeholder="${isAdmin ? "اكتب نوع المخالفة أو الملاحظة هنا" : ""}" aria-label="ملاحظات ${esc(c.grade)} ${esc(c.name)}"></td>`;
+    const cell = tr.querySelector(".score-cell");
+    if (isAdmin) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "score-btn";
+      btn.textContent = c.score;
+      btn.setAttribute("aria-label", `تعديل درجة ${c.grade} ${c.name}`);
+      btn.addEventListener("click", () => openPop(c, btn));
+      cell.appendChild(btn);
+    } else {
+      cell.innerHTML = `<span class="score-view">${c.score}</span>`;
+    }
+    tr.querySelector(".input-notes").addEventListener("input", (e) => { c.notes = e.target.value; queueSave(); });
     tbody.appendChild(tr);
   });
 }
@@ -303,6 +354,7 @@ onSnapshot(ref, (snap) => {
 
 // تهيئة وضع التعديل
 document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin));
+$("viewHint").classList.toggle("hidden", isAdmin);
 $("modePill").textContent = isAdmin ? "وضع التعديل" : "عرض فقط";
 $("modePill").classList.toggle("edit", isAdmin);
 $("btnExit").addEventListener("click", () => { try { localStorage.removeItem("ic-admin"); } catch (e) {} location.reload(); });
