@@ -94,13 +94,19 @@ tr.leader .leader-tag { display:inline; }
 @keyframes flash { from { background:var(--gold); } to { background:transparent; } }
 tr.flash td { animation:flash 1.2s ease-out; }
 @media (prefers-reduced-motion: reduce) { tr.flash td { animation:none; } }
+.mv { display:inline-block; min-width:46px; text-align:center; font-weight:700; font-size:13px; margin-inline-end:8px; padding:1px 7px; border-radius:12px; }
+.mv.up { color:var(--success); background:var(--plus-bg); }
+.mv.down { color:var(--danger); background:var(--minus-bg); }
+.legend { font-size:13px; color:var(--muted); margin-top:10px; }
+.legend .up { color:var(--success); font-weight:700; }
+.legend .down { color:var(--danger); font-weight:700; }
 .status { font-size:14px; color:var(--muted); margin-top:12px; min-height:22px; }
 
 @media print {
   :root { --bg:#fff; --card:#fff; --text:#000; --line:#bbb; --row-alt:#f5f5f5; --gold-bg:#FFF7DB; }
   body { padding:0; }
   .btns, .status, .rules-grid, .view-hint, .pill { display:none !important; }
-  .header-card, th, tbody tr.leader, .rank-badge { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .header-card, th, tbody tr.leader, .rank-badge, .mv { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .score-input, .input-notes { border:none; }
   .table-section { border:none; padding:0; }
 }
@@ -182,6 +188,7 @@ tr.flash td { animation:flash 1.2s ease-out; }
         <tbody id="tableBody"></tbody>
       </table>
     </div>
+    <div class="legend"><span class="up">▲ أخضر</span> صعد الفصل في الترتيب، <span class="down">▼ أحمر</span> نزل، والرقم يدل على عدد المراكز مقارنة بآخر ترتيب محفوظ.</div>
     <div class="status" id="status" role="status"></div>
     <noscript><p class="status">تحتاج هذه الصفحة إلى تفعيل JavaScript في المتصفح.</p></noscript>
   </section>
@@ -228,10 +235,28 @@ tr.flash td { animation:flash 1.2s ease-out; }
     var list = [], id = 0;
     grades.forEach(function (gr) {
       for (var i = 1; i <= gr.n; i++) {
-        list.push({ id: id++, grade: gr.g, name: "شعبة " + i, score: START_SCORE, notes: "" });
+        list.push({ id: id, grade: gr.g, name: "شعبة " + i, score: START_SCORE, notes: "", rank: 1, prev: 1 });
+        id++;
       }
     });
     return list;
+  }
+
+  // يضمن وجود حقلي المرتبة الحالية والسابقة (للبيانات القديمة)
+  // المرتبة مع احتساب التعادل: الفصول المتساوية في الدرجة تأخذ المركز نفسه
+  function ranksOf(classes) {
+    return classes.map(function (c) {
+      return 1 + classes.filter(function (o) { return o.score > c.score; }).length;
+    });
+  }
+
+  function normalize(classes) {
+    var rk = ranksOf(classes);
+    classes.forEach(function (c, i) {
+      if (typeof c.rank !== "number") c.rank = rk[i];
+      if (typeof c.prev !== "number") c.prev = c.rank;
+    });
+    return classes;
   }
 
   function validState(d) {
@@ -246,7 +271,7 @@ tr.flash td { animation:flash 1.2s ease-out; }
 
   try {
     var saved = JSON.parse(lsGet(LS_DATA) || "null");
-    if (validState(saved)) state = { classes: saved.classes, sorted: !!saved.sorted };
+    if (validState(saved)) state = { classes: normalize(saved.classes), sorted: !!saved.sorted };
   } catch (e) {}
 
   /* ---------- وضع التعديل ---------- */
@@ -276,13 +301,21 @@ tr.flash td { animation:flash 1.2s ease-out; }
     var showLeader = state.sorted && top !== bottom;
     tbody.innerHTML = "";
 
+    // هل هناك تغيير في الترتيب لم يُحفظ بعد؟ عندها نقارن بآخر ترتيب محفوظ، وإلا بالترتيب الذي قبله
+    var rk = ranksOf(state.classes);
+    var pending = state.classes.some(function (c, i) { return c.rank !== rk[i]; });
+
     state.classes.forEach(function (c, i) {
+      var delta = !state.sorted ? 0 : (pending ? c.rank - rk[i] : c.prev - c.rank);
+      var mv = "";
+      if (delta > 0) mv = '<span class="mv up" title="صعد ' + delta + ' مراكز" aria-label="صعد ' + delta + ' مراكز">▲ ' + delta + "</span>";
+      else if (delta < 0) mv = '<span class="mv down" title="نزل ' + (-delta) + ' مراكز" aria-label="نزل ' + (-delta) + ' مراكز">▼ ' + (-delta) + "</span>";
       var tr = document.createElement("tr");
       tr.className = (showLeader && c.score === top ? "leader" : "") + (c.id === flashId ? " flash" : "");
       tr.innerHTML =
-        '<td><span class="rank-badge">' + (state.sorted ? i + 1 : "–") + "</span></td>" +
+        '<td><span class="rank-badge">' + (state.sorted ? rk[i] : "–") + "</span></td>" +
         "<td>" + esc(c.grade) + "</td>" +
-        "<td><strong>" + esc(c.name) + '</strong><span class="leader-tag">المتصدر 👑</span></td>' +
+        "<td>" + mv + "<strong>" + esc(c.name) + '</strong><span class="leader-tag">المتصدر 👑</span></td>' +
         '<td class="score-cell"></td>' +
         '<td><input class="input-notes" type="text" value="' + esc(c.notes) + '"' +
           (isAdmin ? ' placeholder="اكتب نوع المخالفة أو الملاحظة هنا"' : " disabled") +
@@ -322,8 +355,19 @@ tr.flash td { animation:flash 1.2s ease-out; }
   }
 
   /* ---------- الحفظ ---------- */
+  // عند الحفظ: يصبح الترتيب الحالي هو المحفوظ، ويُحتفظ بالسابق لحساب الأسهم
+  function commitRanks() {
+    if (!state.sorted) return;
+    var rk = ranksOf(state.classes);
+    var changed = state.classes.some(function (c, i) { return c.rank !== rk[i]; });
+    if (!changed) return;
+    state.classes.forEach(function (c, i) { c.prev = c.rank; c.rank = rk[i]; });
+    render();
+  }
+
   function saveNow() {
     if (!isAdmin) return Promise.resolve();
+    commitRanks();
     setStatus("جاري الحفظ…");
     var okLocal = lsSet(LS_DATA, JSON.stringify(state));   // نسخة احتياطية محلية دائماً
     if (!cloud) {
@@ -419,7 +463,7 @@ tr.flash td { animation:flash 1.2s ease-out; }
         if (dirty || snap.metadata.hasPendingWrites) return;      // لا نكتب فوق تعديل لم يُحفظ
         if (snap.exists()) {
           var d = snap.data();
-          if (validState(d)) state = { classes: d.classes, sorted: !!d.sorted };
+          if (validState(d)) state = { classes: normalize(d.classes), sorted: !!d.sorted };
           setStatus("البيانات محدّثة مباشرة.");
         } else {
           setStatus("لا توجد بيانات محفوظة بعد. ابدأ الرصد ثم اضغط «حفظ التغييرات».");
