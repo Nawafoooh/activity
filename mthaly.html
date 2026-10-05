@@ -81,6 +81,11 @@ tbody tr.leader { background:var(--gold-bg) !important; box-shadow:inset 0 0 0 2
 tr.leader .rank-badge { background:var(--gold); color:#000; }
 .leader-tag { display:none; color:var(--gold-text); font-weight:700; font-size:13px; margin-inline-start:8px; }
 tr.leader .leader-tag { display:inline; }
+.quick { display:flex; gap:6px; flex-wrap:nowrap; }
+.quick button { padding:5px 10px; font-size:14px; border-radius:6px; border:1px solid var(--input-line); background:var(--input-bg); color:var(--text); min-width:48px; }
+.quick .q-minus { color:var(--danger); border-color:var(--danger); }
+.quick .q-plus { color:var(--success); border-color:var(--success); }
+.quick button:active { transform:scale(.95); }
 .status { font-size:13px; color:var(--muted); margin-top:12px; min-height:20px; }
 
 @media print {
@@ -147,16 +152,8 @@ tr.leader .leader-tag { display:inline; }
         <button class="btn-primary admin-only hidden" id="btnSort">ترتيب الفصول 🔄</button>
         <button class="btn-danger admin-only hidden" id="btnReset">بدء أسبوع جديد</button>
         <button class="btn-ghost" id="btnPrint">طباعة / PDF 🖨️</button>
-        <button class="btn-ghost" id="btnLoginToggle">دخول الإدارة 🔐</button>
-        <button class="btn-ghost admin-only hidden" id="btnLogout">خروج</button>
+        <button class="btn-ghost admin-only hidden" id="btnExit">إنهاء وضع التعديل</button>
       </div>
-    </div>
-
-    <div class="login-panel hidden" id="loginPanel">
-      <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" autocomplete="username" dir="ltr">
-      <input type="password" id="loginPass" placeholder="كلمة المرور" autocomplete="current-password" dir="ltr">
-      <button class="btn-primary" id="btnLogin">دخول</button>
-      <div class="login-err" id="loginErr" role="alert"></div>
     </div>
 
     <div class="table-wrap">
@@ -167,6 +164,7 @@ tr.leader .leader-tag { display:inline; }
             <th style="width:190px">المرحلة الدراسية</th>
             <th style="width:150px">الفصل / الشعبة</th>
             <th style="width:150px">إجمالي النقاط</th>
+            <th class="admin-only hidden" style="width:190px">تعديل سريع</th>
             <th>الملاحظات ورصد المخالفات</th>
           </tr>
         </thead>
@@ -179,8 +177,6 @@ tr.leader .leader-tag { display:inline; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -195,7 +191,6 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 const ref = doc(db, "idealClass", "current");
 
@@ -203,7 +198,22 @@ const START_SCORE = 100;
 const $ = (id) => document.getElementById(id);
 const tbody = $("tableBody");
 
-let isAdmin = false;
+// وضع التعديل: يُفعَّل مرة واحدة برابط خاص ثم يُحفظ في جهاز المشرف
+const ADMIN_KEY = "mnz-7Kq4xP9vT2";   // غيّره إلى كلمة طويلة خاصة بك
+function detectAdmin() {
+  let ok = false;
+  try {
+    const m = location.hash.match(/m=([^&]+)/);
+    if (m && decodeURIComponent(m[1]) === ADMIN_KEY) {
+      ok = true;
+      try { localStorage.setItem("ic-admin", ADMIN_KEY); history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    } else {
+      ok = localStorage.getItem("ic-admin") === ADMIN_KEY;
+    }
+  } catch (e) {}
+  return ok;
+}
+let isAdmin = detectAdmin();
 let saveTimer = null;
 let state = { classes: buildDefaults(), sorted: false };
 
@@ -238,10 +248,19 @@ function render() {
       `<td>${esc(c.grade)}</td>` +
       `<td><strong>${esc(c.name)}</strong><span class="leader-tag">المتصدر 👑</span></td>` +
       `<td><input class="input-score" type="number" step="0.5" value="${c.score}" ${dis} aria-label="نقاط ${esc(c.grade)} ${esc(c.name)}"></td>` +
+      (isAdmin ? `<td><div class="quick">
+         <button type="button" class="q-minus" data-d="-1" aria-label="خصم 1">−1</button>
+         <button type="button" class="q-minus" data-d="-0.5" aria-label="خصم نصف">−0.5</button>
+         <button type="button" class="q-plus" data-d="1" aria-label="زيادة 1">+1</button></div></td>` : "") +
       `<td><input class="input-notes" type="text" value="${esc(c.notes)}" ${dis} placeholder="${isAdmin ? "مثال: مخالفة سلوكية - المستوى الثاني (-2)" : ""}" aria-label="ملاحظات ${esc(c.grade)} ${esc(c.name)}"></td>`;
     const scoreIn = tr.querySelector(".input-score");
     const notesIn = tr.querySelector(".input-notes");
     scoreIn.addEventListener("input", () => { const v = parseFloat(scoreIn.value); c.score = isNaN(v) ? 0 : v; queueSave(); });
+    tr.querySelectorAll(".quick button").forEach(btn => btn.addEventListener("click", () => {
+      c.score = Math.round((c.score + parseFloat(btn.dataset.d)) * 10) / 10;
+      scoreIn.value = c.score;
+      queueSave();
+    }));
     notesIn.addEventListener("input", () => { c.notes = notesIn.value; queueSave(); });
     tbody.appendChild(tr);
   });
@@ -282,31 +301,11 @@ onSnapshot(ref, (snap) => {
   render();
 });
 
-// المصادقة
-onAuthStateChanged(auth, (user) => {
-  isAdmin = !!user;
-  document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin));
-  $("btnLoginToggle").classList.toggle("hidden", isAdmin);
-  $("loginPanel").classList.add("hidden");
-  $("modePill").textContent = isAdmin ? "وضع التعديل" : "عرض فقط";
-  $("modePill").classList.toggle("edit", isAdmin);
-  render();
-});
-
-$("btnLoginToggle").addEventListener("click", () => $("loginPanel").classList.toggle("hidden"));
-
-async function doLogin() {
-  $("loginErr").textContent = "";
-  try {
-    await signInWithEmailAndPassword(auth, $("loginEmail").value.trim(), $("loginPass").value);
-    $("loginPass").value = "";
-  } catch (e) {
-    $("loginErr").textContent = "تعذّر الدخول. تحقق من البريد وكلمة المرور.";
-  }
-}
-$("btnLogin").addEventListener("click", doLogin);
-$("loginPass").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
-$("btnLogout").addEventListener("click", () => signOut(auth));
+// تهيئة وضع التعديل
+document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin));
+$("modePill").textContent = isAdmin ? "وضع التعديل" : "عرض فقط";
+$("modePill").classList.toggle("edit", isAdmin);
+$("btnExit").addEventListener("click", () => { try { localStorage.removeItem("ic-admin"); } catch (e) {} location.reload(); });
 
 $("btnSort").addEventListener("click", () => {
   state.classes.sort((a, b) => b.score - a.score);
