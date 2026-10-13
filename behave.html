@@ -77,24 +77,19 @@ const pct=r=>avg(r.s.map(p=>p[0]?p[1]/p[0]*100:0)),tot=r=>num(r.side)+num(r.intr
 function save(){try{localStorage.setItem('obs-v1',JSON.stringify(recs))}catch(e){}}
 const FB={apiKey:"AIzaSyAVFtPQyyDtbdt5VlivumLhgI4whVU3FS4",authDomain:"card-4108e.firebaseapp.com",projectId:"card-4108e",storageBucket:"card-4108e.firebasestorage.app",messagingSenderId:"854525747419",appId:"1:854525747419:web:e67a89a74f9cc8d745acfe"};
 function setSt(t,ok){const e=$('#st');e.textContent=t;e.style.background=ok?'#0A8F55':'#B3261E'}
-function teamCode(){
-  let c='';try{c=localStorage.getItem('team-code')||''}catch(e){}
-  if(!c)c=(prompt('أدخل رمز الفريق (حروف إنجليزية صغيرة وأرقام، 6 خانات فأكثر). يُتفق عليه مرة واحدة ويُعطى لكل الزملاء:')||'').trim().toLowerCase();
-  if(!/^[a-z0-9-]{6,40}$/.test(c))return '';
-  try{localStorage.setItem('team-code',c)}catch(e){}return c}
-function changeCode(){try{localStorage.removeItem('team-code')}catch(e){}location.reload()}
+const TEAM='a123456';
 function init(){
   try{recs=JSON.parse(localStorage.getItem('obs-v1')||'[]')}catch(e){}
   drawTabs();show('home');
-  const code=teamCode();
-  if(!code||!window.firebase){setSt('غير متصل بالسحابة',false);return}
+  const code=TEAM;
+  if(!window.firebase){setSt('غير متصل بالسحابة',false);return}
   try{
     firebase.initializeApp(FB);const db=firebase.firestore();
     db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
     col=db.collection('projects').doc(code).collection('obs');
     col.onSnapshot(sn=>{recs=sn.docs.map(d=>{const x=d.data();return{...x,id:d.id,s:(x.s||[]).map(q=>[q.p,q.e])}});
       setSt(sn.metadata.fromCache?'دون إنترنت – سيُزامَن لاحقاً':'متصل ومحفوظ ✓',!sn.metadata.fromCache);render()},
-      e=>setSt('خطأ اتصال: '+e.code,false));
+      e=>{setSt('خطأ اتصال: '+e.code,false);console.error(e)});
   }catch(e){setSt('تعذّر الاتصال',false)}
 }
 function drawTabs(){$('#tabs').innerHTML=TABS.map(t=>`<button data-t="${t[0]}" class="${t[0]==tab?'on':''}">${t[1]}</button>`).join('');
@@ -105,7 +100,6 @@ function render(){ if(tab=='home')home(); if(tab=='log')log(); if(tab=='res')res
 function home(){$('#p-home').innerHTML=`
 <div class="card"><h2>ابدأ مباشرة</h2><p>هذه المنصة تحلّ محلّ البطاقة الورقية: يدخل الراصد ما شاهده أثناء الحصة، وتُحسب المتوسطات ونسبة الخفض والتغيّر في الانشغال تلقائياً. السجلات مشتركة بين جميع أعضاء الفريق.</p>
 <div class="row"><button class="btn" onclick="show('new')">+ بطاقة رصد جديدة</button><button class="btn s" onclick="show('res')">عرض النتائج</button></div></div>
-<div class="card noprint"><h2>رمز الفريق</h2><p>يُدخَل مرة واحدة على كل جهاز، ويجب أن يكون واحداً لجميع الزملاء لتظهر البيانات نفسها.</p><div class="row"><button class="btn s" onclick="changeCode()">تغيير رمز الفريق</button></div></div>
 <div class="card"><h2>مراحل المشروع</h2><p><span class="pill">١</span> التدريب (غير محتسب) ← <span class="pill">٢</span> خط الأساس: ٣ حصص على الأقل ← <span class="pill">٣</span> الميثاق والتعزيز ← <span class="pill">٤</span> القياس الختامي.</p><div class="warn">لا يبدأ الميثاق الصفي أو التعزيز المنظم قبل اكتمال خط الأساس. اختر في البطاقة «تدريب» ليوم التدريب حتى لا تدخل في النتائج.</div></div>
 <div class="card"><h2>التعريفات الموحدة (الوقائع)</h2>
 <h3>الحديث الجانبي</h3><p>حديث بين طالبين أو أكثر لا يخدم المهمة. <b>لا يُحسب:</b> ما يتعلق بالمهمة، أو بإذن المعلم، أو نقاش تعليمي، أو رد قصير على التعليمات.</p>
