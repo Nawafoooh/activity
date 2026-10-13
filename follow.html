@@ -184,6 +184,8 @@ pre.rules{direction:ltr;text-align:left;background:var(--soft);padding:12px;bord
 .ins li{display:flex;gap:10px;align-items:start}
 textarea.gen{min-height:460px;font-size:15.5px;line-height:1.95}
 @media print{body.print-report .sec{display:none!important}body.print-report #rptPrint{display:block;white-space:pre-wrap;font-size:13pt;line-height:1.9;color:#000;padding:0 8mm}}
+.side-foot button{background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer;padding:2px 6px;opacity:.9}
+.side-foot .bad{color:#FFB4AC;margin-top:4px}
 /* toast + dialog */
 #toast{position:fixed;inset-inline:0;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);display:flex;justify-content:center;pointer-events:none;z-index:60}
 #toast div{background:var(--green-900);color:#fff;padding:10px 20px;border-radius:12px;font-weight:600;max-width:90%;animation:pop .2s ease}
@@ -230,6 +232,7 @@ dialog h3{font-size:19px;margin-bottom:8px}
     </div>
     <nav class="nav" id="nav"></nav>
     <p class="side-foot">لوحة مدرسية مستقلة، وليست بوابة الوزارة أو أحد أنظمتها.</p>
+    <div class="side-foot" id="adminBox"></div>
   </aside>
   <div class="scrim" id="scrim"></div>
   <div class="main">
@@ -241,11 +244,7 @@ dialog h3{font-size:19px;margin-bottom:8px}
       <span class="chip" id="roleBadge" style="display:none"></span>
       <span class="savestate" id="saveState" aria-live="polite">جاهز</span>
     </header>
-    <div class="notice" role="note">
-      <b id="noticeHead">الحفظ محلي:</b>
-      <span id="noticeText">تُحفظ البيانات في متصفح هذا الجهاز فقط، ولا تظهر لبقية أعضاء الفريق. صدّر نسخة احتياطية بانتظام.</span>
-      <a href="#backup">النسخ الاحتياطي</a>
-    </div>
+    
     <main class="content" id="content">
       <section class="sec" id="sec-home" aria-labelledby="h-home"></section>
       <section class="sec" id="sec-timeline" aria-labelledby="h-timeline"></section>
@@ -258,7 +257,6 @@ dialog h3{font-size:19px;margin-bottom:8px}
       <section class="sec" id="sec-generator" aria-labelledby="h-generator"></section>
       <section class="sec" id="sec-checklist" aria-labelledby="h-checklist"></section>
       <section class="sec" id="sec-indicators" aria-labelledby="h-indicators"></section>
-      <section class="sec" id="sec-backup" aria-labelledby="h-backup"></section>
     </main>
   </div>
 </div>
@@ -279,11 +277,9 @@ const APP='school-improvement-tracker', KEY='school-improvement-tracker-v1';
 
 /* ---------- Firebase config (client config is public by design; access is controlled by Firestore rules) ---------- */
 const FB_CFG={apiKey:"AIzaSyCyHUe9NllVNz46LXNV5YdNmqA94VVLOBE",authDomain:"student-talents-1447.firebaseapp.com",projectId:"student-talents-1447",storageBucket:"student-talents-1447.firebasestorage.app",messagingSenderId:"377382667271",appId:"1:377382667271:web:2b52b19cc68fa0724bd6a2"};
-const FB_URL='https://www.gstatic.com/firebasejs/10.14.1/', COL='schoolPlanSpaces', SPID=/^[A-Za-z0-9]{24,64}$/;
-const CL={role:'local',space:null,ready:false,user:null,err:null,db:null,F:null,Au:null,auth:null,ref:null,unsub:null,flag:false,busy:false,bound:false};
-(function(){try{const q=new URLSearchParams(location.search).get('space');
-  if(q&&SPID.test(q)){CL.space=q;CL.role='viewer'}else{const l=localStorage.getItem('plan_space');if(l&&SPID.test(l))CL.space=l}
-  CL.flag=localStorage.getItem('plan_cloud')==='1'||CL.role==='viewer'}catch(e){}})();
+const FB_URL='https://www.gstatic.com/firebasejs/10.14.1/', COL='schoolPlanSpaces', SHARED='nafispro-follow-main';
+/* كل من يفتح الصفحة يقرأ المستند المشترك نفسه تلقائيًا؛ الكتابة للمسؤول فقط بعد تسجيل دخوله */
+const CL={role:'viewer',space:SHARED,ready:false,user:null,err:null,db:null,F:null,Au:null,auth:null,ref:null,unsub:null,flag:true,busy:false,bound:false};
 
 /* ---------- plan data (from the requirements document) ---------- */
 const W=(id,n,start,end,priority,goal,tasks,output)=>({id,n,start,end,due:end,priority,goal,output,tasks:tasks.map((t,i)=>({id:id+'t'+(i+1),text:t}))});
@@ -382,7 +378,7 @@ const timeNow=()=>new Date().toLocaleTimeString(LOC,{hour:'2-digit',minute:'2-di
 const setStatus=t=>{$('#saveState').textContent=t};
 function persistLocal(){try{localStorage.setItem(KEY,JSON.stringify(S));storageOk=true;return true}catch(e){storageOk=false;return false}}
 function persist(){if(CL.role==='viewer')return;
-  if(persistLocal())setStatus('حُفظ محليًا '+timeNow());else setStatus('تعذّر الحفظ في هذا المتصفح — صدّر نسخة احتياطية');
+  if(persistLocal())setStatus('حُفظ محليًا '+timeNow());else setStatus('تعذّر الحفظ المحلي في هذا المتصفح');
   if(CL.role==='admin'&&CL.ready){clearTimeout(pushT);pushT=setTimeout(push,1200)}}
 function save(){if(CL.role==='viewer')return;S.meta.updated=Date.now();setStatus('جارٍ الحفظ…');clearTimeout(saveT);saveT=setTimeout(persist,200)}
 const rec=(col,id)=>{const c=S[col];if(Array.isArray(c))return c.find(r=>r.id===id);return c[id]||(c[id]={})};
@@ -428,7 +424,7 @@ function obsGroups(){const g={};S.obs.slice().sort((a,b)=>(a.date||'').localeCom
 const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
 
 /* ---------- renderers ---------- */
-const SECS=[['home','الرئيسية'],['timeline','الخط الزمني'],['tasks','المهام والمخرجات'],['interventions','التدخلات'],['measure','القياس'],['attendance','الحضور'],['observation','بطاقة الملاحظة'],['report','التقرير الأسبوعي'],['generator','مولد التقارير'],['checklist','قائمة التحقق'],['indicators','المؤشرات'],['backup','النسخ الاحتياطي']];
+const SECS=[['home','الرئيسية'],['timeline','الخط الزمني'],['tasks','المهام والمخرجات'],['interventions','التدخلات'],['measure','القياس'],['attendance','الحضور'],['observation','بطاقة الملاحظة'],['report','التقرير الأسبوعي'],['generator','مولد التقارير'],['checklist','قائمة التحقق'],['indicators','المؤشرات']];
 const R={};
 let UI={fw:'all',fs:'all',ifs:'all',rw:null};
 
@@ -577,11 +573,6 @@ R.indicators=()=>{
   card('المخرجات المرفوعة','<bdi>'+ws.filter(s=>s.sub).length+' / '+WEEKS.length+'</bdi>','عدد المخرجات المعلّمة «رُفع في الموعد»')+
   card('قائمة التحقق','<bdi>'+ck+' / '+CHECK.length+'</bdi>','عدد البنود المكتملة')+'</div>'+tbl+
   '<div class="note">نسبة الإتقان = عدد المتقنين ÷ عدد المقاسين × 100. مثال توضيحي افتراضي فقط: من 40% إلى 65% = تحسن 25 نقطة مئوية.</div>'};
-
-R.backup=()=>head('backup','النسخ الاحتياطي والحفظ المشترك','احفظ نسخة من بياناتك، أو شاركها مع الفريق عبر Firebase.')+cloudCard()+
-  '<div class="card"><h3>الحفظ على هذا الجهاز</h3><p>تُحفظ المدخلات في مساحة تخزين هذا المتصفح، ولا تتزامن تلقائيًا مع أعضاء الفريق، ولا تتطلب تسجيل دخول أو قاعدة بيانات. لمشاركة البيانات، صدّر نسخة واستوردها على الجهاز الآخر. وإن مسحت بيانات المتصفح فستفقد ما لم تصدّره.</p>'+(storageOk?'':'<p class="err show">التخزين غير متاح في هذا العرض، فستبقى البيانات حتى إغلاق الصفحة فقط. صدّر نسخة قبل الخروج.</p>')+
-  '<div class="btns"><button class="btn" type="button" data-act="expJson">صدّر نسخة احتياطية</button><button class="btn alt" type="button" data-act="impPick">استورد نسخة</button><input type="file" id="impFile" accept="application/json,.json" hidden></div></div>'+
-  '<div class="card"><h3>مسح كل البيانات</h3><p class="meta">يحذف كل ما أدخلته على هذا الجهاز. صدّر نسخة قبل المتابعة.</p><div class="btns"><button class="btn warn" type="button" data-act="reset">امسح كل البيانات</button></div></div>';
 
 /* ---------- report generator (rule-based, no AI: every sentence comes from entered data) ---------- */
 const THRESH={impStrong:15,impMid:5,attHigh:90,attOk:75};
@@ -737,7 +728,7 @@ R.generator=()=>{
 
 /* ---------- router ---------- */
 function go(id,keep){
-  if(!R[id])id='home';
+  if(!SECS.some(x=>x[0]===id)||!R[id])id='home';
   $$('.sec').forEach(s=>s.classList.toggle('on',s.id==='sec-'+id));
   $('#sec-'+id).innerHTML=R[id]();
   $$('#nav a').forEach(a=>{if(a.dataset.s===id)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
@@ -856,11 +847,16 @@ function isBlank(){return !(S.skills.length||S.interventions.length||S.sessions.
 function applyRemote(r){let d;try{d=JSON.parse(r.data)}catch(e){CL.err='البيانات المشتركة تالفة';return false}
   if(!valid({app:APP,data:d})){CL.err='صيغة البيانات المشتركة غير مطابقة';return false}
   S=Object.assign(blank(),d);S.meta={updated:r.updatedAt||0,rev:r.rev||0};return true}
-function refreshBackup(){if(curSec()==='backup')go('backup',true)}
-function setBadge(){const b=$('#roleBadge'),nh=$('#noticeHead'),nt=$('#noticeText');
-  if(CL.role==='admin'){b.style.display='';b.className='chip done';b.textContent='مسؤول · حفظ مشترك';nh.textContent='الحفظ المشترك:';nt.textContent='كل ما تدخله يُحفظ في Firebase تلقائيًا، وتفتحه من أي جهاز بعد تسجيل الدخول. بقية الفريق يقرؤون فقط.'}
-  else if(CL.role==='viewer'){b.style.display='';b.className='chip doing';b.textContent='عرض فقط';nh.textContent='وضع العرض:';nt.textContent='ترى آخر ما حفظه المعلم المسؤول، وتتحدث الصفحة تلقائيًا. لا يمكنك التعديل.'}
-  else{b.style.display='none';nh.textContent='الحفظ محلي:';nt.textContent='تُحفظ البيانات في متصفح هذا الجهاز فقط. سجّل دخول المسؤول لحفظها في Firebase وفتحها من أي جهاز.'}}
+function renderAdminBox(){const b=$('#adminBox');if(!b)return;
+  const err=CL.err&&(CL.role==='admin'||CL.user||/تسجيل|Google|نطاق|التحقق|رُفضت|المزامنة|الحفظ/.test(CL.err))?'<div class="bad">'+esc(CL.err)+'</div>':'';
+  if(CL.role==='admin')b.innerHTML='المسؤول: <bdi>'+esc(CL.user&&CL.user.email||'')+'</bdi> <button type="button" data-act="signOutA">خروج</button>'+err;
+  else if(CL.user)b.innerHTML='الحساب <bdi>'+esc(CL.user.email)+'</bdi> ليس مسؤولًا.'+err+'<div><button type="button" data-act="recheck">أعد التحقق</button><button type="button" data-act="signOutA">خروج</button></div>';
+  else b.innerHTML='<button type="button" data-act="signIn">دخول المسؤول</button>'+err}
+function refreshBackup(){renderAdminBox()}
+function setBadge(){const b=$('#roleBadge');
+  if(CL.role==='admin'){b.style.display='';b.className='chip done';b.textContent='مسؤول'}
+  else{b.style.display='';b.className='chip doing';b.textContent='عرض فقط'}
+  renderAdminBox()}
 function rulesTxt(){const em=(CL.user&&CL.user.email||'ضع_بريد_المسؤول_هنا').toLowerCase();return `    // ===== لوحة متابعة خطة تحسين المدرسة =====
     function isPlanAdmin() {
       return request.auth != null
@@ -882,19 +878,6 @@ function rulesTxt(){const em=(CL.user&&CL.user.email||'ضع_بريد_المسؤ�
     }
     // ===== نهاية الكتلة =====
     // تُضاف داخل: match /databases/{database}/documents { ... }`}
-function cloudCard(){
-  const link=CL.space?location.origin+location.pathname+'?space='+CL.space:'';
-  const cp=(v,l)=>'<button class="btn alt sm" type="button" data-act="copyVal" data-v="'+esc(v)+'">'+l+'</button>';
-  const rules='<details style="margin-top:14px"><summary>قواعد Firestore المطلوبة</summary><pre class="rules">'+esc(rulesTxt())+'</pre>'+cp(rulesTxt(),'انسخ القواعد')+'</details>';
-  const err=CL.err?'<p class="err show">'+esc(CL.err)+'</p>':'';
-  let h='<div class="card"><h3>الحفظ المشترك (Firebase)</h3>';
-  if(CL.role==='admin')h+='<p>أنت مسجّل بوضع المسؤول: <b dir="ltr"><bdi>'+esc(CL.user&&CL.user.email||'')+'</bdi></b>. كل تعديل يُحفظ تلقائيًا في Firebase، وتجده كما هو عند الدخول من أي جهاز بالحساب نفسه.</p>'+err+
-    '<p style="margin-top:10px"><b>رابط الفريق (قراءة فقط):</b></p><p dir="ltr" style="text-align:start;word-break:break-all"><bdi>'+esc(link)+'</bdi></p>'+cp(link,'انسخ الرابط')+rules+
-    '<div class="btns"><button class="btn alt" type="button" data-act="cloudRetry">أعد محاولة الحفظ</button><button class="btn warn" type="button" data-act="signOutA">تسجيل الخروج</button></div>';
-  else if(CL.user)h+='<p>سُجّل الدخول بالحساب <b dir="ltr"><bdi>'+esc(CL.user.email)+'</bdi></b>، لكنه ليس مسؤولًا في القواعد بعد.</p>'+(err||'<p class="meta">جارٍ التحقق من الصلاحية…</p>')+rules+
-    '<div class="btns"><button class="btn" type="button" data-act="recheck">أعد التحقق</button><button class="btn alt" type="button" data-act="signOutA">تسجيل الخروج</button></div>';
-  else h+='<p>'+(CL.role==='viewer'?'أنت في وضع العرض فقط. إن كنت المعلم المسؤول فسجّل الدخول لتعدّل.':'يحفظ هذا الخيار كل ما تدخله في Firebase، فتفتحه من أي جهاز بتسجيل الدخول بحساب Google الخاص بالمعلم المسؤول. لا توجد كلمة سر تُدار في اللوحة.')+'</p>'+err+'<div class="btns"><button class="btn" type="button" data-act="signIn">دخول المسؤول بحساب Google</button></div>'+(location.protocol.startsWith('http')?'':'<p class="err show">افتح الصفحة من رابط http أو https، فتسجيل الدخول لا يعمل من ملف محلي.</p>');
-  return h+'</div>'}
 async function loadSdk(){
   if(CL.F)return true;
   try{const [A,Au,F]=await Promise.all([import(FB_URL+'firebase-app.js'),import(FB_URL+'firebase-auth.js'),import(FB_URL+'firebase-firestore.js')]);
@@ -908,7 +891,7 @@ function watchSpace(){
   if(!CL.space||CL.unsub)return;
   CL.unsub=CL.F.onSnapshot(CL.F.doc(CL.db,COL,CL.space),snap=>{
     if(CL.role!=='viewer')return;
-    if(!snap.exists()){CL.err='لا توجد بيانات مشتركة بهذا الرابط بعد.';setStatus(CL.err);return}
+    if(!snap.exists()){CL.err='لم يحفظ المسؤول أي بيانات بعد.';setStatus(CL.err);return}
     if(applyRemote(snap.data())){CL.err=null;setStatus('آخر تحديث '+timeNow());go(curSec(),true)}else setStatus(CL.err)},
     e=>{CL.err='تعذّرت قراءة البيانات المشتركة ('+(e.code||'خطأ')+')';setStatus(CL.err)});
   CL.ready=true}
@@ -918,18 +901,16 @@ async function checkAdmin(){
     const F=CL.F;let qs;
     try{qs=await F.getDocs(F.query(F.collection(CL.db,COL),F.orderBy('updatedAt','desc'),F.limit(1)))}
     catch(e){CL.err=e.code==='permission-denied'?'الحساب '+CL.user.email+' ليس مسؤولًا في قواعد Firestore. أضف بريده إلى القواعد (ظاهرة أدناه) وانشرها، ثم اضغط «أعد التحقق».':'تعذّر التحقق من صلاحية المسؤول ('+(e.code||'خطأ')+')';refreshBackup();return}
-    let id=CL.space;if(!id)id=qs.docs.length?qs.docs[0].id:genId();
+    const id=SHARED;
     if(CL.unsub){CL.unsub();CL.unsub=null}
     if(CL.role==='viewer')S=load();
+    try{if(isBlank()){const fx=await F.getDoc(F.doc(CL.db,COL,id));if(!fx.exists()&&qs.docs.length&&qs.docs[0].id!==id)applyRemote(qs.docs[0].data())}}catch(e){}
     CL.space=id;CL.role='admin';CL.err=null;
     try{localStorage.setItem('plan_space',id);localStorage.setItem('plan_cloud','1')}catch(e){}
     setBadge();await adminSync();
   }finally{CL.busy=false}}
 function dropAdmin(){clearTimeout(pushT);CL.ready=false;
-  const viaLink=!!new URLSearchParams(location.search).get('space');
-  CL.role=viaLink?'viewer':'local';setBadge();
-  if(CL.role==='viewer'){S=blank();watchSpace()}
-  go(curSec(),true)}
+  CL.role='viewer';setBadge();S=blank();watchSpace();go(curSec(),true)}
 async function adminSync(){
   const F=CL.F;CL.ref=F.doc(CL.db,COL,CL.space);CL.ready=false;
   try{
@@ -946,9 +927,9 @@ async function adminSync(){
 async function push(){
   if(CL.role!=='admin'||!CL.ready||!CL.ref)return;
   S.meta.rev=(S.meta.rev||0)+1;const txt=JSON.stringify(S);
-  if(txt.length>880000){setStatus('حجم البيانات أكبر من حد الحفظ المشترك');toast('حجم البيانات أكبر من الحد المسموح للحفظ المشترك',true);return}
+  if(txt.length>880000){setStatus('حجم البيانات أكبر من حد الحفظ على الخادم');toast('حجم البيانات أكبر من الحد المسموح للحفظ المشترك',true);return}
   try{await CL.F.setDoc(CL.ref,{data:txt,updatedAt:S.meta.updated||Date.now(),rev:S.meta.rev});CL.err=null;setStatus('حُفظ مشتركًا '+timeNow())}
-  catch(e){CL.err=e.code==='permission-denied'?'رُفضت الكتابة: هذا الحساب ليس المسؤول في قواعد Firestore.':'تعذّر الحفظ المشترك ('+(e.code||'خطأ')+')';setStatus('تعذّر الحفظ المشترك');toast(CL.err,true);refreshBackup()}}
+  catch(e){CL.err=e.code==='permission-denied'?'رُفضت الكتابة: هذا الحساب ليس المسؤول في قواعد Firestore.':'تعذّر الحفظ على الخادم ('+(e.code||'خطأ')+')';setStatus('تعذّر الحفظ على الخادم');toast(CL.err,true);refreshBackup()}}
 async function cloudInit(){
   if(!CL.flag)return;
   if(!await loadSdk())return;
@@ -956,9 +937,8 @@ async function cloudInit(){
 
 /* ---------- start ---------- */
 setBadge();
-if(CL.role==='viewer')setStatus('جارٍ تحميل البيانات المشتركة…');
+setStatus('جارٍ تحميل البيانات…');
 go(curSec());
-if(CL.role!=='viewer')persist();
 cloudInit();
 })();
 </script>
