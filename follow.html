@@ -179,6 +179,11 @@ dl.all dt{color:var(--muted);font-weight:600}
 dl.all dd{margin:0;white-space:pre-wrap}
 input:disabled,select:disabled,textarea:disabled{opacity:.75;cursor:not-allowed}
 pre.rules{direction:ltr;text-align:left;background:var(--soft);padding:12px;border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.5;white-space:pre}
+#rptPrint{display:none}
+.ins{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.ins li{display:flex;gap:10px;align-items:start}
+textarea.gen{min-height:460px;font-size:15.5px;line-height:1.95}
+@media print{body.print-report .sec{display:none!important}body.print-report #rptPrint{display:block;white-space:pre-wrap;font-size:13pt;line-height:1.9;color:#000;padding:0 8mm}}
 /* toast + dialog */
 #toast{position:fixed;inset-inline:0;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);display:flex;justify-content:center;pointer-events:none;z-index:60}
 #toast div{background:var(--green-900);color:#fff;padding:10px 20px;border-radius:12px;font-weight:600;max-width:90%;animation:pop .2s ease}
@@ -250,12 +255,14 @@ dialog h3{font-size:19px;margin-bottom:8px}
       <section class="sec" id="sec-attendance" aria-labelledby="h-attendance"></section>
       <section class="sec" id="sec-observation" aria-labelledby="h-observation"></section>
       <section class="sec" id="sec-report" aria-labelledby="h-report"></section>
+      <section class="sec" id="sec-generator" aria-labelledby="h-generator"></section>
       <section class="sec" id="sec-checklist" aria-labelledby="h-checklist"></section>
       <section class="sec" id="sec-indicators" aria-labelledby="h-indicators"></section>
       <section class="sec" id="sec-backup" aria-labelledby="h-backup"></section>
     </main>
   </div>
 </div>
+<div id="rptPrint" aria-hidden="true"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <dialog id="dlg" aria-labelledby="dlgT">
   <h3 id="dlgT"></h3><p id="dlgM" class="meta" style="margin-bottom:16px;font-size:15.5px"></p>
@@ -273,9 +280,10 @@ const APP='school-improvement-tracker', KEY='school-improvement-tracker-v1';
 /* ---------- Firebase config (client config is public by design; access is controlled by Firestore rules) ---------- */
 const FB_CFG={apiKey:"AIzaSyCyHUe9NllVNz46LXNV5YdNmqA94VVLOBE",authDomain:"student-talents-1447.firebaseapp.com",projectId:"student-talents-1447",storageBucket:"student-talents-1447.firebasestorage.app",messagingSenderId:"377382667271",appId:"1:377382667271:web:2b52b19cc68fa0724bd6a2"};
 const FB_URL='https://www.gstatic.com/firebasejs/10.14.1/', COL='schoolPlanSpaces', SPID=/^[A-Za-z0-9]{24,64}$/;
-const CL={role:'local',space:null,ready:false,user:null,err:null,db:null,F:null,ref:null,unsub:null};
-(function(){let sp=null;try{const q=new URLSearchParams(location.search).get('space');if(q&&SPID.test(q))sp=q;else{const l=localStorage.getItem('plan_space');if(l&&SPID.test(l))sp=l}}catch(e){}
-  if(!sp)return;CL.space=sp;let adm=false;try{adm=localStorage.getItem('plan_role_'+sp)==='admin'}catch(e){}CL.role=adm?'admin':'viewer'})();
+const CL={role:'local',space:null,ready:false,user:null,err:null,db:null,F:null,Au:null,auth:null,ref:null,unsub:null,flag:false,busy:false,bound:false};
+(function(){try{const q=new URLSearchParams(location.search).get('space');
+  if(q&&SPID.test(q)){CL.space=q;CL.role='viewer'}else{const l=localStorage.getItem('plan_space');if(l&&SPID.test(l))CL.space=l}
+  CL.flag=localStorage.getItem('plan_cloud')==='1'||CL.role==='viewer'}catch(e){}})();
 
 /* ---------- plan data (from the requirements document) ---------- */
 const W=(id,n,start,end,priority,goal,tasks,output)=>({id,n,start,end,due:end,priority,goal,output,tasks:tasks.map((t,i)=>({id:id+'t'+(i+1),text:t}))});
@@ -420,7 +428,7 @@ function obsGroups(){const g={};S.obs.slice().sort((a,b)=>(a.date||'').localeCom
 const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
 
 /* ---------- renderers ---------- */
-const SECS=[['home','الرئيسية'],['timeline','الخط الزمني'],['tasks','المهام والمخرجات'],['interventions','التدخلات'],['measure','القياس'],['attendance','الحضور'],['observation','بطاقة الملاحظة'],['report','التقرير الأسبوعي'],['checklist','قائمة التحقق'],['indicators','المؤشرات'],['backup','النسخ الاحتياطي']];
+const SECS=[['home','الرئيسية'],['timeline','الخط الزمني'],['tasks','المهام والمخرجات'],['interventions','التدخلات'],['measure','القياس'],['attendance','الحضور'],['observation','بطاقة الملاحظة'],['report','التقرير الأسبوعي'],['generator','مولد التقارير'],['checklist','قائمة التحقق'],['indicators','المؤشرات'],['backup','النسخ الاحتياطي']];
 const R={};
 let UI={fw:'all',fs:'all',ifs:'all',rw:null};
 
@@ -575,6 +583,158 @@ R.backup=()=>head('backup','النسخ الاحتياطي والحفظ المش�
   '<div class="btns"><button class="btn" type="button" data-act="expJson">صدّر نسخة احتياطية</button><button class="btn alt" type="button" data-act="impPick">استورد نسخة</button><input type="file" id="impFile" accept="application/json,.json" hidden></div></div>'+
   '<div class="card"><h3>مسح كل البيانات</h3><p class="meta">يحذف كل ما أدخلته على هذا الجهاز. صدّر نسخة قبل المتابعة.</p><div class="btns"><button class="btn warn" type="button" data-act="reset">امسح كل البيانات</button></div></div>';
 
+/* ---------- report generator (rule-based, no AI: every sentence comes from entered data) ---------- */
+const THRESH={impStrong:15,impMid:5,attHigh:90,attOk:75};
+const addDays=(iso,n)=>{const d=pd(iso);d.setDate(d.getDate()+n);return isoOf(d)};
+const inR=(x,a,b)=>!!x&&x>=a&&x<=b;
+const ar=(n,f)=>n===1?f[0]:n===2?f[1]:(n>=3&&n<=10)?n+' '+f[2]:n+' '+f[3];
+const T1=v=>v==null?'—':r1(v).toLocaleString('en-US');
+const PT=v=>v==null?'—':T1(v)+'%';
+const PPT=v=>v==null?'—':(v>0?'+':v<0?'−':'')+T1(Math.abs(v))+' نقطة مئوية';
+const impClass=v=>v>=THRESH.impStrong?'تحسن قوي':v>=THRESH.impMid?'تحسن متوسط':v>=0?'تحسن محدود':'تراجع';
+function decision(c){
+  if(c.b==null)return 'سجّل خط الأساس لهذه المهارة أولًا';
+  if(c.last==null)return 'نفّذ القياس المرحلي بأداة مكافئة للقياس القبلي';
+  if(c.tg>0&&c.last>=c.tg)return 'الانتقال بعد تحقق الإتقان، مع إثراء الطلبة المتقنين بمهام تطبيقية وتفكير أعلى';
+  if(c.imp<0)return 'التكثيف، ومراجعة أداة القياس والتدخل لاحتمال عدم التوافق';
+  if(c.imp<THRESH.impMid)return 'التكثيف، وإعادة تنظيم المجموعات وفق الاحتياج';
+  if(c.imp<THRESH.impStrong)return 'الاستمرار مع تعديل التدخل والمجموعات';
+  return 'الاستمرار على التدخل الحالي'}
+function scopeOf(sc){
+  if(sc.type==='weekly'){const w=WEEKS.find(x=>x.id===sc.key)||WEEKS[0];return{kind:'weekly',title:'التقرير الأسبوعي — الأسبوع '+w.n,from:w.start,to:addDays(w.start,6),weeks:[w],label:range(w.start,w.end),w}}
+  if(sc.type==='monthly'){const [y,m]=sc.key.split('-').map(Number),from=y+'-'+String(m).padStart(2,'0')+'-01',to=isoOf(new Date(y,m,0));
+    return{kind:'monthly',title:'التقرير الشهري — '+dfmt(from,{month:'long',year:'numeric'}),from,to,weeks:WEEKS.filter(w=>w.end>=from&&w.start<=to),label:dfmt(from,{day:'numeric',month:'long'})+' – '+dfmt(to,{day:'numeric',month:'long',year:'numeric'})}}
+  const p2=sc.key==='p2';return{kind:'final',title:p2?'التقرير الختامي للمرحلة الثانية':'التقرير الختامي للمرحلة الأولى',from:p2?'2027-01-01':'2026-10-11',to:p2?'2027-03-31':'2026-12-31',weeks:p2?[]:WEEKS,label:p2?'1 يناير – 31 مارس 2027':'11 أكتوبر – 31 ديسمبر 2026'}}
+function buildReport(sc){
+  const o=scopeOf(sc),ins=[],add=(k,t)=>ins.push({k,t}),recs=[],qa=[];
+  /* tasks */
+  const ws=o.weeks.map(w=>({w,st:weekStat(w)})),allT=ws.reduce((a,x)=>a+x.st.total,0),doneT=ws.reduce((a,x)=>a+x.st.done,0);
+  const blocked=[];ws.forEach(({w})=>w.tasks.forEach(t=>{if((S.tasks[t.id]||{}).status==='block')blocked.push({w,t})}));
+  const lateW=ws.filter(x=>x.st.key==='late'),subN=ws.filter(x=>x.st.sub).length;
+  const noOwner=ws.reduce((a,x)=>a+x.w.tasks.filter(t=>((S.tasks[t.id]||{}).status==='done')&&!String((S.tasks[t.id]||{}).owner||'').trim()).length,0);
+  const miles=MILES.filter(m=>!m.info&&inR(m.due,o.from,o.to));
+  /* interventions */
+  const ints=S.interventions.filter(i=>inR(i.date,o.from,o.to)),is={t:ints.length,d:ints.filter(i=>i.status==='done').length,b:ints.filter(i=>i.status==='block').length};is.rate=rate(is.d,is.t);
+  const byCause={};ints.forEach(i=>byCause[i.cause]=(byCause[i.cause]||0)+1);
+  const noEv=ints.filter(i=>i.status==='done'&&!String(i.evidence||'').trim()).length;
+  /* attendance */
+  const sess=S.sessions.filter(s=>inR(s.date,o.from,o.to));let e=0,a=0,badS=0;const sl=[];
+  sess.forEach(s=>{const x=N(s.expected),y=N(s.actual);if(x>0&&y!=null&&y>=0&&y<=x){e+=x;a+=y;sl.push({s,r:y/x*100})}else badS++});sl.sort((p,q)=>p.r-q.r);
+  const att={e,a,n:sess.length,rate:rate(a,e)};
+  /* skills */
+  const sk=S.skills.map(s=>({s,c:skillCalc(s)})),withImp=sk.filter(x=>x.c.imp!=null),imps=withImp.map(x=>x.c.imp);
+  const withT=sk.filter(x=>x.c.tg>0&&x.c.last!=null),hit=withT.filter(x=>x.c.last>=x.c.tg);
+  /* observation */
+  const g=obsGroups(),teachers=[];
+  Object.keys(g).forEach(n=>{const arr=g[n].filter(x=>x.date<=o.to);if(!arr.length||!arr.some(x=>inR(x.date,o.from,o.to)))return;
+    const f=avg(arr[0].scores),l=avg(arr[arr.length-1].scores);teachers.push({n,cnt:arr.length,f,l,d:arr.length>1?l-f:null,last:arr[arr.length-1]})});
+  const prAvg=PRACTICES.map((_,i)=>teachers.length?avg(teachers.map(t=>t.last.scores[i])):null);
+  /* saved weekly reports */
+  const reps=o.weeks.map(w=>({w,r:rep(w.id)})).filter(x=>Object.keys(x.r).length);
+
+  /* insights + recommendations + quality notes */
+  if(allT){if(doneT===allT&&subN===ws.length)add('good','اكتملت كل مهام الفترة ورُفعت مخرجاتها.');
+    else add(lateW.length?'warn':'info','أُنجزت '+doneT+' من '+allT+' مهمة ('+PT(rate(doneT,allT))+')'+(lateW.length?'، وتأخر رفع مخرجات '+lateW.map(x=>'الأسبوع '+x.w.n).join('، ')+'.':'.'))}
+  if(blocked.length){add('warn',blocked.length+' مهام معلّمة بوجود عائق.');recs.push('معالجة المهام المعلّمة بعائق ('+blocked.length+') وتحديد الدعم المطلوب لكل منها.')}
+  if(lateW.length)recs.push('رفع المخرجات المتأخرة ('+lateW.map(x=>'الأسبوع '+x.w.n).join('، ')+') وتوثيق سبب التأخر.');
+  if(!is.t){add('data','لا توجد تدخلات مسجلة في هذه الفترة.');recs.push('تسجيل التدخلات المخططة، وربط كل تدخل بسبب الفجوة والمهارة والفئة المستهدفة.')}
+  else{add(is.rate>=90?'good':is.rate>=50?'info':'warn','نسبة تنفيذ التدخلات '+PT(is.rate)+' ('+is.d+' من '+is.t+').');
+    if(is.b){add('warn',is.b+' تدخلات متعثرة.');recs.push('معالجة التدخلات المتعثرة ('+is.b+') بتحديد العائق والإجراء التصحيحي ومسؤول المتابعة لكل منها.')}}
+  if(noEv){add('warn',noEv+' تدخلات منفذة بلا دليل موثّق.');recs.push('استكمال الأدلة لـ '+noEv+' تدخلات منفذة قبل رفع التقرير.')}
+  if(withImp.length){const best=withImp.slice().sort((p,q)=>q.c.imp-p.c.imp)[0],worst=withImp.slice().sort((p,q)=>p.c.imp-q.c.imp)[0];
+    add(avg(imps)>=THRESH.impMid?'good':'warn','متوسط التحسن في الإتقان '+PPT(avg(imps))+' على '+ar(withImp.length,['مهارة واحدة','مهارتين','مهارات','مهارة'])+'.');
+    if(withImp.length>1){add('good','أعلى تحسن في «'+best.s.name+'» ('+PPT(best.c.imp)+').');add(worst.c.imp<THRESH.impMid?'warn':'info','أقل تحسن في «'+worst.s.name+'» ('+PPT(worst.c.imp)+').')}}
+  else add('data','لا يمكن حساب التحسن بعد: يلزم قياس قبلي وقياس لاحق لمهارة واحدة على الأقل.');
+  if(withT.length)add(hit.length===withT.length?'good':'info',hit.length+' من '+withT.length+' مهارات بلغت المستهدف المحدد.');
+  sk.forEach(x=>recs.push('المهارة «'+x.s.name+'»: '+decision(x.c)+'.'));
+  if(att.n){if(att.rate==null)add('data','بيانات الحضور في الفترة غير صالحة للحساب.');
+    else{add(att.rate>=THRESH.attHigh?'good':att.rate>=THRESH.attOk?'info':'warn','نسبة حضور جلسات الدعم '+PT(att.rate)+'.');
+      if(att.rate<THRESH.attOk)recs.push('رفع الحضور في جلسات الدعم: متابعة الغياب مع أولياء الأمور وتنفيذ جلسات تعويضية للمتأخرين.')}}
+  else add('data','لا توجد جلسات دعم مسجلة في الفترة.');
+  if(teachers.length){const met=teachers.filter(t=>t.d!=null&&t.d>=1),notMet=teachers.filter(t=>t.d!=null&&t.d<1),single=teachers.filter(t=>t.d==null);
+    if(met.length)add('good',ar(met.length,['معلم واحد حقق','معلمان حققا','معلمين حققوا','معلمًا حققوا'])+' تحسنًا بنقطة فأكثر في بطاقة الملاحظة.');
+    if(notMet.length){add('warn',ar(notMet.length,['معلم واحد لم يبلغ','معلمان لم يبلغا','معلمين لم يبلغوا','معلمًا لم يبلغوا'])+' تحسن نقطة بعد.');recs.push('تكثيف الدعم للمعلمين الذين لم يبلغوا تحسن نقطة ('+notMet.map(t=>t.n).join('، ')+'): ملاحظة مركزة وتغذية راجعة مكتوبة وزيارات تبادلية ودرس نموذجي.')}
+    if(single.length){add('data',ar(single.length,['معلم واحد لديه','معلمان لديهما','معلمين لديهم','معلمًا لديهم'])+' ملاحظة واحدة فقط، فلا يظهر التغير بعد.');qa.push('يحتاج '+single.map(t=>t.n).join('، ')+' إلى ملاحظة ثانية لحساب التغير عن القياس الأول.')}
+    const mi=prAvg.indexOf(Math.min(...prAvg));if(teachers.length&&prAvg[mi]!==Math.max(...prAvg))recs.push('التركيز في الدعم المهني على الممارسة «'+PRACTICES[mi]+'» لأنها الأقل متوسطًا ('+T1(prAvg[mi])+' من 4).')}
+  else add('data','لا توجد ملاحظات صفية مسجلة في الفترة.');
+  /* quality */
+  const noTarget=sk.filter(x=>!(x.c.tg>0));if(noTarget.length)qa.push('مهارات بلا مستهدف محدد من المدرسة: '+noTarget.map(x=>x.s.name).join('، ')+'. لا تُحسب نسبة تحقيق المستهدف لها.');
+  const badSk=sk.filter(x=>STAGES.some(([k])=>x.c.st[k].state==='err'));if(badSk.length)qa.push('أعداد غير صالحة (المتقنون أكبر من المقاسين أو غير صحيحة) في: '+badSk.map(x=>x.s.name).join('، ')+'.');
+  const noBase=sk.filter(x=>x.c.b==null);if(noBase.length)qa.push('لا خط أساس مكتمل للمهارات: '+noBase.map(x=>x.s.name).join('، ')+'.');
+  const onlyBase=sk.filter(x=>x.c.b!=null&&x.c.last==null);if(onlyBase.length)qa.push('لا قياس لاحق بعد لـ: '+onlyBase.map(x=>x.s.name).join('، ')+'.');
+  if(badS)qa.push(badS+' جلسات دعم بأعداد حضور غير صالحة (الفعلي أكبر من المتوقع أو حقول ناقصة) استُبعدت من الحساب.');
+  if(noOwner)qa.push(noOwner+' مهام مكتملة بلا مسؤول مسمّى.');
+  if(!sk.length)qa.push('لا توجد مهارات مسجلة في قسم القياس.');
+  if(o.kind!=='final'&&sk.length)qa.push('نتائج الإتقان غير مؤرخة في اللوحة، فتُعرض آخر نتائج مسجلة وقت الإعداد وليس نتائج الفترة وحدها.');
+
+  /* next priorities */
+  const next=[];
+  if(o.kind==='weekly'){const i=WEEKS.indexOf(o.w),nw=WEEKS[i+1];if(nw){next.push('الأسبوع '+nw.n+' ('+range(nw.start,nw.end)+') — '+nw.priority.replace('أولوية هذا الأسبوع: ','')+'، ويُرفع المخرج «'+nw.output+'» يوم '+dfull(nw.due)+'.');
+      nw.tasks.slice(0,3).forEach(t=>next.push('مهمة: '+t.text))}else next.push('تقرير نتائج الأسابيع الستة يُرفع في 30 نوفمبر 2026.')}
+  else{WEEKS.filter(w=>w.due>o.to&&!(S.outputs[w.id]||{}).submitted).slice(0,2).forEach(w=>next.push('الأسبوع '+w.n+': رفع «'+w.output+'» في '+dfull(w.due)+'.'));
+    MILES.filter(m=>!m.info&&m.due>o.to&&(S.miles[m.id]||{}).status!=='done').slice(0,3).forEach(m=>next.push(m.title+' — '+dfmt(m.due,{day:'numeric',month:'long',year:'numeric'})+'.'))}
+
+  /* compose */
+  const L=[],H=t=>{L.push('');L.push('■ '+t)},B=t=>L.push('• '+t);
+  L.push(o.title);L.push('خطة المدرسة ذات الأولوية في التحسين');L.push('الفترة: '+o.label);L.push('تاريخ الإعداد: '+dfull(isoOf(today())));
+  H('أولًا: الملخص التنفيذي');
+  const ex=['يغطي هذا التقرير الفترة '+o.label+'، ويستند إلى البيانات المدخلة في لوحة المتابعة حتى تاريخ إعداده.'];
+  if(allT)ex.push('أُنجز '+doneT+' من '+allT+' مهام مخططة ('+PT(rate(doneT,allT))+')، والمخرجات المرفوعة '+subN+' من '+ws.length+'.');
+  ex.push(is.t?'سُجّل '+ar(is.t,['تدخل واحد','تدخلان','تدخلات','تدخلًا'])+(is.t===1?'، نُفّذ منه ':'، نُفّذ منها ')+is.d+' بنسبة '+PT(is.rate)+(is.b?'، وتعثّر '+is.b+'.':'.'):'لم تُسجَّل تدخلات في هذه الفترة.');
+  ex.push(withImp.length?'بلغ متوسط التحسن في إتقان المهارات '+PPT(avg(imps))+' على '+ar(withImp.length,['مهارة واحدة','مهارتين','مهارات','مهارة'])+'.':'لم تتوفر بعد بيانات قياس كافية لحساب التحسن، إذ يلزم قياس قبلي وآخر لاحق.');
+  if(att.rate!=null)ex.push('بلغت نسبة حضور جلسات الدعم '+PT(att.rate)+'.');
+  if(teachers.length)ex.push('رُصدت ملاحظات صفية على '+ar(teachers.length,['معلم واحد','معلمين','معلمين','معلمًا'])+(teachers.filter(t=>t.d!=null).length?'، وحقق منهم '+teachers.filter(t=>t.d!=null&&t.d>=1).length+' تحسنًا بنقطة فأكثر.':'.'));
+  L.push(ex.join(' '));
+  H('ثانيًا: مستوى تنفيذ الخطة والمخرجات');
+  if(ws.length){ws.forEach(({w,st})=>B('الأسبوع '+w.n+' ('+range(w.start,w.end)+'): '+st.done+' من '+st.total+' مهام — الحالة: '+WL[st.key]+' — المخرج «'+w.output+'»: '+(st.sub?'مرفوع':'غير مرفوع')+' (موعد الرفع '+dfmt(w.due)+')'));
+    if(blocked.length){L.push('مهام معلّمة بعائق:');blocked.forEach(x=>B('الأسبوع '+x.w.n+': '+x.t.text))}}
+  miles.forEach(m=>B(m.title+' — الحالة: '+(mileKey(m)==='late'?'متأخر':lab(TS,mileKey(m)))+' (الموعد '+dfmt(m.due,{day:'numeric',month:'long',year:'numeric'})+')'));
+  if(!ws.length&&!miles.length)L.push('لا مهام أو محطات مجدولة في هذه الفترة ضمن الوثيقة.');
+  H('ثالثًا: التدخلات');
+  if(is.t){L.push('سُجّل '+ar(is.t,['تدخل واحد','تدخلان','تدخلات','تدخلًا'])+': منفذ '+is.d+'، متعثر '+is.b+'، مخطط '+(is.t-is.d-is.b)+'. نسبة التنفيذ '+PT(is.rate)+'.');
+    const ck=Object.keys(byCause);if(ck.length){L.push('توزيع التدخلات بحسب سبب الفجوة:');ck.forEach(k=>B(k+': '+byCause[k]))}
+    L.push('أبرز التدخلات:');ints.slice(0,8).forEach(i=>B(i.action+' — الفئة: '+i.group+'، المهارة: '+i.skill+'، الحالة: '+lab(IS,i.status)))}
+  else L.push('لا تدخلات مسجلة في هذه الفترة.');
+  H('رابعًا: القياس ونتائج الإتقان');
+  if(sk.length){sk.forEach(({s,c})=>{let t=s.name+' ('+s.subject+(s.grade?' — '+s.grade:'')+'): ';
+      if(c.b==null)t+='لا يوجد خط أساس مكتمل.';else{t+='خط الأساس '+PT(c.b);if(c.last!=null)t+=' ← الأحدث '+PT(c.last)+' (التحسن '+PPT(c.imp)+'، '+impClass(c.imp)+')';else t+='، ولا قياس لاحق بعد'}
+      if(c.tg>0)t+='. المستهدف '+PT(c.tg)+(c.last!=null?'، ونسبة تحقيقه '+PT(c.ach):'');B(t)});
+    L.push('');if(withImp.length)L.push('الخلاصة: متوسط التحسن '+PPT(avg(imps))+'. عدد المهارات بتحسن قوي: '+imps.filter(v=>v>=THRESH.impStrong).length+'، متوسط: '+imps.filter(v=>v>=THRESH.impMid&&v<THRESH.impStrong).length+'، محدود أو متراجع: '+imps.filter(v=>v<THRESH.impMid).length+'.'+(withT.length?' وبلغ '+hit.length+' من '+withT.length+' مهارات مستهدفها المحدد.':''));
+    else L.push('الخلاصة: لا يمكن حساب التحسن حتى يتوفر قياس قبلي وآخر لاحق.')}
+  else L.push('لا مهارات مسجلة في قسم القياس.');
+  H('خامسًا: حضور جلسات الدعم');
+  if(att.n&&att.rate!=null){L.push('سُجّلت '+ar(att.n,['جلسة واحدة','جلستان','جلسات','جلسة'])+'؛ الحضور الفعلي '+att.a+' من '+att.e+' متوقعًا، بنسبة '+PT(att.rate)+' ('+(att.rate>=THRESH.attHigh?'مرتفعة':att.rate>=THRESH.attOk?'مقبولة':'منخفضة وتستدعي المعالجة')+' وفق نطاقات استرشادية).');
+    sl.slice(0,2).forEach(x=>B('أدنى الجلسات حضورًا: '+(x.s.label||'جلسة')+' بتاريخ '+dfmt(x.s.date)+' بنسبة '+PT(x.r)))}
+  else L.push('لا بيانات حضور صالحة في هذه الفترة.');
+  H('سادسًا: الممارسات التدريسية');
+  if(teachers.length){teachers.forEach(t=>B(t.n+': المتوسط الأول '+T1(t.f)+(t.d!=null?' ← الأحدث '+T1(t.l)+' (التغير '+(t.d>0?'+':t.d<0?'−':'')+T1(Math.abs(t.d))+')، '+(t.d>=1?'بلغ المستهدف (نقطة فأكثر)':'لم يبلغ المستهدف بعد'):' — ملاحظة واحدة فقط')));
+    const mx=prAvg.indexOf(Math.max(...prAvg)),mi=prAvg.indexOf(Math.min(...prAvg));L.push(prAvg[mx]===prAvg[mi]?'تتساوى متوسطات الممارسات الست ('+T1(prAvg[mx])+' من 4).':'أعلى الممارسات متوسطًا: «'+PRACTICES[mx]+'» ('+T1(prAvg[mx])+')، وأقلها «'+PRACTICES[mi]+'» ('+T1(prAvg[mi])+').')}
+  else L.push('لا ملاحظات صفية في هذه الفترة.');
+  H('سابعًا: العوائق والإجراءات التصحيحية');
+  let bar=0;ints.forEach(i=>{if(String(i.barrier||'').trim()||String(i.corrective||'').trim()){bar++;B(i.action+': العائق — '+(String(i.barrier||'').trim()||'—')+'؛ الإجراء التصحيحي — '+(String(i.corrective||'').trim()||'—'))}});
+  reps.forEach(({w,r})=>{if(String(r.barriers||'').trim()||String(r.support||'').trim()){bar++;B('الأسبوع '+w.n+' (التقرير الأسبوعي): العوائق — '+(String(r.barriers||'').trim()||'—')+'؛ الدعم المطلوب — '+(String(r.support||'').trim()||'—'))}});
+  blocked.forEach(x=>{bar++;B('الأسبوع '+x.w.n+': '+x.t.text+' (مهمة بعائق)')});
+  if(!bar)L.push('لم تُسجَّل عوائق في هذه الفترة.');
+  if(reps.length){L.push('');L.push('ما سجّله فريق الدعم في التقارير الأسبوعية:');reps.forEach(({w,r})=>{const ps=RF.filter(f=>['quality','progress','corrective'].includes(f[0])&&String(r[f[0]]||'').trim()).map(f=>f[1]+': '+String(r[f[0]]).trim());if(ps.length)B('الأسبوع '+w.n+' — '+ps.join('؛ '))})}
+  H('ثامنًا: التوصيات');
+  const ur=[...new Set(recs)];if(ur.length)ur.forEach((t,i)=>L.push((i+1)+'. '+t));else L.push('لا توصيات مولّدة؛ أدخل مزيدًا من البيانات.');
+  H('تاسعًا: أولويات الفترة القادمة');
+  if(next.length)next.forEach(t=>B(t));else L.push('لا مواعيد لاحقة معلّقة ضمن الوثيقة.');
+  H('ملاحظات على جودة البيانات');
+  if(qa.length)qa.forEach(t=>B(t));else L.push('لم تُرصد ملاحظات على جودة البيانات.');
+  L.push('');L.push('— أُعدّ هذا التقرير آليًا من بيانات اللوحة المدخلة، ويراجعه المسؤول قبل رفعه. نطاقات التفسير (قوة التحسن ومستوى الحضور) استرشادية من اللوحة وليست واردة في الوثيقة.');
+  return{text:L.join('\n'),ins,o}}
+
+R.generator=()=>{
+  const t=UI.gt||'weekly',ym=isoOf(today()).slice(0,7);
+  const keys=t==='weekly'?WEEKS.map(w=>[w.id,'الأسبوع '+w.n+' · '+range(w.start,w.end)]):t==='monthly'?['2026-10','2026-11','2026-12','2027-01','2027-02','2027-03'].map(k=>[k,dfmt(k+'-01',{month:'long',year:'numeric'})]):[['p1','المرحلة الأولى (11 أكتوبر – 31 ديسمبر 2026)'],['p2','المرحلة الثانية (1 يناير – 31 مارس 2027)']];
+  if(!keys.some(k=>k[0]===UI.gk))UI.gk=t==='weekly'?(WEEKS.find(w=>!(S.outputs[w.id]||{}).submitted)||WEEKS[0]).id:t==='monthly'?(keys.some(k=>k[0]===ym)?ym:keys[0][0]):'p1';
+  const K={k:{good:['done','إيجابي'],warn:['block','تنبيه'],info:['doing','معلومة'],data:['','بيانات ناقصة']}};
+  const insHtml=UI.gins?'<div class="card"><h3>تحليل البيانات</h3><ul class="ins">'+UI.gins.map(x=>'<li><span class="chip '+K.k[x.k][0]+'">'+K.k[x.k][1]+'</span><span>'+esc(x.t)+'</span></li>').join('')+'</ul></div>':'';
+  const out=UI.gen?insHtml+'<div class="card"><h3>نص التقرير</h3><p class="meta" style="margin-bottom:8px">يمكنك تعديل النص مباشرة قبل النسخ أو التصدير.</p><textarea id="gtext" class="gen" aria-label="نص التقرير">'+esc(UI.gen)+'</textarea><div class="btns"><button class="btn" type="button" data-act="genCopy">انسخ النص</button><button class="btn alt" type="button" data-act="genTxt">تصدير ملف نصي</button><button class="btn alt" type="button" data-act="genPrint">طباعة / حفظ PDF</button>'+(UI.gsc&&UI.gsc.type==='weekly'?'<button class="btn alt" type="button" data-act="fillWeekly">املأ نموذج التقرير الأسبوعي منه</button>':'')+'</div></div>':'<div class="card"><p class="meta">اختر نوع التقرير والفترة ثم اضغط «ولّد التقرير».</p></div>';
+  return head('generator','مولد التقارير','يصوغ تقريرًا أسبوعيًا أو شهريًا أو ختاميًا ويحلل بياناتك. كل جملة مشتقة من مدخلاتك، ولا يخترع أرقامًا. البيانات الناقصة تظهر ملاحظات صريحة.')+
+  '<form class="card" data-form="gen" novalidate><div class="form">'+fld('نوع التقرير','<select id="gt">'+opts([['weekly','أسبوعي'],['monthly','شهري'],['final','ختامي']],t)+'</select>')+fld(t==='weekly'?'الأسبوع':t==='monthly'?'الشهر':'المرحلة','<select id="gs">'+opts(keys,UI.gk)+'</select>')+'</div><div class="btns"><button class="btn" type="submit">ولّد التقرير</button></div></form>'+out};
+
 /* ---------- router ---------- */
 function go(id,keep){
   if(!R[id])id='home';
@@ -587,9 +747,9 @@ function go(id,keep){
   applyRO();
 }
 function applyRO(){if(CL.role!=='viewer')return;
-  $$('#content input,#content select,#content textarea').forEach(el=>{if(['fw','fs','ifs'].includes(el.id))return;el.disabled=true});
-  $$('#content form[data-form]').forEach(f=>f.style.display='none');
-  $$('#content [data-act]').forEach(b=>{if(['delInt','delSkill','delSession','delObs','reset','impPick','fillNums','useRec','enableCloud'].includes(b.dataset.act))b.style.display='none'})}
+  $$('#content input,#content select,#content textarea').forEach(el=>{if(['fw','fs','ifs','gt','gs','gtext'].includes(el.id))return;el.disabled=true});
+  $$('#content form[data-form]').forEach(f=>{if(f.dataset.form!=='gen')f.style.display='none'});
+  $$('#content [data-act]').forEach(b=>{if(['delInt','delSkill','delSession','delObs','reset','impPick','fillNums','useRec','fillWeekly'].includes(b.dataset.act))b.style.display='none'})}
 function fillLists(){$('#skillnames').innerHTML=S.skills.map(s=>'<option value="'+esc(s.name)+'">').join('');$('#teachers').innerHTML=Object.keys(obsGroups()).map(n=>'<option value="'+esc(n)+'">').join('')}
 function curSec(){return (location.hash||'#home').slice(1)}
 function closeNav(){$('#side').classList.remove('open');$('#scrim').classList.remove('open');$('#menuBtn').setAttribute('aria-expanded','false')}
@@ -615,10 +775,13 @@ function onField(e){const t=e.target,col=t.dataset&&t.dataset.col;if(!col)return
   r[t.dataset.k]=t.type==='checkbox'?t.checked:t.dataset.t==='n'?N(t.value):t.value;
   if(col==='outputs'&&t.dataset.k==='submitted')r.submittedOn=t.checked?isoOf(today()):null;
   save();if(HOOK[col])HOOK[col](t.dataset.id,t.dataset.k)}
+document.addEventListener('input',e=>{if(e.target.id==='gtext')UI.gen=e.target.value});
 document.addEventListener('input',onField);document.addEventListener('change',onField);
 document.addEventListener('change',e=>{const t=e.target;
   if(t.id==='fw'){UI.fw=t.value;go('tasks')}else if(t.id==='fs'){UI.fs=t.value;go('tasks')}else if(t.id==='ifs'){UI.ifs=t.value;go('interventions')}
   else if(t.id==='iv-cause'){const c=CAUSES.find(x=>x[0]===t.value),b=$('#iv-rec');if(c){b.hidden=false;b.innerHTML='<b>التدخل الموصى به:</b> '+esc(c[1])+' <button type="button" class="btn alt sm" data-act="useRec" data-t="'+esc(c[1])+'">استخدم التوصية</button>'}else b.hidden=true}
+  else if(t.id==='gt'){UI.gt=t.value;UI.gk=null;go('generator',true)}
+  else if(t.id==='gs'){UI.gk=t.value}
   else if(t.id==='impFile')importFile(t.files[0]);
 });
 
@@ -646,14 +809,30 @@ const ACT={
   print(){window.print()},
   expJson(){offerFile('نسخة-متابعة-خطة-التحسين-'+isoOf(today())+'.json',JSON.stringify({app:APP,version:1,exportedAt:new Date().toISOString(),data:S},null,2))},
   impPick(){$('#impFile').click()},
-  async enableCloud(){
-    if(!/^https?:$/.test(location.protocol)){toast('افتح الصفحة من رابط http أو https لتفعيل الحفظ المشترك',true);return}
-    if(!await ask('تفعيل الحفظ المشترك؟','سيُنشأ مستند سري في Firebase وتُرفع إليه بيانات هذا الجهاز. بعدها تضيف معرّف جهازك إلى قواعد Firestore ليُسمح لك بالكتابة.','فعّل'))return;
-    const id=genId();try{localStorage.setItem('plan_space',id);localStorage.setItem('plan_role_'+id,'admin')}catch(e){toast('تعذّر حفظ إعداد المشاركة في هذا المتصفح',true);return}
-    CL.space=id;CL.role='admin';CL.ready=false;S.meta.updated=Date.now();persistLocal();setBadge();go('backup',true);await cloudInit();refreshBackup()},
-  goAdmin(){try{localStorage.setItem('plan_role_'+CL.space,'admin')}catch(e){toast('تعذّر التبديل في هذا المتصفح',true);return}location.reload()},
-  async stopCloud(){if(!await ask('إيقاف المشاركة؟','يتوقف هذا الجهاز عن الحفظ المشترك. لا تُحذف البيانات من Firebase، وتبقى بيانات هذا الجهاز كما هي.','أوقف'))return;
-    try{localStorage.removeItem('plan_space');localStorage.removeItem('plan_role_'+CL.space)}catch(e){}if(CL.unsub)CL.unsub();location.href=location.pathname},
+  async signIn(){
+    if(!/^https?:$/.test(location.protocol)){toast('افتح الصفحة من رابط http أو https لتسجيل الدخول',true);return}
+    CL.flag=true;try{localStorage.setItem('plan_cloud','1')}catch(e){}
+    if(!await loadSdk())return;bindAuth();
+    try{await CL.Au.signInWithPopup(CL.auth,new CL.Au.GoogleAuthProvider())}
+    catch(e){const c=e&&e.code;
+      if(c==='auth/popup-blocked'||c==='auth/operation-not-supported-in-this-environment'){try{await CL.Au.signInWithRedirect(CL.auth,new CL.Au.GoogleAuthProvider())}catch(x){toast('تعذّر فتح نافذة الدخول',true)}}
+      else if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request'){}
+      else if(c==='auth/operation-not-allowed'){CL.err='فعّل مزوّد Google من Authentication ثم Sign-in method في Firebase.';refreshBackup()}
+      else if(c==='auth/unauthorized-domain'){CL.err='أضف نطاق هذه الصفحة في Authentication ثم Settings ثم Authorized domains.';refreshBackup()}
+      else{CL.err='تعذّر تسجيل الدخول ('+(c||'خطأ')+')';refreshBackup()}}},
+  async signOutA(){try{await CL.Au.signOut(CL.auth);toast('سُجّل الخروج')}catch(e){toast('تعذّر تسجيل الخروج',true)}},
+  genCopy(){try{navigator.clipboard.writeText(UI.gen).then(()=>toast('نُسخ نص التقرير'),()=>toast('تعذّر النسخ',true))}catch(e){toast('تعذّر النسخ',true)}},
+  genTxt(){offerFile('تقرير-'+(UI.gsc?UI.gsc.type+'-'+UI.gsc.key:'عام')+'.txt',UI.gen)},
+  genPrint(){$('#rptPrint').textContent=UI.gen;document.body.classList.add('print-report');window.onafterprint=()=>document.body.classList.remove('print-report');window.print()},
+  fillWeekly(){const w=WEEKS.find(x=>x.id===(UI.gsc||{}).key);if(!w)return;const o=scopeOf(UI.gsc),ints=S.interventions.filter(i=>inR(i.date,o.from,o.to)),r=S.reports[w.id]||(S.reports[w.id]={});
+    const put=(k,v)=>{if(v&&!String(r[k]||'').trim())r[k]=v},u=a=>[...new Set(a.filter(Boolean))].join('، ');
+    put('skills',u(ints.map(i=>i.skill)));put('groups',u(ints.map(i=>i.group)));put('planned',ints.map(i=>'• '+i.action+' ('+lab(IS,i.status)+')').join('\n'));
+    put('evidence',ints.map(i=>String(i.evidence||'').trim()).filter(Boolean).map(x=>'• '+x).join('\n'));
+    put('barriers',ints.map(i=>String(i.barrier||'').trim()).filter(Boolean).map(x=>'• '+x).join('\n'));put('corrective',ints.map(i=>String(i.corrective||'').trim()).filter(Boolean).map(x=>'• '+x).join('\n'));
+    const is=intStats(),as=attStats();put('progress','تنفيذ التدخلات: '+PT(is.rate)+' ('+is.d+' من '+is.t+')'+(as.rate!=null?' · حضور جلسات الدعم: '+PT(as.rate):''));
+    const nw=WEEKS[WEEKS.indexOf(w)+1];put('next',nw?nw.priority.replace('أولوية هذا الأسبوع: ','')+'\n'+nw.tasks.slice(0,3).map(t=>'• '+t.text).join('\n'):'');
+    r.updatedAt=Date.now();save();UI.rw=w.id;location.hash='report';go('report');toast('عُبّئت الحقول الفارغة من بيانات الفترة')},
+  recheck(){CL.err=null;refreshBackup();checkAdmin()},
   cloudRetry(){S.meta.updated=Date.now();persistLocal();push()},
   copyVal(id,el){try{navigator.clipboard.writeText(el.dataset.v).then(()=>toast('تم النسخ'),()=>toast('تعذّر النسخ',true))}catch(e){toast('تعذّر النسخ',true)}},
   async reset(){if(await ask('مسح كل البيانات؟','سيُحذف كل ما أدخلته على هذا الجهاز. تأكد من تصدير نسخة احتياطية أولًا.','امسح')){S=blank();S.meta.updated=Date.now();persist();go(curSec());toast('مُسحت البيانات')}}
@@ -667,10 +846,11 @@ document.addEventListener('submit',e=>{const f=e.target.closest('[data-form]');i
     S.skills.push({id:uid(),name:v('sk-name'),subject:v('sk-subject'),grade:v('sk-grade'),target:t});save();go('measure');toast('أُضيفت المهارة');break}
   case 'addSession':{const x=N(v('se-exp')),y=N(v('se-act'));if(!(x>0)||!Number.isInteger(x)||!(y>=0)||!Number.isInteger(y)||y>x){const fl=$('#se-act').closest('.fld');fl.classList.add('invalid');$('.err',fl).textContent='أدخل أعدادًا صحيحة، ولا يتجاوز الفعلي المتوقع';$('#se-act').focus();toast('تحقق من أعداد الحضور',true);return}
     S.sessions.push({id:uid(),date:v('se-date'),label:v('se-label'),expected:x,actual:y});save();go('attendance');toast('سُجّلت الجلسة');break}
+  case 'gen':{UI.gt=$('#gt').value;UI.gk=$('#gs').value;UI.gsc={type:UI.gt,key:UI.gk};const R2=buildReport(UI.gsc);UI.gen=R2.text;UI.gins=R2.ins;go('generator',true);toast('تم توليد التقرير');break}
   case 'addObs':S.obs.push({id:uid(),teacher:v('ob-teacher'),date:v('ob-date'),scores:PRACTICES.map((_,i)=>Number(v('ob-p'+i))),created:Date.now()});save();go('observation');toast('سُجّلت الملاحظة');break}
 });
 
-/* ---------- Firebase (shared saving) ---------- */
+/* ---------- Firebase (shared saving, admin signs in with Google) ---------- */
 function genId(){const c='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',a=new Uint8Array(32);crypto.getRandomValues(a);return [...a].map(x=>c[x%62]).join('')}
 function isBlank(){return !(S.skills.length||S.interventions.length||S.sessions.length||S.obs.length||Object.keys(S.tasks).length||Object.keys(S.outputs).length||Object.keys(S.miles).length||Object.keys(S.reports).length||Object.keys(S.checklist).length)}
 function applyRemote(r){let d;try{d=JSON.parse(r.data)}catch(e){CL.err='البيانات المشتركة تالفة';return false}
@@ -678,13 +858,14 @@ function applyRemote(r){let d;try{d=JSON.parse(r.data)}catch(e){CL.err='البي
   S=Object.assign(blank(),d);S.meta={updated:r.updatedAt||0,rev:r.rev||0};return true}
 function refreshBackup(){if(curSec()==='backup')go('backup',true)}
 function setBadge(){const b=$('#roleBadge'),nh=$('#noticeHead'),nt=$('#noticeText');
-  if(CL.role==='admin'){b.style.display='';b.className='chip done';b.textContent='مسؤول · حفظ مشترك';nh.textContent='الحفظ المشترك:';nt.textContent='تُرسل تعديلاتك إلى Firebase تلقائيًا، ويراها بقية الفريق للقراءة فقط.'}
+  if(CL.role==='admin'){b.style.display='';b.className='chip done';b.textContent='مسؤول · حفظ مشترك';nh.textContent='الحفظ المشترك:';nt.textContent='كل ما تدخله يُحفظ في Firebase تلقائيًا، وتفتحه من أي جهاز بعد تسجيل الدخول. بقية الفريق يقرؤون فقط.'}
   else if(CL.role==='viewer'){b.style.display='';b.className='chip doing';b.textContent='عرض فقط';nh.textContent='وضع العرض:';nt.textContent='ترى آخر ما حفظه المعلم المسؤول، وتتحدث الصفحة تلقائيًا. لا يمكنك التعديل.'}
-  else{b.style.display='none'}}
-function rulesTxt(){return `    // ===== لوحة متابعة خطة تحسين المدرسة =====
+  else{b.style.display='none';nh.textContent='الحفظ محلي:';nt.textContent='تُحفظ البيانات في متصفح هذا الجهاز فقط. سجّل دخول المسؤول لحفظها في Firebase وفتحها من أي جهاز.'}}
+function rulesTxt(){const em=(CL.user&&CL.user.email||'ضع_بريد_المسؤول_هنا').toLowerCase();return `    // ===== لوحة متابعة خطة تحسين المدرسة =====
     function isPlanAdmin() {
       return request.auth != null
-        && request.auth.uid in ['${CL.user||'ضع_UID_المسؤول_هنا'}'];
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['${em}'];
     }
     function validPlanDoc() {
       let d = request.resource.data;
@@ -694,8 +875,8 @@ function rulesTxt(){return `    // ===== لوحة متابعة خطة تحسين
         && d.rev is int;
     }
     match /${COL}/{spaceId} {
-      allow get: if true;
-      allow list: if false;
+      allow get: if true;                 // القراءة لمن يملك الرابط السري
+      allow list: if isPlanAdmin();       // يجد المسؤول مساحته من أي جهاز
       allow create, update: if isPlanAdmin() && validPlanDoc();
       allow delete: if false;
     }
@@ -704,35 +885,54 @@ function rulesTxt(){return `    // ===== لوحة متابعة خطة تحسين
 function cloudCard(){
   const link=CL.space?location.origin+location.pathname+'?space='+CL.space:'';
   const cp=(v,l)=>'<button class="btn alt sm" type="button" data-act="copyVal" data-v="'+esc(v)+'">'+l+'</button>';
+  const rules='<details style="margin-top:14px"><summary>قواعد Firestore المطلوبة</summary><pre class="rules">'+esc(rulesTxt())+'</pre>'+cp(rulesTxt(),'انسخ القواعد')+'</details>';
+  const err=CL.err?'<p class="err show">'+esc(CL.err)+'</p>':'';
   let h='<div class="card"><h3>الحفظ المشترك (Firebase)</h3>';
-  if(CL.role==='local')h+='<p>فعّله ليرى فريقك آخر ما تحفظه. تبقى أنت المسؤول الوحيد عن الكتابة، ويقرأ الآخرون عبر رابط سري بمعرّف عشوائي لا يُخمَّن. يتطلب فتح الصفحة من رابط http أو https.</p><div class="btns"><button class="btn" type="button" data-act="enableCloud">فعّل الحفظ المشترك</button></div>';
-  else if(CL.role==='viewer')h+='<p>أنت في وضع العرض فقط. إن كنت المعلم المسؤول وهذا جهازك، فبدّل إلى وضع المسؤول.</p>'+(CL.err?'<p class="err show">'+esc(CL.err)+'</p>':'')+'<div class="btns"><button class="btn alt" type="button" data-act="goAdmin">وضع المسؤول</button></div>';
-  else h+='<p>الحفظ المشترك مفعّل بوضع المسؤول.</p>'+(CL.err?'<p class="err show">'+esc(CL.err)+'</p>':'')+
-    '<p><b>معرّف هذا الجهاز (UID):</b></p><p dir="ltr" style="text-align:start;word-break:break-all"><bdi>'+esc(CL.user||'— لم يُسجَّل الدخول بعد —')+'</bdi></p>'+(CL.user?cp(CL.user,'انسخ المعرّف'):'')+
-    '<p style="margin-top:12px"><b>رابط الفريق (قراءة فقط):</b></p><p dir="ltr" style="text-align:start;word-break:break-all"><bdi>'+esc(link)+'</bdi></p>'+cp(link,'انسخ الرابط')+
-    '<details style="margin-top:14px"><summary>قواعد Firestore المطلوبة</summary><pre class="rules">'+esc(rulesTxt())+'</pre>'+cp(rulesTxt(),'انسخ القواعد')+'</details>'+
-    '<div class="btns"><button class="btn alt" type="button" data-act="cloudRetry">أعد محاولة الحفظ</button><button class="btn warn" type="button" data-act="stopCloud">أوقف المشاركة</button></div>';
+  if(CL.role==='admin')h+='<p>أنت مسجّل بوضع المسؤول: <b dir="ltr"><bdi>'+esc(CL.user&&CL.user.email||'')+'</bdi></b>. كل تعديل يُحفظ تلقائيًا في Firebase، وتجده كما هو عند الدخول من أي جهاز بالحساب نفسه.</p>'+err+
+    '<p style="margin-top:10px"><b>رابط الفريق (قراءة فقط):</b></p><p dir="ltr" style="text-align:start;word-break:break-all"><bdi>'+esc(link)+'</bdi></p>'+cp(link,'انسخ الرابط')+rules+
+    '<div class="btns"><button class="btn alt" type="button" data-act="cloudRetry">أعد محاولة الحفظ</button><button class="btn warn" type="button" data-act="signOutA">تسجيل الخروج</button></div>';
+  else if(CL.user)h+='<p>سُجّل الدخول بالحساب <b dir="ltr"><bdi>'+esc(CL.user.email)+'</bdi></b>، لكنه ليس مسؤولًا في القواعد بعد.</p>'+(err||'<p class="meta">جارٍ التحقق من الصلاحية…</p>')+rules+
+    '<div class="btns"><button class="btn" type="button" data-act="recheck">أعد التحقق</button><button class="btn alt" type="button" data-act="signOutA">تسجيل الخروج</button></div>';
+  else h+='<p>'+(CL.role==='viewer'?'أنت في وضع العرض فقط. إن كنت المعلم المسؤول فسجّل الدخول لتعدّل.':'يحفظ هذا الخيار كل ما تدخله في Firebase، فتفتحه من أي جهاز بتسجيل الدخول بحساب Google الخاص بالمعلم المسؤول. لا توجد كلمة سر تُدار في اللوحة.')+'</p>'+err+'<div class="btns"><button class="btn" type="button" data-act="signIn">دخول المسؤول بحساب Google</button></div>'+(location.protocol.startsWith('http')?'':'<p class="err show">افتح الصفحة من رابط http أو https، فتسجيل الدخول لا يعمل من ملف محلي.</p>');
   return h+'</div>'}
-async function push(){
-  if(CL.role!=='admin'||!CL.ready||!CL.user||!CL.ref)return;
-  S.meta.rev=(S.meta.rev||0)+1;const txt=JSON.stringify(S);
-  if(txt.length>880000){setStatus('حجم البيانات أكبر من حد الحفظ المشترك');toast('حجم البيانات أكبر من الحد المسموح للحفظ المشترك',true);return}
-  try{await CL.F.setDoc(CL.ref,{data:txt,updatedAt:S.meta.updated||Date.now(),rev:S.meta.rev});CL.err=null;setStatus('حُفظ مشتركًا '+timeNow())}
-  catch(e){CL.err=e.code==='permission-denied'?'رُفضت الكتابة: هذا الجهاز ليس المسؤول في قواعد Firestore. أضف المعرّف الظاهر أدناه إلى القواعد وانشرها.':'تعذّر الحفظ المشترك ('+(e.code||'خطأ')+')';setStatus('تعذّر الحفظ المشترك');toast(CL.err,true);refreshBackup()}}
-async function cloudInit(){
-  if(CL.role==='local'||!CL.space)return;
+async function loadSdk(){
+  if(CL.F)return true;
+  try{const [A,Au,F]=await Promise.all([import(FB_URL+'firebase-app.js'),import(FB_URL+'firebase-auth.js'),import(FB_URL+'firebase-firestore.js')]);
+    const app=A.initializeApp(FB_CFG);CL.F=F;CL.Au=Au;CL.db=F.getFirestore(app);CL.auth=Au.getAuth(app);return true}
+  catch(e){CL.err='تعذّر تحميل Firebase. تأكد من الاتصال بالإنترنت وفتح الصفحة عبر رابط http أو https.';setStatus(CL.err);refreshBackup();return false}}
+function bindAuth(){if(CL.bound)return;CL.bound=true;
+  CL.Au.onAuthStateChanged(CL.auth,u=>{
+    if(u&&!u.isAnonymous){CL.user={email:u.email||'',uid:u.uid};refreshBackup();checkAdmin()}
+    else{CL.user=null;if(CL.role==='admin')dropAdmin();refreshBackup()}})}
+function watchSpace(){
+  if(!CL.space||CL.unsub)return;
+  CL.unsub=CL.F.onSnapshot(CL.F.doc(CL.db,COL,CL.space),snap=>{
+    if(CL.role!=='viewer')return;
+    if(!snap.exists()){CL.err='لا توجد بيانات مشتركة بهذا الرابط بعد.';setStatus(CL.err);return}
+    if(applyRemote(snap.data())){CL.err=null;setStatus('آخر تحديث '+timeNow());go(curSec(),true)}else setStatus(CL.err)},
+    e=>{CL.err='تعذّرت قراءة البيانات المشتركة ('+(e.code||'خطأ')+')';setStatus(CL.err)});
+  CL.ready=true}
+async function checkAdmin(){
+  if(CL.busy||(CL.role==='admin'&&CL.ready)||!CL.user)return;CL.busy=true;
   try{
-    const [A,Au,F]=await Promise.all([import(FB_URL+'firebase-app.js'),import(FB_URL+'firebase-auth.js'),import(FB_URL+'firebase-firestore.js')]);
-    const app=A.initializeApp(FB_CFG);CL.F=F;CL.db=F.getFirestore(app);CL.ref=F.doc(CL.db,COL,CL.space);
-    if(CL.role==='viewer'){
-      CL.unsub=F.onSnapshot(CL.ref,snap=>{
-        if(!snap.exists()){CL.err='لا توجد بيانات مشتركة بهذا الرابط بعد.';setStatus(CL.err);return}
-        if(applyRemote(snap.data())){CL.err=null;setStatus('آخر تحديث '+timeNow());go(curSec(),true)}else setStatus(CL.err)},
-        e=>{CL.err='تعذّرت قراءة البيانات المشتركة ('+(e.code||'خطأ')+')';setStatus(CL.err)});
-      CL.ready=true;return}
-    const au=Au.getAuth(app);
-    try{const c=await Au.signInAnonymously(au);CL.user=c.user.uid}
-    catch(e){CL.err=e.code==='auth/operation-not-allowed'?'فعّل الدخول المجهول (Anonymous) من Authentication ثم Sign-in method في Firebase.':'تعذّر تسجيل الدخول المجهول ('+(e.code||'خطأ')+')';setStatus(CL.err);refreshBackup();return}
+    const F=CL.F;let qs;
+    try{qs=await F.getDocs(F.query(F.collection(CL.db,COL),F.orderBy('updatedAt','desc'),F.limit(1)))}
+    catch(e){CL.err=e.code==='permission-denied'?'الحساب '+CL.user.email+' ليس مسؤولًا في قواعد Firestore. أضف بريده إلى القواعد (ظاهرة أدناه) وانشرها، ثم اضغط «أعد التحقق».':'تعذّر التحقق من صلاحية المسؤول ('+(e.code||'خطأ')+')';refreshBackup();return}
+    let id=CL.space;if(!id)id=qs.docs.length?qs.docs[0].id:genId();
+    if(CL.unsub){CL.unsub();CL.unsub=null}
+    if(CL.role==='viewer')S=load();
+    CL.space=id;CL.role='admin';CL.err=null;
+    try{localStorage.setItem('plan_space',id);localStorage.setItem('plan_cloud','1')}catch(e){}
+    setBadge();await adminSync();
+  }finally{CL.busy=false}}
+function dropAdmin(){clearTimeout(pushT);CL.ready=false;
+  const viaLink=!!new URLSearchParams(location.search).get('space');
+  CL.role=viaLink?'viewer':'local';setBadge();
+  if(CL.role==='viewer'){S=blank();watchSpace()}
+  go(curSec(),true)}
+async function adminSync(){
+  const F=CL.F;CL.ref=F.doc(CL.db,COL,CL.space);CL.ready=false;
+  try{
     const snap=await F.getDoc(CL.ref);let pushNow=!snap.exists();
     if(snap.exists()){const r=snap.data(),lu=S.meta.updated||0;
       if(isBlank()){if(applyRemote(r)){persistLocal();go(curSec(),true)}}
@@ -740,8 +940,19 @@ async function cloudInit(){
         if(await ask('نسخة مشتركة أحدث','يوجد في Firebase نسخة أحدث من بيانات هذا الجهاز. إن اخترت استخدامها فستُستبدل بيانات الجهاز بها، وإن ألغيت فستحل بيانات هذا الجهاز محلها.','استخدم النسخة المشتركة')){if(applyRemote(r)){persistLocal();go(curSec(),true)}}
         else{S.meta.updated=Date.now();pushNow=true}}
       else if(lu>(r.updatedAt||0))pushNow=true}
-    CL.ready=true;refreshBackup();if(pushNow)push();else setStatus('متزامن '+timeNow());
-  }catch(e){CL.err='تعذّر تحميل Firebase. تأكد من الاتصال بالإنترنت وفتح الصفحة عبر رابط http أو https.';setStatus(CL.err);refreshBackup()}}
+    CL.ready=true;CL.err=null;refreshBackup();
+    if(pushNow)push();else setStatus('متزامن '+timeNow());
+  }catch(e){CL.err='تعذّرت المزامنة ('+(e.code||'خطأ')+')';setStatus(CL.err);refreshBackup()}}
+async function push(){
+  if(CL.role!=='admin'||!CL.ready||!CL.ref)return;
+  S.meta.rev=(S.meta.rev||0)+1;const txt=JSON.stringify(S);
+  if(txt.length>880000){setStatus('حجم البيانات أكبر من حد الحفظ المشترك');toast('حجم البيانات أكبر من الحد المسموح للحفظ المشترك',true);return}
+  try{await CL.F.setDoc(CL.ref,{data:txt,updatedAt:S.meta.updated||Date.now(),rev:S.meta.rev});CL.err=null;setStatus('حُفظ مشتركًا '+timeNow())}
+  catch(e){CL.err=e.code==='permission-denied'?'رُفضت الكتابة: هذا الحساب ليس المسؤول في قواعد Firestore.':'تعذّر الحفظ المشترك ('+(e.code||'خطأ')+')';setStatus('تعذّر الحفظ المشترك');toast(CL.err,true);refreshBackup()}}
+async function cloudInit(){
+  if(!CL.flag)return;
+  if(!await loadSdk())return;
+  bindAuth();if(CL.role==='viewer')watchSpace()}
 
 /* ---------- start ---------- */
 setBadge();
