@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>متابعة خطة تحسين المدرسة</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -232,7 +233,6 @@ dialog h3{font-size:19px;margin-bottom:8px}
     </div>
     <nav class="nav" id="nav"></nav>
     <p class="side-foot">لوحة مدرسية مستقلة، وليست بوابة الوزارة أو أحد أنظمتها.</p>
-    <div class="side-foot" id="adminBox"></div>
   </aside>
   <div class="scrim" id="scrim"></div>
   <div class="main">
@@ -241,7 +241,6 @@ dialog h3{font-size:19px;margin-bottom:8px}
       <h1>متابعة خطة تحسين المدرسة</h1>
       <span class="phase">المرحلة الأولى: 11 أكتوبر – 31 ديسمبر 2026 · المرحلة الثانية: 1 يناير – 31 مارس 2027</span>
       <span class="grow"></span>
-      <span class="chip" id="roleBadge" style="display:none"></span>
       <span class="savestate" id="saveState" aria-live="polite">جاهز</span>
     </header>
     
@@ -278,8 +277,8 @@ const APP='school-improvement-tracker', KEY='school-improvement-tracker-v1';
 /* ---------- Firebase config (client config is public by design; access is controlled by Firestore rules) ---------- */
 const FB_CFG={apiKey:"AIzaSyCyHUe9NllVNz46LXNV5YdNmqA94VVLOBE",authDomain:"student-talents-1447.firebaseapp.com",projectId:"student-talents-1447",storageBucket:"student-talents-1447.firebasestorage.app",messagingSenderId:"377382667271",appId:"1:377382667271:web:2b52b19cc68fa0724bd6a2"};
 const FB_URL='https://www.gstatic.com/firebasejs/10.14.1/', COL='schoolPlanSpaces', SHARED='nafispro-follow-main';
-/* كل من يفتح الصفحة يقرأ المستند المشترك نفسه تلقائيًا؛ الكتابة للمسؤول فقط بعد تسجيل دخوله */
-const CL={role:'viewer',space:SHARED,ready:false,user:null,err:null,db:null,F:null,Au:null,auth:null,ref:null,unsub:null,flag:true,busy:false,bound:false};
+/* كل من يفتح الصفحة يقرأ ويعدّل المستند المشترك نفسه، والتعديلات تُدمج على مستوى الحقل */
+const CL={live:false,err:null,db:null,F:null,ref:null,unsub:null,base:null,rev:-1,pushing:false,again:false,dirty:false};
 
 /* ---------- plan data (from the requirements document) ---------- */
 const W=(id,n,start,end,priority,goal,tasks,output)=>({id,n,start,end,due:end,priority,goal,output,tasks:tasks.map((t,i)=>({id:id+'t'+(i+1),text:t}))});
@@ -373,14 +372,11 @@ function load(){try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.par
 function valid(o){const d=o&&o.data;if(!o||o.app!==APP||!d||typeof d!=='object')return false;
   for(const k of ['skills','interventions','sessions','obs'])if(!Array.isArray(d[k]))return false;
   for(const k of ['tasks','outputs','miles','reports','checklist'])if(!d[k]||typeof d[k]!=='object'||Array.isArray(d[k]))return false;return true}
-let S=CL.role==='viewer'?blank():load(),saveT=null,pushT=null;
+let S=blank(),pushT=null;
 const timeNow=()=>new Date().toLocaleTimeString(LOC,{hour:'2-digit',minute:'2-digit'});
 const setStatus=t=>{$('#saveState').textContent=t};
-function persistLocal(){try{localStorage.setItem(KEY,JSON.stringify(S));storageOk=true;return true}catch(e){storageOk=false;return false}}
-function persist(){if(CL.role==='viewer')return;
-  if(persistLocal())setStatus('حُفظ محليًا '+timeNow());else setStatus('تعذّر الحفظ المحلي في هذا المتصفح');
-  if(CL.role==='admin'&&CL.ready){clearTimeout(pushT);pushT=setTimeout(push,1200)}}
-function save(){if(CL.role==='viewer')return;S.meta.updated=Date.now();setStatus('جارٍ الحفظ…');clearTimeout(saveT);saveT=setTimeout(persist,200)}
+function persist(){clearTimeout(pushT);pushT=setTimeout(push,300)}
+function save(){if(!CL.live)return;S.meta.updated=Date.now();setStatus('جارٍ الحفظ…');clearTimeout(pushT);pushT=setTimeout(push,900)}
 const rec=(col,id)=>{const c=S[col];if(Array.isArray(c))return c.find(r=>r.id===id);return c[id]||(c[id]={})};
 
 /* ---------- ui helpers ---------- */
@@ -426,7 +422,7 @@ const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
 /* ---------- renderers ---------- */
 const SECS=[['home','الرئيسية'],['timeline','الخط الزمني'],['tasks','المهام والمخرجات'],['interventions','التدخلات'],['measure','القياس'],['attendance','الحضور'],['observation','بطاقة الملاحظة'],['report','التقرير الأسبوعي'],['generator','مولد التقارير'],['checklist','قائمة التحقق'],['indicators','المؤشرات']];
 const R={};
-let UI={fw:'all',fs:'all',ifs:'all',rw:null};
+let UI={fw:'all',fs:'all',ifs:'all',rw:null,ow:{}};
 
 R.home=()=>{
   const uw=WEEKS.find(w=>!(S.outputs[w.id]||{}).submitted);
@@ -468,7 +464,7 @@ R.tasks=()=>{
       '<label><span class="sr">حالة المهمة</span><select data-col="tasks" data-id="'+t.id+'" data-k="status">'+opts(TS,st)+'</select></label>'+
       '<label><span class="sr">المسؤول عن المهمة</span><input type="text" list="owners" placeholder="المسؤول" data-col="tasks" data-id="'+t.id+'" data-k="owner" value="'+esc(r.owner||'')+'"></label></div>'}).join('')||'<p class="meta">لا مهام تطابق التصفية.</p>';
     const o=S.outputs[w.id]||{};
-    return '<details class="week"'+(w.id===cur||UI.fw!=='all'?' open':'')+'><summary class="wsum" data-wsum="'+w.id+'">'+weekSum(w)+'</summary><div class="inner">'+rows+
+    return '<details class="week"'+((UI.ow[w.id]!==undefined?UI.ow[w.id]:(w.id===cur||UI.fw!=='all'))?' open':'')+'><summary class="wsum" data-wsum="'+w.id+'">'+weekSum(w)+'</summary><div class="inner">'+rows+
     '<div class="outrow"><div><b>المخرج المطلوب:</b> '+esc(w.output)+'</div><label class="chk"><input type="checkbox" data-col="outputs" data-id="'+w.id+'" data-k="submitted"'+(o.submitted?' checked':'')+'> رُفع في الموعد</label>'+
     '<label><span class="sr">مسؤول رفع المخرج</span><input type="text" list="owners" placeholder="مسؤول الرفع" data-col="outputs" data-id="'+w.id+'" data-k="owner" value="'+esc(o.owner||'')+'"></label></div></div></details>'}).join('');
   return head('tasks','المهام والمخرجات','حدّث حالة كل مهمة وسمِّ مسؤولها، ثم علّم المخرج «رُفع» بعد رفعه. تظهر «متأخر» تلقائيًا عند تجاوز موعد الرفع.')+
@@ -737,7 +733,8 @@ function go(id,keep){
   if(!keep){window.scrollTo(0,0);const h=$('#h-'+id);if(h)h.focus({preventScroll:true})}
   applyRO();
 }
-function applyRO(){if(CL.role!=='viewer')return;
+function applyRO(){if(CL.live)return;
+  const sec=$('.sec.on');if(sec&&!$('.loadnote',sec))sec.insertAdjacentHTML('afterbegin','<div class="note loadnote" style="margin-bottom:12px">'+esc(CL.err||'جارٍ تحميل البيانات المشتركة… يتاح التعديل بعد اكتمال التحميل.')+'</div>');
   $$('#content input,#content select,#content textarea').forEach(el=>{if(['fw','fs','ifs','gt','gs','gtext'].includes(el.id))return;el.disabled=true});
   $$('#content form[data-form]').forEach(f=>{if(f.dataset.form!=='gen')f.style.display='none'});
   $$('#content [data-act]').forEach(b=>{if(['delInt','delSkill','delSession','delObs','reset','impPick','fillNums','useRec','fillWeekly'].includes(b.dataset.act))b.style.display='none'})}
@@ -767,6 +764,7 @@ function onField(e){const t=e.target,col=t.dataset&&t.dataset.col;if(!col)return
   if(col==='outputs'&&t.dataset.k==='submitted')r.submittedOn=t.checked?isoOf(today()):null;
   save();if(HOOK[col])HOOK[col](t.dataset.id,t.dataset.k)}
 document.addEventListener('input',e=>{if(e.target.id==='gtext')UI.gen=e.target.value});
+document.addEventListener('toggle',e=>{const d=e.target;if(d.matches&&d.matches('details.week')){const m=d.querySelector('summary[data-wsum]');if(m)UI.ow[m.dataset.wsum]=d.open}},true);
 document.addEventListener('input',onField);document.addEventListener('change',onField);
 document.addEventListener('change',e=>{const t=e.target;
   if(t.id==='fw'){UI.fw=t.value;go('tasks')}else if(t.id==='fs'){UI.fs=t.value;go('tasks')}else if(t.id==='ifs'){UI.ifs=t.value;go('interventions')}
@@ -800,18 +798,6 @@ const ACT={
   print(){window.print()},
   expJson(){offerFile('نسخة-متابعة-خطة-التحسين-'+isoOf(today())+'.json',JSON.stringify({app:APP,version:1,exportedAt:new Date().toISOString(),data:S},null,2))},
   impPick(){$('#impFile').click()},
-  async signIn(){
-    if(!/^https?:$/.test(location.protocol)){toast('افتح الصفحة من رابط http أو https لتسجيل الدخول',true);return}
-    CL.flag=true;try{localStorage.setItem('plan_cloud','1')}catch(e){}
-    if(!await loadSdk())return;bindAuth();
-    try{await CL.Au.signInWithPopup(CL.auth,new CL.Au.GoogleAuthProvider())}
-    catch(e){const c=e&&e.code;
-      if(c==='auth/popup-blocked'||c==='auth/operation-not-supported-in-this-environment'){try{await CL.Au.signInWithRedirect(CL.auth,new CL.Au.GoogleAuthProvider())}catch(x){toast('تعذّر فتح نافذة الدخول',true)}}
-      else if(c==='auth/popup-closed-by-user'||c==='auth/cancelled-popup-request'){}
-      else if(c==='auth/operation-not-allowed'){CL.err='فعّل مزوّد Google من Authentication ثم Sign-in method في Firebase.';refreshBackup()}
-      else if(c==='auth/unauthorized-domain'){CL.err='أضف نطاق هذه الصفحة في Authentication ثم Settings ثم Authorized domains.';refreshBackup()}
-      else{CL.err='تعذّر تسجيل الدخول ('+(c||'خطأ')+')';refreshBackup()}}},
-  async signOutA(){try{await CL.Au.signOut(CL.auth);toast('سُجّل الخروج')}catch(e){toast('تعذّر تسجيل الخروج',true)}},
   genCopy(){try{navigator.clipboard.writeText(UI.gen).then(()=>toast('نُسخ نص التقرير'),()=>toast('تعذّر النسخ',true))}catch(e){toast('تعذّر النسخ',true)}},
   genTxt(){offerFile('تقرير-'+(UI.gsc?UI.gsc.type+'-'+UI.gsc.key:'عام')+'.txt',UI.gen)},
   genPrint(){$('#rptPrint').textContent=UI.gen;document.body.classList.add('print-report');window.onafterprint=()=>document.body.classList.remove('print-report');window.print()},
@@ -823,8 +809,6 @@ const ACT={
     const is=intStats(),as=attStats();put('progress','تنفيذ التدخلات: '+PT(is.rate)+' ('+is.d+' من '+is.t+')'+(as.rate!=null?' · حضور جلسات الدعم: '+PT(as.rate):''));
     const nw=WEEKS[WEEKS.indexOf(w)+1];put('next',nw?nw.priority.replace('أولوية هذا الأسبوع: ','')+'\n'+nw.tasks.slice(0,3).map(t=>'• '+t.text).join('\n'):'');
     r.updatedAt=Date.now();save();UI.rw=w.id;location.hash='report';go('report');toast('عُبّئت الحقول الفارغة من بيانات الفترة')},
-  recheck(){CL.err=null;refreshBackup();checkAdmin()},
-  cloudRetry(){S.meta.updated=Date.now();persistLocal();push()},
   copyVal(id,el){try{navigator.clipboard.writeText(el.dataset.v).then(()=>toast('تم النسخ'),()=>toast('تعذّر النسخ',true))}catch(e){toast('تعذّر النسخ',true)}},
   async reset(){if(await ask('مسح كل البيانات؟','سيُحذف كل ما أدخلته على هذا الجهاز. تأكد من تصدير نسخة احتياطية أولًا.','امسح')){S=blank();S.meta.updated=Date.now();persist();go(curSec());toast('مُسحت البيانات')}}
 };
@@ -841,102 +825,67 @@ document.addEventListener('submit',e=>{const f=e.target.closest('[data-form]');i
   case 'addObs':S.obs.push({id:uid(),teacher:v('ob-teacher'),date:v('ob-date'),scores:PRACTICES.map((_,i)=>Number(v('ob-p'+i))),created:Date.now()});save();go('observation');toast('سُجّلت الملاحظة');break}
 });
 
-/* ---------- Firebase (shared saving, admin signs in with Google) ---------- */
-function genId(){const c='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',a=new Uint8Array(32);crypto.getRandomValues(a);return [...a].map(x=>c[x%62]).join('')}
-function isBlank(){return !(S.skills.length||S.interventions.length||S.sessions.length||S.obs.length||Object.keys(S.tasks).length||Object.keys(S.outputs).length||Object.keys(S.miles).length||Object.keys(S.reports).length||Object.keys(S.checklist).length)}
-function applyRemote(r){let d;try{d=JSON.parse(r.data)}catch(e){CL.err='البيانات المشتركة تالفة';return false}
-  if(!valid({app:APP,data:d})){CL.err='صيغة البيانات المشتركة غير مطابقة';return false}
-  S=Object.assign(blank(),d);S.meta={updated:r.updatedAt||0,rev:r.rev||0};return true}
-function renderAdminBox(){const b=$('#adminBox');if(!b)return;
-  const err=CL.err&&(CL.role==='admin'||CL.user||/تسجيل|Google|نطاق|التحقق|رُفضت|المزامنة|الحفظ/.test(CL.err))?'<div class="bad">'+esc(CL.err)+'</div>':'';
-  if(CL.role==='admin')b.innerHTML='المسؤول: <bdi>'+esc(CL.user&&CL.user.email||'')+'</bdi> <button type="button" data-act="signOutA">خروج</button>'+err;
-  else if(CL.user)b.innerHTML='الحساب <bdi>'+esc(CL.user.email)+'</bdi> ليس مسؤولًا.'+err+'<div><button type="button" data-act="recheck">أعد التحقق</button><button type="button" data-act="signOutA">خروج</button></div>';
-  else b.innerHTML='<button type="button" data-act="signIn">دخول المسؤول</button>'+err}
-function refreshBackup(){renderAdminBox()}
-function setBadge(){const b=$('#roleBadge');
-  if(CL.role==='admin'){b.style.display='';b.className='chip done';b.textContent='مسؤول'}
-  else{b.style.display='';b.className='chip doing';b.textContent='عرض فقط'}
-  renderAdminBox()}
-function rulesTxt(){const em=(CL.user&&CL.user.email||'ضع_بريد_المسؤول_هنا').toLowerCase();return `    // ===== لوحة متابعة خطة تحسين المدرسة =====
-    function isPlanAdmin() {
-      return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email in ['${em}'];
-    }
-    function validPlanDoc() {
-      let d = request.resource.data;
-      return d.keys().hasOnly(['data', 'updatedAt', 'rev'])
-        && d.data is string
-        && d.data.size() < 900000
-        && d.rev is int;
-    }
-    match /${COL}/{spaceId} {
-      allow get: if true;                 // القراءة لمن يملك الرابط السري
-      allow list: if isPlanAdmin();       // يجد المسؤول مساحته من أي جهاز
-      allow create, update: if isPlanAdmin() && validPlanDoc();
-      allow delete: if false;
-    }
-    // ===== نهاية الكتلة =====
-    // تُضاف داخل: match /databases/{database}/documents { ... }`}
-async function loadSdk(){
-  if(CL.F)return true;
-  try{const [A,Au,F]=await Promise.all([import(FB_URL+'firebase-app.js'),import(FB_URL+'firebase-auth.js'),import(FB_URL+'firebase-firestore.js')]);
-    const app=A.initializeApp(FB_CFG);CL.F=F;CL.Au=Au;CL.db=F.getFirestore(app);CL.auth=Au.getAuth(app);return true}
-  catch(e){CL.err='تعذّر تحميل Firebase. تأكد من الاتصال بالإنترنت وفتح الصفحة عبر رابط http أو https.';setStatus(CL.err);refreshBackup();return false}}
-function bindAuth(){if(CL.bound)return;CL.bound=true;
-  CL.Au.onAuthStateChanged(CL.auth,u=>{
-    if(u&&!u.isAnonymous){CL.user={email:u.email||'',uid:u.uid};refreshBackup();checkAdmin()}
-    else{CL.user=null;if(CL.role==='admin')dropAdmin();refreshBackup()}})}
-function watchSpace(){
-  if(!CL.space||CL.unsub)return;
-  CL.unsub=CL.F.onSnapshot(CL.F.doc(CL.db,COL,CL.space),snap=>{
-    if(CL.role!=='viewer')return;
-    if(!snap.exists()){CL.err='لم يحفظ المسؤول أي بيانات بعد.';setStatus(CL.err);return}
-    if(applyRemote(snap.data())){CL.err=null;setStatus('آخر تحديث '+timeNow());go(curSec(),true)}else setStatus(CL.err)},
-    e=>{CL.err='تعذّرت قراءة البيانات المشتركة ('+(e.code||'خطأ')+')';setStatus(CL.err)});
-  CL.ready=true}
-async function checkAdmin(){
-  if(CL.busy||(CL.role==='admin'&&CL.ready)||!CL.user)return;CL.busy=true;
-  try{
-    const F=CL.F;let qs;
-    try{qs=await F.getDocs(F.query(F.collection(CL.db,COL),F.orderBy('updatedAt','desc'),F.limit(1)))}
-    catch(e){CL.err=e.code==='permission-denied'?'الحساب '+CL.user.email+' ليس مسؤولًا في قواعد Firestore. أضف بريده إلى القواعد (ظاهرة أدناه) وانشرها، ثم اضغط «أعد التحقق».':'تعذّر التحقق من صلاحية المسؤول ('+(e.code||'خطأ')+')';refreshBackup();return}
-    const id=SHARED;
-    if(CL.unsub){CL.unsub();CL.unsub=null}
-    if(CL.role==='viewer')S=load();
-    try{if(isBlank()){const fx=await F.getDoc(F.doc(CL.db,COL,id));if(!fx.exists()&&qs.docs.length&&qs.docs[0].id!==id)applyRemote(qs.docs[0].data())}}catch(e){}
-    CL.space=id;CL.role='admin';CL.err=null;
-    try{localStorage.setItem('plan_space',id);localStorage.setItem('plan_cloud','1')}catch(e){}
-    setBadge();await adminSync();
-  }finally{CL.busy=false}}
-function dropAdmin(){clearTimeout(pushT);CL.ready=false;
-  CL.role='viewer';setBadge();S=blank();watchSpace();go(curSec(),true)}
-async function adminSync(){
-  const F=CL.F;CL.ref=F.doc(CL.db,COL,CL.space);CL.ready=false;
-  try{
-    const snap=await F.getDoc(CL.ref);let pushNow=!snap.exists();
-    if(snap.exists()){const r=snap.data(),lu=S.meta.updated||0;
-      if(isBlank()){if(applyRemote(r)){persistLocal();go(curSec(),true)}}
-      else if((r.updatedAt||0)>lu+1000){
-        if(await ask('نسخة مشتركة أحدث','يوجد في Firebase نسخة أحدث من بيانات هذا الجهاز. إن اخترت استخدامها فستُستبدل بيانات الجهاز بها، وإن ألغيت فستحل بيانات هذا الجهاز محلها.','استخدم النسخة المشتركة')){if(applyRemote(r)){persistLocal();go(curSec(),true)}}
-        else{S.meta.updated=Date.now();pushNow=true}}
-      else if(lu>(r.updatedAt||0))pushNow=true}
-    CL.ready=true;CL.err=null;refreshBackup();
-    if(pushNow)push();else setStatus('متزامن '+timeNow());
-  }catch(e){CL.err='تعذّرت المزامنة ('+(e.code||'خطأ')+')';setStatus(CL.err);refreshBackup()}}
+/* ---------- Firebase: مستند مشترك واحد، تعديل مفتوح لمن يملك الرابط، ودمج على مستوى الحقل ---------- */
+const BAK=n=>'nafispro-follow-main-bak'+n,AK=['skills','interventions','sessions','obs'];
+const isO=v=>!!v&&typeof v==='object'&&!Array.isArray(v),clone=o=>JSON.parse(JSON.stringify(o));
+function isBlankOf(x){return !(x.skills.length||x.interventions.length||x.sessions.length||x.obs.length||Object.keys(x.tasks).length||Object.keys(x.outputs).length||Object.keys(x.miles).length||Object.keys(x.reports).length||Object.keys(x.checklist).length)}
+function toMap(st){const o=clone(st);delete o.meta;AK.forEach(k=>{const m={};(o[k]||[]).forEach(r=>m[r.id]=r);o[k]=m});return o}
+function toState(m,meta){const o=clone(m);AK.forEach(k=>o[k]=Object.values(o[k]||{}));o.meta=meta;return o}
+function diff(b,l,path,ops){
+  if(isO(b)&&isO(l)){for(const k of Object.keys(l)){if(!(k in b))ops.push({p:path.concat(k),v:l[k]});else diff(b[k],l[k],path.concat(k),ops)}for(const k of Object.keys(b))if(!(k in l))ops.push({p:path.concat(k),del:1})}
+  else if(JSON.stringify(b)!==JSON.stringify(l))ops.push({p:path,v:l})}
+function applyOps(m,ops){ops.forEach(op=>{
+  if(AK.includes(op.p[0])&&op.p.length>2&&!(m[op.p[0]]||{})[op.p[1]])return;
+  let o=m;for(let i=0;i<op.p.length-1;i++){const k=op.p[i];if(!isO(o[k]))o[k]={};o=o[k]}
+  const k=op.p[op.p.length-1];if(op.del)delete o[k];else o[k]=clone(op.v)})}
+function parseDoc(r){try{const d=JSON.parse(r.data);return valid({app:APP,data:d})?toMap(d):null}catch(e){return null}}
+const pendingOps=()=>{const o=[];diff(CL.base,toMap(S),[],o);return o};
+const schedulePush=()=>{clearTimeout(pushT);pushT=setTimeout(push,900)};
+const typing=()=>{const a=document.activeElement;return !!(a&&a.closest&&a.closest('#content')&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))};
+function renderSoon(){if(typing()){CL.dirty=true;return}go(curSec(),true)}
+document.addEventListener('focusout',()=>{if(CL.dirty)setTimeout(()=>{if(!typing()){CL.dirty=false;go(curSec(),true)}},60)});
+async function firstLoadMissing(){
+  CL.live=true;CL.base=toMap(blank());CL.rev=0;S=blank();
+  const loc=load();
+  if(!isBlankOf(loc)&&await ask('رفع بيانات هذا الجهاز؟','لا توجد بيانات مشتركة بعد، ويوجد على هذا الجهاز بيانات سابقة. هل ترفعها لتصبح البيانات المشتركة للجميع؟','ارفع البيانات')){S=loc;S.meta={updated:Date.now(),rev:0};schedulePush()}
+  setStatus('جاهز');go(curSec(),true)}
+function onRemote(snap){
+  if(!snap.exists()){if(!CL.live)firstLoadMissing();return}
+  const r=snap.data();if(CL.live&&(r.rev||0)<=CL.rev)return;
+  const rm=parseDoc(r);if(!rm){CL.err='البيانات المشتركة تالفة أو بصيغة غير مطابقة.';setStatus(CL.err);go(curSec(),true);return}
+  const ops=CL.live?pendingOps():[],m=clone(rm);applyOps(m,ops);
+  CL.base=rm;CL.rev=r.rev||0;S=toState(m,{updated:r.updatedAt||0,rev:r.rev||0});
+  CL.live=true;CL.err=null;setStatus('متزامن '+timeNow());renderSoon();
+  if(ops.length)schedulePush()}
 async function push(){
-  if(CL.role!=='admin'||!CL.ready||!CL.ref)return;
-  S.meta.rev=(S.meta.rev||0)+1;const txt=JSON.stringify(S);
-  if(txt.length>880000){setStatus('حجم البيانات أكبر من حد الحفظ على الخادم');toast('حجم البيانات أكبر من الحد المسموح للحفظ المشترك',true);return}
-  try{await CL.F.setDoc(CL.ref,{data:txt,updatedAt:S.meta.updated||Date.now(),rev:S.meta.rev});CL.err=null;setStatus('حُفظ مشتركًا '+timeNow())}
-  catch(e){CL.err=e.code==='permission-denied'?'رُفضت الكتابة: هذا الحساب ليس المسؤول في قواعد Firestore.':'تعذّر الحفظ على الخادم ('+(e.code||'خطأ')+')';setStatus('تعذّر الحفظ على الخادم');toast(CL.err,true);refreshBackup()}}
+  if(!CL.live)return;if(CL.pushing){CL.again=true;return}
+  const ops=pendingOps();if(!ops.length)return;
+  CL.pushing=true;const L0=toMap(S);let merged,nr;
+  try{
+    await CL.F.runTransaction(CL.db,async tx=>{
+      const snap=await tx.get(CL.ref),cur=snap.exists()?snap.data():null;
+      const rm=cur?parseDoc(cur):toMap(blank());if(!rm)throw {code:'bad-remote'};
+      applyOps(rm,ops);nr=(cur?cur.rev||0:0)+1;
+      const txt=JSON.stringify(toState(rm,{}));if(txt.length>880000)throw {code:'too-large'};
+      const doc={data:txt,updatedAt:Date.now(),rev:nr};tx.set(CL.ref,doc);
+      if(nr%10===0)tx.set(CL.F.doc(CL.db,COL,BAK((nr/10)%5)),doc);
+      merged=rm});
+    CL.base=merged;CL.rev=nr;
+    const pend=[];diff(L0,toMap(S),[],pend);const m=clone(merged);applyOps(m,pend);
+    const others=JSON.stringify(m)!==JSON.stringify(toMap(S));
+    S=toState(m,{updated:Date.now(),rev:nr});CL.err=null;setStatus('حُفظ '+timeNow());
+    if(others)renderSoon();if(pend.length)schedulePush();
+  }catch(e){
+    CL.err=e.code==='permission-denied'?'رُفض الحفظ: تحقق من قواعد Firestore.':e.code==='too-large'?'حجم البيانات أكبر من الحد المسموح.':'تعذّر الحفظ ('+(e.code||'خطأ')+'). ستُعاد المحاولة.';
+    setStatus(CL.err);toast(CL.err,true);if(e.code!=='permission-denied'&&e.code!=='too-large')setTimeout(schedulePush,15000)}
+  finally{CL.pushing=false;if(CL.again){CL.again=false;schedulePush()}}}
 async function cloudInit(){
-  if(!CL.flag)return;
-  if(!await loadSdk())return;
-  bindAuth();if(CL.role==='viewer')watchSpace()}
+  try{const [A,F]=await Promise.all([import(FB_URL+'firebase-app.js'),import(FB_URL+'firebase-firestore.js')]);
+    const app=A.initializeApp(FB_CFG);CL.F=F;CL.db=F.getFirestore(app);CL.ref=F.doc(CL.db,COL,SHARED);
+    CL.unsub=F.onSnapshot(CL.ref,onRemote,e=>{CL.err=e.code==='permission-denied'?'لا صلاحية لقراءة البيانات المشتركة: تحقق من قواعد Firestore.':'تعذّر الاتصال بالبيانات المشتركة ('+(e.code||'خطأ')+')';setStatus(CL.err);if(!CL.live)go(curSec(),true)})}
+  catch(e){CL.err='تعذّر تحميل Firebase. تأكد من الاتصال بالإنترنت ثم أعد فتح الصفحة.';setStatus(CL.err);go(curSec(),true)}}
 
 /* ---------- start ---------- */
-setBadge();
 setStatus('جارٍ تحميل البيانات…');
 go(curSec());
 cloudInit();
