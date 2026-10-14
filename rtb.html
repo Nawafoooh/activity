@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>حصر المعلمين الحاصلين على الرخصة المهنية — متوسطة المنذر بن عمرو الأنصاري</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!--
+==========================================================================
+ قواعد أمان Firestore (انسخها إلى: Firebase Console ← Firestore Database ← Rules ← Publish)
+==========================================================================
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+          && request.auth.token.email == 'supervisor@almonther-school.app';
+    }
+
+    // سجلات المعلمين: إنشاء فقط للمعلم، والمشرف وحده يقرأ ويعدّل ويحذف
+    match /teachers/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if id.size() == 64
+        && request.resource.data.keys().hasOnly(['name','nameKey','licensed','rank','createdAt'])
+        && request.resource.data.keys().hasAll(['name','nameKey','licensed','rank','createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 8 && request.resource.data.name.size() <= 100
+        && request.resource.data.nameKey is string
+        && request.resource.data.nameKey.size() >= 5 && request.resource.data.nameKey.size() <= 100
+        && request.resource.data.licensed is bool
+        && request.resource.data.rank in ['practitioner','advanced','expert','none']
+        && request.resource.data.createdAt == request.time;
+    }
+
+    // محاولات التسجيل المكرر: إنشاء فقط، والمشرف وحده يقرأ ويحذف
+    match /duplicates/{id} {
+      allow read, delete: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(['name','nameKey','createdAt'])
+        && request.resource.data.keys().hasAll(['name','nameKey','createdAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 100
+        && request.resource.data.nameKey is string && request.resource.data.nameKey.size() <= 100
+        && request.resource.data.createdAt == request.time;
+    }
+  }
+}
+==========================================================================
+-->
+
+<style>
+:root{
+  --green-900:#00391f;
+  --green-800:#00502a;
+  --green-700:#006c35;
+  --green-600:#13834a;
+  --green-100:#e3f2ea;
+  --green-50:#f1f8f4;
+  --ink:#1c2a24;
+  --muted:#5b6b63;
+  --line:#d9e2dd;
+  --bg:#f5f7f6;
+  --white:#fff;
+  --danger:#b3261e;
+  --danger-bg:#fdecea;
+  --warn:#8a5a00;
+  --warn-bg:#fff4dc;
+  --gray-bar:#9aa8a1;
+  --radius:10px;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:var(--safe-t)}
+body{
+  margin:0;font-family:"IBM Plex Sans Arabic","Segoe UI",Tahoma,Arial,sans-serif;
+  color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px;
+  padding-bottom:var(--safe-b);
+}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid #f2b705;outline-offset:2px}
+.hidden{display:none!important}
+
+/* ---------- الترويسة ---------- */
+.site-header{
+  background:var(--green-800);color:#fff;padding-top:var(--safe-t);
+  border-bottom:5px solid var(--green-600);
+}
+.site-header .strip{
+  background:var(--green-900);font-size:.82rem;
+}
+.strip-in,.head-in{max-width:1120px;margin:0 auto;padding:0 18px}
+.strip-in{display:flex;justify-content:space-between;align-items:center;min-height:36px;gap:12px;flex-wrap:wrap}
+.strip-in span{opacity:.9}
+.head-in{display:flex;align-items:center;gap:16px;padding-top:18px;padding-bottom:20px;flex-wrap:wrap}
+.emblem{
+  width:62px;height:62px;border-radius:14px;background:#fff;display:grid;place-items:center;flex:none;
+}
+.emblem svg{width:38px;height:38px;stroke:var(--green-700);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.school{flex:1;min-width:220px}
+.school .ministry{font-size:.88rem;opacity:.85;margin:0}
+.school h1{margin:0;font-size:clamp(1.35rem,4.4vw,2rem);font-weight:700;line-height:1.4}
+.head-actions{display:flex;gap:10px;flex-wrap:wrap}
+.hbtn{
+  display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:8px;
+  background:transparent;border:1.5px solid rgba(255,255,255,.55);color:#fff;cursor:pointer;
+  text-decoration:none;font-weight:500;font-size:.95rem;
+}
+.hbtn:hover{background:rgba(255,255,255,.12)}
+.hbtn svg{width:18px;height:18px}
+
+/* ---------- عام ---------- */
+main{max-width:1120px;margin:0 auto;padding:26px 18px 60px}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius)}
+.banner{border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:.95rem}
+.banner.err{background:var(--danger-bg);color:var(--danger);border:1px solid #f0b9b4}
+.banner.warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f0d9a3}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 24px;
+  border:0;border-radius:8px;cursor:pointer;font-weight:600;font-size:1.02rem;
+  background:var(--green-700);color:#fff;transition:background .15s;
+}
+.btn:hover{background:var(--green-800)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn.outline{background:#fff;color:var(--green-700);border:1.5px solid var(--green-700)}
+.btn.outline:hover{background:var(--green-50)}
+.btn.small{min-height:42px;padding:0 16px;font-size:.93rem}
+.btn.block{width:100%}
+.btn.danger-o{background:#fff;color:var(--danger);border:1.5px solid #e2aaa6}
+.btn.danger-o:hover{background:var(--danger-bg)}
+
+/* ---------- نموذج المعلمين ---------- */
+.form-wrap{max-width:720px;margin:0 auto}
+.form-card{padding:0;overflow:hidden}
+.form-intro{padding:26px 28px 20px;border-bottom:1px solid var(--line);background:var(--green-50)}
+.form-intro h2{margin:0 0 8px;font-size:clamp(1.15rem,3.6vw,1.45rem);line-height:1.7;color:var(--green-800)}
+.form-intro p{margin:0;color:var(--muted)}
+form.tform{padding:26px 28px 30px;display:grid;gap:26px}
+.field>label,.field>.lbl{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:10px}
+.field>label svg,.field>.lbl svg{color:var(--green-700)}
+.req{color:var(--danger);font-weight:700}
+.control{position:relative}
+.control input[type=text],.control select{
+  width:100%;min-height:54px;padding:0 16px;border:1.5px solid #bccbc3;border-radius:8px;background:#fff;
+  font-size:1.05rem;appearance:none;-webkit-appearance:none;
+}
+.control select{
+  padding-inline-start:44px;
+  background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23006c35' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat left 16px center;
+}
+.control input:focus,.control select:focus{border-color:var(--green-700);outline:3px solid rgba(0,108,53,.18);outline-offset:0}
+.field.invalid input,.field.invalid select{border-color:var(--danger);background:#fffafa}
+.err-msg{display:none;margin-top:8px;color:var(--danger);font-size:.92rem;align-items:flex-start;gap:6px}
+.field.invalid .err-msg{display:flex}
+.hint{margin-top:8px;color:var(--muted);font-size:.9rem}
+
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.choice{position:relative}
+.choice input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.choice .box{
+  display:flex;align-items:center;justify-content:center;gap:10px;min-height:58px;border:1.5px solid #bccbc3;
+  border-radius:8px;font-weight:600;background:#fff;
+}
+.choice .dot{width:20px;height:20px;border-radius:50%;border:2px solid #98a9a0;display:grid;place-items:center}
+.choice input:checked+.box{border-color:var(--green-700);background:var(--green-50);color:var(--green-800)}
+.choice input:checked+.box .dot{border-color:var(--green-700);background:var(--green-700)}
+.choice input:checked+.box .dot::after{content:"";width:8px;height:8px;border-radius:50%;background:#fff}
+.choice input.no:checked+.box{border-color:#7a6a3a;background:#faf5e6;color:#5e4e1b}
+.choice input.no:checked+.box .dot{border-color:#7a6a3a;background:#7a6a3a}
+.choice input:focus-visible+.box{outline:3px solid #f2b705;outline-offset:2px}
+.field.invalid .choice .box{border-color:var(--danger)}
+
+.submit-row{padding-top:4px}
+.privacy{margin:14px 0 0;text-align:center;color:var(--muted);font-size:.86rem}
+
+.success{padding:44px 28px;text-align:center}
+.success .tick{width:74px;height:74px;border-radius:50%;background:var(--green-100);color:var(--green-700);display:grid;place-items:center;margin:0 auto 18px}
+.success .tick svg{width:38px;height:38px;stroke-width:2.4}
+.success h2{margin:0 0 8px;color:var(--green-800)}
+.success p{margin:0 0 22px;color:var(--muted)}
+.dup-note{background:var(--warn-bg);border:1px solid #f0d9a3;color:var(--warn);padding:14px 16px;border-radius:8px;margin:0 28px 0;display:none}
+.dup-note.show{display:block;margin-top:22px}
+
+/* ---------- دخول المشرف ---------- */
+.login-card{max-width:440px;margin:30px auto;padding:30px 28px}
+.login-card h2{margin:0 0 6px;color:var(--green-800);font-size:1.3rem}
+.login-card p.sub{margin:0 0 22px;color:var(--muted);font-size:.95rem}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-inline-end:76px!important}
+.pw-toggle{
+  position:absolute;inset-inline-end:8px;top:50%;transform:translateY(-50%);height:38px;padding:0 12px;
+  border:0;background:var(--green-50);color:var(--green-800);border-radius:6px;cursor:pointer;font-size:.88rem;
+}
+
+/* ---------- لوحة المشرف ---------- */
+.dash-title{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.dash-title h2{margin:0;font-size:clamp(1.3rem,4vw,1.75rem);color:var(--green-900)}
+.dash-title .live{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:.9rem}
+.live i{width:9px;height:9px;border-radius:50%;background:#22a15a;display:inline-block}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.stat{padding:18px 20px;border-inline-start:6px solid var(--green-700);display:flex;flex-direction:column;gap:2px}
+.stat .k{color:var(--muted);font-size:.92rem}
+.stat .v{font-size:2.3rem;font-weight:700;line-height:1.25;color:var(--green-900);font-variant-numeric:tabular-nums}
+.stat.no{border-inline-start-color:var(--gray-bar)}
+.stat.no .v{color:#44524b}
+.stat.pct{border-inline-start-color:#13834a;background:var(--green-50)}
+.stat .f{font-size:.8rem;color:var(--muted)}
+
+.mid{display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:14px;margin-bottom:22px}
+.chart-card{padding:22px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.chart-card h3{margin:0;align-self:flex-start;font-size:1.05rem;color:var(--green-900)}
+.donut{position:relative;width:200px;height:200px}
+.donut svg{width:100%;height:100%;transform:rotate(-90deg)}
+.donut .center{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.donut .center b{font-size:2rem;line-height:1.2;color:var(--green-900)}
+.donut .center small{color:var(--muted)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;font-size:.93rem}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend i{width:14px;height:14px;border-radius:3px;display:inline-block}
+
+.tools{padding:20px;display:flex;flex-direction:column;gap:16px;justify-content:center}
+.tools h3{margin:0;font-size:1.05rem;color:var(--green-900)}
+.tool-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:220px;position:relative}
+.search svg{position:absolute;inset-inline-start:14px;top:50%;transform:translateY(-50%);color:var(--green-700)}
+.search input{width:100%;min-height:48px;padding:0 14px;padding-inline-start:44px;border:1.5px solid #bccbc3;border-radius:8px;background:#fff}
+.sortsel{min-height:48px;padding:0 14px;border:1.5px solid #bccbc3;border-radius:8px;background:#fff;min-width:190px}
+
+.alerts{margin-bottom:22px;border-color:#f0d9a3;background:var(--warn-bg)}
+.alerts .ah{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 18px;flex-wrap:wrap}
+.alerts .ah strong{color:var(--warn);display:flex;gap:8px;align-items:center}
+.alerts ul{margin:0;padding:0 18px 14px;list-style:none;display:grid;gap:6px;font-size:.93rem;color:#5d4200}
+.alerts li{display:flex;gap:10px;justify-content:space-between;border-top:1px dashed #e4cd91;padding-top:6px}
+
+.tcard{margin-bottom:22px;overflow:hidden}
+.tcard header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tcard header h3{margin:0;font-size:1.12rem;display:flex;align-items:center;gap:10px}
+.tcard.yes header{background:var(--green-50)}
+.tcard.yes header h3{color:var(--green-800)}
+.tcard.no header{background:#f3f5f4}
+.tcard.no header h3{color:#3d4a44}
+.count-pill{background:var(--green-700);color:#fff;border-radius:99px;padding:0 12px;font-size:.88rem;min-height:26px;display:inline-grid;place-items:center}
+.tcard.no .count-pill{background:#5f6e67}
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:560px}
+th,td{padding:12px 16px;text-align:right;border-bottom:1px solid #e8eeea;font-size:.97rem}
+th{background:#fafcfb;font-weight:600;color:#33433b;white-space:nowrap}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{background:var(--green-50)}
+th .arr{opacity:.35;margin-inline-start:4px;font-size:.8rem}
+th.sorted .arr{opacity:1;color:var(--green-700)}
+td.num{width:90px;font-variant-numeric:tabular-nums;color:var(--muted)}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#fbfdfc}
+.tag{display:inline-block;padding:2px 12px;border-radius:99px;font-size:.88rem;font-weight:500}
+.tag.y{background:var(--green-100);color:var(--green-800)}
+.tag.n{background:#e9edeb;color:#44524b}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.del{border:0;background:transparent;color:var(--danger);cursor:pointer;padding:6px 10px;border-radius:6px;min-height:36px}
+.del:hover{background:var(--danger-bg)}
+
+.print-only{display:none}
+
+/* ---------- جوال ---------- */
+@media (max-width:860px){
+  .stats{grid-template-columns:1fr 1fr}
+  .mid{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .stats{grid-template-columns:1fr 1fr;gap:10px}
+  .stat{padding:14px}
+  .stat .v{font-size:1.9rem}
+  form.tform,.form-intro{padding-inline:18px}
+  .head-actions{width:100%}
+  .head-actions .hbtn{flex:1;justify-content:center}
+  .btn.block-m{width:100%}
+}
+
+/* ---------- الطباعة ---------- */
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff;font-size:12px}
+  .site-header,.no-print,.tools,.del,.col-act,.btn,.alerts,.dash-title .live,.hbtn{display:none!important}
+  main{padding:0;max-width:none}
+  .print-only{display:block}
+  .print-head{text-align:center;border-bottom:3px solid #006c35;padding-bottom:10px;margin-bottom:14px}
+  .print-head .m{font-size:12px;color:#444}
+  .print-head h1{margin:2px 0;font-size:20px;color:#00502a}
+  .print-head h2{margin:2px 0 0;font-size:15px}
+  .print-head .d{font-size:11px;color:#555;margin-top:4px}
+  .card{border:1px solid #bbb;box-shadow:none}
+  .stats{grid-template-columns:repeat(4,1fr);gap:8px}
+  .stat{padding:8px 10px;break-inside:avoid}
+  .stat .v{font-size:20px}
+  .mid{grid-template-columns:1fr;margin-bottom:12px}
+  .chart-card{flex-direction:row;justify-content:center;gap:30px}
+  .chart-card h3{display:none}
+  .donut{width:150px;height:150px}
+  .tcard{break-inside:auto;margin-bottom:14px}
+  .tscroll{overflow:visible}
+  table{min-width:0}
+  th,td{padding:6px 10px;font-size:12px}
+  tr{break-inside:avoid}
+  thead{display:table-header-group}
+  .tag{border:1px solid #888;background:#fff!important;color:#000!important}
+  .count-pill{background:#fff!important;color:#000!important;border:1px solid #666}
+  .tcard header{background:#f2f2f2!important}
+  * {-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .sign{display:flex!important;justify-content:space-between;margin-top:34px;font-size:12px}
+}
+.sign{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+
+<body>
+
+<!-- أيقونات -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></symbol>
+    <symbol id="i-cert" viewBox="0 0 24 24"><rect x="3" y="3.5" width="18" height="12.5" rx="2"/><path d="M7 8h10M7 11.5h5"/><path d="M15 16v5l2-1.3 2 1.3v-5"/></symbol>
+    <symbol id="i-rank" viewBox="0 0 24 24"><path d="M4 20v-6h4v6M10 20V9h4v11M16 20V4h4v16"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 10 14"/><path d="m21 3-7 18-4-7-7-4z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 20h14"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><rect x="7" y="14" width="10" height="6.5"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4.5h4.5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H14"/><path d="M10 8 6 12l4 4M6 12h10"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6"/><path d="M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14.3c2.3.7 3.5 2.6 3.5 5.2"/></symbol>
+  </defs>
+</svg>
+
+<header class="site-header">
+  <div class="strip"><div class="strip-in">
+    <span>المملكة العربية السعودية — وزارة التعليم</span>
+    <span>التقويم الخارجي للمدرسة</span>
+  </div></div>
+  <div class="head-in">
+    <div class="emblem" aria-hidden="true">
+      <svg viewBox="0 0 48 48"><path d="M24 7 5 16l19 9 19-9z"/><path d="M12 20.5v9c0 3 5.4 6 12 6s12-3 12-6v-9"/><path d="M43 16v11"/></svg>
+    </div>
+    <div class="school">
+      <p class="ministry">وزارة التعليم</p>
+      <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
+    </div>
+    <nav class="head-actions no-print" aria-label="التنقل">
+      <a id="navAdmin" class="hbtn" href="#admin"><svg class="i"><use href="#i-lock"/></svg> دخول المشرف</a>
+      <a id="navForm" class="hbtn hidden" href="#"><svg class="i"><use href="#i-back"/></svg> نموذج المعلمين</a>
+      <button id="navOut" class="hbtn hidden" type="button"><svg class="i"><use href="#i-out"/></svg> تسجيل الخروج</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div id="fbError" class="banner err hidden" role="alert"></div>
+
+  <!-- ======================= واجهة المعلمين ======================= -->
+  <section id="viewForm" class="form-wrap hidden" aria-labelledby="formTitle">
+    <div class="card form-card">
+      <div id="formPane">
+        <div class="form-intro">
+          <h2 id="formTitle">ضمن النماذج المطلوبة من التقويم الخارجي: حصر المعلمين الحاصلين على الرخصة المهنية في المدرسة</h2>
+          <p>نرجو من جميع المعلمين تعبئة الحقول التالية بدقة، شاكرين ومقدرين لكم تعاونكم.</p>
+        </div>
+
+        <form id="tform" class="tform" novalidate autocomplete="off">
+          <div class="field" id="f-name">
+            <label for="name"><svg class="i"><use href="#i-user"/></svg> الاسم الرباعي <span class="req" aria-hidden="true">*</span></label>
+            <div class="control"><input type="text" id="name" name="name" maxlength="80" placeholder="مثال: محمد عبدالله سعد الحربي" autocomplete="name" aria-describedby="e-name"></div>
+            <div class="err-msg" id="e-name" role="alert"><svg class="i"><use href="#i-alert"/></svg><span></span></div>
+          </div>
+
+          <div class="field" id="f-lic">
+            <div class="lbl" id="lic-lbl"><svg class="i"><use href="#i-cert"/></svg> هل حصلت على الرخصة المهنية؟ <span class="req" aria-hidden="true">*</span></div>
+            <div class="choices" role="radiogroup" aria-labelledby="lic-lbl">
+              <label class="choice"><input type="radio" name="lic" value="yes"><span class="box"><span class="dot"></span>نعم</span></label>
+              <label class="choice"><input type="radio" name="lic" value="no" class="no"><span class="box"><span class="dot"></span>لا</span></label>
+            </div>
+            <div class="err-msg" id="e-lic" role="alert"><svg class="i"><use href="#i-alert"/></svg><span></span></div>
+          </div>
+
+          <div class="field" id="f-rank">
+            <label for="rank"><svg class="i"><use href="#i-rank"/></svg> الرتبة المهنية الحالية <span class="req" aria-hidden="true">*</span></label>
+            <div class="control">
+              <select id="rank" name="rank" aria-describedby="e-rank">
+                <option value="">اختر الرتبة المهنية…</option>
+                <option value="practitioner">معلم ممارس</option>
+                <option value="advanced">معلم متقدم</option>
+                <option value="expert">معلم خبير</option>
+                <option value="none">لم تُمنح لي رتبة مهنية بعد</option>
+              </select>
+            </div>
+            <div class="hint" id="rankHint">إن كانت لديك رتبة سابقة فاخترها حتى لو لم تحصل على الرخصة، وإن لم تكن لديك رتبة فاختر «لم تُمنح لي رتبة مهنية بعد».</div>
+            <div class="err-msg" id="e-rank" role="alert"><svg class="i"><use href="#i-alert"/></svg><span></span></div>
+          </div>
+
+          <div class="submit-row">
+            <button class="btn block" id="submitBtn" type="submit"><svg class="i"><use href="#i-send"/></svg> إرسال البيانات</button>
+            <p class="privacy">تُحفظ بياناتك لدى إدارة المدرسة ولا يطّلع عليها غير المشرف المخوّل.</p>
+          </div>
+        </form>
+      </div>
+
+      <div id="successPane" class="success hidden" role="status" aria-live="polite">
+        <div class="tick"><svg class="i"><use href="#i-check"/></svg></div>
+        <h2>تم إرسال بياناتك بنجاح</h2>
+        <p>شكرًا لك على تعاونك. تم تسجيل بياناتك لدى إدارة المدرسة.</p>
+        <button class="btn outline" id="againBtn" type="button">تسجيل معلم آخر</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= دخول المشرف ======================= -->
+  <section id="viewLogin" class="hidden" aria-labelledby="loginTitle">
+    <div class="card login-card">
+      <h2 id="loginTitle">دخول المشرف</h2>
+      <p class="sub">هذه الصفحة مخصصة للمشرف المخوّل بمتابعة الرخص المهنية.</p>
+      <form id="loginForm" novalidate>
+        <div class="field" id="f-pw">
+          <label for="pw"><svg class="i"><use href="#i-lock"/></svg> كلمة المرور <span class="req" aria-hidden="true">*</span></label>
+          <div class="control pw-wrap">
+            <input type="password" id="pw" autocomplete="current-password" aria-describedby="e-pw" style="width:100%;min-height:54px;padding:0 16px;border:1.5px solid #bccbc3;border-radius:8px;font-size:1.05rem">
+            <button type="button" class="pw-toggle" id="pwToggle">إظهار</button>
+          </div>
+          <div class="err-msg" id="e-pw" role="alert"><svg class="i"><use href="#i-alert"/></svg><span></span></div>
+        </div>
+        <div style="margin-top:22px"><button class="btn block" id="loginBtn" type="submit">تسجيل الدخول</button></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ======================= لوحة المشرف ======================= -->
+  <section id="viewDash" class="hidden" aria-labelledby="dashTitle">
+
+    <div class="print-only print-head">
+      <div class="m">المملكة العربية السعودية — وزارة التعليم</div>
+      <h1>متوسطة المنذر بن عمرو الأنصاري</h1>
+      <h2>تقرير حصر المعلمين الحاصلين على الرخصة المهنية — التقويم الخارجي</h2>
+      <div class="d" id="printDate"></div>
+    </div>
+
+    <div class="dash-title">
+      <div>
+        <h2 id="dashTitle">لوحة متابعة الرخص المهنية للمعلمين</h2>
+        <span class="live"><i></i> تتحدّث البيانات تلقائيًا عند كل تسجيل جديد</span>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="card stat"><span class="k">إجمالي المعلمين المسجلين</span><span class="v" id="sTotal">0</span></div>
+      <div class="card stat"><span class="k">الحاصلون على الرخصة المهنية</span><span class="v" id="sYes">0</span></div>
+      <div class="card stat no"><span class="k">غير الحاصلين على الرخصة المهنية</span><span class="v" id="sNo">0</span></div>
+      <div class="card stat pct"><span class="k">نسبة الحاصلين على الرخصة</span><span class="v" id="sPct">0%</span><span class="f">الحاصلون ÷ الإجمالي × 100</span></div>
+    </div>
+
+    <div class="mid">
+      <div class="card chart-card">
+        <h3>نسبة الحاصلين وغير الحاصلين</h3>
+        <div class="donut">
+          <svg viewBox="0 0 120 120" role="img" aria-label="مخطط دائري لنسبة الحاصلين وغير الحاصلين على الرخصة">
+            <circle cx="60" cy="60" r="46" fill="none" stroke="#dfe6e2" stroke-width="18"/>
+            <circle id="arcNo" cx="60" cy="60" r="46" fill="none" stroke="#9aa8a1" stroke-width="18" stroke-dasharray="0 289"/>
+            <circle id="arcYes" cx="60" cy="60" r="46" fill="none" stroke="#006c35" stroke-width="18" stroke-dasharray="0 289"/>
+          </svg>
+          <div class="center"><b id="dPct">0%</b><small>حاصلون</small></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:#006c35"></i> حاصل على الرخصة: <b id="lgYes">0</b> (<span id="lgYesP">0%</span>)</span>
+          <span><i style="background:#9aa8a1"></i> غير حاصل: <b id="lgNo">0</b> (<span id="lgNoP">0%</span>)</span>
+        </div>
+      </div>
+
+      <div class="card tools no-print">
+        <h3>البحث والترتيب والتصدير</h3>
+        <div class="tool-row">
+          <div class="search"><svg class="i"><use href="#i-search"/></svg><input type="search" id="q" placeholder="ابحث بالاسم…" aria-label="بحث بالاسم"></div>
+          <select class="sortsel" id="sortSel" aria-label="ترتيب البيانات">
+            <option value="time:asc">الترتيب: حسب وقت التسجيل</option>
+            <option value="time:desc">الأحدث تسجيلًا أولًا</option>
+            <option value="name:asc">الاسم: من أ إلى ي</option>
+            <option value="name:desc">الاسم: من ي إلى أ</option>
+            <option value="rank:desc">الرتبة: من الأعلى</option>
+            <option value="rank:asc">الرتبة: من الأدنى</option>
+          </select>
+        </div>
+        <div class="tool-row">
+          <button class="btn small" id="xlsBtn" type="button"><svg class="i"><use href="#i-down"/></svg> تصدير Excel</button>
+          <button class="btn small outline" id="csvBtn" type="button"><svg class="i"><use href="#i-down"/></svg> تصدير CSV</button>
+          <button class="btn small outline" id="printBtn" type="button"><svg class="i"><use href="#i-print"/></svg> طباعة التقرير</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="alerts" class="card alerts hidden no-print">
+      <div class="ah">
+        <strong><svg class="i"><use href="#i-alert"/></svg> تنبيه: محاولات تسجيل مكررة بأسماء مسجلة مسبقًا (<span id="dupCount">0</span>)</strong>
+        <button class="btn small danger-o" id="dupClear" type="button">مسح التنبيهات</button>
+      </div>
+      <ul id="dupList"></ul>
+    </div>
+
+    <div class="card tcard yes">
+      <header>
+        <h3><svg class="i"><use href="#i-cert"/></svg> المعلمون الحاصلون على الرخصة المهنية <span class="count-pill" id="cYes">0</span></h3>
+      </header>
+      <div class="tscroll"><table>
+        <thead><tr>
+          <th>الرقم التسلسلي</th>
+          <th class="sortable" data-sort="name">الاسم الرباعي <span class="arr">⇅</span></th>
+          <th>الحالة</th>
+          <th class="sortable" data-sort="rank">الرتبة المهنية الحالية <span class="arr">⇅</span></th>
+          <th class="col-act"><span class="sr">إجراء</span></th>
+        </tr></thead>
+        <tbody id="tbYes"></tbody>
+      </table></div>
+    </div>
+
+    <div class="card tcard no">
+      <header>
+        <h3><svg class="i"><use href="#i-people"/></svg> المعلمون غير الحاصلين على الرخصة المهنية <span class="count-pill" id="cNo">0</span></h3>
+      </header>
+      <div class="tscroll"><table>
+        <thead><tr>
+          <th>الرقم التسلسلي</th>
+          <th class="sortable" data-sort="name">الاسم الرباعي <span class="arr">⇅</span></th>
+          <th>الحالة</th>
+          <th class="sortable" data-sort="rank">الرتبة المهنية الحالية <span class="arr">⇅</span></th>
+          <th class="col-act"><span class="sr">إجراء</span></th>
+        </tr></thead>
+        <tbody id="tbNo"></tbody>
+      </table></div>
+    </div>
+
+    <div class="sign">
+      <div>مدير المدرسة: ................................</div>
+      <div>المشرف: ................................</div>
+      <div>التوقيع والختم: ................................</div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+/* =====================================================================
+   الإعدادات
+   ===================================================================== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, addDoc, deleteDoc, collection, query, orderBy,
+  onSnapshot, serverTimestamp, getDocs, writeBatch
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDRwcXBahvLHvB29KnjCp35V_jnuUbNARA",
+  authDomain: "studio-1706651454-1cfaa.firebaseapp.com",
+  projectId: "studio-1706651454-1cfaa",
+  storageBucket: "studio-1706651454-1cfaa.firebasestorage.app",
+  messagingSenderId: "551955742251",
+  appId: "1:551955742251:web:1e86075951c38dec0bf46e"
+};
+
+// بريد حساب المشرف في Firebase Authentication (ليس سرًا). كلمة المرور لا توجد في الكود إطلاقًا.
+const SUPERVISOR_EMAIL = "supervisor@almonther-school.app";
+const SCHOOL = "متوسطة المنذر بن عمرو الأنصاري";
+
+const RANKS = {
+  practitioner: { label: "معلم ممارس", order: 1 },
+  advanced:     { label: "معلم متقدم", order: 2 },
+  expert:       { label: "معلم خبير",  order: 3 },
+  none:         { label: "لم تُمنح لي رتبة مهنية بعد", order: 0 }
+};
+
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
+
+/* =====================================================================
+   أدوات
+   ===================================================================== */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const nf = new Intl.NumberFormat("ar-SA-u-nu-latn");
+
+const stripMarks = s => s.normalize("NFKC").replace(/[\u064B-\u065F\u0670\u0640]/g, "");
+const cleanName  = s => stripMarks(s).replace(/\s+/g, " ").trim();
+const nameKeyOf  = s => cleanName(s).replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه");
+
+async function sha256Hex(text) {
+  if (window.crypto && crypto.subtle) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+  // بديل بسيط عند عدم توفر crypto (نادرًا): 64 خانة ثابتة لنفس النص
+  let out = "";
+  for (let r = 0; r < 8; r++) {
+    let h = 0x811c9dc5 ^ (r * 0x9e3779b1);
+    for (const ch of text) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193); }
+    out += (h >>> 0).toString(16).padStart(8, "0");
+  }
+  return out;
+}
+
+function showView(name) {
+  ["viewForm", "viewLogin", "viewDash"].forEach(id => $("#" + id).classList.toggle("hidden", id !== name));
+  const admin = name === "viewDash";
+  $("#navAdmin").classList.toggle("hidden", name !== "viewForm");
+  $("#navForm").classList.toggle("hidden", name === "viewForm");
+  $("#navOut").classList.toggle("hidden", !admin);
+  window.scrollTo(0, 0);
+}
+function fbError(msg) {
+  const b = $("#fbError");
+  b.textContent = msg || "";
+  b.classList.toggle("hidden", !msg);
+}
+function setErr(fieldId, msg) {
+  const f = $("#" + fieldId);
+  f.classList.toggle("invalid", !!msg);
+  const s = $(".err-msg span", f);
+  if (s) s.textContent = msg || "";
+  return !msg;
+}
+
+/* =====================================================================
+   واجهة المعلمين
+   ===================================================================== */
+const form = $("#tform");
+
+function validateName() {
+  const raw = $("#name").value;
+  const n = cleanName(raw);
+  if (!n) return setErr("f-name", "الاسم الرباعي مطلوب ولا يمكن تركه فارغًا.");
+  if (!/^[\u0621-\u063A\u0641-\u064A\u0671 ]+$/.test(n)) return setErr("f-name", "اكتب الاسم بالحروف العربية فقط، دون أرقام أو رموز.");
+  const words = n.split(" ");
+  if (words.length < 4) return setErr("f-name", "اكتب الاسم رباعيًا (أربعة مقاطع على الأقل).");
+  if (words.some(w => w.length < 2)) return setErr("f-name", "كل مقطع من الاسم يجب أن يتكوّن من حرفين على الأقل.");
+  if (n.length > 80) return setErr("f-name", "الاسم أطول من الحد المسموح.");
+  return setErr("f-name", "");
+}
+function validateLic()  { return setErr("f-lic",  form.lic.value ? "" : "يرجى اختيار «نعم» أو «لا»."); }
+function validateRank() { return setErr("f-rank", $("#rank").value ? "" : "يرجى اختيار الرتبة المهنية الحالية."); }
+
+$("#name").addEventListener("input", () => { if ($("#f-name").classList.contains("invalid")) validateName(); });
+$("#name").addEventListener("blur", () => { if ($("#name").value) validateName(); });
+$$('input[name="lic"]').forEach(r => r.addEventListener("change", validateLic));
+$("#rank").addEventListener("change", validateRank);
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  fbError("");
+  const ok = [validateName(), validateLic(), validateRank()].every(Boolean);
+  if (!ok) { const first = $(".field.invalid", form); first && first.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+
+  const name = cleanName($("#name").value);
+  const key  = nameKeyOf(name);
+  const licensed = form.lic.value === "yes";
+  const rank = $("#rank").value;
+
+  const btn = $("#submitBtn");
+  btn.disabled = true; btn.lastChild.textContent = " جارٍ الإرسال…";
+
+  try {
+    const id = await sha256Hex(key);
+    // المعرّف = بصمة الاسم، لذلك يرفض Firestore أي تسجيل ثانٍ بالاسم نفسه (القاعدة تمنع التعديل)
+    await setDoc(doc(db, "teachers", id), { name, nameKey: key, licensed, rank, createdAt: serverTimestamp() });
+    form.reset();
+    $("#formPane").classList.add("hidden");
+    $("#successPane").classList.remove("hidden");
+  } catch (err) {
+    console.error(err);
+    if (err && err.code === "permission-denied") {
+      // الاسم مسجل مسبقًا (أو رُفض الطلب): نسجّل تنبيهًا للمشرف
+      try {
+        await addDoc(collection(db, "duplicates"), { name, nameKey: key, createdAt: serverTimestamp() });
+        setErr("f-name", "هذا الاسم مسجّل مسبقًا. لم يُحفظ تسجيل جديد، وتم تنبيه المشرف.");
+      } catch (e2) {
+        fbError("تعذّر إرسال البيانات. تأكد من نشر قواعد Firestore ثم أعد المحاولة.");
+      }
+    } else if (err && (err.code === "unavailable" || err.code === "deadline-exceeded")) {
+      fbError("تعذّر الاتصال بالإنترنت. تحقق من الشبكة ثم أعد المحاولة.");
+    } else {
+      fbError("حدث خطأ غير متوقع أثناء الإرسال. أعد المحاولة بعد قليل.");
+    }
+  } finally {
+    btn.disabled = false; btn.lastChild.textContent = " إرسال البيانات";
+  }
+});
+$("#againBtn").addEventListener("click", () => {
+  $("#successPane").classList.add("hidden");
+  $("#formPane").classList.remove("hidden");
+  $("#name").focus();
+});
+
+/* =====================================================================
+   دخول المشرف
+   ===================================================================== */
+$("#pwToggle").addEventListener("click", () => {
+  const i = $("#pw"); const show = i.type === "password";
+  i.type = show ? "text" : "password";
+  $("#pwToggle").textContent = show ? "إخفاء" : "إظهار";
+});
+$("#loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pw = $("#pw").value;
+  if (!pw) return setErr("f-pw", "أدخل كلمة المرور.");
+  setErr("f-pw", "");
+  const btn = $("#loginBtn"); btn.disabled = true; btn.textContent = "جارٍ التحقق…";
+  try {
+    await signInWithEmailAndPassword(auth, SUPERVISOR_EMAIL, pw);
+    $("#pw").value = "";
+  } catch (err) {
+    const c = err && err.code;
+    if (c === "auth/too-many-requests") setErr("f-pw", "محاولات كثيرة خاطئة. انتظر قليلًا ثم أعد المحاولة.");
+    else if (c === "auth/user-not-found" || c === "auth/operation-not-allowed") setErr("f-pw", "حساب المشرف غير مُفعَّل بعد في Firebase. راجع تعليمات الإعداد.");
+    else if (c === "auth/network-request-failed") setErr("f-pw", "تعذّر الاتصال بالإنترنت.");
+    else setErr("f-pw", "كلمة المرور غير صحيحة.");
+  } finally { btn.disabled = false; btn.textContent = "تسجيل الدخول"; }
+});
+$("#navOut").addEventListener("click", async () => { await signOut(auth); location.hash = ""; });
+
+/* =====================================================================
+   لوحة المشرف: البيانات
+   ===================================================================== */
+let teachers = [];       // كل السجلات
+let dups = [];           // محاولات التكرار
+let unsubT = null, unsubD = null;
+let sort = { key: "time", dir: "asc" };
+let term = "";
+
+function startListening() {
+  stopListening();
+  unsubT = onSnapshot(query(collection(db, "teachers"), orderBy("createdAt", "asc")),
+    snap => {
+      fbError("");
+      teachers = snap.docs.map(d => {
+        const x = d.data();
+        return { id: d.id, name: x.name, licensed: !!x.licensed, rank: x.rank,
+                 t: x.createdAt && x.createdAt.toMillis ? x.createdAt.toMillis() : Date.now() };
+      });
+      render();
+    },
+    err => { console.error(err); fbError("تعذّر قراءة البيانات. تأكد من نشر قواعد Firestore وأن الحساب هو حساب المشرف."); });
+
+  unsubD = onSnapshot(query(collection(db, "duplicates"), orderBy("createdAt", "desc")),
+    snap => {
+      dups = snap.docs.map(d => ({ id: d.id, name: d.data().name,
+        t: d.data().createdAt && d.data().createdAt.toMillis ? d.data().createdAt.toMillis() : Date.now() }));
+      renderDups();
+    }, err => console.error(err));
+}
+function stopListening() {
+  unsubT && unsubT(); unsubD && unsubD(); unsubT = unsubD = null;
+  teachers = []; dups = [];
+}
+
+const pct = (a, b) => b ? Math.round((a / b) * 1000) / 10 : 0;
+const pctTxt = n => (Number.isInteger(n) ? n : n.toFixed(1)) + "%";
+
+function sorted(list) {
+  const arr = [...list];
+  const { key, dir } = sort; const m = dir === "asc" ? 1 : -1;
+  arr.sort((a, b) => {
+    if (key === "name") return a.name.localeCompare(b.name, "ar") * m;
+    if (key === "rank") return ((RANKS[a.rank]?.order ?? 0) - (RANKS[b.rank]?.order ?? 0)) * m || a.name.localeCompare(b.name, "ar");
+    return (a.t - b.t) * m;
+  });
+  return arr;
+}
+function matches(t) { return !term || nameKeyOf(t.name).includes(nameKeyOf(term)); }
+
+function render() {
+  const total = teachers.length;
+  const yes = teachers.filter(t => t.licensed).length;
+  const no  = total - yes;
+  const p   = pct(yes, total);            // عدد الحاصلين ÷ الإجمالي × 100
+
+  $("#sTotal").textContent = nf.format(total);
+  $("#sYes").textContent = nf.format(yes);
+  $("#sNo").textContent = nf.format(no);
+  $("#sPct").textContent = pctTxt(p);
+  $("#dPct").textContent = pctTxt(p);
+  $("#lgYes").textContent = nf.format(yes);
+  $("#lgNo").textContent = nf.format(no);
+  $("#lgYesP").textContent = pctTxt(p);
+  $("#lgNoP").textContent = pctTxt(total ? Math.round((100 - p) * 10) / 10 : 0);
+
+  const C = 2 * Math.PI * 46;
+  const yl = total ? C * yes / total : 0;
+  $("#arcYes").setAttribute("stroke-dasharray", `${yl} ${C - yl}`);
+  $("#arcNo").setAttribute("stroke-dasharray", total ? `${C} 0` : `0 ${C}`);
+
+  fillTable("#tbYes", sorted(teachers.filter(t => t.licensed && matches(t))), "حاصل على الرخصة", "y", "#cYes", yes);
+  fillTable("#tbNo",  sorted(teachers.filter(t => !t.licensed && matches(t))), "غير حاصل على الرخصة", "n", "#cNo", no);
+
+  $$("th.sortable").forEach(th => {
+    const on = th.dataset.sort === sort.key;
+    th.classList.toggle("sorted", on);
+    $(".arr", th).textContent = on ? (sort.dir === "asc" ? "▲" : "▼") : "⇅";
+  });
+}
+
+function fillTable(sel, rows, status, cls, countSel, totalCount) {
+  $(countSel).textContent = nf.format(totalCount);
+  const tb = $(sel);
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="5" class="empty">${term && totalCount ? "لا توجد نتائج مطابقة للبحث." : "لا توجد تسجيلات في هذه القائمة بعد."}</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map((t, i) => `
+    <tr>
+      <td class="num">${nf.format(i + 1)}</td>
+      <td>${esc(t.name)}</td>
+      <td><span class="tag ${cls}">${status}</span></td>
+      <td>${esc(RANKS[t.rank]?.label ?? "—")}</td>
+      <td class="col-act"><button class="del" type="button" data-id="${esc(t.id)}" aria-label="حذف التسجيل">حذف</button></td>
+    </tr>`).join("");
+}
+
+function renderDups() {
+  $("#alerts").classList.toggle("hidden", !dups.length);
+  $("#dupCount").textContent = nf.format(dups.length);
+  $("#dupList").innerHTML = dups.slice(0, 30).map(d =>
+    `<li><span>${esc(d.name)}</span><span>${new Date(d.t).toLocaleString("ar-SA-u-ca-gregory-nu-latn", { dateStyle: "medium", timeStyle: "short" })}</span></li>`).join("");
+}
+
+// أحداث اللوحة
+$("#q").addEventListener("input", e => { term = e.target.value.trim(); render(); });
+$("#sortSel").addEventListener("change", e => { const [k, d] = e.target.value.split(":"); sort = { key: k, dir: d }; render(); });
+$$("th.sortable").forEach(th => th.addEventListener("click", () => {
+  const k = th.dataset.sort;
+  sort = { key: k, dir: sort.key === k && sort.dir === "asc" ? "desc" : "asc" };
+  $("#sortSel").value = ["name:asc","name:desc","rank:asc","rank:desc","time:asc","time:desc"].includes(`${sort.key}:${sort.dir}`) ? `${sort.key}:${sort.dir}` : "time:asc";
+  render();
+}));
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest(".del"); if (!b) return;
+  const t = teachers.find(x => x.id === b.dataset.id); if (!t) return;
+  if (!confirm(`حذف تسجيل «${t.name}» نهائيًا؟`)) return;
+  try { await deleteDoc(doc(db, "teachers", t.id)); } catch (err) { console.error(err); fbError("تعذّر حذف السجل."); }
+});
+$("#dupClear").addEventListener("click", async () => {
+  if (!confirm("مسح جميع تنبيهات التكرار؟")) return;
+  try {
+    const snap = await getDocs(collection(db, "duplicates"));
+    const batch = writeBatch(db); snap.forEach(d => batch.delete(d.ref)); await batch.commit();
+  } catch (err) { console.error(err); fbError("تعذّر مسح التنبيهات."); }
+});
+
+/* =====================================================================
+   التصدير والطباعة
+   ===================================================================== */
+const HEAD = ["الرقم التسلسلي", "الاسم الرباعي", "الحالة", "الرتبة المهنية الحالية"];
+const rowsFor = (lic) => sorted(teachers.filter(t => t.licensed === lic)).map((t, i) => [
+  i + 1, t.name, lic ? "حاصل على الرخصة" : "غير حاصل على الرخصة", RANKS[t.rank]?.label ?? ""
+]);
+const safeCell = v => (typeof v === "string" && /^[=+\-@\t\r]/.test(v)) ? "'" + v : v;   // حماية من حقن الصيغ
+const stamp = () => new Date().toISOString().slice(0, 10);
+
+function download(blob, filename) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function statsRows() {
+  const total = teachers.length, yes = teachers.filter(t => t.licensed).length;
+  return [["إجمالي المعلمين المسجلين", total], ["الحاصلون على الرخصة", yes], ["غير الحاصلين على الرخصة", total - yes],
+          ["نسبة الحاصلين على الرخصة", pctTxt(pct(yes, total))]];
+}
+function noData() { if (!teachers.length) { alert("لا توجد بيانات للتصدير بعد."); return true; } return false; }
+
+$("#csvBtn").addEventListener("click", () => {
+  if (noData()) return;
+  const lines = [[`${SCHOOL}`], ["حصر المعلمين الحاصلين على الرخصة المهنية"], [], ...statsRows(), [],
+    ["المعلمون الحاصلون على الرخصة المهنية"], HEAD, ...rowsFor(true), [],
+    ["المعلمون غير الحاصلين على الرخصة المهنية"], HEAD, ...rowsFor(false)];
+  const csv = lines.map(r => r.map(c => `"${String(safeCell(c)).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  download(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), `رخص-المعلمين-${stamp()}.csv`);
+});
+
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+}
+$("#xlsBtn").addEventListener("click", async () => {
+  if (noData()) return;
+  const A = rowsFor(true), B = rowsFor(false);
+  try {
+    if (!window.XLSX) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+    const X = window.XLSX, wb = X.utils.book_new();
+    const mk = (rows, widths) => { const ws = X.utils.aoa_to_sheet(rows); ws["!cols"] = widths.map(w => ({ wch: w })); return ws; };
+    X.utils.book_append_sheet(wb, mk([[SCHOOL], [], ...statsRows()], [34, 18]), "الإحصائيات");
+    X.utils.book_append_sheet(wb, mk([HEAD, ...A.map(r => r.map(safeCell))], [14, 34, 22, 28]), "الحاصلون على الرخصة");
+    X.utils.book_append_sheet(wb, mk([HEAD, ...B.map(r => r.map(safeCell))], [14, 34, 22, 28]), "غير الحاصلين");
+    wb.Workbook = { Views: [{ RTL: true }] };
+    X.writeFile(wb, `رخص-المعلمين-${stamp()}.xlsx`);
+  } catch (err) {
+    // بديل: ملف يفتحه Excel مباشرة
+    const tbl = (title, rows) => `<h3>${esc(title)}</h3><table border="1"><tr>${HEAD.map(h => `<th>${h}</th>`).join("")}</tr>${rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table>`;
+    const html = `<html dir="rtl" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><h2>${SCHOOL}</h2>${tbl("المعلمون الحاصلون على الرخصة المهنية", A)}<br>${tbl("المعلمون غير الحاصلين على الرخصة المهنية", B)}</body></html>`;
+    download(new Blob(["\ufeff" + html], { type: "application/vnd.ms-excel" }), `رخص-المعلمين-${stamp()}.xls`);
+  }
+});
+
+$("#printBtn").addEventListener("click", () => {
+  const d = new Date();
+  $("#printDate").textContent = "تاريخ التقرير: " +
+    d.toLocaleDateString("ar-SA-u-ca-islamic-umalqura-nu-latn", { day: "numeric", month: "long", year: "numeric" }) + " هـ — " +
+    d.toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "long", year: "numeric" }) + " م";
+  const prevTerm = term; term = ""; render();      // طباعة القوائم كاملة دون تصفية
+  window.print();
+  term = prevTerm; render();
+});
+
+/* =====================================================================
+   التوجيه وحالة الدخول
+   ===================================================================== */
+let currentUser = undefined;   // undefined = لم تُحدَّد بعد
+
+function route() {
+  const wantAdmin = location.hash === "#admin";
+  if (!wantAdmin) { showView("viewForm"); return; }
+  if (currentUser === undefined) return;            // ننتظر حالة المصادقة
+  showView(currentUser ? "viewDash" : "viewLogin");
+  if (!currentUser) setTimeout(() => $("#pw").focus(), 50);
+}
+window.addEventListener("hashchange", route);
+
+onAuthStateChanged(auth, (user) => {
+  if (user && user.email !== SUPERVISOR_EMAIL) { signOut(auth); return; }
+  currentUser = user || null;
+  if (user) { location.hash = "#admin"; startListening(); }
+  else { stopListening(); }
+  route();
+});
+
+route();
+</script>
+<style>.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>
+</body>
+</html>
