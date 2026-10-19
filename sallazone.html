@@ -88,6 +88,7 @@ footer a{color:#fff;margin-inline-end:14px}
 #toast{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 74px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:10px 20px;border-radius:8px;opacity:0;transition:.3s;z-index:40;pointer-events:none;max-width:90vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}#toast.err{background:var(--bad)}
 @media(min-width:700px){.hero .wrap{grid-template-columns:1.3fr 1fr}.hero h1{font-size:2.6rem}.tag{display:block}.search{order:0;width:auto}.builder{grid-template-columns:1fr 1.4fr}}
+#dlgBg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;align-items:center;justify-content:center;padding:16px}#dlgBg.on{display:flex}#dlg{background:var(--card);color:var(--tx);border-radius:12px;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:20px;position:relative}#dlg .x{position:absolute;top:8px;inset-inline-start:8px;border:0;background:none;color:var(--tx);font-size:1.2rem;cursor:pointer}#dlg h3{margin:0 0 10px;padding-inline-start:26px}#dlg li{margin-bottom:6px}.st{display:block;margin:8px 0;text-align:center}
 </style>
 </head>
 <body>
@@ -137,6 +138,7 @@ footer a{color:#fff;margin-inline-end:14px}
 <p>إفصاح: قد تحتوي روابط المتاجر مستقبلًا على روابط تسويق بالعمولة، وسيُعلن عن ذلك بوضوح. لا توجد حاليًا أي روابط عمولة.</p>
 <p>سلة زون مشروع مستقل وغير تابع لأمازون أو نون أو تريندول. جميع المنتجات والأسعار في هذه النسخة بيانات تجريبية.</p></div></footer>
 <button class="fab" onclick="go('builder')">🛒 قائمتي (<span id="cnt2">0</span>)</button>
+<div id="dlgBg" onclick="if(event.target==this)closeDlg()"><div id="dlg" role="dialog" aria-modal="true"><button class="x" onclick="closeDlg()" aria-label="إغلاق">✕</button><h3 id="dT"></h3><div id="dB"></div></div></div>
 <div id="toast" role="status"></div>
 <script>
 // ===== إعدادات قابلة للتعديل: ضع رابط المتجر الحقيقي في url وأسماء المتاجر في store =====
@@ -158,18 +160,58 @@ var P=[
 {id:15,n:"ساعة رياضية",c:"fashion",p:250,e:"⌚",d:"تتبع النشاط اليومي بشاشة واضحة.",store:"متجر تجريبي",url:""},
 {id:16,n:"حذاء رياضي",c:"fashion",p:230,e:"👟",d:"خفيف ومريح للمشي والجري.",store:"متجر تجريبي",url:""},
 {id:17,n:"مفرش سرير",c:"home",p:150,e:"🛏️",d:"قطن ناعم بألوان هادئة.",store:"متجر تجريبي",url:""},
-{id:18,n:"مكنسة كهربائية",c:"home",p:400,e:"🧹",d:"شفط قوي وخزان سهل التفريغ.",store:"متجر تجريبي",url:""}];
+{id:18,n:"مكنسة كهربائية",c:"home",p:400,e:"🧹",d:"شفط قوي وخزان سهل التفريغ."},
+{id:19,n:"هاتف ذكي اقتصادي",c:"elec",p:799,e:"📱",d:"شاشة كبيرة وكاميرا جيدة للاستخدام اليومي."},
+{id:20,n:"لابتوب للدراسة",c:"elec",p:1999,e:"💻",d:"خفيف الوزن ومناسب للمذاكرة والأعمال المكتبية."},
+{id:21,n:"شاشة ذكية 43 بوصة",c:"elec",p:1100,e:"📺",d:"دقة 4K مع تطبيقات البث."},
+{id:22,n:"كاميرا مراقبة منزلية",c:"elec",p:140,e:"📹",d:"تسجيل بدقة عالية وتنبيهات عند الحركة."},
+{id:23,n:"لوحة مفاتيح وماوس",c:"elec",p:110,e:"⌨️",d:"طقم لاسلكي بحروف عربية وإنجليزية."},
+{id:24,n:"قلاية هوائية",c:"home",p:350,e:"🍟",d:"طبخ بزيت أقل ونتيجة مقرمشة."},
+{id:25,n:"طقم سكاكين مطبخ",c:"home",p:130,e:"🔪",d:"ست قطع من الستانلس مع حامل."},
+{id:26,n:"حافظات طعام",c:"home",p:60,e:"🥡",d:"مجموعة محكمة الإغلاق للثلاجة والمايكروويف."},
+{id:27,n:"غلاية كهربائية",c:"home",p:90,e:"🫖",d:"غلي سريع وإيقاف تلقائي."},
+{id:28,n:"مجموعة مناشف قطنية",c:"home",p:110,e:"🧺",d:"ست مناشف ناعمة وسريعة الجفاف."},
+{id:29,n:"جاكيت شتوي",c:"fashion",p:280,e:"🧥",d:"دفء وخفة للأجواء الباردة."},
+{id:30,n:"حقيبة يد نسائية",c:"fashion",p:220,e:"👜",d:"تصميم عملي بجيوب متعددة."},
+{id:31,n:"نظارة شمسية",c:"fashion",p:150,e:"🕶️",d:"عدسات تحمي من الأشعة فوق البنفسجية."},
+{id:32,n:"مجفف شعر",c:"beauty",p:170,e:"💇",d:"ثلاث سرعات وفوهة تصفيف."},
+{id:33,n:"ماكينة حلاقة",c:"beauty",p:130,e:"✂️",d:"قابلة للشحن ومقاومة للماء."},
+{id:34,n:"طقم مكياج للمبتدئات",c:"beauty",p:190,e:"💄",d:"أساسيات متنوعة في علبة واحدة."},
+{id:35,n:"ألعاب تركيب للأطفال",c:"kids",p:120,e:"🧩",d:"تنمّي التركيز والتفكير."},
+{id:36,n:"كرسي سيارة للأطفال",c:"kids",p:450,e:"🚗",d:"حزام أمان بخمس نقاط وقابل للتعديل."},
+{id:37,n:"دراجة أطفال",c:"kids",p:330,e:"🚲",d:"هيكل متين مع عجلات مساعدة."},
+{id:38,n:"شواية فحم صغيرة",c:"travel",p:190,e:"🔥",d:"قابلة للطي ومناسبة للطلعات البرية."},
+{id:39,n:"حقيبة سفر متوسطة",c:"travel",p:260,e:"🧳",d:"عجلات دوارة وقفل رقمي."},
+{id:40,n:"وسادة رقبة للسفر",c:"travel",p:55,e:"😴",d:"راحة أثناء الرحلات الطويلة."},
+{id:41,n:"علبة شوكولاتة فاخرة",c:"gift",p:95,e:"🍫",d:"تغليف أنيق جاهز للإهداء."},
+{id:42,n:"مجموعة شموع عطرية",c:"gift",p:110,e:"🕯️",d:"روائح هادئة لأجواء المنزل."},
+{id:43,n:"إطار صور رقمي",c:"gift",p:150,e:"🖼️",d:"يعرض الذكريات بشكل متتابع."}];
 var C=[["all","الكل"],["elec","الإلكترونيات"],["home","المنزل والمطبخ"],["fashion","الأزياء"],["beauty","الجمال والعناية"],["kids","الأطفال"],["travel","السفر والرحلات"],["gift","الهدايا"],["offers","العروض"]];
-var L=[{n:"تجهيز شقة جديدة",b:3000,e:"🏠",i:[1,7,8,17,18,6]},{n:"أفضل مستلزمات القهوة المنزلية",b:700,e:"☕",i:[1,2,3]},{n:"تجهيز رحلة برية",b:800,e:"⛺",i:[11,12,5]},{n:"هدايا بأقل من 200 ريال",b:200,e:"🎁",i:[13,3,14]},{n:"أساسيات المطبخ",b:700,e:"🍳",i:[7,8,3]},{n:"مستلزمات العودة إلى المدارس",b:300,e:"🎒",i:[9,10,6]}];
+var L=[{n:"تجهيز شقة جديدة",b:3000,e:"🏠",i:[1,7,8,17,18,6]},{n:"أفضل مستلزمات القهوة المنزلية",b:700,e:"☕",i:[1,2,3]},{n:"تجهيز رحلة برية",b:800,e:"⛺",i:[11,12,5]},{n:"هدايا بأقل من 200 ريال",b:200,e:"🎁",i:[13,3,14]},{n:"أساسيات المطبخ",b:700,e:"🍳",i:[7,8,3]},{n:"مستلزمات العودة إلى المدارس",b:300,e:"🎒",i:[9,10,6]},
+{n:"تجهيز مكتب منزلي",b:600,e:"💼",i:[6,23,4]},
+{n:"مطبخ عصري وصحي",b:1100,e:"🥗",i:[24,8,26,27,7]},
+{n:"هدايا للأطفال",b:500,e:"🧸",i:[35,37]},
+{n:"العناية الشخصية",b:700,e:"🧴",i:[32,33,34,14]},
+{n:"طلعة شواء وبر",b:800,e:"🔥",i:[38,12,11]},
+{n:"هدايا رجالية",b:600,e:"🎁",i:[13,31,15]},
+{n:"تجهيز سفر",b:500,e:"🧳",i:[39,40,5]},
+{n:"بداية الجامعة",b:3000,e:"🎓",i:[20,4,23,6]}];
 var cart=[],cat="all",qs="";
 function $(i){return document.getElementById(i)}
 function pr(id){return P.find(function(x){return x.id==id})}
 function fmt(n){return n.toLocaleString("ar-SA")+" ر.س"}
 function toast(m,err){var t=$("toast");t.textContent=m;t.className="on"+(err?" err":"");clearTimeout(toast.h);toast.h=setTimeout(function(){t.className=""},2200)}
 function go(id){$(id).scrollIntoView({behavior:"smooth"})}
-function soon(n){toast("صفحة «"+n+"» غير متوفرة في هذا النموذج الأولي");return false}
+var EMAIL=""; // ضع بريد التواصل الحقيقي هنا
+var LEGAL={"سياسة الخصوصية":'<p><b>مسودة للنموذج الأولي.</b></p><ul><li>لا تتطلب الصفحة تسجيل دخول، ولا تجمع بيانات شخصية، ولا ترسل شيئًا إلى خادم.</li><li>ما تكتبه في قائمتك يبقى في متصفحك أثناء فتح الصفحة فقط، ولا يُحفظ بعد إغلاقها.</li><li>عند المشاركة أو النسخ يُنشأ نص القائمة على جهازك، وأنت من يقرر مع من تشاركه.</li><li>تُحمَّل خطوط Cairo من Google Fonts، لذا قد تتلقى Google عنوان IP الخاص بك عند تحميل الصفحة.</li><li>عند الانتقال إلى متجر خارجي تنطبق سياسة خصوصية ذلك المتجر.</li><li>قبل الإطلاق التجاري يُنصح بمراجعة هذه السياسة مع مستشار قانوني بما يتوافق مع نظام حماية البيانات الشخصية في المملكة.</li></ul>',"شروط الاستخدام":'<p><b>مسودة للنموذج الأولي.</b></p><ul><li>سلة زون أداة لاكتشاف المنتجات وتنظيم قوائم التسوق، وليست متجرًا ولا وسيط دفع.</li><li>المنتجات والأسعار المعروضة بيانات تجريبية وقد تختلف عن الواقع.</li><li>روابط المتاجر تفتح نتائج بحث لدى متجر مستقل، والسعر والتوفر والدفع والشحن والإرجاع مسؤولية ذلك المتجر وحده.</li><li>سلة زون مشروع مستقل وغير تابع لأمازون أو نون أو جرير أو أي متجر آخر، وأسماؤها تعود لأصحابها.</li><li>تستخدم الأداة على مسؤوليتك، ولا نضمن خلوها من الأخطاء في هذه النسخة.</li><li>قبل الإطلاق التجاري تُراجع الشروط مع مستشار قانوني.</li></ul>'};
+function soon(n){if(LEGAL[n]){dlg(n,LEGAL[n]);return false}if(EMAIL){location.href="mailto:"+EMAIL;return false}toast("بريد التواصل غير مُعدّ بعد في النموذج الأولي");return false}
+function dlg(t,h){$("dT").textContent=t;$("dB").innerHTML=h;$("dlgBg").classList.add("on")}
+function closeDlg(){$("dlgBg").classList.remove("on")}
+document.addEventListener("keydown",function(e){if(e.key=="Escape")closeDlg()});
 function add(id,q){var x=cart.find(function(c){return c.id==id});if(x)x.q+=1;else cart.push({id:id,q:q||1});render();toast("أُضيف المنتج إلى قائمتك")}
-function shop(id){var p=pr(id);if(p.url){window.open(p.url,"_blank","noopener")}else toast("رابط المتجر غير مفعّل بعد (بيانات تجريبية)",1)}
+// روابط بحث رسمية بدون كشط أو API. للعمولة لاحقًا: ضع معرّف الشريك في x مثل "&tag=YOURTAG-21" وحدّث إفصاح التذييل.
+var STORES=[{n:"أمازون السعودية",u:"https://www.amazon.sa/s?k=",x:""},{n:"نون",u:"https://www.noon.com/saudi-ar/search/?q=",x:""},{n:"جرير",u:"https://www.jarir.com/catalogsearch/result/?q=",x:""},{n:"تراندیول",u:"https://www.trendyol.com/sr?q=",x:""}];
+function shop(id){var p=pr(id);dlg("ابحث عن «"+p.n+"» في:",'<p class="desc">تفتح هذه الأزرار نتائج بحث في المتجر وليست رابطًا لمنتج محدد. السعر والتوفر يحددهما المتجر.</p>'+STORES.map(function(s){return'<a class="btn st" target="_blank" rel="noopener sponsored" href="'+s.u+encodeURIComponent(p.n)+s.x+'">'+s.n+'</a>'}).join(""))}
 function drawCats(){$("cats").innerHTML=C.map(function(c){return '<button class="'+(c[0]==cat?"on":"")+'" onclick="setCat(\''+c[0]+'\')">'+c[1]+'</button>'}).join("")}
 function setCat(c){cat=c;qs="";$("q").value="";drawCats();drawProds();go("products")}
 function doSearch(){qs=$("q").value.trim();cat="all";drawCats();drawProds();go("products")}
@@ -208,3 +250,4 @@ drawCats();drawProds();drawReady();drawChips();fillPick();render();
 </script>
 </body>
 </html>
+
