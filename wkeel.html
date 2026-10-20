@@ -53,7 +53,7 @@ button.p{background:var(--g);border-color:var(--g);color:#fff}
 .sheet th,.ks th{background:#e3f2ec;width:18%}.ks th{width:auto}
 .sg{display:flex;justify-content:space-between;text-align:center;margin-top:14px;font-size:13px}
 .sg>div{flex:1}
-.ks{color:#000;background:#fff;font-size:12.5px}.ks h2{text-align:center;color:#0d6b4f;margin:0}.ks p{text-align:center;margin:2px 0 8px}
+.ks{color:#000;background:#fff;font-size:13px;page-break-after:always}.ks td{height:34px}.ks h2{text-align:center;color:#0d6b4f;margin:0}.ks p{text-align:center;margin:2px 0 8px}
 @media print{body>*:not(#print){display:none!important}#print{display:block}html,body{background:#fff!important}@page{size:A4;margin:10mm}.w{padding:0}}
 </style>
 </head>
@@ -93,10 +93,10 @@ button.p{background:var(--g);border-color:var(--g);color:#fff}
 </div>
 <div class="cols">
 <div class="pn t1"><div class="ph"><span>غياب من 5 إلى 10 أيام</span></div>
-<div class="tb"><button data-all="1">تحديد الكل</button><button class="p" data-ps="1">طباعة الإشعارات</button><button data-ks="1">طباعة الكشف</button></div>
+<div class="tb"><button data-all="1">تحديد الكل</button><button class="p" data-ps="1">طباعة الإشعارات</button><button data-ks="1">طباعة كشف الفصول</button></div>
 <div class="ls" id="l1"></div></div>
 <div class="pn t2"><div class="ph"><span>غياب تجاوز 10 أيام</span></div>
-<div class="tb"><button data-all="2">تحديد الكل</button><button class="p" data-ps="2">طباعة الإشعارات</button><button data-ks="2">طباعة الكشف</button></div>
+<div class="tb"><button data-all="2">تحديد الكل</button><button class="p" data-ps="2">طباعة الإشعارات</button><button data-ks="2">طباعة كشف الفصول</button></div>
 <div class="ls" id="l2"></div></div>
 </div>
 <p class="mu" style="font-size:13px">«طباعة الإشعارات» تطبع الطلاب المحددين، وإن لم تحدد أحدًا فتطبع كل طلاب القائمة. إن لم تظهر نافذة الطباعة فاضغط Ctrl+P.</p>
@@ -158,11 +158,15 @@ function sheet(s){
 <h3>إلى الطالب</h3>
 <p>عزيزي الطالب <b>${n}</b>: بلغ غيابك بدون عذر (<b>${d}</b>) يومًا. المواظبة على الحضور واجب عليك وأساس لنجاحك، فاحرص على الانتظام في الدراسة.</p>
 <p><b>تعهد الطالب:</b> أتعهد بالالتزام بالحضور في الوقت المحدد وعدم التغيب إلا بعذر مقبول أقدّم ما يثبته لإدارة المدرسة.<br>الاسم: ${n} &nbsp;&nbsp; التوقيع: ............................</p>
-<div class="sg"><div>وكيل المدرسة<br>${vp||'............................'}<br>التوقيع: ............</div><div>مدير المدرسة<br>${pm||'............................'}<br>التوقيع: ............</div><div>استلام ولي الأمر<br>الاسم: ............................<br>التوقيع: ............ التاريخ: ........</div></div></section>`;
+<p><b>توقيع الطالب بالاستلام:</b> ................... التاريخ: ........ &nbsp;&nbsp; <b>توقيع الطالب بالتسليم:</b> ................... التاريخ: ........</p>
+<div class="sg"><div>وكيل المدرسة<br>${vp||'............................'}<br>التوقيع: ............<br>ملاحظة: ......................<br>..............................</div><div>مدير المدرسة<br>${pm||'............................'}<br>التوقيع: ............</div><div>استلام ولي الأمر<br>الاسم: ............................<br>التوقيع: ............ التاريخ: ........</div></div></section>`;
 }
 function kashf(L,t){
-  const D=new Date($('#dt').value+'T12:00');
-  return `<section class="ks"><h2>${t}</h2><p>${esc($('#school').value)} — ${hij(D)}</p><table><tr><th>م</th><th>اسم الطالب</th><th>رقم الهوية</th><th>الصف</th><th>الفصل</th><th>أيام الغياب</th></tr>${L.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td>${esc(s.id)}</td><td>${esc(s.grade)}</td><td>${s.cls}</td><td>${dys(s)}</td></tr>`).join('')}</table></section>`;
+  const D=new Date($('#dt').value+'T12:00'),O=[...new Set(S.map(s=>s.grade))],M={};
+  L.forEach(s=>{const k=O.indexOf(s.grade)+'|'+s.cls;(M[k]=M[k]||[]).push(s)});
+  return Object.keys(M).sort((a,b)=>{const x=a.split('|'),y=b.split('|');return x[0]-y[0]||x[1]-y[1]}).map(k=>{
+    const R=M[k];
+    return `<section class="ks"><h2>${t}</h2><p>${esc($('#school').value)} — ${esc(R[0].grade)} / فصل ${R[0].cls} — ${hij(D)}</p><table><tr><th>م</th><th>اسم الطالب</th><th>أيام الغياب</th><th>توقيع الطالب بالاستلام</th><th>توقيع الطالب بالتسليم</th><th>ملاحظات</th></tr>${R.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td>${dys(s)}</td><td></td><td></td><td></td></tr>`).join('')}</table><p style="text-align:right;margin-top:16px">وكيل المدرسة: ${esc($('#vp').value)||'....................'} &nbsp; التوقيع: ............<br>ملاحظة: ......................................................</p></section>`}).join('');
 }
 const pr=h=>{$('#print').innerHTML=h;window.print()};
 
@@ -187,3 +191,5 @@ try{const c=ld('abs_data');if(c){S=JSON.parse(c);init()}else render()}catch(e){r
 </script>
 </body>
 </html>
+
+
