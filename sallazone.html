@@ -88,7 +88,7 @@ footer a{color:#fff;margin-inline-end:14px}
 #toast{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 74px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:10px 20px;border-radius:8px;opacity:0;transition:.3s;z-index:40;pointer-events:none;max-width:90vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}#toast.err{background:var(--bad)}
 @media(min-width:700px){.hero .wrap{grid-template-columns:1.3fr 1fr}.hero h1{font-size:2.6rem}.tag{display:block}.search{order:0;width:auto}.builder{grid-template-columns:1fr 1.4fr}}
-#dlgBg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;align-items:center;justify-content:center;padding:16px}#dlgBg.on{display:flex}#dlg{background:var(--card);color:var(--tx);border-radius:12px;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:20px;position:relative}#dlg .x{position:absolute;top:8px;inset-inline-start:8px;border:0;background:none;color:var(--tx);font-size:1.2rem;cursor:pointer}#dlg h3{margin:0 0 10px;padding-inline-start:26px}#dlg li{margin-bottom:6px}.st{display:block;margin:8px 0;text-align:center}
+#dlgBg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;align-items:center;justify-content:center;padding:16px}#dlgBg.on{display:flex}#dlg{background:var(--card);color:var(--tx);border-radius:12px;max-width:560px;width:100%;max-height:85vh;overflow:auto;padding:20px;position:relative}#dlg .x{position:absolute;top:8px;inset-inline-start:8px;border:0;background:none;color:var(--tx);font-size:1.2rem;cursor:pointer}#dlg h3{margin:0 0 10px;padding-inline-start:26px}#dlg li{margin-bottom:6px}.st{display:block;margin:8px 0;text-align:center}.chp{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.chp a{font-size:.78rem;padding:3px 10px;border-radius:99px;border:1px solid var(--org);color:var(--tx);text-decoration:none}.chp a:hover{background:var(--org);color:#111}.buy{font-size:.82rem}.mini{padding-inline-start:0;list-style:none}.mini li{padding:8px 0;border-bottom:1px solid var(--bd)}
 </style>
 </head>
 <body>
@@ -135,7 +135,7 @@ footer a{color:#fff;margin-inline-end:14px}
 <footer><div class="wrap"><b style="color:#fff;font-size:1.1rem">سلة زون | SallaZone</b>
 <p>منصة سعودية ناشئة لاكتشاف المنتجات وإنشاء قوائم تسوق ذكية ومشاركتها.</p>
 <p><a href="#" onclick="return soon('سياسة الخصوصية')">سياسة الخصوصية</a><a href="#" onclick="return soon('شروط الاستخدام')">شروط الاستخدام</a><a href="#" onclick="return soon('التواصل')">تواصل معنا</a></p>
-<p>إفصاح: قد تحتوي روابط المتاجر مستقبلًا على روابط تسويق بالعمولة، وسيُعلن عن ذلك بوضوح. لا توجد حاليًا أي روابط عمولة.</p>
+<p id="disc">إفصاح: قد تحتوي روابط المتاجر مستقبلًا على روابط تسويق بالعمولة، وسيُعلن عن ذلك بوضوح. لا توجد حاليًا أي روابط عمولة.</p>
 <p>سلة زون مشروع مستقل وغير تابع لأمازون أو نون أو تريندول. جميع المنتجات والأسعار في هذه النسخة بيانات تجريبية.</p></div></footer>
 <button class="fab" onclick="go('builder')">🛒 قائمتي (<span id="cnt2">0</span>)</button>
 <div id="dlgBg" onclick="if(event.target==this)closeDlg()"><div id="dlg" role="dialog" aria-modal="true"><button class="x" onclick="closeDlg()" aria-label="إغلاق">✕</button><h3 id="dT"></h3><div id="dB"></div></div></div>
@@ -207,19 +207,23 @@ var LEGAL={"سياسة الخصوصية":'<p><b>مسودة للنموذج الأ
 function soon(n){if(LEGAL[n]){dlg(n,LEGAL[n]);return false}if(EMAIL){location.href="mailto:"+EMAIL;return false}toast("بريد التواصل غير مُعدّ بعد في النموذج الأولي");return false}
 function dlg(t,h){$("dT").textContent=t;$("dB").innerHTML=h;$("dlgBg").classList.add("on")}
 function closeDlg(){$("dlgBg").classList.remove("on")}
+// لربط منتج برابط مباشر: أضف للمنتج L:{a:"رابط أمازون",n:"رابط نون",j:"رابط جرير",t:"رابط ترينديول"}. بدونه يُستخدم رابط بحث (🔍).
+var KEYS=["a","n","j","t"];
+function surl(s,i,p){return(p.L&&p.L[KEYS[i]])||s.u+encodeURIComponent(p.n)+s.x}
+function chips(p){return'<span class="chp">'+STORES.map(function(s,i){var d=p.L&&p.L[KEYS[i]];return'<a target="_blank" rel="noopener sponsored" href="'+surl(s,i,p)+'">'+s.n+(d?'':' 🔍')+'</a>'}).join("")+'</span>'}
 document.addEventListener("keydown",function(e){if(e.key=="Escape")closeDlg()});
 function add(id,q){var x=cart.find(function(c){return c.id==id});if(x)x.q+=1;else cart.push({id:id,q:q||1});render();toast("أُضيف المنتج إلى قائمتك")}
 // روابط بحث رسمية بدون كشط أو API. للعمولة لاحقًا: ضع معرّف الشريك في x مثل "&tag=YOURTAG-21" وحدّث إفصاح التذييل.
 var STORES=[{n:"أمازون السعودية",u:"https://www.amazon.sa/s?k=",x:""},{n:"نون",u:"https://www.noon.com/saudi-ar/search/?q=",x:""},{n:"جرير",u:"https://www.jarir.com/catalogsearch/result/?q=",x:""},{n:"تراندیول",u:"https://www.trendyol.com/sr?q=",x:""}];
-function shop(id){var p=pr(id);dlg("ابحث عن «"+p.n+"» في:",'<p class="desc">تفتح هذه الأزرار نتائج بحث في المتجر وليست رابطًا لمنتج محدد. السعر والتوفر يحددهما المتجر.</p>'+STORES.map(function(s){return'<a class="btn st" target="_blank" rel="noopener sponsored" href="'+s.u+encodeURIComponent(p.n)+s.x+'">'+s.n+'</a>'}).join(""))}
+function shop(id){var p=pr(id);dlg("ابحث عن «"+p.n+"» في:",'<p class="desc">تفتح هذه الأزرار نتائج بحث في المتجر وليست رابطًا لمنتج محدد. السعر والتوفر يحددهما المتجر.</p>'+STORES.map(function(s,i){return'<a class="btn st" target="_blank" rel="noopener sponsored" href="'+surl(s,i,p)+'">'+s.n+'</a>'}).join(""))}
 function drawCats(){$("cats").innerHTML=C.map(function(c){return '<button class="'+(c[0]==cat?"on":"")+'" onclick="setCat(\''+c[0]+'\')">'+c[1]+'</button>'}).join("")}
 function setCat(c){cat=c;qs="";$("q").value="";drawCats();drawProds();go("products")}
 function doSearch(){qs=$("q").value.trim();cat="all";drawCats();drawProds();go("products")}
 function drawProds(){
 var l=P.filter(function(p){return(cat=="all"||p.c==cat)&&(!qs||(p.n+p.d).indexOf(qs)>-1)});
 $("pTitle").textContent=cat=="offers"?"العروض":qs?"نتائج البحث عن «"+qs+"»":"المنتجات المقترحة";
-$("prodGrid").innerHTML=l.length?l.map(function(p){return '<div class="card"><div class="img">'+p.e+'</div><span class="demo">بيانات تجريبية</span><h3>'+p.n+'</h3><div class="price">'+fmt(p.p)+'</div><p class="desc">'+p.d+'</p><div class="row"><button class="btn sm" onclick="add('+p.id+')">أضف إلى قائمتي</button><button class="btn sm dk" onclick="shop('+p.id+')">عرض المنتج في المتجر</button></div></div>'}).join(""):'<div class="empty">'+(cat=="offers"?"لا توجد عروض حقيقية حاليًا. ستظهر هنا عند ربط بيانات خصم موثوقة.":"لا توجد نتائج مطابقة.")+'</div>'}
-function drawReady(){$("readyGrid").innerHTML=L.map(function(l,k){var t=l.i.reduce(function(s,i){return s+pr(i).p},0);return '<div class="card"><div class="img">'+l.e+'</div><h3>'+l.n+'</h3><div class="desc">الميزانية المقترحة: '+fmt(l.b)+' · '+l.i.length+' منتجات · إجمالي تقريبي '+fmt(t)+'</div><ul class="mini" id="m'+k+'">'+l.i.map(function(i){return"<li>"+pr(i).n+" — "+fmt(pr(i).p)+"</li>"}).join("")+'</ul><div class="row"><button class="btn sm sec" style="color:var(--tx)" onclick="$(\'m'+k+'\').classList.toggle(\'on\')">عرض القائمة</button><button class="btn sm" onclick="copyReady('+k+')">نسخ قائمتي</button></div></div>'}).join("")}
+$("prodGrid").innerHTML=l.length?l.map(function(p){return '<div class="card"><div class="img">'+p.e+'</div><span class="demo">بيانات تجريبية</span><h3>'+p.n+'</h3><div class="price">'+fmt(p.p)+'</div><p class="desc">'+p.d+'</p><div class="row"><button class="btn sm" onclick="add('+p.id+')">أضف إلى قائمتي</button></div><div class="buy"><b>اشترِ من:</b>'+chips(p)+'</div></div>'}).join(""):'<div class="empty">'+(cat=="offers"?"لا توجد عروض حقيقية حاليًا. ستظهر هنا عند ربط بيانات خصم موثوقة.":"لا توجد نتائج مطابقة.")+'</div>'}
+function drawReady(){$("readyGrid").innerHTML=L.map(function(l,k){var t=l.i.reduce(function(s,i){return s+pr(i).p},0);return '<div class="card"><div class="img">'+l.e+'</div><h3>'+l.n+'</h3><div class="desc">الميزانية المقترحة: '+fmt(l.b)+' · '+l.i.length+' منتجات · إجمالي تقريبي '+fmt(t)+'</div><ul class="mini" id="m'+k+'">'+l.i.map(function(i){return"<li>"+pr(i).n+" — "+fmt(pr(i).p)+chips(pr(i))+"</li>"}).join("")+'</ul><div class="row"><button class="btn sm sec" style="color:var(--tx)" onclick="$(\'m'+k+'\').classList.toggle(\'on\')">عرض القائمة</button><button class="btn sm" onclick="copyReady('+k+')">نسخ قائمتي</button></div></div>'}).join("")}
 function copyReady(k){var l=L[k];cart=l.i.map(function(i){return{id:i,q:1}});$("lname").value=l.n;$("lbud").value=l.b;render();toast("نُسخت القائمة وهي الآن قابلة للتعديل");go("builder")}
 function fillPick(){var c=$("lcat").value;$("lpick").innerHTML=P.filter(function(p){return c=="all"||p.c==c}).map(function(p){return'<option value="'+p.id+'">'+p.n+' — '+p.p+' ر.س</option>'}).join("")}
 function addPick(){var v=$("lpick").value;if(!v)return toast("اختر منتجًا أولًا",1);add(+v)}
@@ -229,11 +233,11 @@ function total(){return cart.reduce(function(s,c){return s+pr(c.id).p*c.q},0)}
 function render(){
 var t=total(),b=Math.max(0,+$("lbud").value||0),r=b-t,n=cart.reduce(function(s,c){return s+c.q},0);
 $("cnt").textContent=n;$("cnt2").textContent=n;
-$("items").innerHTML=cart.length?cart.map(function(c){var p=pr(c.id);return'<div class="item"><span>'+p.e+'</span><div class="n">'+p.n+'<br><small class="desc">'+fmt(p.p)+'</small></div><div class="qty"><button onclick="chg('+p.id+',-1)" aria-label="إنقاص">−</button><b>'+c.q+'</b><button onclick="chg('+p.id+',1)" aria-label="زيادة">+</button></div><b>'+fmt(p.p*c.q)+'</b><button class="btn sm sec" style="color:var(--bad)" onclick="del('+p.id+')">حذف</button></div>'}).join(""):'<div class="empty">قائمتك فارغة. أضف منتجات من الأقسام أعلاه.</div>';
+$("items").innerHTML=cart.length?cart.map(function(c){var p=pr(c.id);return'<div class="item"><span>'+p.e+'</span><div class="n">'+p.n+'<br><small class="desc">'+fmt(p.p)+'</small><div>'+chips(p)+'</div></div><div class="qty"><button onclick="chg('+p.id+',-1)" aria-label="إنقاص">−</button><b>'+c.q+'</b><button onclick="chg('+p.id+',1)" aria-label="زيادة">+</button></div><b>'+fmt(p.p*c.q)+'</b><button class="btn sm sec" style="color:var(--bad)" onclick="del('+p.id+')">حذف</button></div>'}).join(""):'<div class="empty">قائمتك فارغة. أضف منتجات من الأقسام أعلاه.</div>';
 $("tot").textContent=fmt(t);$("rem").textContent=(r<0?"−":"")+fmt(Math.abs(r));$("rem").style.color=r<0?"var(--bad)":"var(--ok)";
 var pc=b?Math.min(100,t/b*100):(t?100:0);$("barf").style.width=pc+"%";$("barf").style.background=r<0?"var(--bad)":"var(--ok)";
 $("alert").className="alert"+(r<0?" on":"")}
-function text(){var nm=$("lname").value||"قائمتي",s="🛒 "+nm+" — سلة زون\n";cart.forEach(function(c,i){var p=pr(c.id);s+=(i+1)+". "+p.n+" × "+c.q+" = "+fmt(p.p*c.q)+"\n"});s+="\nالإجمالي: "+fmt(total())+"\nالميزانية: "+fmt(+$("lbud").value||0)+"\n(أسعار تجريبية)";return s}
+function text(){var nm=$("lname").value||"قائمتي",s="🛒 "+nm+" — سلة زون\n";cart.forEach(function(c,i){var p=pr(c.id);s+=(i+1)+". "+p.n+" × "+c.q+" = "+fmt(p.p*c.q)+"\n"+STORES.slice(0,2).map(function(s,j){return"   "+s.n+": "+surl(s,j,p)}).join("\n")+"\n"});s+="\nالإجمالي: "+fmt(total())+"\nالميزانية: "+fmt(+$("lbud").value||0)+"\n(أسعار تجريبية)";return s}
 function copyList(){if(!cart.length)return toast("القائمة فارغة",1);
 var s=text();function fb(){var a=document.createElement("textarea");a.value=s;document.body.appendChild(a);a.select();try{document.execCommand("copy");toast("نُسخت القائمة")}catch(e){toast("تعذر النسخ",1)}a.remove()}
 try{navigator.clipboard.writeText(s).then(function(){toast("نُسخت القائمة")},fb)}catch(e){fb()}}
@@ -246,8 +250,8 @@ var left=b,pick=[];P.slice().sort(function(a,c){return c.p-a.p}).forEach(functio
 var t=b-left;$("chRes").innerHTML='<p>مجموعة تجريبية بقيمة <b>'+fmt(t)+'</b> من '+fmt(b)+':</p><ul>'+pick.map(function(p){return'<li>'+p.e+' '+p.n+' — '+fmt(p.p)+'</li>'}).join("")+'</ul><button class="btn sm" onclick="useChallenge('+b+')">انسخها إلى قائمتي</button>'}
 function useChallenge(b){var left=b;cart=[];P.slice().sort(function(a,c){return c.p-a.p}).forEach(function(p){if(p.p<=left){cart.push({id:p.id,q:1});left-=p.p}});$("lbud").value=b;$("lname").value="تحدي "+b+" ريال";render();toast("نُسخت المجموعة إلى قائمتك");go("builder")}
 $("lcat").innerHTML=C.filter(function(c){return c[0]!="offers"}).map(function(c){return'<option value="'+c[0]+'">'+(c[0]=="all"?"كل الفئات":c[1])+'</option>'}).join("");
-drawCats();drawProds();drawReady();drawChips();fillPick();render();
+STORES[3].n="ترينديول";drawCats();drawProds();drawReady();drawChips();fillPick();render();
+if(STORES.some(function(s){return s.x}))$("disc").textContent="إفصاح: روابط المتاجر في سلة زون روابط تسويق بالعمولة؛ قد نحصل على عمولة عند الشراء عبرها دون أي تكلفة إضافية عليك. (عدّل الصياغة حسب شروط كل برنامج.)";
 </script>
 </body>
 </html>
-
