@@ -3981,7 +3981,7 @@ const TEACHER_TPL="<!doctype html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<met
 
 </script>
 <script type="module">
-/* ===== المزامنة السحابية (Firebase / Firestore) — بدون تسجيل دخول ===== */
+/* ===== المزامنة السحابية — رابط المدرسة هو المفتاح (بدون تسجيل دخول) ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -3996,44 +3996,34 @@ const firebaseConfig = {
 };
 
 (function () {
-  const LS_ID = 'shahed_cloud_id_v1', CHUNK = 300000;
-  let db, id = null, busy = false, dirty = false, timer = null, restoring = false, lastOk = null;
+  const LS_ID = 'shahed_cloud_id_v1', LS_OWN = 'shahed_cloud_owner_v1', APP_KEY = 'shahed_support_tools_v1', CHUNK = 300000;
   const ID_RE = /^[0-9a-f]{32}$/;
+  let db, id = null, busy = false, dirty = false, timer = null, restoring = false, lastOk = null;
 
-  /* واجهة صغيرة: زر حالة + نافذة الكود */
   const pill = document.createElement('button');
   pill.style.cssText = 'position:fixed;top:10px;left:10px;z-index:9999;border:1px solid #C5D5D1;background:#fff;color:#07463D;border-radius:20px;padding:4px 12px;font:600 12.5px Tahoma,sans-serif;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.12)';
   pill.onclick = openDlg; document.body.appendChild(pill);
   const setSt = (t, c) => { pill.textContent = '☁ ' + t; pill.style.color = c || '#07463D'; };
   setSt('جارٍ الاتصال…');
 
+  const link = () => { try { const u = new URL(location.href); u.hash = ''; u.searchParams.set('s', id); return u.toString(); } catch (e) { return location.href; } };
+
   function openDlg() {
     const w = document.createElement('div');
     w.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(10,30,40,.5);display:grid;place-items:center;direction:rtl;font-family:Tahoma,sans-serif';
-    w.innerHTML = '<div style="background:#fff;border-radius:14px;width:min(460px,94vw);padding:20px;color:#1F2D2B;line-height:1.8">' +
-      '<h3 style="margin:0 0 6px;color:#07463D">الحفظ السحابي</h3>' +
-      '<p style="margin:4px 0;font-size:13.5px">كل ما تدخله يُحفظ تلقائيًا في السحابة. لفتح بياناتك من جهاز آخر استخدم هذا الكود، ومن يملكه يستطيع قراءة البيانات وتعديلها، فلا تشاركه.</p>' +
-      '<input id="cdv" readonly style="width:100%;direction:ltr;padding:8px;border:1px solid #C5D5D1;border-radius:8px;font-family:Consolas,monospace;font-size:12px" value="' + (id || '') + '">' +
-      '<div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap"><button id="cdc" style="flex:1;padding:8px;border:0;border-radius:8px;background:#07463D;color:#fff;font-weight:700;cursor:pointer">نسخ الكود</button><button id="cdp" style="flex:1;padding:8px;border:1px solid #C5D5D1;border-radius:8px;background:#fff;cursor:pointer">رفع الآن</button></div>' +
-      '<p style="margin:10px 0 4px;font-size:13px;font-weight:700">فتح بيانات من كود آخر</p>' +
-      '<div style="display:flex;gap:8px"><input id="cdi" placeholder="الصق الكود هنا" style="flex:1;direction:ltr;padding:8px;border:1px solid #C5D5D1;border-radius:8px;font-family:Consolas,monospace;font-size:12px"><button id="cdl" style="padding:8px 14px;border:1px solid #C5D5D1;border-radius:8px;background:#fff;cursor:pointer">استرجاع</button></div>' +
-      '<p id="cdm" style="font-size:12.5px;color:#5E6F6B;margin:8px 0 0">' + (lastOk ? 'آخر حفظ: ' + new Date(lastOk).toLocaleTimeString('ar-SA') : '') + '</p>' +
+    w.innerHTML = '<div style="background:#fff;border-radius:14px;width:min(480px,94vw);padding:20px;color:#1F2D2B;line-height:1.8">' +
+      '<h3 style="margin:0 0 6px;color:#07463D">رابط المدرسة</h3>' +
+      '<p style="margin:4px 0;font-size:13.5px">بياناتك تُحفظ تلقائيًا في السحابة. أرسل هذا الرابط لمن تريد، وبمجرد فتحه يجد البيانات المحفوظة ويكمل عليها. من يملك الرابط يقرأ البيانات ويعدّلها، فشاركه مع من تثق بهم فقط.</p>' +
+      '<input id="cdv" readonly style="width:100%;direction:ltr;padding:8px;border:1px solid #C5D5D1;border-radius:8px;font-family:Consolas,monospace;font-size:12px" value="' + link() + '">' +
+      (location.protocol === 'file:' ? '<p style="color:#7A5410;background:#FFF7E6;border-radius:8px;padding:6px 10px;font-size:12.5px">الصفحة مفتوحة من ملف على جهازك، فهذا الرابط لن يعمل عند الآخرين. ارفع الملف على استضافة ثم افتحه من رابطه.</p>' : '') +
+      '<div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap"><button id="cdc" style="flex:1;padding:8px;border:0;border-radius:8px;background:#07463D;color:#fff;font-weight:700;cursor:pointer">نسخ الرابط</button><button id="cdp" style="flex:1;padding:8px;border:1px solid #C5D5D1;border-radius:8px;background:#fff;cursor:pointer">حفظ الآن</button></div>' +
+      '<p id="cdm" style="font-size:12.5px;color:#5E6F6B;margin:4px 0 0">' + (lastOk ? 'آخر حفظ: ' + new Date(lastOk).toLocaleTimeString('ar-SA') : '') + '</p>' +
       '<button id="cdx" style="margin-top:8px;padding:7px 14px;border:0;border-radius:8px;background:#eef3f4;cursor:pointer">إغلاق</button></div>';
     document.body.appendChild(w);
     const $ = s => w.querySelector(s);
     $('#cdx').onclick = () => w.remove();
-    $('#cdc').onclick = async () => { try { await navigator.clipboard.writeText(id); $('#cdm').textContent = 'تم نسخ الكود'; } catch (e) { $('#cdv').select(); } };
-    $('#cdp').onclick = async () => { $('#cdm').textContent = 'جارٍ الرفع…'; const ok = await push(true); $('#cdm').textContent = ok ? 'تم الرفع ✓' : 'تعذر الرفع'; };
-    $('#cdl').onclick = async () => {
-      const c = $('#cdi').value.trim().toLowerCase();
-      if (!ID_RE.test(c)) { $('#cdm').textContent = 'الكود غير صالح'; return; }
-      $('#cdm').textContent = 'جارٍ الجلب…';
-      const old = id; id = c;
-      const s = await pull();
-      if (!s) { id = old; $('#cdm').textContent = 'لا توجد بيانات بهذا الكود'; return; }
-      if (!confirm('سيستبدل ذلك محتوى هذا الجهاز بالبيانات المحفوظة بالكود. متابعة؟')) { id = old; return; }
-      localStorage.setItem(LS_ID, id); restore(s);
-    };
+    $('#cdc').onclick = async () => { try { await navigator.clipboard.writeText(link()); $('#cdm').textContent = 'تم نسخ الرابط'; } catch (e) { $('#cdv').select(); } };
+    $('#cdp').onclick = async () => { $('#cdm').textContent = 'جارٍ الحفظ…'; const ok = await push(true); $('#cdm').textContent = ok ? 'تم الحفظ ✓' : 'تعذر الحفظ'; };
   }
 
   const state = () => window.D && window.D.state;
@@ -4050,7 +4040,7 @@ const firebaseConfig = {
       if (n > 40) throw new Error('size');
       for (let i = 0; i < n; i++) await setDoc(doc(db, 'schools', id, 'chunks', 'c' + i), { d: json.slice(i * CHUNK, (i + 1) * CHUNK) });
       await setDoc(doc(db, 'schools', id), { n: n, t: (s.meta && s.meta.saved) || Date.now(), v: 1 });
-      lastOk = Date.now(); setSt('محفوظ ✓');
+      localStorage.setItem(LS_OWN, id); lastOk = Date.now(); setSt('محفوظ ✓');
       busy = false; if (dirty) { dirty = false; schedule(); }
       return true;
     } catch (e) { console.error(e); setSt('تعذر الحفظ', '#A83B32'); busy = false; return false; }
@@ -4061,32 +4051,43 @@ const firebaseConfig = {
       const m = await meta(); if (!m) return null;
       let json = '';
       for (let i = 0; i < m.n; i++) { const c = await getDoc(doc(db, 'schools', id, 'chunks', 'c' + i)); if (!c.exists()) return null; json += c.data().d; }
-      return JSON.parse(json);
+      return { data: JSON.parse(json), t: m.t };
     } catch (e) { console.error(e); return null; }
   }
-  function restore(obj) { restoring = true; window.D.reset(obj); setTimeout(() => location.reload(), 150); }
-  function schedule() { if (restoring) return; clearTimeout(timer); timer = setTimeout(() => push(false), 1500); }
+  function restore(obj, t) {
+    restoring = true; clearTimeout(timer);
+    window.D.reset(obj);
+    window.D.state.meta.saved = t || window.D.state.meta.saved;
+    try { localStorage.setItem(APP_KEY, JSON.stringify(window.D.state)); localStorage.setItem(LS_OWN, id); } catch (e) { }
+    location.reload();
+  }
+  function schedule() { if (restoring) return; clearTimeout(timer); timer = setTimeout(() => { timer = null; push(false); }, 1500); }
 
   async function start() {
-    const wait = () => new Promise(r => { const t = setInterval(() => { if (window.D) { clearInterval(t); r(); } }, 50); });
-    await wait();
+    await new Promise(r => { const t = setInterval(() => { if (window.D) { clearInterval(t); r(); } }, 50); });
     const orig = window.D.save;
     window.D.save = function () { const r = orig.apply(this, arguments); schedule(); return r; };
     try {
+      const p = (new URLSearchParams(location.search).get('s') || '').toLowerCase(), st = localStorage.getItem(LS_ID);
+      id = ID_RE.test(p) ? p : (ID_RE.test(st || '') ? st : newId());
+      localStorage.setItem(LS_ID, id);
+      try { const u = new URL(location.href); if (u.searchParams.get('s') !== id) { u.searchParams.set('s', id); history.replaceState(null, '', u.toString()); } } catch (e) { }
       db = getFirestore(initializeApp(firebaseConfig));
-      id = localStorage.getItem(LS_ID);
-      if (!id || !ID_RE.test(id)) { id = newId(); localStorage.setItem(LS_ID, id); }
-      const m = await meta(), s = state(), localT = (s.meta && s.meta.saved) || 0;
-      if (!m) { if (!isEmpty(s)) await push(false); else setSt('جاهز'); }
-      else if (m.t > localT + 1000) {
-        if (isEmpty(s) || confirm('توجد في السحابة نسخة أحدث من بيانات هذا الجهاز. استرجاعها؟')) { const c = await pull(); if (c) { restore(c); return; } }
-        setSt('جاهز');
-      } else if (localT > m.t + 1000) await push(false);
-      else { lastOk = m.t; setSt('محفوظ ✓'); }
-    } catch (e) { console.error(e); setSt('بلا اتصال', '#A83B32'); }
+      const own = localStorage.getItem(LS_OWN), m = await meta(), s = state(), localT = (s.meta && s.meta.saved) || 0;
+      if (m) {
+        if ((own && own !== id) || m.t > localT + 1000) { const c = await pull(); if (c) { restore(c.data, c.t); return; } setSt('تعذر الجلب', '#A83B32'); return; }
+        if (localT > m.t + 1000) await push(false); else { localStorage.setItem(LS_OWN, id); lastOk = m.t; setSt('محفوظ ✓'); }
+      } else if (own && own !== id) { restoring = true; window.D.reset({}); localStorage.setItem(LS_OWN, id); location.reload(); return; }
+      else if (!isEmpty(s)) await push(false);
+      else { localStorage.setItem(LS_OWN, id); setSt('جاهز'); }
+    } catch (e) { console.error(e); setSt('بلا اتصال', '#A83B32'); return; }
+    /* عند الرجوع للتبويب: إن عدّل أحدهم من الرابط نفسه تُحمَّل النسخة الأحدث */
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState !== 'visible' || busy || dirty || timer || restoring) return;
+      try { const m = await meta(), lt = (state().meta && state().meta.saved) || 0; if (m && m.t > lt + 1000) { const c = await pull(); if (c) restore(c.data, c.t); } } catch (e) { }
+    });
   }
   start();
-  window.addEventListener('beforeunload', () => { if (timer) { clearTimeout(timer); push(false); } });
 })();
 </script>
 
