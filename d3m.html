@@ -3981,7 +3981,7 @@ const TEACHER_TPL="<!doctype html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n<met
 
 </script>
 <script type="module">
-/* ===== المزامنة السحابية — رابط المدرسة هو المفتاح (بدون تسجيل دخول) ===== */
+/* ===== المزامنة السحابية — كل من يفتح الرابط يرى البيانات نفسها ويعدّل عليها (بدون تسجيل دخول) ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -3997,34 +3997,14 @@ const firebaseConfig = {
 
 (function () {
   const LS_ID = 'shahed_cloud_id_v1', LS_OWN = 'shahed_cloud_owner_v1', APP_KEY = 'shahed_support_tools_v1', CHUNK = 300000;
-  const ID_RE = /^[0-9a-f]{32}$/;
+  const ID_RE = /^[A-Za-z0-9_-]{24,64}$/, DEFAULT_ID = 'school-support-tools-shared-main';
   let db, id = null, busy = false, dirty = false, timer = null, restoring = false, lastOk = null;
 
   const pill = document.createElement('button');
   pill.style.cssText = 'position:fixed;top:10px;left:10px;z-index:9999;border:1px solid #C5D5D1;background:#fff;color:#07463D;border-radius:20px;padding:4px 12px;font:600 12.5px Tahoma,sans-serif;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.12)';
-  pill.onclick = openDlg; document.body.appendChild(pill);
+  pill.title = 'حفظ الآن'; pill.onclick = () => push(true); document.body.appendChild(pill);
   const setSt = (t, c) => { pill.textContent = '☁ ' + t; pill.style.color = c || '#07463D'; };
   setSt('جارٍ الاتصال…');
-
-  const link = () => { try { const u = new URL(location.href); u.hash = ''; u.searchParams.set('s', id); return u.toString(); } catch (e) { return location.href; } };
-
-  function openDlg() {
-    const w = document.createElement('div');
-    w.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(10,30,40,.5);display:grid;place-items:center;direction:rtl;font-family:Tahoma,sans-serif';
-    w.innerHTML = '<div style="background:#fff;border-radius:14px;width:min(480px,94vw);padding:20px;color:#1F2D2B;line-height:1.8">' +
-      '<h3 style="margin:0 0 6px;color:#07463D">رابط المدرسة</h3>' +
-      '<p style="margin:4px 0;font-size:13.5px">بياناتك تُحفظ تلقائيًا في السحابة. أرسل هذا الرابط لمن تريد، وبمجرد فتحه يجد البيانات المحفوظة ويكمل عليها. من يملك الرابط يقرأ البيانات ويعدّلها، فشاركه مع من تثق بهم فقط.</p>' +
-      '<input id="cdv" readonly style="width:100%;direction:ltr;padding:8px;border:1px solid #C5D5D1;border-radius:8px;font-family:Consolas,monospace;font-size:12px" value="' + link() + '">' +
-      (location.protocol === 'file:' ? '<p style="color:#7A5410;background:#FFF7E6;border-radius:8px;padding:6px 10px;font-size:12.5px">الصفحة مفتوحة من ملف على جهازك، فهذا الرابط لن يعمل عند الآخرين. ارفع الملف على استضافة ثم افتحه من رابطه.</p>' : '') +
-      '<div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap"><button id="cdc" style="flex:1;padding:8px;border:0;border-radius:8px;background:#07463D;color:#fff;font-weight:700;cursor:pointer">نسخ الرابط</button><button id="cdp" style="flex:1;padding:8px;border:1px solid #C5D5D1;border-radius:8px;background:#fff;cursor:pointer">حفظ الآن</button></div>' +
-      '<p id="cdm" style="font-size:12.5px;color:#5E6F6B;margin:4px 0 0">' + (lastOk ? 'آخر حفظ: ' + new Date(lastOk).toLocaleTimeString('ar-SA') : '') + '</p>' +
-      '<button id="cdx" style="margin-top:8px;padding:7px 14px;border:0;border-radius:8px;background:#eef3f4;cursor:pointer">إغلاق</button></div>';
-    document.body.appendChild(w);
-    const $ = s => w.querySelector(s);
-    $('#cdx').onclick = () => w.remove();
-    $('#cdc').onclick = async () => { try { await navigator.clipboard.writeText(link()); $('#cdm').textContent = 'تم نسخ الرابط'; } catch (e) { $('#cdv').select(); } };
-    $('#cdp').onclick = async () => { $('#cdm').textContent = 'جارٍ الحفظ…'; const ok = await push(true); $('#cdm').textContent = ok ? 'تم الحفظ ✓' : 'تعذر الحفظ'; };
-  }
 
   const state = () => window.D && window.D.state;
   const isEmpty = s => !s || !(s.school && s.school.name) && !((s.teachers || []).length || (s.nafs || []).length || (s.classes || []).length || (s.assessments || []).length || (s.weeks || []).length);
@@ -4068,10 +4048,8 @@ const firebaseConfig = {
     const orig = window.D.save;
     window.D.save = function () { const r = orig.apply(this, arguments); schedule(); return r; };
     try {
-      const p = (new URLSearchParams(location.search).get('s') || '').toLowerCase(), st = localStorage.getItem(LS_ID);
-      id = ID_RE.test(p) ? p : (ID_RE.test(st || '') ? st : newId());
-      localStorage.setItem(LS_ID, id);
-      try { const u = new URL(location.href); if (u.searchParams.get('s') !== id) { u.searchParams.set('s', id); history.replaceState(null, '', u.toString()); } } catch (e) { }
+      const p = new URLSearchParams(location.search).get('s') || '';
+      id = ID_RE.test(p) ? p : DEFAULT_ID;
       db = getFirestore(initializeApp(firebaseConfig));
       const own = localStorage.getItem(LS_OWN), m = await meta(), s = state(), localT = (s.meta && s.meta.saved) || 0;
       if (m) {
