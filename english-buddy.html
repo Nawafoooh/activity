@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>English Buddy</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--board:#0f4d42;--board2:#0a3a32;--chalk:#f6f4ec;--pencil:#f2c230;--ink:#14211e;--ok:#1f9d63;--no:#d9622b;--line:#d9d5c4}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:'Tajawal',system-ui,sans-serif;background:var(--board);color:var(--ink);padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.en{font-family:'Fredoka',system-ui,sans-serif;direction:ltr;unicode-bidi:isolate}
+main{max-width:520px;margin:0 auto;padding:18px 16px 40px}
+.top{display:flex;justify-content:space-between;align-items:center;color:var(--chalk);margin-bottom:14px}
+.top b{font-size:1.05rem}.stars{color:var(--pencil);letter-spacing:2px}
+.card{background:var(--chalk);border-radius:18px 18px 6px 18px;padding:22px 18px}
+h1{margin:0 0 4px;font-size:1.7rem}h2{margin:0 0 12px;font-size:1.25rem}
+p{line-height:1.7;margin:.4rem 0}
+.muted{color:#5b6a65}
+input{width:100%;font:inherit;font-size:1.3rem;text-align:center;padding:14px;border:2px solid var(--ink);border-radius:12px;background:#fff;margin:14px 0}
+.btn{display:block;width:100%;font:inherit;font-weight:700;font-size:1.1rem;padding:14px;border:0;border-radius:12px;background:var(--pencil);color:var(--ink);cursor:pointer;box-shadow:0 3px 0 #b8901a}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #b8901a}
+.btn:disabled{opacity:.5}
+.btn.alt{background:#fff;box-shadow:0 3px 0 var(--line);margin-top:10px}
+:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
+.err{color:var(--no);min-height:1.4em;font-weight:500}
+.word{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px dashed var(--line)}
+.word:last-of-type{border:0}
+.word .w{flex:1}.word .w b{font-size:1.3rem;display:block}.word .w span{display:block;font-size:.95rem;color:#5b6a65}
+.spk{width:46px;height:46px;border-radius:50%;border:2px solid var(--ink);background:#fff;font-size:1.2rem;cursor:pointer}
+.chat{display:flex;flex-direction:column;gap:10px;min-height:46vh;max-height:56vh;overflow:auto;padding:4px 2px 10px}
+.b{max-width:86%;padding:10px 14px;border-radius:16px;font-size:1.1rem;line-height:1.5;word-break:break-word}
+.b.bot{align-self:flex-start;background:#fff;border-bottom-left-radius:4px;display:flex;gap:8px;align-items:center}
+.b.me{align-self:flex-end;background:var(--pencil);border-bottom-right-radius:4px}
+.fix{align-self:flex-start;max-width:92%;background:#fff3e8;border-right:4px solid var(--no);padding:8px 12px;border-radius:8px;font-size:.95rem;line-height:1.6}
+.say{border:0;background:none;font-size:1.1rem;cursor:pointer;padding:0}
+.row{display:flex;gap:8px;margin-top:8px}
+.row input{margin:0;font-size:1.1rem;text-align:left;direction:ltr}.row .btn{width:auto;padding:0 20px}
+.prog{height:8px;background:var(--line);border-radius:4px;margin-bottom:16px;overflow:hidden}.prog i{display:block;height:100%;background:var(--ok);transition:width .3s}
+.opt{display:block;width:100%;text-align:left;direction:ltr;font:inherit;font-family:'Fredoka',sans-serif;font-size:1.2rem;padding:14px;margin-top:10px;border:2px solid var(--ink);border-radius:12px;background:#fff;cursor:pointer}
+.q{font-size:1.5rem;margin:6px 0 10px}
+.big{font-size:2.6rem;color:var(--pencil);text-shadow:0 2px 0 #b8901a;text-align:center;letter-spacing:6px}
+.rv{padding:8px 0;border-bottom:1px dashed var(--line)}.rv.ok::before{content:'✓ ';color:var(--ok)}.rv.no::before{content:'✗ ';color:var(--no)}
+@media (prefers-reduced-motion:reduce){.prog i{transition:none}}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const API = 'https://europe-west1-naj7-7da9d.cloudfunctions.net/tutor';
+
+const $ = s => document.querySelector(s), app = $('#app');
+const S = { hist: [], turns: 0, quiz: [], ans: [], qi: 0 };
+const GREETING = 'Hello! What is your name?';
+const star = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+
+function say(t){ if(!window.speechSynthesis) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = .85; speechSynthesis.speak(u); }
+
+async function api(action, extra = {}){
+  const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action, code:S.code, ...extra }) });
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw j;
+  return j;
+}
+function screen(html, header = true){
+  app.innerHTML = (header && S.name !== undefined ? `<div class="top"><b>أهلًا ${esc(S.name)}</b><span class="stars" aria-label="النجوم">${star(Math.min(S.stars||0,3))}</span></div>` : '') + html;
+  window.scrollTo(0,0);
+}
+const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function login(){
+  screen(`<section class="card"><h1 class="en">English Buddy</h1><p class="muted">معلمك لتعلّم الإنجليزية خطوة بخطوة</p>
+  <input id="code" class="en" placeholder="CODE" maxlength="8" autocapitalize="characters" autocomplete="off" aria-label="رمز الدخول">
+  <button class="btn" id="go">ابدأ الدرس</button><p class="err" id="err" role="alert"></p>
+  <p class="muted">رمز الدخول يعطيه لك معلمك.</p></section>`, false);
+  const go = async () => {
+    S.code = $('#code').value.trim().toUpperCase(); if(!S.code) return;
+    $('#go').disabled = true; $('#err').textContent = '';
+    try { Object.assign(S, await api('login')); localStorage.setItem('eb_code', S.code); vocab(); }
+    catch(e){ $('#go').disabled = false; $('#err').textContent = e.error === 'unknown_code' ? 'الرمز غير صحيح. اطلب الرمز من معلمك.' : 'تعذر الاتصال. تأكد من الإنترنت وحاول مرة أخرى.'; }
+  };
+  $('#go').onclick = go; $('#code').onkeydown = e => e.key === 'Enter' && go();
+  const saved = localStorage.getItem('eb_code'); if(saved) $('#code').value = saved;
+}
+
+function vocab(){
+  screen(`<section class="card"><h2>درس اليوم: <span class="en">${esc(S.lesson.title)}</span></h2>
+  <p class="muted">اضغط 🔊 واستمع، ثم كرّر الكلمة بصوتك.</p>
+  ${S.lesson.vocab.map((v,i)=>`<div class="word"><button class="spk" data-i="${i}" aria-label="استماع">🔊</button>
+    <div class="w"><b class="en">${esc(v.en)} <small style="font-weight:400">— ${esc(v.ar)}</small></b><span class="en">${esc(v.ex)}</span></div></div>`).join('')}
+  <button class="btn" id="next" style="margin-top:14px">ابدأ المحادثة</button></section>`);
+  document.querySelectorAll('.spk').forEach(b => b.onclick = () => { const v = S.lesson.vocab[b.dataset.i]; say(v.en + '. ' + v.ex); });
+  $('#next').onclick = chat;
+}
+
+function chat(){
+  S.hist = [{ role:'assistant', content:GREETING }]; S.turns = 0; S.done = false;
+  screen(`<section class="card"><div class="chat" id="log" aria-live="polite"></div>
+  <div class="row"><input id="msg" placeholder="Write in English..." autocomplete="off" aria-label="اكتب بالإنجليزية"><button class="btn" id="send">Send</button></div>
+  <button class="btn alt" id="toquiz" hidden>انتقل إلى الاختبار</button></section>`);
+  bubble('bot', GREETING);
+  const send = async () => {
+    const t = $('#msg').value.trim(); if(!t || S.busy) return;
+    $('#msg').value = ''; bubble('me', t); S.hist.push({ role:'user', content:t }); S.turns++;
+    S.busy = true; $('#send').disabled = true;
+    const wait = bubble('bot', '…');
+    try {
+      const r = await api('chat', { history:S.hist });
+      wait.remove(); bubble('bot', r.reply); S.hist.push({ role:'assistant', content:r.reply });
+      if(r.correction_ar) fix(r.correction_ar);
+      if(r.done) S.done = true;
+    } catch(e){
+      wait.remove(); S.hist.pop(); S.turns--;
+      fix(e.error === 'limit' ? 'وصلت إلى حد الرسائل اليوم. أكمل الاختبار أو عد غدًا.' : 'حدثت مشكلة في الاتصال. أعد إرسال رسالتك.');
+    }
+    S.busy = false; $('#send').disabled = false; $('#msg').focus();
+    if(S.done || S.turns >= 6) $('#toquiz').hidden = false;
+  };
+  $('#send').onclick = send; $('#msg').onkeydown = e => e.key === 'Enter' && send();
+  $('#toquiz').onclick = startQuiz;
+  $('#msg').focus();
+}
+function bubble(who, text){
+  const d = document.createElement('div'); d.className = 'b en ' + who;
+  const s = document.createElement('span'); s.textContent = text; d.append(s);
+  if(who === 'bot' && text !== '…'){ const b = document.createElement('button'); b.className = 'say'; b.textContent = '🔊'; b.setAttribute('aria-label','استماع'); b.onclick = () => say(text); d.append(b); }
+  const log = $('#log'); log.append(d); log.scrollTop = log.scrollHeight; return d;
+}
+function fix(text){ const d = document.createElement('div'); d.className = 'fix'; d.textContent = text; const log = $('#log'); log.append(d); log.scrollTop = log.scrollHeight; }
+
+function startQuiz(){ S.ans = []; S.qi = 0; question(); }
+function question(){
+  const q = S.lesson.quiz[S.qi], n = S.lesson.quiz.length;
+  screen(`<section class="card"><div class="prog"><i style="width:${S.qi/n*100}%"></i></div>
+  <p class="muted">سؤال ${S.qi+1} من ${n}</p><p class="q en">${esc(q.q)}</p>
+  ${q.options.map((o,i)=>`<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</section>`);
+  document.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
+    S.ans.push(+b.dataset.i); S.qi++;
+    if(S.qi < n) return question();
+    try { const r = await api('grade', { answers:S.ans }); S.stars = Math.max(S.stars||0, r.stars); result(r); }
+    catch(e){ screen('<section class="card"><h2>تعذر حفظ النتيجة</h2><p>تأكد من الإنترنت ثم أعد المحاولة.</p><button class="btn" id="re">إعادة المحاولة</button></section>'); $('#re').onclick = startQuiz; }
+  });
+}
+function result(r){
+  const msg = r.stars === 3 ? 'ممتاز! أتقنت الدرس.' : r.stars >= 1 ? 'جيد! راجع الكلمات وحاول مرة أخرى للحصول على نجوم أكثر.' : 'لا بأس. راجع الكلمات ثم أعد الاختبار.';
+  screen(`<section class="card"><div class="big">${star(r.stars)}</div><h2 style="text-align:center">${r.score} / ${r.total}</h2><p style="text-align:center">${msg}</p>
+  ${r.review.map(x=>`<div class="rv en ${x.ok?'ok':'no'}">${esc(x.q)} ${x.ok?'':'→ <b>'+esc(x.right)+'</b>'}</div>`).join('')}
+  <button class="btn" id="again" style="margin-top:14px">راجع الكلمات</button><button class="btn alt" id="quiz2">أعد الاختبار</button></section>`);
+  $('#again').onclick = vocab; $('#quiz2').onclick = startQuiz;
+}
+login();
+</script>
+</body>
+</html>
