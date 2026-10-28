@@ -4,12 +4,15 @@ const admin = require('firebase-admin');
 
 admin.initializeApp();
 const db = admin.firestore();
-const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
+
+const ANTHROPIC_API_KEY = ***'ANTHROPIC_API_KEY');
+const NOTION_SECRET = ***'NOTION_SECRET');
 
 const MODEL = 'claude-haiku-5-5';
 const DAILY_LIMIT = 40; // chat messages per student per day
 
-const LESSON = {
+// البيانات الاحتياطية (Fallback) في حال انقطاع الاتصال بـ Notion
+const FALLBACK_LESSON = {
   id: 'intro-1',
   title: 'Introducing Yourself',
   vocab: [
@@ -30,7 +33,7 @@ const LESSON = {
 };
 
 const SYSTEM = `You are "English Buddy", a patient, encouraging English tutor for Saudi boys aged 12-14 who are complete beginners.
-Today's lesson: "Introducing Yourself". Vocabulary: name, age, student, school, friend, live.
+Today's lesson: "Introducing Yourself".
 
 Teaching rules:
 - Use very short, simple English (maximum 2 short sentences). Ask ONE question at a time, then wait.
@@ -48,15 +51,35 @@ Reply with ONLY one JSON object and nothing else:
 
 const today = () => new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10); // Riyadh time
 
-const publicLesson = () => ({
-  id: LESSON.id,
-  title: LESSON.title,
-  vocab: LESSON.vocab,
-  quiz: LESSON.quiz.map(({ q, options }) => ({ q, options })),
-});
+// جلب الكلمات من Notion مباشرة
+async function getVocabFromNotion() {
+  try {
+    const databaseId = "407a4322-f744-805b-a2af-000bec88430d";
+    const res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ***)}`,
+        'Notion-Version': '2022-06-28',
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!res.ok) return FALLBACK_LESSON.vocab;
+    const data = await res.json();
+    const vocab = data.results.map(page => ({
+      en: page.properties['English Word']?.title[0]?.text?.content || '',
+      ar: page.properties['Arabic Meaning']?.rich_text[0]?.text?.content || '',
+      ex: page.properties['Example']?.rich_text[0]?.text?.content || ''
+    })).filter(v => v.en);
+    
+    return vocab.length > 0 ? vocab : FALLBACK_LESSON.vocab;
+  } catch (e) {
+    console.error('Notion fetch error:', e);
+    return FALLBACK_LESSON.vocab;
+  }
+}
 
 exports.tutor = onRequest(
-  { cors: true, region: 'europe-west1', secrets: [ANTHROPIC_API_KEY], maxInstances: 5, timeoutSeconds: 30 },
+  { cors: true, region: 'europe-west1', secrets: [ANTHROPIC_API_KEY, NOTION_SECRET], maxInstances: 5, timeoutSeconds: 30 },
   async (req, res) => {
     try {
       if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
@@ -71,7 +94,15 @@ exports.tutor = onRequest(
 
       if (action === 'login') {
         await ref.update({ lastSeen: admin.firestore.FieldValue.serverTimestamp() });
-        return res.json({ name: st.name || '', stars: st.stars || 0, lesson: publicLesson() });
+        // جلب الكلمات الحية من Notion عند تسجيل الدخول
+        const dynamicVocab = await getVocabFromNotion();
+        const lessonData = {
+          id: FALLBACK_LESSON.id,
+          title: FALLBACK_LESSON.title,
+          vocab: dynamicVocab,
+          quiz: FALLBACK_LESSON.quiz.map(({ q, options }) => ({ q, options })),
+        };
+        return res.json({ name: st.name || '', stars: st.stars || 0, lesson: lessonData });
       }
 
       if (action === 'chat') {
@@ -117,19 +148,19 @@ exports.tutor = onRequest(
       }
 
       if (action === 'grade') {
-        if (!Array.isArray(answers) || answers.length !== LESSON.quiz.length) return res.status(400).json({ error: 'bad_answers' });
-        const correct = LESSON.quiz.map((q, i) => answers[i] === q.answer);
+        if (!Array.isArray(answers) || answers.length !== FALLBACK_LESSON.quiz.length) return res.status(400).json({ error: 'bad_answers' });
+        const correct = FALLBACK_LESSON.quiz.map((q, i) => answers[i] === q.answer);
         const score = correct.filter(Boolean).length;
         const stars = score >= 5 ? 3 : score === 4 ? 2 : score === 3 ? 1 : 0;
         await ref.set(
           {
             stars: Math.max(st.stars || 0, stars),
             lessons: {
-              [LESSON.id]: {
-                bestScore: Math.max((st.lessons && st.lessons[LESSON.id] && st.lessons[LESSON.id].bestScore) || 0, score),
+              [FALLBACK_LESSON.id]: {
+                bestScore: Math.max((st.lessons && st.lessons[FALLBACK_LESSON.id] && st.lessons[FALLBACK_LESSON.id].bestScore) || 0, score),
                 lastScore: score,
                 attempts: admin.firestore.FieldValue.increment(1),
-                wrong: LESSON.quiz.map((q, i) => (correct[i] ? null : q.q)).filter(Boolean),
+                wrong: FALLBACK_LESSON.quiz.map((q, i) => (correct[i] ? null : q.q)).filter(Boolean),
                 at: admin.firestore.FieldValue.serverTimestamp(),
               },
             },
@@ -138,9 +169,9 @@ exports.tutor = onRequest(
         );
         return res.json({
           score,
-          total: LESSON.quiz.length,
+          total: FALLBACK_LESSON.quiz.length,
           stars,
-          review: LESSON.quiz.map((q, i) => ({ q: q.q, ok: correct[i], right: q.options[q.answer] })),
+          review: FALLBACK_LESSON.quiz.map((q, i) => ({ q: q.q, ok: correct[i], right: q.options[q.answer] })),
         });
       }
 
