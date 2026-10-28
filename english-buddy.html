@@ -27,6 +27,7 @@ h1,h2,p{margin:0}
 .sheet{padding:26px 22px;display:flex;flex-direction:column;gap:12px}
 .sheet label{font-weight:700}
 .code{width:100%;padding:16px;font-size:1.6rem;text-align:center;letter-spacing:6px;border:2px solid var(--line);border-radius:16px;background:#fff;color:var(--ink)}
+.code{resize:none;height:66px;overflow:hidden;line-height:1.4}
 .code:focus{border-color:var(--g);outline:0}
 .err{color:var(--no);font-weight:700;min-height:1.4em}.mut{color:#5f7673;text-align:center;font-size:.9rem}
 .top{display:flex;justify-content:space-between;align-items:center;padding:18px}
@@ -77,7 +78,7 @@ const API = 'https://europe-west1-naj7-7da9d.cloudfunctions.net/tutor';
 const $ = s => document.querySelector(s), app = $('#app');
 const S = { wi: 0 };
 const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const norm = t => t.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).trim().toUpperCase();
+const norm = t => t.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8);
 const star = (n, t = 3) => '★'.repeat(n) + '☆'.repeat(t - n);
 const view = h => { app.innerHTML = h; };
 function say(t){ if(!window.speechSynthesis) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = .85; speechSynthesis.speak(u); }
@@ -89,7 +90,7 @@ const bar = (cur, tot) => `<div class="bar"><button class="x" id="home" aria-lab
 
 function login(){
   view(`<div class="hero"><div class="logo">🦉</div><h1 class="en">English Buddy</h1><p>تعلّم الإنجليزية خطوة بخطوة</p></div>
-  <div class="sheet"><label for="code">رمز الدخول</label><input id="code" class="code en" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8">
+  <div class="sheet"><label for="code">رمز الدخول</label><textarea id="code" class="code en" rows="1" dir="ltr" enterkeyhint="go" aria-label="رمز الدخول" placeholder="CODE"></textarea>
   <button class="btn" id="go">ابدأ</button><p class="err" id="err" role="alert"></p><p class="mut">يعطيك معلمك الرمز</p></div>`);
   const go = async () => {
     S.code = norm($('#code').value); if(!S.code) return;
@@ -97,8 +98,9 @@ function login(){
     try { Object.assign(S, await api('login')); localStorage.setItem('eb_code', S.code); home(); }
     catch(e){ $('#go').disabled = false; $('#err').textContent = e.error === 'unknown_code' ? 'الرمز غير صحيح، اسأل معلمك' : 'تعذر الاتصال، حاول مرة أخرى'; }
   };
-  $('#go').onclick = go; $('#code').onkeydown = e => e.key === 'Enter' && go();
+  $('#go').onclick = go; $('#code').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); go(); } };
   $('#code').value = localStorage.getItem('eb_code') || '';
+  $('#code').focus();
 }
 
 function home(){
