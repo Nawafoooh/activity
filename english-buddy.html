@@ -42,6 +42,7 @@ input{width:100%;font:inherit;font-size:1.3rem;text-align:center;padding:14px;bo
 .q{font-size:1.5rem;margin:6px 0 10px}
 .big{font-size:2.6rem;color:var(--pencil);text-shadow:0 2px 0 #b8901a;text-align:center;letter-spacing:6px}
 .rv{padding:8px 0;border-bottom:1px dashed var(--line)}.rv.ok::before{content:'✓ ';color:var(--ok)}.rv.no::before{content:'✗ ';color:var(--no)}
+.bank{display:flex;flex-wrap:wrap;gap:8px;direction:ltr;margin:8px 0}.chip{font-size:1.05rem;padding:8px 12px;border:2px solid var(--ink);border-radius:20px;background:#fff;cursor:pointer}.chip:active{background:var(--pencil)}
 @media (prefers-reduced-motion:reduce){.prog i{transition:none}}
 </style>
 </head>
@@ -71,7 +72,7 @@ const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 
 function login(){
   screen(`<section class="card"><h1 class="en">English Buddy</h1><p class="muted">معلمك لتعلّم الإنجليزية خطوة بخطوة</p>
-  <input id="code" class="en" placeholder="CODE" maxlength="8" autocapitalize="characters" autocomplete="off" aria-label="رمز الدخول">
+  <input id="code" class="en" lang="en" dir="ltr" inputmode="text" autocorrect="off" spellcheck="false" placeholder="CODE" maxlength="8" autocapitalize="characters" autocomplete="off" aria-label="رمز الدخول">
   <button class="btn" id="go">ابدأ الدرس</button><p class="err" id="err" role="alert"></p>
   <p class="muted">رمز الدخول يعطيه لك معلمك.</p></section>`, false);
   const go = async () => {
@@ -97,9 +98,12 @@ function vocab(){
 function chat(){
   S.hist = [{ role:'assistant', content:GREETING }]; S.turns = 0; S.done = false;
   screen(`<section class="card"><div class="chat" id="log" aria-live="polite"></div>
-  <div class="row"><input id="msg" placeholder="Write in English..." autocomplete="off" aria-label="اكتب بالإنجليزية"><button class="btn" id="send">Send</button></div>
-  <button class="btn alt" id="toquiz" hidden>انتقل إلى الاختبار</button></section>`);
+  <div class="row"><input id="msg" lang="en" dir="ltr" inputmode="text" autocapitalize="sentences" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Write in English..." autocomplete="off" aria-label="اكتب بالإنجليزية"><button class="btn" id="send">Send</button></div>
+  <p class="muted" style="font-size:.9rem;margin-top:10px">إذا ظهرت لوحة المفاتيح بالعربية فغيّر لغتها إلى English، أو اضغط الكلمات هنا لتكوين جملتك:</p><div class="bank" id="bank"></div><button class="btn alt" id="toquiz" hidden>انتقل إلى الاختبار</button></section>`);
   bubble('bot', GREETING);
+  const WORDS = ['My','name','is','I','am','years','old','a','student','school','friend','live','in','at','and','He','Ali','Ahmed'];
+  $('#bank').innerHTML = WORDS.map(w => `<button class="chip en" type="button">${w}</button>`).join('');
+  $('#bank').onclick = e => { const b = e.target.closest('.chip'); if(!b) return; const m = $('#msg'); m.value = (m.value ? m.value + ' ' : '') + b.textContent; m.focus(); };
   const send = async () => {
     const t = $('#msg').value.trim(); if(!t || S.busy) return;
     $('#msg').value = ''; bubble('me', t); S.hist.push({ role:'user', content:t }); S.turns++;
