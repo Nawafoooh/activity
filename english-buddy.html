@@ -43,6 +43,7 @@ input{width:100%;font:inherit;font-size:1.3rem;text-align:center;padding:14px;bo
 .big{font-size:2.6rem;color:var(--pencil);text-shadow:0 2px 0 #b8901a;text-align:center;letter-spacing:6px}
 .rv{padding:8px 0;border-bottom:1px dashed var(--line)}.rv.ok::before{content:'✓ ';color:var(--ok)}.rv.no::before{content:'✗ ';color:var(--no)}
 .bank{display:flex;flex-wrap:wrap;gap:8px;direction:ltr;margin:8px 0}.chip{font-size:1.05rem;padding:8px 12px;border:2px solid var(--ink);border-radius:20px;background:#fff;cursor:pointer}.chip:active{background:var(--pencil)}
+.kbd{direction:ltr;margin:10px 0}.kbd div{display:flex;gap:5px;margin-bottom:5px;justify-content:center}.kbd button{flex:1;min-width:0;font:inherit;font-size:1.15rem;padding:12px 0;border:1px solid var(--ink);border-radius:8px;background:#fff;cursor:pointer}.kbd button:active{background:var(--pencil)}.kbd .sp{flex:4}.kbd[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){.prog i{transition:none}}
 </style>
 </head>
@@ -70,13 +71,36 @@ function screen(html, header = true){
 }
 const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+const norm = t => t.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).trim().toUpperCase();
+function kbd(input){
+  const rows = ['1234567890','qwertyuiop','asdfghjkl','⇧zxcvbnm⌫']; let shift = false;
+  const box = document.createElement('div'); box.className = 'kbd en';
+  const draw = () => { box.innerHTML = rows.map(r => '<div>' + [...r].map(k => `<button type="button" data-k="${k}">${shift && /[a-z]/.test(k) ? k.toUpperCase() : k}</button>`).join('') + '</div>').join('') +
+    '<div><button type="button" data-k="\'">\'</button><button type="button" data-k=".">.</button><button type="button" data-k="?">?</button><button type="button" class="sp" data-k=" ">space</button><button type="button" data-k=",">,</button></div>'; };
+  draw();
+  box.onclick = e => { const b = e.target.closest('button'); if(!b) return; const k = b.dataset.k;
+    if(k === '⇧'){ shift = !shift; draw(); return; }
+    if(k === '⌫'){ input.value = input.value.slice(0,-1); return; }
+    if(input.maxLength > 0 && input.value.length >= input.maxLength) return;
+    let c = k; if(shift && /[a-z]/.test(k)){ c = k.toUpperCase(); shift = false; draw(); }
+    input.value += c; };
+  return box;
+}
+function attachKbd(input, host, tog){
+  const k = kbd(input); host.append(k);
+  const set = on => { k.hidden = !on; input.inputMode = on ? 'none' : 'text'; tog.setAttribute('aria-pressed', on); };
+  tog.onclick = () => set(k.hidden);
+  set(matchMedia('(pointer:coarse)').matches);
+}
+
 function login(){
   screen(`<section class="card"><h1 class="en">English Buddy</h1><p class="muted">معلمك لتعلّم الإنجليزية خطوة بخطوة</p>
   <input id="code" class="en" lang="en" dir="ltr" inputmode="text" autocorrect="off" spellcheck="false" placeholder="CODE" maxlength="8" autocapitalize="characters" autocomplete="off" aria-label="رمز الدخول">
-  <button class="btn" id="go">ابدأ الدرس</button><p class="err" id="err" role="alert"></p>
-  <p class="muted">رمز الدخول يعطيه لك معلمك.</p></section>`, false);
+  <button type="button" class="btn alt" id="kbtog" style="margin:0 0 4px">⌨ لوحة المفاتيح الإنجليزية</button><div id="kbhost"></div><button class="btn" id="go">ابدأ الدرس</button><p class="err" id="err" role="alert"></p>
+  <p class="muted">رمز الدخول يعطيه لك معلمك.</p><p class="muted" style="font-size:.75rem;text-align:center">v2</p></section>`, false);
+  attachKbd($('#code'), $('#kbhost'), $('#kbtog'));
   const go = async () => {
-    S.code = $('#code').value.trim().toUpperCase(); if(!S.code) return;
+    S.code = norm($('#code').value); if(!S.code) return;
     $('#go').disabled = true; $('#err').textContent = '';
     try { Object.assign(S, await api('login')); localStorage.setItem('eb_code', S.code); vocab(); }
     catch(e){ $('#go').disabled = false; $('#err').textContent = e.error === 'unknown_code' ? 'الرمز غير صحيح. اطلب الرمز من معلمك.' : 'تعذر الاتصال. تأكد من الإنترنت وحاول مرة أخرى.'; }
@@ -98,9 +122,10 @@ function vocab(){
 function chat(){
   S.hist = [{ role:'assistant', content:GREETING }]; S.turns = 0; S.done = false;
   screen(`<section class="card"><div class="chat" id="log" aria-live="polite"></div>
-  <div class="row"><input id="msg" lang="en" dir="ltr" inputmode="text" autocapitalize="sentences" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Write in English..." autocomplete="off" aria-label="اكتب بالإنجليزية"><button class="btn" id="send">Send</button></div>
-  <p class="muted" style="font-size:.9rem;margin-top:10px">إذا ظهرت لوحة المفاتيح بالعربية فغيّر لغتها إلى English، أو اضغط الكلمات هنا لتكوين جملتك:</p><div class="bank" id="bank"></div><button class="btn alt" id="toquiz" hidden>انتقل إلى الاختبار</button></section>`);
+  <div class="row"><input id="msg" lang="en" dir="ltr" inputmode="text" autocapitalize="sentences" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Write in English..." autocomplete="off" aria-label="اكتب بالإنجليزية"><button class="btn alt" id="kbtog" type="button" aria-label="لوحة إنجليزية" style="margin:0;padding:0 14px">⌨</button><button class="btn" id="send">Send</button></div><div id="kbhost"></div>
+  <p class="muted" style="font-size:.9rem;margin-top:10px">اضغط ⌨ لإظهار لوحة إنجليزية داخل الصفحة، أو اضغط الكلمات هنا لتكوين جملتك:</p><div class="bank" id="bank"></div><button class="btn alt" id="toquiz" hidden>انتقل إلى الاختبار</button></section>`);
   bubble('bot', GREETING);
+  attachKbd($('#msg'), $('#kbhost'), $('#kbtog'));
   const WORDS = ['My','name','is','I','am','years','old','a','student','school','friend','live','in','at','and','He','Ali','Ahmed'];
   $('#bank').innerHTML = WORDS.map(w => `<button class="chip en" type="button">${w}</button>`).join('');
   $('#bank').onclick = e => { const b = e.target.closest('.chip'); if(!b) return; const m = $('#msg'); m.value = (m.value ? m.value + ' ' : '') + b.textContent; m.focus(); };
