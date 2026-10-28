@@ -68,6 +68,7 @@ h1,h2,p{margin:0}
 .rv{padding:11px 14px;border-radius:14px;margin-top:8px;direction:ltr;text-align:left;font-weight:500}.rv.ok{background:#e3f6ea}.rv.no{background:#fde8e1}
 .conf{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:9}.conf i{position:absolute;top:-16px;width:9px;height:15px;border-radius:2px;animation:fall 2.6s ease-in forwards}
 @keyframes fall{to{transform:translateY(105vh) rotate(var(--r))}}@keyframes pop{from{transform:scale(.92);opacity:0}}@keyframes dot{50%{transform:translateY(-5px)}}@keyframes bob{50%{transform:translateY(-6px)}}
+.les{display:flex;align-items:center;gap:14px;width:100%;margin-bottom:12px;text-align:right;color:var(--ink)}.les .ic{font-size:1.8rem}.les .tx{flex:1;display:flex;flex-direction:column}.les b{font-size:1.15rem}.les small{color:#5f7673}.les .st{color:var(--y);letter-spacing:2px}.les.lock{opacity:.5}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
 .locked .opt{pointer-events:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
@@ -89,7 +90,7 @@ const star = (n, t = 3) => '★'.repeat(n) + '☆'.repeat(t - n);
 const view = h => { app.innerHTML = h; };
 function say(t){ if(!window.speechSynthesis) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = .85; speechSynthesis.speak(u); }
 async function api(action, extra = {}){
-  const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action, code:S.code, ...extra }) });
+  const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action, code:S.code, lid:S.lid, ...extra }) });
   const j = await r.json().catch(() => ({})); if(!r.ok) throw j; return j;
 }
 const bar = (cur, tot) => `<div class="bar"><button class="x" id="home" aria-label="خروج">✕</button><div class="prog"><i style="width:${cur / tot * 100}%"></i></div></div>`;
@@ -109,12 +110,16 @@ function login(){
   $('#code').focus();
 }
 
+const tot = () => Object.values(S.progress || {}).reduce((a, b) => a + b, 0);
 function home(){
-  view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div class="pill" aria-label="النجوم">⭐ ${S.stars || 0} / 3</div></div>
-  <div class="scroll"><div class="card lesson"><span class="tag">الدرس 1</span><h2 class="en">${esc(S.lesson.title)}</h2><p class="mut" style="text-align:right">تعرّف على نفسك بالإنجليزية</p>
-  <div class="path"><div><span>🔊</span>الكلمات</div><div><span>💬</span>المحادثة</div><div><span>🏆</span>الاختبار</div></div>
-  <button class="btn y" id="start">ابدأ الدرس</button></div></div>`);
-  $('#start').onclick = () => { S.wi = 0; words(); };
+  const L = S.lessons;
+  view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div>
+  <div class="scroll">${L.map((l, i) => { const lock = i > 0 && !(S.progress[L[i - 1].id] >= 1); return `<button class="card les ${lock ? 'lock' : ''}" data-id="${l.id}" ${lock ? 'disabled' : ''}><span class="ic">${lock ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>`; }).join('')}</div>`);
+  document.querySelectorAll('.les').forEach(b => b.onclick = () => openLesson(b.dataset.id));
+}
+async function openLesson(id){
+  S.lid = id; const b = document.querySelector(`.les[data-id="${id}"]`); if(b) b.style.opacity = .6;
+  try { S.lesson = await api('lesson'); S.wi = 0; words(); } catch(e){ if(b) b.style.opacity = 1; }
 }
 
 function words(){
@@ -129,7 +134,7 @@ function words(){
 }
 
 function chat(){
-  S.hist = [{ role:'assistant', content:'Hello! What is your name?' }]; S.turns = 0; S.done = false; S.busy = false;
+  S.hist = [{ role:'assistant', content:S.lesson.hello }]; S.turns = 0; S.done = false; S.busy = false;
   view(`<div class="chathead"><button class="x" id="home" aria-label="خروج">✕</button><div class="av">🦉</div><div><b class="en">English Buddy</b><small>معلمك الذكي</small></div></div>
   <div class="log" id="log" aria-live="polite"></div>
   <div class="dock"><button class="btn y" id="toquiz" hidden>انتقل إلى الاختبار ←</button>
@@ -175,7 +180,7 @@ function question(){
   const next = async () => {
     S.qi++; if(S.qi < n) return question();
     $('#nx').disabled = true;
-    try { const r = await api('grade', { answers:S.ans }); S.stars = Math.max(S.stars || 0, r.stars); result(r); }
+    try { const r = await api('grade', { answers:S.ans }); S.progress[S.lid] = Math.max(S.progress[S.lid] || 0, r.stars); result(r); }
     catch(e){ S.qi--; $('#nx').disabled = false; $('#nx').textContent = 'تعذر الحفظ، اضغط للمحاولة'; }
   };
   $('#nx').onclick = async () => {
@@ -196,8 +201,8 @@ function result(r){
   view(`<div class="scroll"><div style="padding:34px 0 10px"><div class="stars en" aria-label="${r.stars} من 3">${[0,1,2].map(i => `<span style="animation-delay:${i * .25}s">${i < r.stars ? '★' : '☆'}</span>`).join('')}</div>
   <h2 style="text-align:center;margin-top:12px;font-size:1.8rem">${r.score} / ${r.total}</h2><p style="text-align:center;margin-top:6px">${msg}</p></div>
   ${r.review.map(x => `<div class="rv ${x.ok ? 'ok' : 'no'} en">${x.ok ? '✓' : '✗'} ${esc(x.q)} ${x.ok ? '' : '→ <b>' + esc(x.right) + '</b>'}</div>`).join('')}</div>
-  <div class="foot"><button class="btn alt" id="again">أعد الاختبار</button><button class="btn" id="done">الرئيسية</button></div>`);
-  $('#again').onclick = startQuiz; $('#done').onclick = home;
+  <div class="foot"><button class="btn alt" id="again">أعد الاختبار</button><button class="btn" id="done">${r.next ? 'الدرس التالي' : 'الرئيسية'}</button></div>`);
+  $('#again').onclick = startQuiz; $('#done').onclick = () => r.next ? openLesson(r.next) : home();
   if(r.stars >= 2) confetti();
 }
 function confetti(){
