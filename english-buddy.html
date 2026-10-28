@@ -68,6 +68,12 @@ h1,h2,p{margin:0}
 .rv{padding:11px 14px;border-radius:14px;margin-top:8px;direction:ltr;text-align:left;font-weight:500}.rv.ok{background:#e3f6ea}.rv.no{background:#fde8e1}
 .conf{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:9}.conf i{position:absolute;top:-16px;width:9px;height:15px;border-radius:2px;animation:fall 2.6s ease-in forwards}
 @keyframes fall{to{transform:translateY(105vh) rotate(var(--r))}}@keyframes pop{from{transform:scale(.92);opacity:0}}@keyframes dot{50%{transform:translateY(-5px)}}@keyframes bob{50%{transform:translateY(-6px)}}
+.opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
+.locked .opt{pointer-events:none}
+.fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
+.fb.ok{background:#d9f3e2}.fb.no{background:#fbddd2}.fbmsg{flex:1;display:flex;flex-direction:column;line-height:1.5}.fbmsg b{font-size:1.25rem}.fbmsg small{color:#5f4a42}.fbmsg span{font-size:1.1rem;font-weight:700;direction:ltr;text-align:right}
+.fb.ok b{color:#15803d}.fb.no b{color:#c2410c}.btn.no{background:var(--no);box-shadow:0 4px 0 #a8401a}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -160,17 +166,29 @@ async function send(){
 
 function startQuiz(){ S.ans = []; S.qi = 0; question(); }
 function question(){
-  const q = S.lesson.quiz[S.qi], n = S.lesson.quiz.length; let pick = null;
-  view(`${bar(S.qi, n)}<div class="scroll"><p class="mut" style="text-align:right">سؤال ${S.qi + 1} من ${n}</p><p class="q en">${esc(q.q)}</p>
+  const q = S.lesson.quiz[S.qi], n = S.lesson.quiz.length, last = S.qi === n - 1; let pick = null, checked = false;
+  view(`${bar(S.qi, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">سؤال ${S.qi + 1} من ${n}</p><p class="q en">${esc(q.q)}</p>
   ${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</div>
-  <div class="foot"><button class="btn" id="nx" disabled>${S.qi === n - 1 ? 'إنهاء' : 'التالي'}</button></div>`);
+  <div class="fb" id="fb"><button class="btn" id="nx" disabled>تحقق</button></div>`);
   $('#home').onclick = home;
-  document.querySelectorAll('.opt').forEach(b => b.onclick = () => { document.querySelectorAll('.opt').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); pick = +b.dataset.i; $('#nx').disabled = false; });
-  $('#nx').onclick = async () => {
-    S.ans.push(pick); S.qi++; if(S.qi < n) return question();
+  document.querySelectorAll('.opt').forEach(b => b.onclick = () => { if(checked) return; document.querySelectorAll('.opt').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); pick = +b.dataset.i; $('#nx').disabled = false; });
+  const next = async () => {
+    S.qi++; if(S.qi < n) return question();
     $('#nx').disabled = true;
     try { const r = await api('grade', { answers:S.ans }); S.stars = Math.max(S.stars || 0, r.stars); result(r); }
-    catch(e){ S.ans.pop(); S.qi--; $('#nx').disabled = false; $('#nx').textContent = 'تعذر الحفظ، اضغط للمحاولة'; }
+    catch(e){ S.qi--; $('#nx').disabled = false; $('#nx').textContent = 'تعذر الحفظ، اضغط للمحاولة'; }
+  };
+  $('#nx').onclick = async () => {
+    $('#nx').disabled = true;
+    try {
+      const r = await api('check', { qi:S.qi, pick }); checked = true; S.ans.push(pick);
+      const opts = document.querySelectorAll('.opt'); $('#sc').classList.add('locked');
+      opts.forEach(o => o.classList.remove('sel')); opts[r.right].classList.add('good'); if(!r.ok) opts[pick].classList.add('bad');
+      if(navigator.vibrate) navigator.vibrate(r.ok ? 25 : [40, 40, 40]);
+      const fb = $('#fb'); fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
+      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(q.options[r.right])}</span>`}</div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${last ? 'إنهاء' : 'متابعة'}</button>`;
+      $('#nx').onclick = next; $('#nx').focus();
+    } catch(e){ $('#nx').disabled = false; $('#nx').textContent = 'تعذر الاتصال، أعد المحاولة'; }
   };
 }
 function result(r){
