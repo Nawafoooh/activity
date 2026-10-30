@@ -143,12 +143,14 @@ function home(){
   const L = S.lessons, EX = S.exams || {};
   const locked = i => i > 0 && (!(S.progress[L[i - 1].id] >= 1) || (L[i].unit !== L[i - 1].unit && !(EX[L[i - 1].unit] || {}).passed));
   const curI = L.findIndex((x, i) => !(S.progress[x.id] >= 1) && !locked(i));
+  const wkc = S.weakN ? `<button class="card les exam" id="wk" style="background:#fff6e0;border-color:#f5d98a"><span class="ic">🎯</span><span class="tx"><b>تمرين نقاط ضعفي</b><small>${S.weakN} سؤالًا أخطأت فيها، صحّحها الآن</small></span></button>` : '';
   const exCard = u => { const ready = L.filter(x => x.unit === u).every(x => S.progress[x.id] >= 1), e = EX[u] || {};
     return `<button class="card les exam ${ready ? '' : 'lock'}" data-u="${u}" ${ready ? '' : 'disabled'}><span class="ic">${ready ? '📝' : '🔒'}</span><span class="tx"><b>اختبار الوحدة ${u}</b><small>${e.passed ? 'نجحت — أفضل نتيجة ' + e.best + '%' : ready ? 'جاهز! درجة النجاح 70%' : 'أكمل جميع دروس الوحدة أولًا'}</small></span><span class="st">${e.passed ? '✅' : ''}</span></button>`; };
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div>
-  <div class="scroll">${L.map((l, i) => `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${locked(i) ? 'lock' : ''} ${i === curI ? 'cur' : ''}" data-id="${l.id}" ${locked(i) ? 'disabled' : ''}><span class="ic">${locked(i) ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>${i === L.length - 1 || L[i + 1].unit !== l.unit ? exCard(l.unit) : ''}`).join('')}</div>`);
+  <div class="scroll">${wkc}${L.map((l, i) => `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${locked(i) ? 'lock' : ''} ${i === curI ? 'cur' : ''}" data-id="${l.id}" ${locked(i) ? 'disabled' : ''}><span class="ic">${locked(i) ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>${i === L.length - 1 || L[i + 1].unit !== l.unit ? exCard(l.unit) : ''}`).join('')}</div>`);
   const c = document.querySelector('.les.cur'); if(c) c.scrollIntoView({ block:'center' });
   document.querySelectorAll('.les[data-id]').forEach(b => b.onclick = () => openLesson(b.dataset.id));
+  if($('#wk')) $('#wk').onclick = practice;
   document.querySelectorAll('.les[data-u]').forEach(b => b.onclick = () => examIntro(+b.dataset.u));
 }
 async function openLesson(id){
@@ -242,6 +244,32 @@ function examResult(r){
   $('#again').onclick = () => examStart(S.ex.u); $('#done').onclick = home;
   if(r.passed) confetti();
 }
+async function practice(){
+  try { const r = await api('review_start'); if(!r.questions.length){ S.weakN = 0; return home(); } S.pr = { qs:r.questions, i:0, fixed:0 }; practiceQ(); }
+  catch(e){ alert('تعذر الاتصال، حاول مرة أخرى'); }
+}
+function practiceQ(){
+  const p = S.pr, q = p.qs[p.i], n = p.qs.length; let checked = false, timer = null;
+  view(`${bar(p.i, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">🎯 تمرين نقاط ضعفي — ${p.i + 1} من ${n}</p><p class="q en">${esc(q.q)}</p>${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</div><div class="fb" id="fb" hidden></div>`);
+  $('#home').onclick = home;
+  const next = () => { clearTimeout(timer); p.i++; if(p.i < n) practiceQ(); else practiceDone(); };
+  document.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
+    if(checked) return; checked = true; const pick = +b.dataset.i; b.classList.add('sel'); $('#sc').classList.add('locked');
+    try {
+      const r = await api('review_check', { id:q.id, pick }); S.weakN = r.left; if(r.ok) p.fixed++;
+      const opts = document.querySelectorAll('.opt'); opts.forEach(o => o.classList.remove('sel')); opts[r.right].classList.add('good'); if(!r.ok) opts[pick].classList.add('bad');
+      const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
+      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(q.options[r.right])}</span>`}</div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
+      $('#nx').onclick = next; if(r.ok) timer = setTimeout(next, 900);
+    } catch(e){ checked = false; b.classList.remove('sel'); $('#sc').classList.remove('locked'); }
+  });
+}
+function practiceDone(){
+  const p = S.pr;
+  view(`<div class="scroll"><div style="text-align:center;padding:40px 0 10px"><div class="logo" style="margin-bottom:10px">🎯</div><h2>أحسنت!</h2><p style="margin-top:8px">صحّحت ${p.fixed} من ${p.qs.length} أسئلة</p><p class="mut">${S.weakN ? 'بقي ' + S.weakN + ' سؤالًا للتمرين' : 'لا توجد نقاط ضعف الآن 🎉'}</p></div></div><div class="foot">${S.weakN ? '<button class="btn alt" id="more">تمرين آخر</button>' : ''}<button class="btn" id="done">الرئيسية</button></div>`);
+  $('#done').onclick = home; if($('#more')) $('#more').onclick = practice;
+  if(!S.weakN) confetti();
+}
 function startQuiz(){ S.ans = []; S.qi = 0; question(); }
 function question(){
   const q = S.lesson.quiz[S.qi], n = S.lesson.quiz.length, last = S.qi === n - 1; let checked = false, timer = null;
@@ -257,7 +285,7 @@ function question(){
   document.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
     if(checked) return; checked = true; const pick = +b.dataset.i; b.classList.add('sel'); $('#sc').classList.add('locked');
     try {
-      const r = await api('check', { qi:S.qi, pick }); S.ans.push(pick);
+      const r = await api('check', { qi:S.qi, pick }); S.ans.push(pick); if(!r.ok) S.weakN = (S.weakN || 0) + 1;
       const opts = document.querySelectorAll('.opt'); opts.forEach(o => o.classList.remove('sel')); opts[r.right].classList.add('good'); if(!r.ok) opts[pick].classList.add('bad');
       if(navigator.vibrate) navigator.vibrate(r.ok ? 25 : [40, 40, 40]);
       const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
