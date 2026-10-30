@@ -70,6 +70,9 @@ h1,h2,p{margin:0}
 @keyframes fall{to{transform:translateY(105vh) rotate(var(--r))}}@keyframes pop{from{transform:scale(.92);opacity:0}}@keyframes dot{50%{transform:translateY(-5px)}}@keyframes bob{50%{transform:translateY(-6px)}}
 .les{display:flex;align-items:center;gap:14px;width:100%;margin-bottom:12px;text-align:right;color:var(--ink)}.les .ic{font-size:1.8rem}.les .tx{flex:1;display:flex;flex-direction:column}.les b{font-size:1.15rem}.les small{color:#5f7673}.les .st{color:var(--y);letter-spacing:2px}.les.lock{opacity:.5}.les.cur{border-color:var(--g);box-shadow:0 4px 0 var(--g)}.unit{margin:22px 0 10px;font-size:1.05rem;color:var(--g)}
 .grades{display:flex;gap:8px}.grades .btn{flex:1;padding:12px}.btn.alt.on{background:var(--g);color:#fff;border-color:var(--g)}.field{font-size:1.15rem!important;letter-spacing:0!important;height:58px!important}.bigcode{font:600 3rem Fredoka,monospace;letter-spacing:10px;text-align:center;direction:ltr;background:#fff;border:3px dashed var(--g);border-radius:20px;padding:18px;color:var(--g)}
+.exam{border-color:#c9d9ff;background:#f3f7ff}.ans{min-height:64px;border-bottom:3px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;direction:ltr;padding:8px 0;margin-bottom:18px}.wb{display:flex;flex-wrap:wrap;gap:8px;direction:ltr}
+.wd{font:inherit;font-family:Fredoka,sans-serif;font-size:1.15rem;padding:10px 14px;border:2px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 3px 0 var(--line);color:var(--ink)}.wd.on{border-color:var(--g)}
+.ring{width:130px;height:130px;border-radius:50%;margin:0 auto;display:grid;place-items:center;background:conic-gradient(var(--ok) calc(var(--p)*1%),#dfe9e5 0)}.ring b{width:98px;height:98px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:1.8rem}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
 .locked .opt{pointer-events:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
@@ -137,11 +140,16 @@ function done(c){
 }
 const tot = () => Object.values(S.progress || {}).reduce((a, b) => a + b, 0);
 function home(){
-  const L = S.lessons;
+  const L = S.lessons, EX = S.exams || {};
+  const locked = i => i > 0 && (!(S.progress[L[i - 1].id] >= 1) || (L[i].unit !== L[i - 1].unit && !(EX[L[i - 1].unit] || {}).passed));
+  const curI = L.findIndex((x, i) => !(S.progress[x.id] >= 1) && !locked(i));
+  const exCard = u => { const ready = L.filter(x => x.unit === u).every(x => S.progress[x.id] >= 1), e = EX[u] || {};
+    return `<button class="card les exam ${ready ? '' : 'lock'}" data-u="${u}" ${ready ? '' : 'disabled'}><span class="ic">${ready ? '📝' : '🔒'}</span><span class="tx"><b>اختبار الوحدة ${u}</b><small>${e.passed ? 'نجحت — أفضل نتيجة ' + e.best + '%' : ready ? 'جاهز! درجة النجاح 70%' : 'أكمل جميع دروس الوحدة أولًا'}</small></span><span class="st">${e.passed ? '✅' : ''}</span></button>`; };
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div>
-  <div class="scroll">${L.map((l, i) => { const lock = i > 0 && !(S.progress[L[i - 1].id] >= 1), cur = i === L.findIndex(x => !(S.progress[x.id] >= 1)); return `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${lock ? 'lock' : ''} ${cur ? 'cur' : ''}" data-id="${l.id}" ${lock ? 'disabled' : ''}><span class="ic">${lock ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>`; }).join('')}</div>`);
+  <div class="scroll">${L.map((l, i) => `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${locked(i) ? 'lock' : ''} ${i === curI ? 'cur' : ''}" data-id="${l.id}" ${locked(i) ? 'disabled' : ''}><span class="ic">${locked(i) ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>${i === L.length - 1 || L[i + 1].unit !== l.unit ? exCard(l.unit) : ''}`).join('')}</div>`);
   const c = document.querySelector('.les.cur'); if(c) c.scrollIntoView({ block:'center' });
-  document.querySelectorAll('.les').forEach(b => b.onclick = () => openLesson(b.dataset.id));
+  document.querySelectorAll('.les[data-id]').forEach(b => b.onclick = () => openLesson(b.dataset.id));
+  document.querySelectorAll('.les[data-u]').forEach(b => b.onclick = () => examIntro(+b.dataset.u));
 }
 async function openLesson(id){
   S.lid = id; const b = document.querySelector(`.les[data-id="${id}"]`); if(b) b.style.opacity = .6;
@@ -195,6 +203,45 @@ async function send(){
   if(S.done || S.turns >= 6) $('#toquiz').hidden = false;
 }
 
+function examIntro(u){
+  view(`${bar(0, 1)}<div class="scroll"><div class="card" style="margin-top:10px"><h2>اختبار الوحدة ${u}</h2><p style="line-height:2.1;margin-top:8px">• 16 سؤالًا من دروس الوحدة<br>• لا تظهر النتيجة إلا بعد التسليم<br>• درجة النجاح 70%<br>• يمكنك الإعادة بأسئلة مختلفة<br>• لا تخرج أثناء الاختبار</p></div></div><div class="foot"><button class="btn" id="go">ابدأ الاختبار</button></div>`);
+  $('#home').onclick = home; $('#go').onclick = () => examStart(u);
+}
+async function examStart(u){
+  try { const r = await api('exam_start', { unit:u }); S.ex = { u, qs:r.questions, i:0, ans:[] }; examQ(); }
+  catch(e){ alert(e.error === 'locked' ? 'أكمل جميع دروس الوحدة أولًا' : 'تعذر الاتصال، حاول مرة أخرى'); }
+}
+function examQ(){
+  const x = S.ex, q = x.qs[x.i], n = x.qs.length, last = x.i === n - 1; let pick = null; const built = [];
+  const body = q.t === 'order'
+    ? `<p class="q" style="direction:rtl;text-align:right">${esc(q.q)}</p><div class="ans" id="ans" aria-live="polite"></div><div class="wb" id="wb">${q.words.map((w, k) => `<button class="wd" data-k="${k}">${esc(w)}</button>`).join('')}</div>`
+    : `<p class="q en">${esc(q.q)}</p>${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}`;
+  view(`${bar(x.i, n)}<div class="scroll"><p class="mut" style="text-align:right">اختبار الوحدة ${x.u} — سؤال ${x.i + 1} من ${n}</p>${body}</div><div class="foot"><button class="btn" id="nx" disabled>${last ? 'تسليم الاختبار' : 'التالي'}</button></div>`);
+  $('#home').onclick = () => { if(confirm('هل تريد الخروج؟ سيضيع تقدمك في هذا الاختبار')) home(); };
+  const ready = () => { $('#nx').disabled = q.t === 'order' ? built.length !== q.words.length : pick === null; };
+  if(q.t === 'order'){
+    const draw = () => { $('#ans').innerHTML = built.map((k, j) => `<button class="wd on" data-j="${j}">${esc(q.words[k])}</button>`).join(''); document.querySelectorAll('#wb .wd').forEach(c => c.style.visibility = built.includes(+c.dataset.k) ? 'hidden' : 'visible'); ready(); };
+    $('#wb').onclick = e => { const c = e.target.closest('.wd'); if(c){ built.push(+c.dataset.k); draw(); } };
+    $('#ans').onclick = e => { const c = e.target.closest('.wd'); if(c){ built.splice(+c.dataset.j, 1); draw(); } };
+    draw();
+  } else document.querySelectorAll('.opt').forEach(b => b.onclick = () => { document.querySelectorAll('.opt').forEach(o => o.classList.remove('sel')); b.classList.add('sel'); pick = +b.dataset.i; ready(); });
+  $('#nx').onclick = async () => {
+    x.ans.push(q.t === 'order' ? built.map(k => q.words[k]).join(' ') : q.options[pick]);
+    if(!last){ x.i++; return examQ(); }
+    $('#nx').disabled = true;
+    try { const r = await api('exam_submit', { answers:x.ans }); const o = (S.exams || {})[x.u] || {}; S.exams = { ...(S.exams || {}), [x.u]: { best:Math.max(o.best || 0, r.pct), passed:r.passed || !!o.passed } }; examResult(r); }
+    catch(e){ x.ans.pop(); $('#nx').disabled = false; $('#nx').textContent = 'تعذر التسليم، اضغط للمحاولة'; }
+  };
+}
+function examResult(r){
+  const lv = r.pct >= 90 ? 'ممتاز' : r.pct >= 80 ? 'جيد جدًا' : r.pct >= 70 ? 'جيد' : 'يحتاج مراجعة';
+  view(`<div class="scroll"><div style="text-align:center;padding:30px 0 10px"><div class="ring" style="--p:${r.pct}"><b class="en">${r.pct}%</b></div><h2 style="margin-top:14px">${r.passed ? 'نجحت في الاختبار 🎉' : 'لم تصل لدرجة النجاح بعد'}</h2><p class="mut">التقدير: ${lv} · ${r.score} من ${r.total}</p></div>
+  ${r.weak.length ? `<div class="card" style="margin:10px 0"><b>راجع هذه الدروس:</b><p style="margin-top:4px">${r.weak.map(esc).join('، ')}</p></div>` : ''}
+  ${r.review.map(x => `<div class="rv ${x.ok ? 'ok' : 'no'} en">${x.ok ? '✓' : '✗'} ${esc(x.q)} ${x.ok ? '' : '→ <b>' + esc(x.right) + '</b>'}</div>`).join('')}</div>
+  <div class="foot"><button class="btn alt" id="again">${r.passed ? 'أعد الاختبار' : 'حاول مرة أخرى'}</button><button class="btn" id="done">الرئيسية</button></div>`);
+  $('#again').onclick = () => examStart(S.ex.u); $('#done').onclick = home;
+  if(r.passed) confetti();
+}
 function startQuiz(){ S.ans = []; S.qi = 0; question(); }
 function question(){
   const q = S.lesson.quiz[S.qi], n = S.lesson.quiz.length, last = S.qi === n - 1; let pick = null, checked = false;
