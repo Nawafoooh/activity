@@ -69,6 +69,7 @@ h1,h2,p{margin:0}
 .conf{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:9}.conf i{position:absolute;top:-16px;width:9px;height:15px;border-radius:2px;animation:fall 2.6s ease-in forwards}
 @keyframes fall{to{transform:translateY(105vh) rotate(var(--r))}}@keyframes pop{from{transform:scale(.92);opacity:0}}@keyframes dot{50%{transform:translateY(-5px)}}@keyframes bob{50%{transform:translateY(-6px)}}
 .les{display:flex;align-items:center;gap:14px;width:100%;margin-bottom:12px;text-align:right;color:var(--ink)}.les .ic{font-size:1.8rem}.les .tx{flex:1;display:flex;flex-direction:column}.les b{font-size:1.15rem}.les small{color:#5f7673}.les .st{color:var(--y);letter-spacing:2px}.les.lock{opacity:.5}
+.grades{display:flex;gap:8px}.grades .btn{flex:1;padding:12px}.btn.alt.on{background:var(--g);color:#fff;border-color:var(--g)}.field{font-size:1.15rem!important;letter-spacing:0!important;height:58px!important}.bigcode{font:600 3rem Fredoka,monospace;letter-spacing:10px;text-align:center;direction:ltr;background:#fff;border:3px dashed var(--g);border-radius:20px;padding:18px;color:var(--g)}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
 .locked .opt{pointer-events:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
@@ -98,18 +99,42 @@ const bar = (cur, tot) => `<div class="bar"><button class="x" id="home" aria-lab
 function login(){
   view(`<div class="hero"><div class="logo">🦉</div><h1 class="en">English Buddy</h1><p>تعلّم الإنجليزية خطوة بخطوة</p></div>
   <div class="sheet"><label for="code">رمز الدخول</label><textarea id="code" class="code en" rows="1" dir="ltr" enterkeyhint="go" aria-label="رمز الدخول" placeholder="CODE"></textarea>
-  <button class="btn" id="go">ابدأ</button><p class="err" id="err" role="alert"></p><p class="mut">يعطيك معلمك الرمز</p></div>`);
+  <button class="btn" id="go">ابدأ</button><p class="err" id="err" role="alert"></p><button class="btn alt" id="newreg">ليس لدي رقم؟ سجّل الآن</button></div>`);
   const go = async () => {
     S.code = norm($('#code').value); if(!S.code) return;
     $('#go').disabled = true; $('#err').textContent = '';
     try { Object.assign(S, await api('login')); localStorage.setItem('eb_code', S.code); home(); }
-    catch(e){ $('#go').disabled = false; $('#err').textContent = e.error === 'unknown_code' ? 'الرمز غير صحيح، اسأل معلمك' : 'تعذر الاتصال، حاول مرة أخرى'; }
+    catch(e){ $('#go').disabled = false; $('#err').textContent = e.error === 'slow' ? 'محاولات كثيرة، انتظر قليلًا ثم أعد المحاولة' : e.error === 'unknown_code' ? 'الرقم غير صحيح، اسأل معلمك' : 'تعذر الاتصال، حاول مرة أخرى'; }
   };
-  $('#go').onclick = go; $('#code').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); go(); } };
+  $('#newreg').onclick = register; $('#go').onclick = go; $('#code').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); go(); } };
   $('#code').value = localStorage.getItem('eb_code') || '';
   $('#code').focus();
 }
 
+function register(){
+  let grade = 0;
+  view(`<div class="hero"><div class="logo">🦉</div><h1>تسجيل جديد</h1><p>سجّل مرة واحدة واحصل على رقمك</p></div>
+  <div class="scroll"><div class="sheet" style="padding:22px 0"><label for="nm">الاسم الثلاثي</label><textarea id="nm" class="code field" rows="1" dir="auto" placeholder="مثال: أحمد محمد علي"></textarea>
+  <label>الصف</label><div class="grades">${['أول','ثاني','ثالث'].map((g, i) => `<button type="button" class="btn alt" data-g="${i + 1}">${g}</button>`).join('')}</div>
+  <label for="rg">رمز التسجيل (يعطيك إياه معلمك)</label><textarea id="rg" class="code field" rows="1" dir="ltr" autocapitalize="off"></textarea>
+  <button class="btn" id="reg">سجّلني</button><p class="err" id="err" role="alert"></p><button class="btn alt" id="back">لدي رقم بالفعل</button></div></div>`);
+  document.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { grade = +b.dataset.g; document.querySelectorAll('[data-g]').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#back').onclick = login;
+  $('#reg').onclick = async () => {
+    const name = $('#nm').value.replace(/\s+/g, ' ').trim(), err = $('#err');
+    if(name.split(' ').length < 3 || !grade){ err.textContent = 'اكتب الاسم الثلاثي واختر الصف'; return; }
+    $('#reg').disabled = true; err.textContent = '';
+    try { const r = await api('register', { name, grade, reg:$('#rg').value }); S.code = r.code; localStorage.setItem('eb_code', r.code); done(r.code); }
+    catch(e){ $('#reg').disabled = false; err.textContent = { bad_input:'اكتب الاسم الثلاثي بالحروف فقط', bad_reg:'رمز التسجيل غير صحيح', exists:'هذا الاسم مسجّل مسبقًا، اسأل معلمك عن رقمك', busy:'الخدمة مزدحمة، حاول لاحقًا' }[e.error] || 'تعذر الاتصال، حاول مرة أخرى'; }
+  };
+}
+function done(c){
+  view(`<div class="hero"><div class="logo">🎉</div><h1>تم تسجيلك!</h1><p>هذا رقمك السري للدخول</p></div>
+  <div class="sheet"><div class="bigcode" id="bc">${esc(c)}</div><p class="mut">صوّر الشاشة أو اكتب الرقم الآن، فهو مفتاح دخولك دائمًا.</p>
+  <button class="btn alt" id="cp">نسخ الرقم</button><button class="btn" id="st">ابدأ التعلّم</button></div>`);
+  $('#cp').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(c); $('#cp').textContent = 'تم النسخ ✓'; };
+  $('#st').onclick = async () => { try { Object.assign(S, await api('login')); home(); } catch(e){ login(); } };
+}
 const tot = () => Object.values(S.progress || {}).reduce((a, b) => a + b, 0);
 function home(){
   const L = S.lessons;
