@@ -73,6 +73,7 @@ h1,h2,p{margin:0}
 .exam{border-color:#c9d9ff;background:#f3f7ff}.ans{min-height:64px;border-bottom:3px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;direction:ltr;padding:8px 0;margin-bottom:18px}.wb{display:flex;flex-wrap:wrap;gap:8px;direction:ltr}
 .wd{font:inherit;font-family:Fredoka,sans-serif;font-size:1.15rem;padding:10px 14px;border:2px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 3px 0 var(--line);color:var(--ink)}.wd.on{border-color:var(--g)}
 .ring{width:130px;height:130px;border-radius:50%;margin:0 auto;display:grid;place-items:center;background:conic-gradient(var(--ok) calc(var(--p)*1%),#dfe9e5 0)}.ring b{width:98px;height:98px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:1.8rem}
+.pill.hot{border-color:#f5b82e;background:#fff6e0}.pill.cold{opacity:.65}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
 .locked .opt{pointer-events:none}.fb[hidden]{display:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
@@ -143,11 +144,12 @@ function home(){
   const L = S.lessons, EX = S.exams || {};
   const locked = i => i > 0 && (!(S.progress[L[i - 1].id] >= 1) || (L[i].unit !== L[i - 1].unit && !(EX[L[i - 1].unit] || {}).passed));
   const curI = L.findIndex((x, i) => !(S.progress[x.id] >= 1) && !locked(i));
+  const stk = S.streak && !S.doneToday ? `<p class="mut" style="text-align:right;margin:0 0 10px">🔥 سلسلتك ${S.streak} — أكمل درسًا اليوم للحفاظ عليها</p>` : '';
   const wkc = S.weakN ? `<button class="card les exam" id="wk" style="background:#fff6e0;border-color:#f5d98a"><span class="ic">🎯</span><span class="tx"><b>تمرين نقاط ضعفي</b><small>${S.weakN} سؤالًا أخطأت فيها، صحّحها الآن</small></span></button>` : '';
   const exCard = u => { const ready = L.filter(x => x.unit === u).every(x => S.progress[x.id] >= 1), e = EX[u] || {};
     return `<button class="card les exam ${ready ? '' : 'lock'}" data-u="${u}" ${ready ? '' : 'disabled'}><span class="ic">${ready ? '📝' : '🔒'}</span><span class="tx"><b>اختبار الوحدة ${u}</b><small>${e.passed ? 'نجحت — أفضل نتيجة ' + e.best + '%' : ready ? 'جاهز! درجة النجاح 70%' : 'أكمل جميع دروس الوحدة أولًا'}</small></span><span class="st">${e.passed ? '✅' : ''}</span></button>`; };
-  view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div>
-  <div class="scroll">${wkc}${L.map((l, i) => `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${locked(i) ? 'lock' : ''} ${i === curI ? 'cur' : ''}" data-id="${l.id}" ${locked(i) ? 'disabled' : ''}><span class="ic">${locked(i) ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>${i === L.length - 1 || L[i + 1].unit !== l.unit ? exCard(l.unit) : ''}`).join('')}</div>`);
+  view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div></div>
+  <div class="scroll">${stk}${wkc}${L.map((l, i) => `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${locked(i) ? 'lock' : ''} ${i === curI ? 'cur' : ''}" data-id="${l.id}" ${locked(i) ? 'disabled' : ''}><span class="ic">${locked(i) ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>${i === L.length - 1 || L[i + 1].unit !== l.unit ? exCard(l.unit) : ''}`).join('')}</div>`);
   const c = document.querySelector('.les.cur'); if(c) c.scrollIntoView({ block:'center' });
   document.querySelectorAll('.les[data-id]').forEach(b => b.onclick = () => openLesson(b.dataset.id));
   if($('#wk')) $('#wk').onclick = practice;
@@ -231,7 +233,7 @@ function examQ(){
     x.ans.push(q.t === 'order' ? built.map(k => q.words[k]).join(' ') : q.options[pick]);
     if(!last){ x.i++; return examQ(); }
     $('#nx').disabled = true;
-    try { const r = await api('exam_submit', { answers:x.ans }); const o = (S.exams || {})[x.u] || {}; S.exams = { ...(S.exams || {}), [x.u]: { best:Math.max(o.best || 0, r.pct), passed:r.passed || !!o.passed } }; examResult(r); }
+    try { const r = await api('exam_submit', { answers:x.ans }); const o = (S.exams || {})[x.u] || {}; S.exams = { ...(S.exams || {}), [x.u]: { best:Math.max(o.best || 0, r.pct), passed:r.passed || !!o.passed } }; S.streak = r.streak; S.doneToday = true; examResult(r); }
     catch(e){ x.ans.pop(); $('#nx').disabled = false; $('#nx').textContent = 'تعذر التسليم، اضغط للمحاولة'; }
   };
 }
@@ -256,7 +258,7 @@ function practiceQ(){
   document.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
     if(checked) return; checked = true; const pick = +b.dataset.i; b.classList.add('sel'); $('#sc').classList.add('locked');
     try {
-      const r = await api('review_check', { id:q.id, pick }); S.weakN = r.left; if(r.ok) p.fixed++;
+      const r = await api('review_check', { id:q.id, pick }); S.weakN = r.left; if(r.ok){ p.fixed++; S.streak = r.streak; S.doneToday = true; }
       const opts = document.querySelectorAll('.opt'); opts.forEach(o => o.classList.remove('sel')); opts[r.right].classList.add('good'); if(!r.ok) opts[pick].classList.add('bad');
       const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
       fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(q.options[r.right])}</span>`}</div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
@@ -279,7 +281,7 @@ function question(){
   const next = async () => {
     clearTimeout(timer); S.qi++; if(S.qi < n) return question();
     const nb = $('#nx'); if(nb) nb.disabled = true;
-    try { const r = await api('grade', { answers:S.ans }); S.progress[S.lid] = Math.max(S.progress[S.lid] || 0, r.stars); result(r); }
+    try { const r = await api('grade', { answers:S.ans }); S.progress[S.lid] = Math.max(S.progress[S.lid] || 0, r.stars); S.streak = r.streak; S.doneToday = true; result(r); }
     catch(e){ S.qi--; if(nb){ nb.disabled = false; nb.textContent = 'تعذر الحفظ، اضغط للمحاولة'; } }
   };
   document.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
@@ -297,7 +299,7 @@ function question(){
 function result(r){
   const msg = r.stars === 3 ? 'ممتاز! أتقنت الدرس 🎉' : r.stars >= 1 ? 'أحسنت! راجع الكلمات للحصول على نجوم أكثر' : 'لا بأس، راجع الكلمات وحاول مرة أخرى';
   view(`<div class="scroll"><div style="padding:34px 0 10px"><div class="stars en" aria-label="${r.stars} من 3">${[0,1,2].map(i => `<span style="animation-delay:${i * .25}s">${i < r.stars ? '★' : '☆'}</span>`).join('')}</div>
-  <h2 style="text-align:center;margin-top:12px;font-size:1.8rem">${r.score} / ${r.total}</h2><p style="text-align:center;margin-top:6px">${msg}</p></div>
+  <h2 style="text-align:center;margin-top:12px;font-size:1.8rem">${r.score} / ${r.total}</h2><p style="text-align:center;margin-top:6px">${msg}</p><p style="text-align:center;margin-top:4px">🔥 ${r.streak} ${r.streak === 1 ? 'يوم' : 'أيام'} متتالية</p></div>
   ${r.review.map(x => `<div class="rv ${x.ok ? 'ok' : 'no'} en">${x.ok ? '✓' : '✗'} ${esc(x.q)} ${x.ok ? '' : '→ <b>' + esc(x.right) + '</b>'}</div>`).join('')}</div>
   <div class="foot"><button class="btn alt" id="again">أعد الاختبار</button><button class="btn" id="done">${r.next ? 'الدرس التالي' : 'الرئيسية'}</button></div>`);
   $('#again').onclick = startQuiz; $('#done').onclick = () => r.next ? openLesson(r.next) : home();
