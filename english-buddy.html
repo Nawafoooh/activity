@@ -74,7 +74,7 @@ h1,h2,p{margin:0}
 .wd{font:inherit;font-family:Fredoka,sans-serif;font-size:1.15rem;padding:10px 14px;border:2px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 3px 0 var(--line);color:var(--ink)}.wd.on{border-color:var(--g)}
 .ring{width:130px;height:130px;border-radius:50%;margin:0 auto;display:grid;place-items:center;background:conic-gradient(var(--ok) calc(var(--p)*1%),#dfe9e5 0)}.ring b{width:98px;height:98px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:1.8rem}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
-.locked .opt{pointer-events:none}
+.locked .opt{pointer-events:none}.fb[hidden]{display:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
 .fb.ok{background:#d9f3e2}.fb.no{background:#fbddd2}.fbmsg{flex:1;display:flex;flex-direction:column;line-height:1.5}.fbmsg b{font-size:1.25rem}.fbmsg small{color:#5f4a42}.fbmsg span{font-size:1.1rem;font-weight:700;direction:ltr;text-align:right}
 .fb.ok b{color:#15803d}.fb.no b{color:#c2410c}.btn.no{background:var(--no);box-shadow:0 4px 0 #a8401a}
@@ -244,30 +244,27 @@ function examResult(r){
 }
 function startQuiz(){ S.ans = []; S.qi = 0; question(); }
 function question(){
-  const q = S.lesson.quiz[S.qi], n = S.lesson.quiz.length, last = S.qi === n - 1; let pick = null, checked = false;
+  const q = S.lesson.quiz[S.qi], n = S.lesson.quiz.length, last = S.qi === n - 1; let checked = false, timer = null;
   view(`${bar(S.qi, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">سؤال ${S.qi + 1} من ${n}</p><p class="q en">${esc(q.q)}</p>
-  ${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</div>
-  <div class="fb" id="fb"><button class="btn" id="nx" disabled>تحقق</button></div>`);
+  ${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</div><div class="fb" id="fb" hidden></div>`);
   $('#home').onclick = home;
-  document.querySelectorAll('.opt').forEach(b => b.onclick = () => { if(checked) return; document.querySelectorAll('.opt').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); pick = +b.dataset.i; $('#nx').disabled = false; });
   const next = async () => {
-    S.qi++; if(S.qi < n) return question();
-    $('#nx').disabled = true;
+    clearTimeout(timer); S.qi++; if(S.qi < n) return question();
+    const nb = $('#nx'); if(nb) nb.disabled = true;
     try { const r = await api('grade', { answers:S.ans }); S.progress[S.lid] = Math.max(S.progress[S.lid] || 0, r.stars); result(r); }
-    catch(e){ S.qi--; $('#nx').disabled = false; $('#nx').textContent = 'تعذر الحفظ، اضغط للمحاولة'; }
+    catch(e){ S.qi--; if(nb){ nb.disabled = false; nb.textContent = 'تعذر الحفظ، اضغط للمحاولة'; } }
   };
-  $('#nx').onclick = async () => {
-    $('#nx').disabled = true;
+  document.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
+    if(checked) return; checked = true; const pick = +b.dataset.i; b.classList.add('sel'); $('#sc').classList.add('locked');
     try {
-      const r = await api('check', { qi:S.qi, pick }); checked = true; S.ans.push(pick);
-      const opts = document.querySelectorAll('.opt'); $('#sc').classList.add('locked');
-      opts.forEach(o => o.classList.remove('sel')); opts[r.right].classList.add('good'); if(!r.ok) opts[pick].classList.add('bad');
+      const r = await api('check', { qi:S.qi, pick }); S.ans.push(pick);
+      const opts = document.querySelectorAll('.opt'); opts.forEach(o => o.classList.remove('sel')); opts[r.right].classList.add('good'); if(!r.ok) opts[pick].classList.add('bad');
       if(navigator.vibrate) navigator.vibrate(r.ok ? 25 : [40, 40, 40]);
-      const fb = $('#fb'); fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
+      const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
       fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(q.options[r.right])}</span>`}</div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${last ? 'إنهاء' : 'متابعة'}</button>`;
-      $('#nx').onclick = next; $('#nx').focus();
-    } catch(e){ $('#nx').disabled = false; $('#nx').textContent = 'تعذر الاتصال، أعد المحاولة'; }
-  };
+      $('#nx').onclick = next; if(r.ok) timer = setTimeout(next, 900);
+    } catch(e){ checked = false; b.classList.remove('sel'); $('#sc').classList.remove('locked'); }
+  });
 }
 function result(r){
   const msg = r.stars === 3 ? 'ممتاز! أتقنت الدرس 🎉' : r.stars >= 1 ? 'أحسنت! راجع الكلمات للحصول على نجوم أكثر' : 'لا بأس، راجع الكلمات وحاول مرة أخرى';
