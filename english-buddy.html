@@ -75,6 +75,7 @@ h1,h2,p{margin:0}
 .ring{width:130px;height:130px;border-radius:50%;margin:0 auto;display:grid;place-items:center;background:conic-gradient(var(--ok) calc(var(--p)*1%),#dfe9e5 0)}.ring b{width:98px;height:98px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:1.8rem}
 .pill.hot{border-color:#f5b82e;background:#fff6e0}.pill.cold{opacity:.65}
 .q,.rv{white-space:pre-line}.dl{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px dashed var(--line);direction:ltr;text-align:left;font-size:1.1rem}
+.q.long{font-size:1.1rem;line-height:1.8}.pgtxt{font-size:1.25rem;line-height:2;margin-top:12px;text-align:left;direction:ltr}.pg{background:#fff;border:2px solid var(--line);border-radius:14px;padding:10px 14px;margin-top:10px;text-align:left;direction:ltr}.pg p{line-height:1.8;margin-top:6px}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
 .locked .opt{pointer-events:none}.fb[hidden]{display:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
@@ -173,9 +174,13 @@ function words(){
 }
 
 function tipScreen(){
-  view(`${bar(1, 1)}<div class="scroll"><div class="card" style="margin-top:10px"><span class="tag">💡 قاعدة الدرس</span><p style="font-size:1.2rem;line-height:2;margin-top:12px">${esc(S.lesson.tip)}</p></div>${(S.lesson.dialog || []).length ? `<div class="card" style="margin-top:12px"><span class="tag">💬 حوار نموذجي</span>${S.lesson.dialog.map(l => `<div class="dl en"><span>${esc(l)}</span><button class="say" data-t="${esc(l.replace(/^[AB]:\s*/, ''))}">🔊</button></div>`).join('')}</div>` : ''}</div><div class="foot"><button class="btn alt" id="prev">رجوع</button><button class="btn" id="nx">ابدأ المحادثة</button></div>`);
-  $('#home').onclick = home; $('#prev').onclick = words; $('#nx').onclick = chat;
+  view(`${bar(1, 1)}<div class="scroll"><div class="card" style="margin-top:10px"><span class="tag">💡 قاعدة الدرس</span><p style="font-size:1.2rem;line-height:2;margin-top:12px">${esc(S.lesson.tip)}</p></div>${(S.lesson.dialog || []).length ? `<div class="card" style="margin-top:12px"><span class="tag">💬 حوار نموذجي</span>${S.lesson.dialog.map(l => `<div class="dl en"><span>${esc(l)}</span><button class="say" data-t="${esc(l.replace(/^[AB]:\s*/, ''))}">🔊</button></div>`).join('')}</div>` : ''}</div><div class="foot"><button class="btn alt" id="prev">رجوع</button><button class="btn" id="nx">${S.lesson.passage ? 'اقرأ النص' : 'ابدأ المحادثة'}</button></div>`);
+  $('#home').onclick = home; $('#prev').onclick = words; $('#nx').onclick = S.lesson.passage ? readScreen : chat;
   document.querySelectorAll('.dl .say').forEach(b => b.onclick = () => say(b.dataset.t));
+}
+function readScreen(){
+  view(`${bar(1, 1)}<div class="scroll"><div class="card" style="margin-top:10px"><span class="tag">📖 اقرأ النص</span><p class="en pgtxt">${esc(S.lesson.passage)}</p><button class="btn alt" id="rd" style="margin-top:14px">🔊 استمع للنص</button></div></div><div class="foot"><button class="btn alt" id="prev">رجوع</button><button class="btn" id="nx">ابدأ المحادثة</button></div>`);
+  $('#home').onclick = home; $('#prev').onclick = tipScreen; $('#rd').onclick = () => say(S.lesson.passage); $('#nx').onclick = chat;
 }
 function chat(){
   S.hist = [{ role:'assistant', content:S.lesson.hello }]; S.turns = 0; S.done = false; S.busy = false;
@@ -225,7 +230,7 @@ function examQ(){
   const x = S.ex, q = x.qs[x.i], n = x.qs.length, last = x.i === n - 1; let pick = null; const built = [];
   const body = q.t === 'order'
     ? `<p class="q" style="direction:rtl;text-align:right">${esc(q.q)}</p><div class="ans" id="ans" aria-live="polite"></div><div class="wb" id="wb">${q.words.map((w, k) => `<button class="wd" data-k="${k}">${esc(w)}</button>`).join('')}</div>`
-    : `<p class="q en">${esc(q.q)}</p>${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}`;
+    : `<p class="q en${q.q.length > 90 ? ' long' : ''}">${esc(q.q)}</p>${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}`;
   view(`${bar(x.i, n)}<div class="scroll"><p class="mut" style="text-align:right">اختبار الوحدة ${x.u} — سؤال ${x.i + 1} من ${n}</p>${body}</div><div class="foot"><button class="btn" id="nx" disabled>${last ? 'تسليم الاختبار' : 'التالي'}</button></div>`);
   $('#home').onclick = () => { if(confirm('هل تريد الخروج؟ سيضيع تقدمك في هذا الاختبار')) home(); };
   const ready = () => { $('#nx').disabled = q.t === 'order' ? built.length !== q.words.length : pick === null; };
@@ -258,7 +263,7 @@ async function practice(){
 }
 function practiceQ(){
   const p = S.pr, q = p.qs[p.i], n = p.qs.length; let checked = false, timer = null;
-  view(`${bar(p.i, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">🎯 تمرين نقاط ضعفي — ${p.i + 1} من ${n}</p><p class="q en">${esc(q.q)}</p>${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</div><div class="fb" id="fb" hidden></div>`);
+  view(`${bar(p.i, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">🎯 تمرين نقاط ضعفي — ${p.i + 1} من ${n}</p><p class="q en${q.q.length > 90 ? ' long' : ''}">${esc(q.q)}</p>${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</div><div class="fb" id="fb" hidden></div>`);
   $('#home').onclick = home;
   const next = () => { clearTimeout(timer); p.i++; if(p.i < n) practiceQ(); else practiceDone(); };
   document.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
@@ -281,7 +286,7 @@ function practiceDone(){
 function startQuiz(){ S.ans = []; S.qi = 0; question(); }
 function question(){
   const q = S.lesson.quiz[S.qi], n = S.lesson.quiz.length, last = S.qi === n - 1; let checked = false, timer = null;
-  view(`${bar(S.qi, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">سؤال ${S.qi + 1} من ${n}</p><p class="q en">${esc(q.q)}</p>
+  view(`${bar(S.qi, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">سؤال ${S.qi + 1} من ${n}</p>${q.ref ? `<details class="pg" open><summary>📖 النص</summary><p class="en">${esc(S.lesson.passage)}</p></details>` : ''}<p class="q en${q.q.length > 90 ? ' long' : ''}">${esc(q.q)}</p>
   ${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</div><div class="fb" id="fb" hidden></div>`);
   $('#home').onclick = home;
   const next = async () => {
