@@ -164,13 +164,17 @@ function words(){
   const v = S.lesson.vocab, w = v[S.wi], last = S.wi === v.length - 1;
   view(`${bar(S.wi + 1, v.length)}<div class="scroll"><div class="card flash"><button class="spk" id="spk" aria-label="استماع">🔊</button>
   <h2 class="en big">${esc(w.en)}</h2><p class="ar">${esc(w.ar)}</p><p class="ex en">${esc(w.ex)}</p></div></div>
-  <div class="foot"><button class="btn alt" id="prev" ${S.wi ? '' : 'disabled'}>السابق</button><button class="btn" id="nx">${last ? 'ابدأ المحادثة' : 'التالي'}</button></div>`);
+  <div class="foot"><button class="btn alt" id="prev" ${S.wi ? '' : 'disabled'}>السابق</button><button class="btn" id="nx">${last && !S.lesson.tip ? 'ابدأ المحادثة' : 'التالي'}</button></div>`);
   $('#home').onclick = home; $('#spk').onclick = () => say(w.en + '. ' + w.ex);
   $('#prev').onclick = () => { S.wi--; words(); };
-  $('#nx').onclick = () => { if(last) chat(); else { S.wi++; words(); } };
+  $('#nx').onclick = () => { if(last) (S.lesson.tip ? tipScreen() : chat()); else { S.wi++; words(); } };
   setTimeout(() => say(w.en), 150);
 }
 
+function tipScreen(){
+  view(`${bar(1, 1)}<div class="scroll"><div class="card" style="margin-top:10px"><span class="tag">💡 قاعدة الدرس</span><p style="font-size:1.2rem;line-height:2;margin-top:12px">${esc(S.lesson.tip)}</p></div></div><div class="foot"><button class="btn alt" id="prev">رجوع</button><button class="btn" id="nx">ابدأ المحادثة</button></div>`);
+  $('#home').onclick = home; $('#prev').onclick = words; $('#nx').onclick = chat;
+}
 function chat(){
   S.hist = [{ role:'assistant', content:S.lesson.hello }]; S.turns = 0; S.done = false; S.busy = false;
   view(`<div class="chathead"><button class="x" id="home" aria-label="خروج">✕</button><div class="av">🦉</div><div><b class="en">English Buddy</b><small>معلمك الذكي</small></div></div>
