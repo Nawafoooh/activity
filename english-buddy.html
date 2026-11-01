@@ -85,6 +85,7 @@ h1,h2,p{margin:0}
 .cert{background:#fff;border:6px double var(--g);border-radius:20px;padding:26px 18px;text-align:center;margin-top:14px}.cert h1{font-size:1.9rem;color:var(--g)}.cname{font-size:1.9rem;color:var(--g);margin:10px 0}.ct{width:100%;margin:12px 0;border-collapse:collapse}.ct td{padding:8px;border-bottom:1px dashed var(--line);text-align:right}.ct td:last-child{text-align:left;font-weight:700}
 @media print{.foot,.top{display:none!important}#app{height:auto;overflow:visible;max-width:none}.scroll{overflow:visible}}
 .inst{display:flex;align-items:center;gap:10px;background:#e0f2ef;border:2px solid #b7ddd7;border-radius:16px;padding:10px 12px;margin-bottom:12px}.inst>div{flex:1;display:flex;flex-direction:column}.inst small{color:#3d6a65}.inst .btn{width:auto;padding:10px 16px;font-size:.95rem}.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;z-index:20;padding:20px}.mbox{background:#fff;border-radius:20px;padding:22px;max-width:380px;width:100%}.mbox ol{line-height:2.1;padding-right:20px;margin:10px 0 16px}
+.copy{margin-top:auto;padding-top:18px;text-align:center;color:#5f7673;font-size:.85rem;line-height:1.8}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
 .locked .opt{pointer-events:none}.fb[hidden]{display:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
@@ -134,19 +135,40 @@ function installHelp(){
 }
 function login(){
   view(`<div class="hero"><div class="logo">🦉</div><h1 class="en">English Buddy</h1><p>تعلّم الإنجليزية خطوة بخطوة</p></div>
-  <div class="sheet">${installCard()}<label for="code">رمز الدخول</label><textarea id="code" class="code en" rows="1" dir="ltr" enterkeyhint="go" aria-label="رمز الدخول" placeholder="CODE"></textarea>
-  <button class="btn" id="go">ابدأ</button><p class="err" id="err" role="alert"></p><button class="btn alt" id="newreg">ليس لدي رقم؟ سجّل الآن</button></div>`);
+  <div class="sheet scroll">${installCard()}<label for="code">رمز الدخول</label><textarea id="code" class="code en" rows="1" dir="ltr" enterkeyhint="go" aria-label="رمز الدخول" placeholder="CODE"></textarea>
+  <button class="btn" id="go">ابدأ</button><p class="err" id="err" role="alert"></p><button class="btn alt" id="newreg">ليس لدي رقم؟ سجّل الآن</button><button class="btn alt" id="contactbtn">✉️ راسل المشرف</button><p class="copy">جميع الحقوق محفوظة 2026<br>تطوير الأستاذ نواف الصبحي</p></div>`);
   const go = async () => {
     S.code = norm($('#code').value); if(!S.code) return;
     $('#go').disabled = true; $('#err').textContent = '';
     try { Object.assign(S, await api('login')); localStorage.setItem('eb_code', S.code); home(); }
     catch(e){ $('#go').disabled = false; $('#err').textContent = e.error === 'slow' ? 'محاولات كثيرة، انتظر قليلًا ثم أعد المحاولة' : e.error === 'unknown_code' ? 'الرقم غير صحيح، اسأل معلمك' : 'تعذر الاتصال، حاول مرة أخرى'; }
   };
-  bindInstall(); $('#newreg').onclick = register; $('#go').onclick = go; $('#code').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); go(); } };
+  bindInstall(); $('#newreg').onclick = register; $('#contactbtn').onclick = contact; $('#go').onclick = go; $('#code').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); go(); } };
   $('#code').value = localStorage.getItem('eb_code') || '';
   $('#code').focus();
 }
 
+function contact(){
+  const wc = t => (t.trim().match(/\S+/g) || []).length;
+  view(`${bar(0, 1)}<div class="scroll"><div class="card" style="margin-top:10px"><h2>✉️ راسل المشرف</h2><p class="mut" style="text-align:right">اكتب اسمك ورسالتك (حتى 100 كلمة).</p>
+  <label for="cn" style="display:block;margin-top:12px;font-weight:700">الاسم</label><textarea id="cn" class="code field" rows="1" dir="auto" style="text-align:right" placeholder="اسمك الثلاثي"></textarea>
+  <label for="cm" style="display:block;margin-top:12px;font-weight:700">الرسالة</label><textarea id="cm" class="code" rows="5" dir="auto" style="height:150px;text-align:right;letter-spacing:0;font-size:1.1rem"></textarea>
+  <p class="mut" id="wcnt" style="text-align:left;direction:ltr">0 / 100</p><button class="btn" id="cs">إرسال</button><p class="err" id="err" role="alert"></p></div></div>`);
+  const back = () => (S.lessons ? home() : login());
+  $('#home').onclick = back; $('#cn').value = S.name || '';
+  $('#cm').oninput = () => { const n = wc($('#cm').value); $('#wcnt').textContent = n + ' / 100'; $('#wcnt').style.color = n > 100 ? 'var(--no)' : ''; };
+  $('#cs').onclick = async () => {
+    const name = $('#cn').value.replace(/\s+/g, ' ').trim(), text = $('#cm').value.trim(), n = wc(text), err = $('#err');
+    if(name.length < 3){ err.textContent = 'اكتب اسمك'; return; }
+    if(n < 1){ err.textContent = 'اكتب رسالتك'; return; }
+    if(n > 100){ err.textContent = 'الرسالة أطول من 100 كلمة، اختصرها'; return; }
+    $('#cs').disabled = true; err.textContent = '';
+    try { await api('msg_send', { name, text });
+      view(`<div class="hero"><div class="logo">✅</div><h1>تم الإرسال</h1><p>وصلت رسالتك إلى المشرف</p></div><div class="sheet"><button class="btn" id="bk">رجوع</button></div>`);
+      $('#bk').onclick = back;
+    } catch(e){ $('#cs').disabled = false; err.textContent = e.error === 'busy' ? 'وصلت للحد اليومي للرسائل، حاول غدًا' : e.error === 'bad_input' ? 'تأكد من الاسم والرسالة' : 'تعذر الإرسال، حاول مرة أخرى'; }
+  };
+}
 function register(){
   let grade = 0;
   view(`<div class="hero"><div class="logo">🦉</div><h1>تسجيل جديد</h1><p>سجّل مرة واحدة واحصل على رقمك</p></div>
@@ -185,10 +207,11 @@ function home(){
   const exCard = u => { const ready = L.filter(x => x.unit === u).every(x => S.progress[x.id] >= 1), e = EX[u] || {};
     return `<button class="card les exam ${ready ? '' : 'lock'}" data-u="${u}" ${ready ? '' : 'disabled'}><span class="ic">${ready ? '📝' : '🔒'}</span><span class="tx"><b>اختبار الوحدة ${u}</b><small>${e.placed ? 'معفى بنتيجة تحديد المستوى' : e.passed ? 'نجحت — أفضل نتيجة ' + e.best + '%' : ready ? 'جاهز! درجة النجاح 70%' : 'أكمل جميع دروس الوحدة أولًا'}</small></span><span class="st">${e.passed ? '✅' : ''}</span></button>`; };
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div></div>
-  <div class="scroll">${plc}${installCard()}${stk}${cc}${wkc}${L.map((l, i) => `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${locked(i) ? 'lock' : ''} ${i === curI ? 'cur' : ''}" data-id="${l.id}" ${locked(i) ? 'disabled' : ''}><span class="ic">${locked(i) ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>${i === L.length - 1 || L[i + 1].unit !== l.unit ? exCard(l.unit) : ''}`).join('')}</div>`);
+  <div class="scroll">${plc}${installCard()}${stk}${cc}${wkc}${L.map((l, i) => `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${locked(i) ? 'lock' : ''} ${i === curI ? 'cur' : ''}" data-id="${l.id}" ${locked(i) ? 'disabled' : ''}><span class="ic">${locked(i) ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>${i === L.length - 1 || L[i + 1].unit !== l.unit ? exCard(l.unit) : ''}`).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>`);
   const c = document.querySelector('.les.cur'); if(c) c.scrollIntoView({ block:'center' });
   document.querySelectorAll('.les[data-id]').forEach(b => b.onclick = () => openLesson(b.dataset.id));
   bindInstall();
+  if($('#msgbtn')) $('#msgbtn').onclick = contact;
   if($('#plgo')) $('#plgo').onclick = placeIntro;
   if($('#plskip')) $('#plskip').onclick = async () => { try { await api('place_skip'); S.placed = 1; home(); } catch(e){} };
   if($('#wk')) $('#wk').onclick = practice;
