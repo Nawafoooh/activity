@@ -12,7 +12,7 @@ $('#go').onclick=async()=>{const r=await fetch(API,{method:'POST',headers:{'Cont
 let msgs=[];const post=(a,x={})=>fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:a,key:$('#key').value,...x})}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw j;return j});
 const unread=()=>msgs.filter(m=>!m.read).length;
 function drawMsgs(){$('#tm').textContent='📬 الرسائل ('+unread()+')';$('#out').innerHTML=msgs.length?msgs.map(m=>`<div class="msg ${m.read?'':'new'}"><div class="mh"><b>${esc(m.name)}</b><span>${m.at?new Date(m.at).toLocaleString('ar-SA'):''}${m.code?' · رمز '+esc(m.code):''}</span></div><p>${esc(m.text)}</p><div><button class="alt" data-act="read" data-id="${m.id}">${m.read?'غير مقروءة':'مقروءة'}</button> <button class="alt" data-act="del" data-id="${m.id}">حذف</button></div></div>`).join(''):'<p>لا توجد رسائل.</p>'}
-$('#tm').onclick=drawMsgs;
+$('#tm').onclick=async()=>{$('#out').innerHTML='<p>جارٍ تحميل الرسائل…</p>';try{const j=await post('admin_msgs');msgs=j.msgs;drawMsgs()}catch(e){$('#out').innerHTML='<p style="color:#c2410c">تعذر تحميل الرسائل ('+esc(e.error||'اتصال')+'). تأكد من مفتاح المعلم ومن نشر آخر نسخة من الدالة.</p>'}};
 $('#out').onclick=async e=>{const b=e.target.closest('[data-act]');if(!b)return;const id=b.dataset.id;try{if(b.dataset.act==='del'){if(!confirm('حذف الرسالة؟'))return;await post('admin_msg_del',{id});msgs=msgs.filter(m=>m.id!==id)}else{const m=msgs.find(x=>x.id===id);await post('admin_msg_read',{id,read:!m.read});m.read=!m.read}drawMsgs()}catch(x){alert('تعذر التنفيذ')}};
 document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{sort=b.dataset.s;draw()});
 </script>
