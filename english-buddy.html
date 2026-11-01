@@ -174,19 +174,23 @@ function done(c){
 const tot = () => Object.values(S.progress || {}).reduce((a, b) => a + b, 0);
 function home(){
   const L = S.lessons, EX = S.exams || {};
-  const locked = i => i > 0 && (!(S.progress[L[i - 1].id] >= 1) || (L[i].unit !== L[i - 1].unit && !(EX[L[i - 1].unit] || {}).passed));
-  const curI = L.findIndex((x, i) => !(S.progress[x.id] >= 1) && !locked(i));
+  const pl = S.placed || 1;
+  const locked = i => { if(i === 0 || L[i].unit < pl) return false; const pv = L[i - 1]; if(pv.unit < L[i].unit) return !(L[i].unit === pl || (S.progress[pv.id] >= 1 && (EX[pv.unit] || {}).passed)); return !(S.progress[pv.id] >= 1); };
+  const curI = L.findIndex((x, i) => x.unit >= pl && !(S.progress[x.id] >= 1) && !locked(i));
+  const plc = !S.placed && !Object.keys(S.progress || {}).length && !Object.keys(EX).length ? '<div class="card" style="background:#e8f1ff;border-color:#b9d3ff;margin-bottom:12px"><b>🧭 اختبار تحديد المستوى</b><p class="mut" style="text-align:right;margin:4px 0 12px">تعرّف على مستواك وابدأ من الوحدة المناسبة بدل البداية.</p><button class="btn" id="plgo">ابدأ الاختبار</button><button class="btn alt" id="plskip" style="margin-top:8px">ابدأ من الوحدة الأولى</button></div>' : '';
   const stk = S.streak && !S.doneToday ? `<p class="mut" style="text-align:right;margin:0 0 10px">🔥 سلسلتك ${S.streak} — أكمل درسًا اليوم للحفاظ عليها</p>` : '';
   const wkc = S.weakN ? `<button class="card les exam" id="wk" style="background:#fff6e0;border-color:#f5d98a"><span class="ic">🎯</span><span class="tx"><b>تمرين نقاط ضعفي</b><small>${S.weakN} سؤالًا أخطأت فيها، صحّحها الآن</small></span></button>` : '';
   const allPassed = Object.keys(S.units || {}).length && Object.keys(S.units).every(u => (EX[u] || {}).passed);
   const cc = allPassed ? '<button class="card les" id="certbtn" style="background:#e3f6ea;border-color:#16a34a"><span class="ic">🎓</span><span class="tx"><b>شهادة الإتمام جاهزة</b><small>اضغط لعرضها وطباعتها</small></span></button>' : '';
   const exCard = u => { const ready = L.filter(x => x.unit === u).every(x => S.progress[x.id] >= 1), e = EX[u] || {};
-    return `<button class="card les exam ${ready ? '' : 'lock'}" data-u="${u}" ${ready ? '' : 'disabled'}><span class="ic">${ready ? '📝' : '🔒'}</span><span class="tx"><b>اختبار الوحدة ${u}</b><small>${e.passed ? 'نجحت — أفضل نتيجة ' + e.best + '%' : ready ? 'جاهز! درجة النجاح 70%' : 'أكمل جميع دروس الوحدة أولًا'}</small></span><span class="st">${e.passed ? '✅' : ''}</span></button>`; };
+    return `<button class="card les exam ${ready ? '' : 'lock'}" data-u="${u}" ${ready ? '' : 'disabled'}><span class="ic">${ready ? '📝' : '🔒'}</span><span class="tx"><b>اختبار الوحدة ${u}</b><small>${e.placed ? 'معفى بنتيجة تحديد المستوى' : e.passed ? 'نجحت — أفضل نتيجة ' + e.best + '%' : ready ? 'جاهز! درجة النجاح 70%' : 'أكمل جميع دروس الوحدة أولًا'}</small></span><span class="st">${e.passed ? '✅' : ''}</span></button>`; };
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div></div>
-  <div class="scroll">${installCard()}${stk}${cc}${wkc}${L.map((l, i) => `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${locked(i) ? 'lock' : ''} ${i === curI ? 'cur' : ''}" data-id="${l.id}" ${locked(i) ? 'disabled' : ''}><span class="ic">${locked(i) ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>${i === L.length - 1 || L[i + 1].unit !== l.unit ? exCard(l.unit) : ''}`).join('')}</div>`);
+  <div class="scroll">${plc}${installCard()}${stk}${cc}${wkc}${L.map((l, i) => `${i === 0 || l.unit !== L[i - 1].unit ? `<h3 class="unit">الوحدة ${l.unit}: ${esc((S.units || {})[l.unit] || '')}</h3>` : ''}<button class="card les ${locked(i) ? 'lock' : ''} ${i === curI ? 'cur' : ''}" data-id="${l.id}" ${locked(i) ? 'disabled' : ''}><span class="ic">${locked(i) ? '🔒' : l.icon}</span><span class="tx"><b class="en">${esc(l.title)}</b><small>${esc(l.ar)}</small></span><span class="st en">${star(S.progress[l.id] || 0)}</span></button>${i === L.length - 1 || L[i + 1].unit !== l.unit ? exCard(l.unit) : ''}`).join('')}</div>`);
   const c = document.querySelector('.les.cur'); if(c) c.scrollIntoView({ block:'center' });
   document.querySelectorAll('.les[data-id]').forEach(b => b.onclick = () => openLesson(b.dataset.id));
   bindInstall();
+  if($('#plgo')) $('#plgo').onclick = placeIntro;
+  if($('#plskip')) $('#plskip').onclick = async () => { try { await api('place_skip'); S.placed = 1; home(); } catch(e){} };
   if($('#wk')) $('#wk').onclick = practice;
   if($('#certbtn')) $('#certbtn').onclick = cert;
   document.querySelectorAll('.les[data-u]').forEach(b => b.onclick = () => examIntro(+b.dataset.u));
@@ -252,12 +256,48 @@ async function send(){
   if(S.done || S.turns >= 6) $('#toquiz').hidden = false;
 }
 
+function placeIntro(){
+  view(`${bar(0, 1)}<div class="scroll"><div class="card" style="margin-top:10px"><h2>🧭 اختبار تحديد المستوى</h2><p style="line-height:2.1;margin-top:8px">• أسئلة تبدأ سهلة وتزداد صعوبة<br>• يتوقف الاختبار عندما يصل لمستواك<br>• بين 3 و24 سؤالًا<br>• لا تظهر الإجابات أثناءه<br>• نتيجته تحدد من أي وحدة تبدأ، ولا يُعاد</p></div></div><div class="foot"><button class="btn" id="go">ابدأ الاختبار</button></div>`);
+  $('#home').onclick = home; $('#go').onclick = placeStart;
+}
+async function placeStart(){
+  try { const r = await api('place_start'); S.pl = { n:1 }; placeQ(r.q); }
+  catch(e){ alert(e.error === 'not_allowed' ? 'لا يمكن إجراء الاختبار الآن' : 'تعذر البدء، حاول مرة أخرى'); }
+}
+function placeQ(q){
+  let pick = null; const built = [];
+  const body = q.t === 'order'
+    ? `<p class="q" style="direction:rtl;text-align:right">${esc(q.q)}</p><div class="ans" id="ans"></div><div class="wb" id="wb">${q.words.map((w, k) => `<button class="wd" data-k="${k}">${esc(w)}</button>`).join('')}</div>`
+    : `<p class="q en${q.q.length > 90 ? ' long' : ''}">${esc(q.q)}</p>${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}`;
+  view(`${bar(Math.min(S.pl.n, 24), 24)}<div class="scroll"><p class="mut" style="text-align:right">تحديد المستوى — سؤال ${S.pl.n}</p>${body}</div><div class="foot"><button class="btn" id="nx" disabled>التالي</button></div>`);
+  $('#home').onclick = () => { if(confirm('هل تريد الخروج؟ يمكنك إعادة الاختبار لاحقًا')) home(); };
+  const ready = () => { $('#nx').disabled = q.t === 'order' ? built.length !== q.words.length : pick === null; };
+  if(q.t === 'order'){
+    const draw = () => { $('#ans').innerHTML = built.map((k, j) => `<button class="wd on" data-j="${j}">${esc(q.words[k])}</button>`).join(''); document.querySelectorAll('#wb .wd').forEach(c => c.style.visibility = built.includes(+c.dataset.k) ? 'hidden' : 'visible'); ready(); };
+    $('#wb').onclick = e => { const c = e.target.closest('.wd'); if(c){ built.push(+c.dataset.k); draw(); } };
+    $('#ans').onclick = e => { const c = e.target.closest('.wd'); if(c){ built.splice(+c.dataset.j, 1); draw(); } };
+    draw();
+  } else document.querySelectorAll('.opt').forEach(b => b.onclick = () => { document.querySelectorAll('.opt').forEach(o => o.classList.remove('sel')); b.classList.add('sel'); pick = +b.dataset.i; ready(); });
+  $('#nx').onclick = async () => {
+    $('#nx').disabled = true;
+    try {
+      const r = await api('place_answer', { answer: q.t === 'order' ? built.map(k => q.words[k]).join(' ') : q.options[pick] });
+      if(r.done){ S.placed = r.placed; return placeResult(r.placed); }
+      S.pl.n++; placeQ(r.q);
+    } catch(e){ $('#nx').disabled = false; $('#nx').textContent = 'تعذر الاتصال، اضغط للمحاولة'; }
+  };
+}
+function placeResult(p){
+  view(`<div class="scroll"><div style="text-align:center;padding:40px 0 10px"><div class="logo" style="margin-bottom:12px">🧭</div><h2>مستواك: الوحدة ${p}</h2><p class="mut" style="margin-top:6px">${esc((S.units || {})[p] || '')}</p><p style="margin-top:14px;line-height:1.9">${p > 1 ? 'فُتحت لك الوحدات من 1 إلى ' + (p - 1) + ' للمراجعة، وأُعفيت من اختباراتها.' : 'ستبدأ من الأساسيات، وهي خطوة ممتازة.'}</p></div></div><div class="foot"><button class="btn" id="done">ابدأ التعلّم</button></div>`);
+  $('#done').onclick = async () => { try { Object.assign(S, await api('login')); } catch(e){} home(); };
+  if(p > 1) confetti();
+}
 function cert(){
   const U = S.units || {}, EX = S.exams || {}, ids = Object.keys(U);
-  const avg = Math.round(ids.reduce((a, u) => a + ((EX[u] || {}).best || 0), 0) / ids.length);
+  const taken = ids.filter(u => !(EX[u] || {}).placed), avg = taken.length ? Math.round(taken.reduce((a, u) => a + ((EX[u] || {}).best || 0), 0) / taken.length) : 100;
   const lv = avg >= 90 ? 'ممتاز' : avg >= 80 ? 'جيد جدًا' : 'جيد';
   view(`<div class="scroll"><div class="cert"><div style="font-size:3rem">🎓</div><h1>شهادة إتمام</h1><p style="margin-top:8px">تشهد منصة English Buddy أن الطالب</p><h2 class="cname">${esc(S.name || '')}</h2><p style="line-height:1.9">أتمّ بنجاح مسار اللغة الإنجليزية (100 درس و${ids.length} اختبارات وحدات) بتقدير <b>${lv}</b> ومعدل <b class="en">${avg}%</b></p>
-  <table class="ct">${ids.map(u => `<tr><td>الوحدة ${u}: ${esc(U[u])}</td><td class="en">${(EX[u] || {}).best || 0}%</td></tr>`).join('')}</table><p class="mut">${new Date().toLocaleDateString('ar-SA')}</p></div></div>
+  <table class="ct">${ids.map(u => `<tr><td>الوحدة ${u}: ${esc(U[u])}</td><td class="en">${(EX[u] || {}).placed ? 'معفى' : ((EX[u] || {}).best || 0) + '%'}</td></tr>`).join('')}</table><p class="mut">${new Date().toLocaleDateString('ar-SA')}</p></div></div>
   <div class="foot"><button class="btn alt" id="done">الرئيسية</button><button class="btn" id="pr">طباعة / حفظ PDF</button></div>`);
   $('#done').onclick = home; $('#pr').onclick = () => print();
   confetti();
