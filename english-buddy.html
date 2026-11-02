@@ -148,6 +148,17 @@ h1,h2,h3{letter-spacing:-.2px}
 .nd.exn.done .c{background:var(--ok)!important}.nd.exn.lock .c{background:#e4ebe8!important}
 .unit{display:block;width:fit-content}
 @keyframes pulse{50%{box-shadow:0 5px 0 #c9d9d5,0 0 0 10px rgba(245,184,46,.3)}}
+
+/* ===== certificate + onboarding ===== */
+.dots{display:flex;gap:8px;justify-content:center;margin:6px 0 10px}.dots i{width:9px;height:9px;border-radius:50%;background:#cfe0dc;transition:all .2s}.dots i.on{width:26px;border-radius:6px;background:var(--g)}
+.cert2{background:#fffdf7;border:3px solid #c9962b;border-radius:14px;padding:8px;margin-top:14px;box-shadow:var(--sh);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.cin{border:2px solid #c9962b;border-radius:8px;padding:22px 14px;text-align:center;background:radial-gradient(circle at 50% 0,#fff4d6,transparent 62%)}
+.ck{color:#7a5a12;font-weight:800}.ct2{font-size:2.1rem;color:#0f766e;margin:6px 0 2px}.cs{color:#5f7673;font-size:.95rem}
+.cp{margin-top:14px;color:#3c4f4c}.cname2{font-size:2rem;color:#0f766e;margin:8px 0;border-bottom:2px dashed #c9962b;display:inline-block;padding:0 18px 6px}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin:16px 0;text-align:right;font-size:.82rem}.cgrid div{display:flex;justify-content:space-between;gap:6px;padding:5px 0;border-bottom:1px dotted #e3d3a6}
+.cfoot{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-top:12px}.cfoot>div{flex:1;display:flex;flex-direction:column;gap:2px;font-size:.8rem;text-align:center}.cfoot small{color:#6b7a77}
+.sig{font-size:1rem;border-top:1px solid #7a5a12;padding-top:4px;margin-top:10px}.seal{width:78px;height:78px;flex:none}
+@media print{@page{size:A4 landscape;margin:8mm}.cert2{margin:0;box-shadow:none;page-break-inside:avoid}body{background:#fff!important}}
 </style>
 </head>
 <body>
@@ -250,6 +261,7 @@ function done(c){
 }
 const tot = () => Object.values(S.progress || {}).reduce((a, b) => a + b, 0);
 function home(){
+  if(!localStorage.getItem('eb_onb') && !Object.keys(S.progress || {}).length && !Object.keys(S.exams || {}).length) return onboard();
   const L = S.lessons, EX = S.exams || {}, P = S.progress || {}, pl = S.placed || 1;
   const locked = i => { if(i === 0 || L[i].unit < pl) return false; const pv = L[i - 1]; if(pv.unit < L[i].unit) return !(L[i].unit === pl || (P[pv.id] >= 1 && (EX[pv.unit] || {}).passed)); return !(P[pv.id] >= 1); };
   const curI = L.findIndex((x, i) => x.unit >= pl && !(P[x.id] >= 1) && !locked(i));
@@ -381,15 +393,33 @@ function placeResult(p){
   $('#done').onclick = async () => { try { Object.assign(S, await api('login')); } catch(e){} home(); };
   if(p > 1) confetti();
 }
-function cert(){
+const ISSUER = { school: 'متوسطة المنذر بن عمرو الأنصاري', sign: 'الأستاذ نواف الصبحي' }; // غيّر اسم المدرسة والموقّع هنا
+async function cert(){
   const U = S.units || {}, EX = S.exams || {}, ids = Object.keys(U);
+  let c; try { c = await api('cert_issue'); } catch(e){ alert('تعذر إصدار الشهادة، حاول مرة أخرى'); return; }
   const taken = ids.filter(u => !(EX[u] || {}).placed), avg = taken.length ? Math.round(taken.reduce((a, u) => a + ((EX[u] || {}).best || 0), 0) / taken.length) : 100;
   const lv = avg >= 90 ? 'ممتاز' : avg >= 80 ? 'جيد جدًا' : 'جيد';
-  view(`<div class="scroll"><div class="cert"><div style="font-size:3rem">🎓</div><h1>شهادة إتمام</h1><p style="margin-top:8px">تشهد منصة English Buddy أن الطالب</p><h2 class="cname">${esc(S.name || '')}</h2><p style="line-height:1.9">أتمّ بنجاح مسار اللغة الإنجليزية (100 درس و${ids.length} اختبارات وحدات) بتقدير <b>${lv}</b> ومعدل <b class="en">${avg}%</b></p>
-  <table class="ct">${ids.map(u => `<tr><td>الوحدة ${u}: ${esc(U[u])}</td><td class="en">${(EX[u] || {}).placed ? 'معفى' : ((EX[u] || {}).best || 0) + '%'}</td></tr>`).join('')}</table><p class="mut">${new Date().toLocaleDateString('ar-SA')}</p></div></div>
+  const d = new Date(c.at), fmt = (loc) => d.toLocaleDateString(loc, { day:'numeric', month:'long', year:'numeric' });
+  view(`<div class="scroll"><div class="cert2"><div class="cin">
+  <p class="ck">${esc(ISSUER.school)}</p><h1 class="ct2">شهادة إتمام</h1><p class="cs">مسار اللغة الإنجليزية — English Buddy</p>
+  <p class="cp">تشهد المدرسة بأن الطالب</p><h2 class="cname2">${esc(S.name || '')}</h2>
+  <p class="cp" style="line-height:2">قد أتمّ بنجاح المسار الكامل (100 درس و${ids.length} اختبارات وحدات) بتقدير <b>${lv}</b> ومعدل عام <b class="en">${avg}%</b></p>
+  <div class="cgrid">${ids.map(u => `<div><span>${u}. ${esc(U[u])}</span><b class="en">${(EX[u] || {}).placed ? 'معفى' : ((EX[u] || {}).best || 0) + '%'}</b></div>`).join('')}</div>
+  <div class="cfoot"><div><small>التاريخ</small><b>${fmt('ar-SA-u-ca-islamic')}</b><small>${fmt('ar-SA-u-ca-gregory')}</small></div>
+  <svg class="seal" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="47" fill="#c9962b"/><circle cx="50" cy="50" r="39" fill="none" stroke="#fff" stroke-width="2"/><polygon fill="#fff" points="50,18 58,40 82,40 63,54 70,78 50,64 30,78 37,54 18,40 42,40"/></svg>
+  <div><small>وكيل شؤون الطلاب</small><b class="sig">${esc(ISSUER.sign)}</b><small class="en" dir="ltr">${esc(c.serial)}</small></div></div></div></div></div>
   <div class="foot"><button class="btn alt" id="done">الرئيسية</button><button class="btn" id="pr">طباعة / حفظ PDF</button></div>`);
   $('#done').onclick = home; $('#pr').onclick = () => print();
   confetti();
+}
+function onboard(){
+  const SL = [['🦉','أهلًا بك في English Buddy','100 درس في 10 وحدات تأخذك خطوة بخطوة من الأساسيات حتى القراءة والمحادثة.'],['💬','كيف تتعلم؟','في كل درس: كلمات بالصوت، ثم قاعدة وحوار، ثم محادثة مع المعلم الذكي، ثم اختبار قصير.'],['🎓','اجمع النجوم واحصل على شهادتك','أنهِ كل درس بنجمة أو أكثر، واجتز اختبار كل وحدة، وحافظ على سلسلة أيامك 🔥، لتنال شهادة الإتمام.']];
+  let i = 0;
+  const fin = () => { localStorage.setItem('eb_onb', '1'); home(); };
+  const draw = () => { const s = SL[i];
+    view(`<div class="hero"><div class="logo">${s[0]}</div><h1>${s[1]}</h1></div><div class="sheet scroll"><p style="font-size:1.2rem;line-height:2;text-align:center">${s[2]}</p><div class="dots">${SL.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div><button class="btn" id="on">${i === 2 ? 'ابدأ رحلتك' : 'التالي'}</button><button class="btn alt" id="osk">تخطّي</button></div>`);
+    $('#on').onclick = () => { if(i < 2){ i++; draw(); } else fin(); }; $('#osk').onclick = fin; };
+  draw();
 }
 function examIntro(u){
   view(`${bar(0, 1)}<div class="scroll"><div class="card" style="margin-top:10px"><h2>اختبار الوحدة ${u}</h2><p style="line-height:2.1;margin-top:8px">• 16 سؤالًا ${u === 10 ? 'من جميع وحدات المسار' : 'من دروس الوحدة'}<br>• لا تظهر النتيجة إلا بعد التسليم<br>• درجة النجاح 70%<br>• يمكنك الإعادة بأسئلة مختلفة<br>• لا تخرج أثناء الاختبار</p></div></div><div class="foot"><button class="btn" id="go">ابدأ الاختبار</button></div>`);
