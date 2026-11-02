@@ -159,6 +159,7 @@ h1,h2,h3{letter-spacing:-.2px}
 .cfoot{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-top:12px}.cfoot>div{flex:1;display:flex;flex-direction:column;gap:2px;font-size:.8rem;text-align:center}.cfoot small{color:#6b7a77}
 .sig{font-size:1rem;border-top:1px solid #7a5a12;padding-top:4px;margin-top:10px}.seal{width:78px;height:78px;flex:none}
 @media print{@page{size:A4 landscape;margin:8mm}.cert2{margin:0;box-shadow:none;page-break-inside:avoid}body{background:#fff!important}}
+.guide{background:#fff8e0;border:2px solid #f5d98a;border-radius:16px;padding:12px 14px;line-height:1.9}.guide ol{margin:6px 0 0;padding-right:20px}.or{text-align:center;color:#5f7673;margin:2px 0}
 </style>
 </head>
 <body>
@@ -201,13 +202,13 @@ function installHelp(){
 }
 function login(){
   view(`<div class="hero"><div class="logo">🦉</div><h1 class="en">English Buddy</h1><p>تعلّم الإنجليزية خطوة بخطوة</p></div>
-  <div class="sheet scroll">${installCard()}<label for="code">رمز الدخول</label><textarea id="code" class="code en" rows="1" dir="ltr" enterkeyhint="go" aria-label="رمز الدخول" placeholder="CODE"></textarea>
-  <button class="btn" id="go">ابدأ</button><p class="err" id="err" role="alert"></p><button class="btn alt" id="newreg">ليس لدي رقم؟ سجّل الآن</button><button class="btn alt" id="contactbtn">✉️ راسل المشرف</button><p class="copy">جميع الحقوق محفوظة 2026<br>تطوير الأستاذ نواف الصبحي</p></div>`);
+  <div class="sheet scroll">${installCard()}<div class="guide"><b>🆕 أول مرة تدخل؟ سجّل في 3 خطوات</b><ol><li>اضغط الزر الأصفر <b>«أنا جديد — سجّلني»</b></li><li>اكتب <b>اسمك الثلاثي</b> واختر <b>صفك</b></li><li>سيظهر لك <b>رقمك السري (6 أرقام)</b>، صوّره أو اكتبه، فهو مفتاح دخولك دائمًا</li></ol></div><button class="btn y" id="newreg">🆕 أنا جديد — سجّلني</button><p class="or">— أو —</p><label for="code">عندي رقم سري (6 أرقام)</label><textarea id="code" class="code en" rows="1" dir="ltr" enterkeyhint="go" aria-label="رمز الدخول" placeholder="CODE"></textarea>
+  <button class="btn" id="go">ابدأ</button><p class="err" id="err" role="alert"></p><button class="btn alt" id="contactbtn">✉️ راسل المشرف</button><p class="copy">جميع الحقوق محفوظة 2026<br>تطوير الأستاذ نواف الصبحي</p></div>`);
   const go = async () => {
     S.code = norm($('#code').value); if(!S.code) return;
     $('#go').disabled = true; $('#err').textContent = '';
     try { Object.assign(S, await api('login')); localStorage.setItem('eb_code', S.code); home(); }
-    catch(e){ $('#go').disabled = false; $('#err').textContent = e.error === 'slow' ? 'محاولات كثيرة، انتظر قليلًا ثم أعد المحاولة' : e.error === 'unknown_code' ? 'الرقم غير صحيح، اسأل معلمك' : 'تعذر الاتصال، حاول مرة أخرى'; }
+    catch(e){ $('#go').disabled = false; $('#err').textContent = e.error === 'slow' ? 'محاولات كثيرة، انتظر قليلًا ثم أعد المحاولة' : e.error === 'unknown_code' ? 'هذا الرقم غير صحيح. اكتب رقمك السري (6 أرقام) الذي ظهر لك بعد التسجيل. وإن كنت جديدًا فاضغط «أنا جديد — سجّلني».' : 'تعذر الاتصال، حاول مرة أخرى'; }
   };
   bindInstall(); $('#newreg').onclick = register; $('#contactbtn').onclick = contact; $('#go').onclick = go; $('#code').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); go(); } };
   $('#code').value = localStorage.getItem('eb_code') || '';
@@ -238,9 +239,9 @@ function contact(){
 function register(){
   let grade = 0;
   view(`<div class="hero"><div class="logo">🦉</div><h1>تسجيل جديد</h1><p>سجّل مرة واحدة واحصل على رقمك</p></div>
-  <div class="scroll"><div class="sheet" style="padding:22px 0"><label for="nm">الاسم الثلاثي</label><textarea id="nm" class="code field" rows="1" dir="auto" placeholder="مثال: أحمد محمد علي"></textarea>
+  <div class="scroll"><div class="sheet" style="padding:22px 0"><div class="guide"><b>خطوتان فقط</b><ol><li>اكتب <b>اسمك الثلاثي</b> واختر <b>صفك</b></li><li>اضغط <b>«سجّلني»</b> فيظهر رقمك السري للدخول</li></ol></div><label for="nm">الاسم الثلاثي</label><textarea id="nm" class="code field" rows="1" dir="auto" placeholder="مثال: أحمد محمد علي"></textarea>
   <label>الصف</label><div class="grades">${['أول','ثاني','ثالث'].map((g, i) => `<button type="button" class="btn alt" data-g="${i + 1}">${g}</button>`).join('')}</div>
-  <label for="rg">رمز التسجيل (يعطيك إياه معلمك)</label><textarea id="rg" class="code field" rows="1" dir="ltr" autocapitalize="off"></textarea>
+  
   <button class="btn" id="reg">سجّلني</button><p class="err" id="err" role="alert"></p><button class="btn alt" id="back">لدي رقم بالفعل</button></div></div>`);
   document.querySelectorAll('[data-g]').forEach(b => b.onclick = () => { grade = +b.dataset.g; document.querySelectorAll('[data-g]').forEach(x => x.classList.toggle('on', x === b)); });
   $('#back').onclick = login;
@@ -248,13 +249,13 @@ function register(){
     const name = $('#nm').value.replace(/\s+/g, ' ').trim(), err = $('#err');
     if(name.split(' ').length < 3 || !grade){ err.textContent = 'اكتب الاسم الثلاثي واختر الصف'; return; }
     $('#reg').disabled = true; err.textContent = '';
-    try { const r = await api('register', { name, grade, reg:$('#rg').value }); S.code = r.code; localStorage.setItem('eb_code', r.code); done(r.code); }
-    catch(e){ $('#reg').disabled = false; err.textContent = { bad_input:'اكتب الاسم الثلاثي بالحروف فقط', bad_reg:'رمز التسجيل غير صحيح', exists:'هذا الاسم مسجّل مسبقًا، اسأل معلمك عن رقمك', busy:'الخدمة مزدحمة، حاول لاحقًا' }[e.error] || 'تعذر الاتصال، حاول مرة أخرى'; }
+    try { const r = await api('register', { name, grade }); S.code = r.code; localStorage.setItem('eb_code', r.code); done(r.code); }
+    catch(e){ $('#reg').disabled = false; err.textContent = { bad_input:'اكتب الاسم الثلاثي بالحروف فقط', exists:'هذا الاسم مسجّل مسبقًا، اسأل معلمك عن رقمك', busy:'الخدمة مزدحمة، حاول لاحقًا' }[e.error] || 'تعذر الاتصال، حاول مرة أخرى'; }
   };
 }
 function done(c){
   view(`<div class="hero"><div class="logo">🎉</div><h1>تم تسجيلك!</h1><p>هذا رقمك السري للدخول</p></div>
-  <div class="sheet"><div class="bigcode" id="bc">${esc(c)}</div><p class="mut">صوّر الشاشة أو اكتب الرقم الآن، فهو مفتاح دخولك دائمًا.</p>
+  <div class="sheet"><div class="bigcode" id="bc">${esc(c)}</div><p class="mut" style="line-height:1.8">هذا هو <b>رقم دخولك السري</b>. صوّر الشاشة أو اكتبه الآن، وستستخدمه في كل مرة تدخل فيها.</p>
   <button class="btn alt" id="cp">نسخ الرقم</button><button class="btn" id="st">ابدأ التعلّم</button></div>`);
   $('#cp').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(c); $('#cp').textContent = 'تم النسخ ✓'; };
   $('#st').onclick = async () => { try { Object.assign(S, await api('login')); home(); } catch(e){ login(); } };
