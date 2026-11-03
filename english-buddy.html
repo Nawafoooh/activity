@@ -86,6 +86,7 @@ h1,h2,p{margin:0}
 @media print{.foot,.top{display:none!important}#app{height:auto;overflow:visible;max-width:none}.scroll{overflow:visible}}
 .inst{display:flex;align-items:center;gap:10px;background:#e0f2ef;border:2px solid #b7ddd7;border-radius:16px;padding:10px 12px;margin-bottom:12px}.inst>div{flex:1;display:flex;flex-direction:column}.inst small{color:#3d6a65}.inst .btn{width:auto;padding:10px 16px;font-size:.95rem}.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;z-index:20;padding:20px}.mbox{background:#fff;border-radius:20px;padding:22px;max-width:380px;width:100%}.mbox ol{line-height:2.1;padding-right:20px;margin:10px 0 16px}
 .copy{margin-top:auto;padding-top:18px;text-align:center;color:#5f7673;font-size:.85rem;line-height:1.8}
+.ann{background:#fff;border-radius:20px;box-shadow:var(--sh);padding:12px 14px;margin-bottom:12px}.ai{padding:8px 0;border-top:1px dashed var(--line)}.ai:first-of-type{border-top:0}.ai.cong{background:linear-gradient(90deg,#fff8e0,transparent);border-radius:12px;padding:8px}.ah{display:flex;justify-content:space-between;color:#5f7673;font-size:.85rem}.ah em{background:var(--no);color:#fff;border-radius:8px;padding:1px 7px;font-style:normal;font-size:.7rem}.ai p{margin-top:4px;line-height:1.8;white-space:pre-wrap}.award{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#fff3c4,#ffe08a);border-radius:20px;padding:14px;margin-bottom:12px;box-shadow:var(--sh)}.trophy{font-size:2.4rem;animation:bob 2s ease-in-out infinite}.award p{margin-top:2px}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
 .locked .opt{pointer-events:none}.fb[hidden]{display:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
@@ -271,6 +272,10 @@ function home(){
   const wkc = S.weakN ? `<button class="card les exam" id="wk" style="background:#fff6e0;border-color:#f5d98a"><span class="ic">🎯</span><span class="tx"><b>تمرين نقاط ضعفي</b><small>${S.weakN} سؤالًا أخطأت فيها، صحّحها الآن</small></span></button>` : '';
   const allPassed = Object.keys(S.units || {}).length && Object.keys(S.units).every(u => (EX[u] || {}).passed);
   const cc = allPassed ? '<button class="card les" id="certbtn" style="background:#e3f6ea;border-color:#16a34a"><span class="ic">🎓</span><span class="tx"><b>شهادة الإتمام جاهزة</b><small>اضغط لعرضها وطباعتها</small></span></button>' : '';
+  const ann = S.ann || [], seen = localStorage.getItem('eb_ann') || '', kindIc = { 'تهنئة': '🎉', 'إجابة': '💬' };
+  const annHtml = ann.length ? `<div class="ann"><b>📢 من المشرف</b>${ann.slice(0, 3).map((a, i) => `<div class="ai ${a.kind === 'تهنئة' ? 'cong' : ''}"><div class="ah"><span>${kindIc[a.kind] || '📌'} ${esc(a.kind)}</span><small>${a.at ? new Date(a.at).toLocaleDateString('ar-SA-u-ca-gregory', { day:'numeric', month:'short' }) : ''}${i === 0 && a.id !== seen ? ' <em>جديد</em>' : ''}</small></div><p>${esc(a.text)}</p></div>`).join('')}</div>` : '';
+  const awOn = S.award && Date.now() - Date.parse(S.award.week) < 17 * 864e5;
+  const awHtml = awOn ? `<div class="award"><div class="trophy">🏆</div><div><b>مبروك! أنت من أوائل الأسبوع</b><p>حققت المركز ${S.award.rank} بـ ${S.award.xp} نقطة. استمر في التألق!</p></div></div>` : '';
   const DX = [50, 74, 84, 74, 50, 26, 16, 26], STEP = 108;
   const section = u => {
     const items = L.map((l, i) => ({ l, i })).filter(x => x.l.unit === u), e = EX[u] || {};
@@ -286,8 +291,10 @@ function home(){
     return `<h3 class="unit">الوحدة ${u}: ${esc((S.units || {})[u] || '')}</h3><div class="jm" style="height:${H}px"><svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" vector-effect="non-scaling-stroke"/></svg>${nodes}${exn}</div>`;
   };
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div></div>
-  <div class="scroll">${plc}${installCard()}${stk}${cc}${wkc}${[...new Set(L.map(l => l.unit))].map(section).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>`);
-  const c = document.querySelector('.nd.cur'); if(c) c.scrollIntoView({ block:'center' });
+  <div class="scroll">${awHtml}${annHtml}${plc}${installCard()}${stk}${cc}${wkc}${[...new Set(L.map(l => l.unit))].map(section).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>`);
+  if(ann[0]) localStorage.setItem('eb_ann', ann[0].id);
+  if(awOn && localStorage.getItem('eb_aw') !== S.award.week){ localStorage.setItem('eb_aw', S.award.week); confetti(); }
+  const c = document.querySelector('.nd.cur'); if(c && !awOn) c.scrollIntoView({ block:'center' });
   bindInstall();
   if($('#msgbtn')) $('#msgbtn').onclick = contact;
   if($('#plgo')) $('#plgo').onclick = placeIntro;
