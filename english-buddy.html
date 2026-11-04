@@ -87,6 +87,7 @@ h1,h2,p{margin:0}
 .inst{display:flex;align-items:center;gap:10px;background:#e0f2ef;border:2px solid #b7ddd7;border-radius:16px;padding:10px 12px;margin-bottom:12px}.inst>div{flex:1;display:flex;flex-direction:column}.inst small{color:#3d6a65}.inst .btn{width:auto;padding:10px 16px;font-size:.95rem}.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;z-index:20;padding:20px}.mbox{background:#fff;border-radius:20px;padding:22px;max-width:380px;width:100%}.mbox ol{line-height:2.1;padding-right:20px;margin:10px 0 16px}
 .copy{margin-top:auto;padding-top:18px;text-align:center;color:#5f7673;font-size:.85rem;line-height:1.8}
 .ann{background:#fff;border-radius:20px;box-shadow:var(--sh);padding:12px 14px;margin-bottom:12px}.ai{padding:8px 0;border-top:1px dashed var(--line)}.ai:first-of-type{border-top:0}.ai.cong{background:linear-gradient(90deg,#fff8e0,transparent);border-radius:12px;padding:8px}.ah{display:flex;justify-content:space-between;color:#5f7673;font-size:.85rem}.ah em{background:var(--no);color:#fff;border-radius:8px;padding:1px 7px;font-style:normal;font-size:.7rem}.ai p{margin-top:4px;line-height:1.8;white-space:pre-wrap}.award{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#fff3c4,#ffe08a);border-radius:20px;padding:14px;margin-bottom:12px;box-shadow:var(--sh)}.trophy{font-size:2.4rem;animation:bob 2s ease-in-out infinite}.award p{margin-top:2px}
+.wotd{background:linear-gradient(135deg,#fff7df,#ffeaa8);border-radius:22px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--sh)}.wh{display:flex;justify-content:space-between;color:#7a5a12}.ww{display:flex;align-items:center;gap:10px;margin-top:6px;direction:ltr}.ww .en{font-size:2.2rem;font-weight:600}.wa{font-size:1.5rem;color:var(--g);font-weight:800;margin:2px 0 8px}.wx{background:rgba(255,255,255,.7);border-radius:14px;padding:10px 12px;margin-bottom:10px;text-align:left}.wx p{direction:rtl;text-align:right;color:#5f7673;margin-top:4px}.wdone{background:#d9f3e2;color:#15803d;border-radius:14px;padding:10px;text-align:center;font-weight:800}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
 .locked .opt{pointer-events:none}.fb[hidden]{display:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
@@ -262,13 +263,32 @@ function done(c){
   $('#st').onclick = async () => { try { Object.assign(S, await api('login')); home(); } catch(e){ login(); } };
 }
 const tot = () => Object.values(S.progress || {}).reduce((a, b) => a + b, 0);
+function wotdCard(){
+  const w = S.wotd; if(!w) return '';
+  return `<div class="wotd" id="wotd"><div class="wh"><b>🌟 كلمة اليوم</b><small>📚 ${S.wordsN || 0}</small></div>
+  <div class="ww"><button class="say" id="wsp1" aria-label="استماع">🔊</button><span class="en">${esc(w.en)}</span></div><p class="wa">${esc(w.ar)}</p>
+  <div class="wx"><div class="en" dir="ltr">${esc(w.ex)} <button class="say" id="wsp2" aria-label="استماع">🔊</button></div><p>${esc(w.exAr)}</p></div>
+  ${S.wotdDone ? '<div class="wdone">✅ أحسنت! عد غدًا لكلمة جديدة</div>' : '<button class="btn" id="wdone">✅ تعلّمتها</button>'}</div>`;
+}
+function bindWotd(){
+  const w = S.wotd; if(!w || !$('#wotd')) return;
+  $('#wsp1').onclick = () => say(w.en); $('#wsp2').onclick = () => say(w.ex);
+  const b = $('#wdone');
+  if(b) b.onclick = async () => {
+    b.disabled = true;
+    try { const r = await api('wotd_done'); S.wotdDone = true; S.wordsN = r.wordsN; S.streak = r.streak; S.doneToday = true;
+      $('#wotd').outerHTML = wotdCard(); bindWotd();
+      const p = document.querySelector('.top .pill'); if(p){ p.className = 'pill hot'; p.textContent = '🔥 ' + S.streak; }
+      confetti(); } catch(e){ b.disabled = false; }
+  };
+}
 function home(){
   if(!localStorage.getItem('eb_onb') && !Object.keys(S.progress || {}).length && !Object.keys(S.exams || {}).length) return onboard();
   const L = S.lessons, EX = S.exams || {}, P = S.progress || {}, pl = S.placed || 1;
   const locked = i => { if(i === 0 || L[i].unit < pl) return false; const pv = L[i - 1]; if(pv.unit < L[i].unit) return !(L[i].unit === pl || (P[pv.id] >= 1 && (EX[pv.unit] || {}).passed)); return !(P[pv.id] >= 1); };
   const curI = L.findIndex((x, i) => x.unit >= pl && !(P[x.id] >= 1) && !locked(i));
   const plc = !S.placed && !Object.keys(S.progress || {}).length && !Object.keys(EX).length ? '<div class="card" style="background:#e8f1ff;border-color:#b9d3ff;margin-bottom:12px"><b>🧭 اختبار تحديد المستوى</b><p class="mut" style="text-align:right;margin:4px 0 12px">تعرّف على مستواك وابدأ من الوحدة المناسبة بدل البداية.</p><button class="btn" id="plgo">ابدأ الاختبار</button><button class="btn alt" id="plskip" style="margin-top:8px">ابدأ من الوحدة الأولى</button></div>' : '';
-  const stk = S.streak && !S.doneToday ? `<p class="mut" style="text-align:right;margin:0 0 10px">🔥 سلسلتك ${S.streak} — أكمل درسًا اليوم للحفاظ عليها</p>` : '';
+  const stk = S.streak && !S.doneToday ? `<p class="mut" style="text-align:right;margin:0 0 10px">🔥 سلسلتك ${S.streak} — أكمل درسًا أو كلمة اليوم للحفاظ عليها</p>` : '';
   const wkc = S.weakN ? `<button class="card les exam" id="wk" style="background:#fff6e0;border-color:#f5d98a"><span class="ic">🎯</span><span class="tx"><b>تمرين نقاط ضعفي</b><small>${S.weakN} سؤالًا أخطأت فيها، صحّحها الآن</small></span></button>` : '';
   const allPassed = Object.keys(S.units || {}).length && Object.keys(S.units).every(u => (EX[u] || {}).passed);
   const cc = allPassed ? '<button class="card les" id="certbtn" style="background:#e3f6ea;border-color:#16a34a"><span class="ic">🎓</span><span class="tx"><b>شهادة الإتمام جاهزة</b><small>اضغط لعرضها وطباعتها</small></span></button>' : '';
@@ -291,11 +311,11 @@ function home(){
     return `<h3 class="unit">الوحدة ${u}: ${esc((S.units || {})[u] || '')}</h3><div class="jm" style="height:${H}px"><svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" vector-effect="non-scaling-stroke"/></svg>${nodes}${exn}</div>`;
   };
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div></div>
-  <div class="scroll">${awHtml}${annHtml}${plc}${installCard()}${stk}${cc}${wkc}${[...new Set(L.map(l => l.unit))].map(section).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>`);
+  <div class="scroll">${awHtml}${wotdCard()}${annHtml}${plc}${installCard()}${stk}${cc}${wkc}${[...new Set(L.map(l => l.unit))].map(section).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>`);
   if(ann[0]) localStorage.setItem('eb_ann', ann[0].id);
   if(awOn && localStorage.getItem('eb_aw') !== S.award.week){ localStorage.setItem('eb_aw', S.award.week); confetti(); }
   const c = document.querySelector('.nd.cur'); if(c && !awOn) c.scrollIntoView({ block:'center' });
-  bindInstall();
+  bindInstall(); bindWotd();
   if($('#msgbtn')) $('#msgbtn').onclick = contact;
   if($('#plgo')) $('#plgo').onclick = placeIntro;
   if($('#plskip')) $('#plskip').onclick = async () => { try { await api('place_skip'); S.placed = 1; home(); } catch(e){} };
