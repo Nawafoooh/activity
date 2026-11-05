@@ -162,6 +162,13 @@ h1,h2,h3{letter-spacing:-.2px}
 .sig{font-size:1rem;border-top:1px solid #7a5a12;padding-top:4px;margin-top:10px}.seal{width:78px;height:78px;flex:none}
 @media print{@page{size:A4 landscape;margin:8mm}.cert2{margin:0;box-shadow:none;page-break-inside:avoid}body{background:#fff!important}}
 .guide{background:#fff8e0;border:2px solid #f5d98a;border-radius:16px;padding:12px 14px;line-height:1.9}.guide ol{margin:6px 0 0;padding-right:20px}.or{text-align:center;color:#5f7673;margin:2px 0}
+
+/* ===== keep the daily zone first ===== */
+.scroll.hasr{padding-bottom:104px}
+.resume{position:fixed;bottom:0;left:50%;width:min(480px,100%);transform:translateX(-50%);padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,var(--bg) 38%);transition:transform .25s,opacity .25s;z-index:5}
+.resume.hide{transform:translate(-50%,120%);opacity:0;pointer-events:none}
+.wotd.todo{outline:3px solid #f5b82e;outline-offset:-3px;animation:wglow 2.4s ease-in-out infinite}
+@keyframes wglow{50%{box-shadow:0 0 0 8px rgba(245,184,46,.32)}}
 </style>
 </head>
 <body>
@@ -265,7 +272,7 @@ function done(c){
 const tot = () => Object.values(S.progress || {}).reduce((a, b) => a + b, 0);
 function wotdCard(){
   const w = S.wotd; if(!w) return '';
-  return `<div class="wotd" id="wotd"><div class="wh"><b>🌟 كلمة اليوم</b><small>📚 ${S.wordsN || 0}</small></div>
+  return `<div class="wotd ${S.wotdDone ? '' : 'todo'}" id="wotd"><div class="wh"><b>🌟 كلمة اليوم</b><small>📚 ${S.wordsN || 0}</small></div>
   <div class="ww"><button class="say" id="wsp1" aria-label="استماع">🔊</button><span class="en">${esc(w.en)}</span></div><p class="wa">${esc(w.ar)}</p>
   <div class="wx"><div class="en" dir="ltr">${esc(w.ex)} <button class="say" id="wsp2" aria-label="استماع">🔊</button></div><p>${esc(w.exAr)}</p></div>
   ${S.wotdDone ? '<div class="wdone">✅ أحسنت! عد غدًا لكلمة جديدة</div>' : '<button class="btn" id="wdone">✅ تعلّمتها</button>'}</div>`;
@@ -283,7 +290,9 @@ function bindWotd(){
   };
 }
 function home(){
+  const first = !S.landed;
   if(!localStorage.getItem('eb_onb') && !Object.keys(S.progress || {}).length && !Object.keys(S.exams || {}).length) return onboard();
+  S.landed = true;
   const L = S.lessons, EX = S.exams || {}, P = S.progress || {}, pl = S.placed || 1;
   const locked = i => { if(i === 0 || L[i].unit < pl) return false; const pv = L[i - 1]; if(pv.unit < L[i].unit) return !(L[i].unit === pl || (P[pv.id] >= 1 && (EX[pv.unit] || {}).passed)); return !(P[pv.id] >= 1); };
   const curI = L.findIndex((x, i) => x.unit >= pl && !(P[x.id] >= 1) && !locked(i));
@@ -296,6 +305,8 @@ function home(){
   const annHtml = ann.length ? `<div class="ann"><b>📢 من المشرف</b>${ann.slice(0, 3).map((a, i) => `<div class="ai ${a.kind === 'تهنئة' ? 'cong' : ''}"><div class="ah"><span>${kindIc[a.kind] || '📌'} ${esc(a.kind)}</span><small>${a.at ? new Date(a.at).toLocaleDateString('ar-SA-u-ca-gregory', { day:'numeric', month:'short' }) : ''}${i === 0 && a.id !== seen ? ' <em>جديد</em>' : ''}</small></div><p>${esc(a.text)}</p></div>`).join('')}</div>` : '';
   const awOn = S.award && Date.now() - Date.parse(S.award.week) < 17 * 864e5;
   const awHtml = awOn ? `<div class="award"><div class="trophy">🏆</div><div><b>مبروك! أنت من أوائل الأسبوع</b><p>حققت المركز ${S.award.rank} بـ ${S.award.xp} نقطة. استمر في التألق!</p></div></div>` : '';
+  const resumeBar = curI >= 0 ? `<div class="resume" id="resbar"><button class="btn y" id="resume">▶ تابع درسك: ${esc(L[curI].ar)}</button></div>` : '';
+  const srsCard = S.srsN ? `<button class="card les" id="srsbtn" style="background:#e8f1ff"><span class="ic">🔁</span><span class="tx"><b>مراجعتي اليومية</b><small>${S.srsN} سؤالًا جاهزًا لتثبيت ما تعلّمته</small></span></button>` : '';
   const DX = [50, 74, 84, 74, 50, 26, 16, 26], STEP = 108;
   const section = u => {
     const items = L.map((l, i) => ({ l, i })).filter(x => x.l.unit === u), e = EX[u] || {};
@@ -311,14 +322,21 @@ function home(){
     return `<h3 class="unit">الوحدة ${u}: ${esc((S.units || {})[u] || '')}</h3><div class="jm" style="height:${H}px"><svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" vector-effect="non-scaling-stroke"/></svg>${nodes}${exn}</div>`;
   };
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div></div>
-  <div class="scroll">${awHtml}${wotdCard()}${annHtml}${plc}${installCard()}${stk}${cc}${wkc}${[...new Set(L.map(l => l.unit))].map(section).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>`);
+  <div class="scroll ${curI >= 0 ? 'hasr' : ''}">${awHtml}${wotdCard()}${srsCard}${annHtml}${plc}${installCard()}${stk}${cc}${wkc}${[...new Set(L.map(l => l.unit))].map(section).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>${resumeBar}`);
+  const pending = (S.wotd && !S.wotdDone) || (ann[0] && ann[0].id !== seen) || (awOn && localStorage.getItem('eb_aw') !== S.award.week);
   if(ann[0]) localStorage.setItem('eb_ann', ann[0].id);
   if(awOn && localStorage.getItem('eb_aw') !== S.award.week){ localStorage.setItem('eb_aw', S.award.week); confetti(); }
-  const c = document.querySelector('.nd.cur'); if(c && !awOn) c.scrollIntoView({ block:'center' });
+  const c = document.querySelector('.nd.cur');
+  if(c && !first && !pending) c.scrollIntoView({ block:'center' });
+  if(c && $('#resume')){
+    $('#resume').onclick = () => c.scrollIntoView({ behavior:'smooth', block:'center' });
+    if('IntersectionObserver' in window) new IntersectionObserver(([e]) => $('#resbar') && $('#resbar').classList.toggle('hide', e.isIntersecting), { root: document.querySelector('.scroll'), threshold: .6 }).observe(c);
+  }
   bindInstall(); bindWotd();
   if($('#msgbtn')) $('#msgbtn').onclick = contact;
   if($('#plgo')) $('#plgo').onclick = placeIntro;
   if($('#plskip')) $('#plskip').onclick = async () => { try { await api('place_skip'); S.placed = 1; home(); } catch(e){} };
+  if($('#srsbtn')) $('#srsbtn').onclick = srsStart;
   if($('#wk')) $('#wk').onclick = practice;
   if($('#certbtn')) $('#certbtn').onclick = cert;
   document.querySelectorAll('.nd[data-id]').forEach(b => b.onclick = () => openLesson(b.dataset.id));
@@ -513,6 +531,35 @@ function practiceDone(){
   view(`<div class="scroll"><div style="text-align:center;padding:40px 0 10px"><div class="logo" style="margin-bottom:10px">🎯</div><h2>أحسنت!</h2><p style="margin-top:8px">صحّحت ${p.fixed} من ${p.qs.length} أسئلة</p><p class="mut">${S.weakN ? 'بقي ' + S.weakN + ' سؤالًا للتمرين' : 'لا توجد نقاط ضعف الآن 🎉'}</p></div></div><div class="foot">${S.weakN ? '<button class="btn alt" id="more">تمرين آخر</button>' : ''}<button class="btn" id="done">الرئيسية</button></div>`);
   $('#done').onclick = home; if($('#more')) $('#more').onclick = practice;
   if(!S.weakN) confetti();
+}
+async function srsStart(){
+  try { const r = await api('srs_start'); if(!r.questions.length){ S.srsN = 0; return home(); } S.sr = { qs:r.questions, i:0, ok:0 }; srsQ(); }
+  catch(e){ alert('تعذر الاتصال، حاول مرة أخرى'); }
+}
+function srsQ(){
+  const p = S.sr, q = p.qs[p.i], n = p.qs.length; let checked = false, timer = null;
+  view(`${bar(p.i, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">🔁 مراجعتي اليومية — ${p.i + 1} من ${n}</p><p class="q en${q.q.length > 90 ? ' long' : ''}">${esc(q.q)}</p>${q.options.map((o, i) => `<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</div><div class="fb" id="fb" hidden></div>`);
+  $('#home').onclick = home;
+  const next = () => { clearTimeout(timer); p.i++; if(p.i < n) srsQ(); else srsDone(); };
+  document.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
+    if(checked) return; checked = true; b.classList.add('sel'); $('#sc').classList.add('locked');
+    try {
+      const r = await api('srs_check', { id:q.id, pick:q.options[+b.dataset.i] }); S.srsN = r.left;
+      if(r.ok){ p.ok++; S.streak = r.streak; S.doneToday = true; }
+      const opts = [...document.querySelectorAll('.opt')]; opts.forEach(o => o.classList.remove('sel'));
+      opts[q.options.indexOf(r.right)].classList.add('good'); if(!r.ok) b.classList.add('bad');
+      if(navigator.vibrate) navigator.vibrate(r.ok ? 25 : [40, 40, 40]);
+      const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
+      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(r.right)}</span>`}</div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
+      $('#nx').onclick = next; if(r.ok) timer = setTimeout(next, 900);
+    } catch(e){ checked = false; b.classList.remove('sel'); $('#sc').classList.remove('locked'); }
+  });
+}
+function srsDone(){
+  const p = S.sr;
+  view(`<div class="scroll"><div style="text-align:center;padding:40px 0 10px"><div class="logo" style="margin-bottom:10px">🔁</div><h2>أحسنت! أنهيت المراجعة</h2><p style="margin-top:8px">أجبت صحيحًا عن ${p.ok} من ${p.qs.length}</p><p class="mut" style="margin-top:6px;line-height:1.8">الأسئلة التي أصبتها ستعود إليك بعد أيام لتثبّتها، والتي أخطأت فيها ستعود غدًا.</p><p class="mut">${S.srsN ? 'بقي ' + S.srsN + ' سؤالًا جاهزًا' : 'لا توجد مراجعة أخرى اليوم 🎉'}</p></div></div><div class="foot">${S.srsN ? '<button class="btn alt" id="more">مراجعة أخرى</button>' : ''}<button class="btn" id="done">الرئيسية</button></div>`);
+  $('#done').onclick = home; if($('#more')) $('#more').onclick = srsStart;
+  if(!S.srsN) confetti();
 }
 function startQuiz(){ S.ans = []; S.qi = 0; question(); }
 function question(){
