@@ -88,6 +88,7 @@ h1,h2,p{margin:0}
 .copy{margin-top:auto;padding-top:18px;text-align:center;color:#5f7673;font-size:.85rem;line-height:1.8}
 .ann{background:#fff;border-radius:20px;box-shadow:var(--sh);padding:12px 14px;margin-bottom:12px}.ai{padding:8px 0;border-top:1px dashed var(--line)}.ai:first-of-type{border-top:0}.ai.cong{background:linear-gradient(90deg,#fff8e0,transparent);border-radius:12px;padding:8px}.ah{display:flex;justify-content:space-between;color:#5f7673;font-size:.85rem}.ah em{background:var(--no);color:#fff;border-radius:8px;padding:1px 7px;font-style:normal;font-size:.7rem}.ai p{margin-top:4px;line-height:1.8;white-space:pre-wrap}.award{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#fff3c4,#ffe08a);border-radius:20px;padding:14px;margin-bottom:12px;box-shadow:var(--sh)}.trophy{font-size:2.4rem;animation:bob 2s ease-in-out infinite}.award p{margin-top:2px}
 .wotd{background:linear-gradient(135deg,#fff7df,#ffeaa8);border-radius:22px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--sh)}.wh{display:flex;justify-content:space-between;color:#7a5a12}.ww{display:flex;align-items:center;gap:10px;margin-top:6px;direction:ltr}.ww .en{font-size:2.2rem;font-weight:600}.wa{font-size:1.5rem;color:var(--g);font-weight:800;margin:2px 0 8px}.wx{background:rgba(255,255,255,.7);border-radius:14px;padding:10px 12px;margin-bottom:10px;text-align:left}.wx p{direction:rtl;text-align:right;color:#5f7673;margin-top:4px}.wdone{background:#d9f3e2;color:#15803d;border-radius:14px;padding:10px;text-align:center;font-weight:800}
+.opt.ar{direction:rtl;text-align:right;font-family:Tajawal,sans-serif}.lbig{width:112px;height:112px;border-radius:50%;background:var(--g);color:#fff;font-size:3.2rem;box-shadow:0 6px 0 var(--g2);margin:18px auto 8px;display:grid;place-items:center;cursor:pointer}.lbig:active{transform:translateY(3px);box-shadow:0 3px 0 var(--g2)}.lslow{display:block;margin:0 auto 14px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:6px 16px;font-size:.95rem}
 .opt.good{border-color:var(--ok);background:#e3f6ea;box-shadow:0 4px 0 var(--ok)}.opt.bad{border-color:var(--no);background:#fde8e1;box-shadow:0 4px 0 var(--no);animation:shake .35s}
 .locked .opt{pointer-events:none}.fb[hidden]{display:none}
 .fb{display:flex;align-items:center;gap:12px;padding:14px 18px 18px;transition:background .2s}.fb .btn{flex:0 0 42%}.fb>.btn:only-child{flex:1}
@@ -181,7 +182,7 @@ const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 const norm = t => t.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8);
 const star = (n, t = 3) => '★'.repeat(n) + '☆'.repeat(t - n);
 const view = h => { app.innerHTML = h; };
-function say(t){ if(!window.speechSynthesis) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = .85; speechSynthesis.speak(u); }
+function say(t, r){ if(!window.speechSynthesis) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = r || .85; speechSynthesis.speak(u); }
 async function api(action, extra = {}){
   const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action, code:S.code, lid:S.lid, ...extra }) });
   const j = await r.json().catch(() => ({})); if(!r.ok) throw j; return j;
@@ -307,6 +308,7 @@ function home(){
   const awHtml = awOn ? `<div class="award"><div class="trophy">🏆</div><div><b>مبروك! أنت من أوائل الأسبوع</b><p>حققت المركز ${S.award.rank} بـ ${S.award.xp} نقطة. استمر في التألق!</p></div></div>` : '';
   const resumeBar = curI >= 0 ? `<div class="resume" id="resbar"><button class="btn y" id="resume">▶ تابع درسك: ${esc(L[curI].ar)}</button></div>` : '';
   const srsCard = S.srsN ? `<button class="card les" id="srsbtn" style="background:#e8f1ff"><span class="ic">🔁</span><span class="tx"><b>مراجعتي اليومية</b><small>${S.srsN} سؤالًا جاهزًا لتثبيت ما تعلّمته</small></span></button>` : '';
+  const lisCard = Object.values(P).some(v => v >= 1) ? '<button class="card les" id="lisbtn" style="background:#f1ecff"><span class="ic">🎧</span><span class="tx"><b>تمرين الاستماع</b><small>استمع واختر المعنى الصحيح</small></span></button>' : '';
   const DX = [50, 74, 84, 74, 50, 26, 16, 26], STEP = 108;
   const section = u => {
     const items = L.map((l, i) => ({ l, i })).filter(x => x.l.unit === u), e = EX[u] || {};
@@ -322,7 +324,7 @@ function home(){
     return `<h3 class="unit">الوحدة ${u}: ${esc((S.units || {})[u] || '')}</h3><div class="jm" style="height:${H}px"><svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" vector-effect="non-scaling-stroke"/></svg>${nodes}${exn}</div>`;
   };
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div></div>
-  <div class="scroll ${curI >= 0 ? 'hasr' : ''}">${awHtml}${wotdCard()}${srsCard}${annHtml}${plc}${installCard()}${stk}${cc}${wkc}${[...new Set(L.map(l => l.unit))].map(section).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>${resumeBar}`);
+  <div class="scroll ${curI >= 0 ? 'hasr' : ''}">${awHtml}${wotdCard()}${srsCard}${lisCard}${annHtml}${plc}${installCard()}${stk}${cc}${wkc}${[...new Set(L.map(l => l.unit))].map(section).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>${resumeBar}`);
   const pending = (S.wotd && !S.wotdDone) || (ann[0] && ann[0].id !== seen) || (awOn && localStorage.getItem('eb_aw') !== S.award.week);
   if(ann[0]) localStorage.setItem('eb_ann', ann[0].id);
   if(awOn && localStorage.getItem('eb_aw') !== S.award.week){ localStorage.setItem('eb_aw', S.award.week); confetti(); }
@@ -337,6 +339,7 @@ function home(){
   if($('#plgo')) $('#plgo').onclick = placeIntro;
   if($('#plskip')) $('#plskip').onclick = async () => { try { await api('place_skip'); S.placed = 1; home(); } catch(e){} };
   if($('#srsbtn')) $('#srsbtn').onclick = srsStart;
+  if($('#lisbtn')) $('#lisbtn').onclick = listenStart;
   if($('#wk')) $('#wk').onclick = practice;
   if($('#certbtn')) $('#certbtn').onclick = cert;
   document.querySelectorAll('.nd[data-id]').forEach(b => b.onclick = () => openLesson(b.dataset.id));
@@ -560,6 +563,39 @@ function srsDone(){
   view(`<div class="scroll"><div style="text-align:center;padding:40px 0 10px"><div class="logo" style="margin-bottom:10px">🔁</div><h2>أحسنت! أنهيت المراجعة</h2><p style="margin-top:8px">أجبت صحيحًا عن ${p.ok} من ${p.qs.length}</p><p class="mut" style="margin-top:6px;line-height:1.8">الأسئلة التي أصبتها ستعود إليك بعد أيام لتثبّتها، والتي أخطأت فيها ستعود غدًا.</p><p class="mut">${S.srsN ? 'بقي ' + S.srsN + ' سؤالًا جاهزًا' : 'لا توجد مراجعة أخرى اليوم 🎉'}</p></div></div><div class="foot">${S.srsN ? '<button class="btn alt" id="more">مراجعة أخرى</button>' : ''}<button class="btn" id="done">الرئيسية</button></div>`);
   $('#done').onclick = home; if($('#more')) $('#more').onclick = srsStart;
   if(!S.srsN) confetti();
+}
+async function listenStart(){
+  if(!window.speechSynthesis){ alert('متصفحك لا يدعم تشغيل الصوت'); return; }
+  try { const r = await api('listen_start'); S.ls = { qs:r.questions, i:0, ok:0 }; listenQ(); }
+  catch(e){ alert(e.error === 'none' ? 'أكمل درسًا واحدًا أولًا لتبدأ تمارين الاستماع' : 'تعذر الاتصال، حاول مرة أخرى'); }
+}
+function listenQ(){
+  const p = S.ls, q = p.qs[p.i], n = p.qs.length; let checked = false, timer = null;
+  view(`${bar(p.i, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">🎧 تمرين الاستماع — ${p.i + 1} من ${n}</p><p class="q" style="direction:rtl;text-align:right;font-size:1.25rem">${esc(q.q)}</p>
+  <button class="lbig" id="play" aria-label="استماع">🔊</button><button class="lslow" id="slow">🐢 أبطأ</button>
+  ${q.options.map((o, i) => `<button class="opt ar" data-i="${i}">${esc(o)}</button>`).join('')}</div><div class="fb" id="fb" hidden></div>`);
+  $('#home').onclick = home; $('#play').onclick = () => say(q.audio); $('#slow').onclick = () => say(q.audio, .55);
+  setTimeout(() => say(q.audio), 300);
+  const next = () => { clearTimeout(timer); speechSynthesis.cancel(); p.i++; if(p.i < n) listenQ(); else listenDone(); };
+  document.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
+    if(checked) return; checked = true; b.classList.add('sel'); $('#sc').classList.add('locked');
+    try {
+      const r = await api('listen_check', { id:q.id, pick:q.options[+b.dataset.i] });
+      if(r.ok){ p.ok++; S.streak = r.streak; S.doneToday = true; }
+      const opts = [...document.querySelectorAll('.opt')]; opts.forEach(o => o.classList.remove('sel'));
+      opts[q.options.indexOf(r.right)].classList.add('good'); if(!r.ok) b.classList.add('bad');
+      if(navigator.vibrate) navigator.vibrate(r.ok ? 25 : [40, 40, 40]);
+      const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
+      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b><small>سمعتَ:</small><span class="en">${esc(r.en)}</span></div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
+      $('#nx').onclick = next; if(r.ok) timer = setTimeout(next, 1600);
+    } catch(e){ checked = false; b.classList.remove('sel'); $('#sc').classList.remove('locked'); }
+  });
+}
+function listenDone(){
+  const p = S.ls;
+  view(`<div class="scroll"><div style="text-align:center;padding:40px 0 10px"><div class="logo" style="margin-bottom:10px">🎧</div><h2>أحسنت! أنهيت تمرين الاستماع</h2><p style="margin-top:8px">أجبت صحيحًا عن ${p.ok} من ${p.qs.length}</p><p class="mut" style="margin-top:6px;line-height:1.8">كرّر التمرين كل يوم، فالأذن تتدرّب كما تتدرّب العين.</p></div></div><div class="foot"><button class="btn alt" id="more">تمرين آخر</button><button class="btn" id="done">الرئيسية</button></div>`);
+  $('#done').onclick = home; $('#more').onclick = listenStart;
+  if(p.ok >= p.qs.length * .8) confetti();
 }
 function startQuiz(){ S.ans = []; S.qi = 0; question(); }
 function question(){
