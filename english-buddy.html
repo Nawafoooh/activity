@@ -171,6 +171,11 @@ h1,h2,h3{letter-spacing:-.2px}
 .resume.hide{transform:translate(-50%,120%);opacity:0;pointer-events:none}
 .wotd.todo{outline:3px solid #f5b82e;outline-offset:-3px;animation:wglow 2.4s ease-in-out infinite}
 @keyframes wglow{50%{box-shadow:0 0 0 8px rgba(245,184,46,.32)}}
+
+/* ===== collapsible units ===== */
+.uh{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;font:inherit;border:0;padding:11px 16px;border-radius:16px;margin:16px 0 8px;cursor:pointer;text-align:right;box-shadow:var(--sh)}
+.uh .us{font-size:.85rem;display:flex;gap:6px;align-items:center;white-space:nowrap}.uh i{font-style:normal;transition:transform .2s}
+.usec:not(.col) .uh i{transform:rotate(180deg)}.usec.col .jm{display:none}
 </style>
 </head>
 <body>
@@ -311,6 +316,7 @@ function home(){
   const srsCard = S.srsN ? `<button class="card les" id="srsbtn" style="background:#e8f1ff"><span class="ic">🔁</span><span class="tx"><b>مراجعتي اليومية</b><small>${S.srsN} سؤالًا جاهزًا لتثبيت ما تعلّمته</small></span></button>` : '';
   const lisCard = Object.values(P).some(v => v >= 1) ? '<button class="card les" id="lisbtn" style="background:#f1ecff"><span class="ic">🎧</span><span class="tx"><b>تمرين الاستماع</b><small>استمع واختر المعنى الصحيح</small></span></button>' : '';
   const wrtCard = Object.values(P).some(v => v >= 1) ? '<button class="card les" id="wrtbtn" style="background:#e9f7ee"><span class="ic">✍️</span><span class="tx"><b>تمرين الكتابة</b><small>اكتب بالإنجليزية ويصحّح لك المعلم</small></span></button>' : '';
+  const curUnit = curI >= 0 ? L[curI].unit : L[L.length - 1].unit;
   const DX = [50, 74, 84, 74, 50, 26, 16, 26], STEP = 108;
   const section = u => {
     const items = L.map((l, i) => ({ l, i })).filter(x => x.l.unit === u), e = EX[u] || {};
@@ -323,13 +329,15 @@ function home(){
       return `<button class="nd ${lock ? 'lock' : ''} ${st ? 'done' : ''} ${x.i === curI ? 'cur' : ''}" data-unit="${u}" data-id="${l.id}" ${lock ? 'disabled' : ''} style="left:${pts[k].x}%;top:${pts[k].y}px" aria-label="${esc(l.title)}"><span class="c">${lock ? '🔒' : l.icon}</span><span class="t">${esc(l.ar)}</span><span class="s en">${star(st)}</span>${x.i === curI ? '<span class="you">ابدأ من هنا</span>' : ''}</button>`; }).join('');
     const ex = pts[pts.length - 1];
     const exn = `<button class="nd exn ${ready ? '' : 'lock'} ${e.passed ? 'done' : ''}" data-u="${u}" ${ready ? '' : 'disabled'} style="left:${ex.x}%;top:${ex.y}px"><span class="c">${e.passed ? '✅' : ready ? '📝' : '🔒'}</span><span class="t">${e.placed ? 'معفى' : e.passed ? 'اختبار الوحدة ' + e.best + '%' : 'اختبار الوحدة'}</span></button>`;
-    return `<h3 class="unit">الوحدة ${u}: ${esc((S.units || {})[u] || '')}</h3><div class="jm" style="height:${H}px"><svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" vector-effect="non-scaling-stroke"/></svg>${nodes}${exn}</div>`;
+    const sec = items.map(x => x.l), stT = sec.reduce((a, l) => a + (P[l.id] || 0), 0);
+    return `<div class="usec ${u === curUnit ? '' : 'col'}"><button class="unit uh" type="button" aria-expanded="${u === curUnit}"><span>الوحدة ${u}: ${esc((S.units || {})[u] || '')}</span><span class="us en">${e.passed ? '✅ ' : ''}★ ${stT}/${sec.length * 3} <i>⌄</i></span></button><div class="jm" style="height:${H}px"><svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" vector-effect="non-scaling-stroke"/></svg>${nodes}${exn}</div></div>`;
   };
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${tot()} / ${L.length * 3}</div></div></div>
   <div class="scroll ${curI >= 0 ? 'hasr' : ''}">${awHtml}${wotdCard()}${srsCard}${lisCard}${wrtCard}${annHtml}${plc}${installCard()}${stk}${cc}${wkc}${[...new Set(L.map(l => l.unit))].map(section).join('')}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>${resumeBar}`);
   const pending = (S.wotd && !S.wotdDone) || (ann[0] && ann[0].id !== seen) || (awOn && localStorage.getItem('eb_aw') !== S.award.week);
   if(ann[0]) localStorage.setItem('eb_ann', ann[0].id);
   if(awOn && localStorage.getItem('eb_aw') !== S.award.week){ localStorage.setItem('eb_aw', S.award.week); confetti(); }
+  document.querySelectorAll('.uh').forEach(b => b.onclick = () => { const sc = b.closest('.usec'); sc.classList.toggle('col'); b.setAttribute('aria-expanded', String(!sc.classList.contains('col'))); });
   const c = document.querySelector('.nd.cur');
   if(c && !first && !pending) c.scrollIntoView({ block:'center' });
   if(c && $('#resume')){
