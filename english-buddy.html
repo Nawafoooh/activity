@@ -190,6 +190,12 @@ body.lv2 .jm path{stroke:#c3bdf5;stroke-dasharray:12 11}
 body.lv2 .nd .c{border-radius:32%}
 body.lv2 .ct2,body.lv2 .cname2{color:#5b4bd6}
 .nd[data-unit="11"] .c{background:#e0e7ff}.nd[data-unit="12"] .c{background:#ede9fe}.nd[data-unit="13"] .c{background:#fae8ff}.nd[data-unit="14"] .c{background:#dbeafe}.nd[data-unit="15"] .c{background:#e0f2fe}.nd[data-unit="16"] .c{background:#ede9fe}.nd[data-unit="17"] .c{background:#fce7f3}.nd[data-unit="18"] .c{background:#e0e7ff}.nd[data-unit="19"] .c{background:#dbeafe}.nd[data-unit="20"] .c{background:#f3e8ff}
+
+/* ===== report flag, badges, toast ===== */
+.flag{background:none;font-size:1.25rem;padding:6px;opacity:.75;flex:none}.flag:disabled{opacity:1}
+.bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.bdg{background:#fff;border-radius:18px;padding:12px 6px;text-align:center;box-shadow:var(--sh);opacity:.5;filter:grayscale(1)}.bdg.on{opacity:1;filter:none;background:linear-gradient(135deg,#fff7e6,#ffe9b8)}
+.bdg .bi{font-size:2.1rem}.bdg b{display:block;font-size:.85rem;margin-top:4px}.bdg small{display:block;color:#5f7673;font-size:.72rem;line-height:1.4;margin-top:2px}
+.toast{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:#12302e;color:#fff;padding:11px 20px;border-radius:18px;z-index:30;font-weight:700;box-shadow:0 10px 26px rgba(0,0,0,.25);animation:rise .3s ease both}
 </style>
 </head>
 <body>
@@ -299,6 +305,28 @@ function levelUp(){
   view(`<div class="hero"><div class="logo">🚀</div><h1>مبروك! انتقلت إلى المستوى الثاني</h1><p>أنهيت المستوى الأول بنجاح</p></div><div class="sheet scroll"><p style="font-size:1.15rem;line-height:2;text-align:center">ألوان جديدة، وخريطة جديدة، ووحدات أوسع: أزمنة مركبة، وقراءة أطول، وكتابة بفقرات.</p><button class="btn" id="lvgo">ابدأ المستوى الثاني</button></div>`);
   confetti(); $('#lvgo').onclick = () => { localStorage.setItem('eb_lv2', '1'); S.lvView = 2; home(); };
 }
+async function reportQ(ref){
+  const note = prompt('ما المشكلة في هذا السؤال؟ (اختياري)', ''); if(note === null) return;
+  try { await api('report_q', { ...ref, note }); const f = $('#flg'); if(f){ f.textContent = '✅'; f.disabled = true; } }
+  catch(e){ alert(e.error === 'limit' ? 'وصلت لحد البلاغات اليوم' : 'تعذر إرسال البلاغ'); }
+}
+const BADGES = [
+ ['🌱','البداية','أنهِ أول درس', s => s.done >= 1],['📚','عشرة دروس','أنهِ 10 دروس', s => s.done >= 10],['🏃','خمسون درسًا','أنهِ 50 درسًا', s => s.done >= 50],['💯','مئة درس','أنهِ 100 درس', s => s.done >= 100],
+ ['⭐','ثلاثون نجمة','اجمع 30 نجمة', s => s.stars >= 30],['🌟','مئة نجمة','اجمع 100 نجمة', s => s.stars >= 100],
+ ['🔥','ثلاثة أيام','سلسلة 3 أيام', s => s.streak >= 3],['🔥','أسبوع كامل','سلسلة 7 أيام', s => s.streak >= 7],['🏆','شهر من الالتزام','سلسلة 30 يومًا', s => s.streak >= 30],
+ ['📝','أول اختبار','اجتز اختبار وحدة', s => s.exams >= 1],['🎯','خمسة اختبارات','اجتز 5 اختبارات وحدات', s => s.exams >= 5],
+ ['📖','كلمات اليوم','تعلّم 10 كلمات يومية', s => s.words >= 10],['🧠','جامع الكلمات','تعلّم 30 كلمة يومية', s => s.words >= 30],
+ ['✍️','الكاتب','أنجز 3 تمارين كتابة', s => s.writes >= 3],['🚀','المستوى الثاني','ادخل المستوى الثاني', s => s.l2]];
+function badgeStats(){
+  const P = S.progress || {}, EX = S.exams || {}, L = S.lessons || [];
+  return { done:L.filter(l => P[l.id] >= 1).length, stars:Object.values(P).reduce((a, b) => a + b, 0), streak:S.streak || 0, exams:Object.values(EX).filter(e => e.passed && !e.placed).length, words:S.wordsN || 0, writes:S.writeN || 0, l2:L.some(l => l.unit > 10 && P[l.id] >= 1) || !!(EX[10] || {}).passed };
+}
+function toast(t){ const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.append(d); setTimeout(() => d.remove(), 4800); }
+function badgesScreen(){
+  const bs = badgeStats();
+  view(`${bar(0, 1)}<div class="scroll"><h2 style="margin-top:6px">🏅 شاراتي</h2><p class="mut" style="text-align:right;margin:4px 0 12px">${BADGES.filter(b => b[3](bs)).length} من ${BADGES.length} شارة</p><div class="bgrid">${BADGES.map(b => `<div class="bdg ${b[3](bs) ? 'on' : ''}"><div class="bi">${b[0]}</div><b>${b[1]}</b><small>${b[2]}</small></div>`).join('')}</div></div>`);
+  $('#home').onclick = home;
+}
 function wotdCard(){
   const w = S.wotd; if(!w) return '';
   return `<div class="wotd ${S.wotdDone ? '' : 'todo'}" id="wotd"><div class="wh"><b>🌟 كلمة اليوم</b><small>📚 ${S.wordsN || 0}</small></div>
@@ -347,6 +375,8 @@ function home(){
   const lvStars = k => { const ls = L.filter(l => (k === 2) === (l.unit > 10)); return ls.reduce((a, l) => a + (P[l.id] || 0), 0) + ' / ' + ls.length * 3; };
   const lvl2Open = !!(EX[10] || {}).passed, hasL2 = unitsAll.some(u => u > 10);
   const lvTabs = hasL2 ? `<div class="lvtabs"><button class="lvt ${lvView === 1 ? 'on' : ''}" data-lv="1"><b>المستوى الأول</b><small>★ ${lvStars(1)}</small></button><button class="lvt l2 ${lvView === 2 ? 'on' : ''}" data-lv="2"><b>🚀 المستوى الثاني</b><small>${lvl2Open ? '★ ' + lvStars(2) : '🔒 أنهِ المستوى الأول'}</small></button></div>` : '';
+  const bst = badgeStats(), earnedNow = BADGES.map((b, i) => b[3](bst) ? i : -1).filter(i => i >= 0);
+  const bdgCard = `<button class="card les" id="bdgbtn" style="background:#fff7e6"><span class="ic">🏅</span><span class="tx"><b>شاراتي</b><small>${earnedNow.length} من ${BADGES.length} شارة</small></span></button>`;
   const DX = lvView === 2 ? [50, 82, 50, 18] : [50, 74, 84, 74, 50, 26, 16, 26], STEP = 108;
   const section = u => {
     const items = L.map((l, i) => ({ l, i })).filter(x => x.l.unit === u), e = EX[u] || {};
@@ -366,7 +396,7 @@ function home(){
     ? '<div class="card" style="text-align:center;padding:26px 18px;margin-top:12px"><div style="font-size:2.6rem">🔒</div><h3 style="margin:8px 0">المستوى الثاني ينتظرك</h3><p class="mut">أنهِ دروس المستوى الأول واجتز اختبار الوحدة 10 لتنتقل إلى مستوى جديد بألوان وخريطة جديدة.</p></div>'
     : (lvView === 2 ? '<div class="lvhero"><b>🚀 المستوى الثاني</b><p>أزمنة أوسع، وقراءة أطول، وكتابة بفقرات</p></div>' : '') + unitsAll.filter(u => lvView === 2 ? u > 10 : u <= 10).map(section).join('');
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${lvStars(lvView)}</div></div></div>
-  <div class="scroll ${curI >= 0 ? 'hasr' : ''}">${awHtml}${wotdCard()}${srsCard}${lisCard}${wrtCard}${annHtml}${plc}${installCard()}${stk}${cc}${cc2}${wkc}${lvTabs}${lvBody}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>${resumeBar}`);
+  <div class="scroll ${curI >= 0 ? 'hasr' : ''}">${awHtml}${wotdCard()}${srsCard}${lisCard}${wrtCard}${bdgCard}${annHtml}${plc}${installCard()}${stk}${cc}${cc2}${wkc}${lvTabs}${lvBody}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>${resumeBar}`);
   const pending = (S.wotd && !S.wotdDone) || (ann[0] && ann[0].id !== seen) || (awOn && localStorage.getItem('eb_aw') !== S.award.week);
   if(ann[0]) localStorage.setItem('eb_ann', ann[0].id);
   if(awOn && localStorage.getItem('eb_aw') !== S.award.week){ localStorage.setItem('eb_aw', S.award.week); confetti(); }
@@ -386,6 +416,10 @@ function home(){
   if($('#srsbtn')) $('#srsbtn').onclick = srsStart;
   if($('#lisbtn')) $('#lisbtn').onclick = listenStart;
   if($('#wrtbtn')) $('#wrtbtn').onclick = writeList;
+  if($('#bdgbtn')) $('#bdgbtn').onclick = badgesScreen;
+  { let seenB = null; try { seenB = JSON.parse(localStorage.getItem('eb_bdg') || 'null'); } catch(e){}
+    if(seenB){ const fresh = earnedNow.filter(i => !seenB.includes(i)); if(fresh.length){ toast('🏅 شارة جديدة: ' + BADGES[fresh[0]][1]); confetti(); } }
+    localStorage.setItem('eb_bdg', JSON.stringify(earnedNow)); }
   if($('#wk')) $('#wk').onclick = practice;
   if($('#certbtn')) $('#certbtn').onclick = () => cert(1);
   if($('#certbtn2')) $('#certbtn2').onclick = () => cert(2);
@@ -572,8 +606,8 @@ function practiceQ(){
       const r = await api('review_check', { id:q.id, pick }); S.weakN = r.left; if(r.ok){ p.fixed++; S.streak = r.streak; S.doneToday = true; }
       const opts = document.querySelectorAll('.opt'); opts.forEach(o => o.classList.remove('sel')); opts[r.right].classList.add('good'); if(!r.ok) opts[pick].classList.add('bad');
       const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
-      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(q.options[r.right])}</span>`}</div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
-      $('#nx').onclick = next; if(r.ok) timer = setTimeout(next, 900);
+      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(q.options[r.right])}</span>`}</div><button class="flag" id="flg" aria-label="إبلاغ عن خطأ" type="button">🚩</button><button class="btn ${r.ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
+      $('#nx').onclick = next; $('#flg').onclick = () => reportQ({ id:q.id }); if(r.ok) timer = setTimeout(next, 900);
     } catch(e){ checked = false; b.classList.remove('sel'); $('#sc').classList.remove('locked'); }
   });
 }
@@ -601,8 +635,8 @@ function srsQ(){
       opts[q.options.indexOf(r.right)].classList.add('good'); if(!r.ok) b.classList.add('bad');
       if(navigator.vibrate) navigator.vibrate(r.ok ? 25 : [40, 40, 40]);
       const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
-      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(r.right)}</span>`}</div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
-      $('#nx').onclick = next; if(r.ok) timer = setTimeout(next, 900);
+      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(r.right)}</span>`}</div><button class="flag" id="flg" aria-label="إبلاغ عن خطأ" type="button">🚩</button><button class="btn ${r.ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
+      $('#nx').onclick = next; $('#flg').onclick = () => reportQ({ id:q.id }); if(r.ok) timer = setTimeout(next, 900);
     } catch(e){ checked = false; b.classList.remove('sel'); $('#sc').classList.remove('locked'); }
   });
 }
@@ -704,8 +738,8 @@ function question(){
       const opts = document.querySelectorAll('.opt'); opts.forEach(o => o.classList.remove('sel')); opts[r.right].classList.add('good'); if(!r.ok) opts[pick].classList.add('bad');
       if(navigator.vibrate) navigator.vibrate(r.ok ? 25 : [40, 40, 40]);
       const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
-      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(q.options[r.right])}</span>`}</div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${last ? 'إنهاء' : 'متابعة'}</button>`;
-      $('#nx').onclick = next; if(r.ok) timer = setTimeout(next, 900);
+      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b>${r.ok ? '' : `<small>الإجابة الصحيحة:</small><span class="en">${esc(q.options[r.right])}</span>`}</div><button class="flag" id="flg" aria-label="إبلاغ عن خطأ" type="button">🚩</button><button class="btn ${r.ok ? '' : 'no'}" id="nx">${last ? 'إنهاء' : 'متابعة'}</button>`;
+      $('#nx').onclick = next; $('#flg').onclick = () => reportQ({ lid:S.lid, qi:S.qi }); if(r.ok) timer = setTimeout(next, 900);
     } catch(e){ checked = false; b.classList.remove('sel'); $('#sc').classList.remove('locked'); }
   });
 }
