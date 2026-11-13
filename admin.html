@@ -5,7 +5,7 @@
 #awards{display:none}.aw{page-break-after:always}
 @media print{body>*:not(#awards){display:none!important}#awards{display:block}.aw{height:188mm;display:grid;place-items:center;page-break-after:always}.awi{border:5px double #c9962b;width:100%;padding:28px;text-align:center;background:#fffdf7;-webkit-print-color-adjust:exact;print-color-adjust:exact}.awi h1{font-size:2.6rem;color:#0f766e;margin:8px 0}.awi h2{font-size:2.2rem;color:#0f766e;border-bottom:2px dashed #c9962b;display:inline-block;padding:0 24px 6px;margin:10px 0}.awi p{line-height:2.1;font-size:1.2rem}.awi .k{color:#7a5a12;font-weight:800}.awi .f{margin-top:22px}@page{size:A4 landscape;margin:8mm}}</style>
 <main><h1>لوحة المعلم — English Buddy</h1><div class="bar" id="k"><input id="key" type="password" placeholder="مفتاح المعلم"><button id="go">عرض</button></div>
-<div class="bar" id="tools" hidden><button class="alt" data-s="weekXp">الأسبوع</button><button class="alt" data-s="xp">الإجمالي</button><button class="alt" data-s="days">الالتزام</button><button class="alt" id="tr">🚩 البلاغات</button><button class="alt" id="tp">📈 التقدم</button><button class="alt" id="tq">📊 جودة المحتوى</button><button class="alt" id="ta">📢 الإعلانات</button><button class="alt" id="tw">🏆 التميز الأسبوعي</button><button class="alt" id="tm">📬 الرسائل</button><button class="alt" onclick="print()">طباعة</button></div><div class="w" id="out"></div></main>
+<div class="bar" id="tools" hidden><button class="alt" data-s="weekXp">الأسبوع</button><button class="alt" data-s="xp">الإجمالي</button><button class="alt" data-s="days">الالتزام</button><button class="alt" id="tc">🎯 تحدي الأسبوع</button><button class="alt" id="tr">🚩 البلاغات</button><button class="alt" id="tp">📈 التقدم</button><button class="alt" id="tq">📊 جودة المحتوى</button><button class="alt" id="ta">📢 الإعلانات</button><button class="alt" id="tw">🏆 التميز الأسبوعي</button><button class="alt" id="tm">📬 الرسائل</button><button class="alt" onclick="print()">طباعة</button></div><div class="w" id="out"></div></main>
 <script>
 const API='https://europe-west1-naj7-7da9d.cloudfunctions.net/tutor',$=s=>document.querySelector(s);let rows=[],hard=[],sort='weekXp';
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -47,6 +47,19 @@ async function drawReports(){
 $('#out').innerHTML='<p>جارٍ التحميل…</p>';
 let r;try{r=(await post('admin_reports')).reports}catch(e){$('#out').innerHTML='<p style="color:#c2410c">تعذر تحميل البلاغات ('+esc(e.error||'اتصال')+')</p>';return}
 $('#out').innerHTML='<div class="msg"><b>🚩 بلاغات الطلاب عن أسئلة يظنونها خاطئة</b><p>الإجابة الصحيحة في كل سؤال مؤشَّرة بـ ✓. راجعها، فإن كان السؤال سليمًا فاحذف البلاغ، وإن كان خاطئًا فأرسل لي رقمه ونصه لأصححه.</p></div>'+(r.length?r.map(x=>`<div class="msg ${x.n>=3?'new':''}"><div class="mh"><b>${esc(x.title)} #${x.qi}</b><span>🚩 ${x.n} بلاغ</span></div>${x.passage?`<p style="color:#5f7673;direction:ltr;text-align:left">📖 ${esc(x.passage)}</p>`:''}<p style="direction:ltr;text-align:left">${esc(x.q)}</p><p style="direction:ltr;text-align:left">${x.options.map((o,i)=>(i===x.answer?'✓ ':'• ')+esc(o)).join('<br>')}</p>${x.note?`<p>💬 ${esc(x.note)}</p>`:''}<button class="alt" data-act="repDel" data-id="${x.id}">حذف البلاغ</button></div>`).join(''):'<p>لا توجد بلاغات 🎉</p>');}
+async function drawChal(){
+$('#out').innerHTML='<p>جارٍ التحميل…</p>';
+let r;try{r=await post('admin_challenge_get')}catch(e){$('#out').innerHTML='<p style="color:#c2410c">تعذر التحميل ('+esc(e.error||'اتصال')+')</p>';return}
+const c=r.c||{title:'',metric:'lessons',target:300,reward:''},nm={lessons:'دروس منجزة',xp:'نقاط',words:'كلمات اليوم'};
+$('#out').innerHTML=`<div class="msg"><b>🎯 تحدي الأسبوع الجماعي</b><p>هدف واحد للمدرسة كلها يظهر لكل طالب بشريط تقدم. يتجدد العدّاد كل أحد، وتبقى الإعدادات حتى تغيّرها. اجعل الهدف أعلى من إنجاز الأسبوع الماضي بنحو 30%.</p></div>
+<div class="msg"><b>إنجاز هذا الأسبوع (${esc(r.week)})</b><p>دروس: ${r.now.lessons} · نقاط: ${r.now.xp} · كلمات: ${r.now.words}</p><b>الأسبوع الماضي</b><p>دروس: ${r.prev.lessons} · نقاط: ${r.prev.xp} · كلمات: ${r.prev.words}</p></div>
+<div class="msg"><b>إعدادات التحدي</b><p>العنوان:</p><input id="cht" style="width:100%;font:inherit;padding:10px;border:2px solid #dbe5e1;border-radius:10px" maxlength="80" value="${esc(c.title)}" placeholder="مثال: نُنهي معًا 300 درس هذا الأسبوع!">
+<p>المقياس:</p><select id="chm" style="font:inherit;padding:8px;border-radius:10px">${Object.entries(nm).map(([k,v])=>`<option value="${k}" ${k===c.metric?'selected':''}>${v}</option>`).join('')}</select>
+<p>الهدف (رقم):</p><input id="chg" type="number" min="1" style="font:inherit;padding:10px;border:2px solid #dbe5e1;border-radius:10px;width:140px" value="${c.target}">
+<p>الجائزة (تظهر عند تحقق الهدف):</p><input id="chr" style="width:100%;font:inherit;padding:10px;border:2px solid #dbe5e1;border-radius:10px" maxlength="120" value="${esc(c.reward||'')}" placeholder="مثال: إعلان أسماء المتميزين في الإذاعة">
+<button id="chs" style="margin-top:10px">حفظ التحدي</button></div>`;
+$('#chs').onclick=async()=>{try{await post('admin_challenge_set',{title:$('#cht').value,metric:$('#chm').value,target:$('#chg').value,reward:$('#chr').value});alert('تم الحفظ ✅');drawChal()}catch(e){alert('تعذر الحفظ')}}}
+$('#tc').onclick=drawChal;
 $('#tr').onclick=drawReports;
 $('#tp').onclick=drawProgress;
 $('#tq').onclick=drawQ;
