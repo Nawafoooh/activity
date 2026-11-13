@@ -196,6 +196,12 @@ body.lv2 .ct2,body.lv2 .cname2{color:#5b4bd6}
 .bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.bdg{background:#fff;border-radius:18px;padding:12px 6px;text-align:center;box-shadow:var(--sh);opacity:.5;filter:grayscale(1)}.bdg.on{opacity:1;filter:none;background:linear-gradient(135deg,#fff7e6,#ffe9b8)}
 .bdg .bi{font-size:2.1rem}.bdg b{display:block;font-size:.85rem;margin-top:4px}.bdg small{display:block;color:#5f7673;font-size:.72rem;line-height:1.4;margin-top:2px}
 .toast{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:#12302e;color:#fff;padding:11px 20px;border-radius:18px;z-index:30;font-weight:700;box-shadow:0 10px 26px rgba(0,0,0,.25);animation:rise .3s ease both}
+
+/* ===== weekly challenge ===== */
+.chal{background:linear-gradient(135deg,#e6f4ff,#d7e7ff);border-radius:22px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--sh)}.chal.won{background:linear-gradient(135deg,#e3f6ea,#c9efd6)}
+.ch1{display:flex;justify-content:space-between;color:#1d4f91}.chal.won .ch1{color:#15803d}.cht{font-size:1.1rem;font-weight:700;margin:6px 0 10px}
+.chbar{height:16px;background:rgba(255,255,255,.8);border-radius:10px;overflow:hidden}.chbar i{display:block;height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);border-radius:10px;transition:width .6s}.chal.won .chbar i{background:linear-gradient(90deg,#16a34a,#4ade80)}
+.ch2{display:flex;justify-content:space-between;margin-top:6px;font-weight:700}.chw{margin-top:8px;font-weight:800;color:#15803d}.chr{margin-top:8px}.chs{margin-top:6px;font-size:.85rem;color:#4a6b8a}
 </style>
 </head>
 <body>
@@ -377,6 +383,9 @@ function home(){
   const lvTabs = hasL2 ? `<div class="lvtabs"><button class="lvt ${lvView === 1 ? 'on' : ''}" data-lv="1"><b>المستوى الأول</b><small>★ ${lvStars(1)}</small></button><button class="lvt l2 ${lvView === 2 ? 'on' : ''}" data-lv="2"><b>🚀 المستوى الثاني</b><small>${lvl2Open ? '★ ' + lvStars(2) : '🔒 أنهِ المستوى الأول'}</small></button></div>` : '';
   const bst = badgeStats(), earnedNow = BADGES.map((b, i) => b[3](bst) ? i : -1).filter(i => i >= 0);
   const bdgCard = `<button class="card les" id="bdgbtn" style="background:#fff7e6"><span class="ic">🏅</span><span class="tx"><b>شاراتي</b><small>${earnedNow.length} من ${BADGES.length} شارة</small></span></button>`;
+  const ch = S.challenge;
+  const chHtml = ch ? (() => { const pct = Math.min(100, Math.round(100 * ch.progress / ch.target)), won = ch.progress >= ch.target, left = 7 - new Date(Date.now() + 3 * 3600 * 1000).getUTCDay(), un = { lessons: 'درسًا', xp: 'نقطة', words: 'كلمة' }[ch.metric] || '';
+    return `<div class="chal ${won ? 'won' : ''}"><div class="ch1"><b>🎯 تحدي الأسبوع</b><small>${won ? 'تحقق الهدف!' : 'باقي ' + left + (left === 1 ? ' يوم' : ' أيام')}</small></div><p class="cht">${esc(ch.title)}</p><div class="chbar"><i style="width:${pct}%"></i></div><div class="ch2"><span class="en">${ch.progress} / ${ch.target} ${un}</span><span>${pct}%</span></div>${won ? `<p class="chw">🎉 ${esc(ch.reward || 'مبروك للجميع!')}</p>` : (ch.reward ? `<p class="chr">🎁 ${esc(ch.reward)}</p>` : '')}<p class="chs">كل درس تنهيه وكل نشاط تقوم به يقرّب الجميع من الهدف 💪</p></div>`; })() : '';
   const DX = lvView === 2 ? [50, 82, 50, 18] : [50, 74, 84, 74, 50, 26, 16, 26], STEP = 108;
   const section = u => {
     const items = L.map((l, i) => ({ l, i })).filter(x => x.l.unit === u), e = EX[u] || {};
@@ -396,7 +405,7 @@ function home(){
     ? '<div class="card" style="text-align:center;padding:26px 18px;margin-top:12px"><div style="font-size:2.6rem">🔒</div><h3 style="margin:8px 0">المستوى الثاني ينتظرك</h3><p class="mut">أنهِ دروس المستوى الأول واجتز اختبار الوحدة 10 لتنتقل إلى مستوى جديد بألوان وخريطة جديدة.</p></div>'
     : (lvView === 2 ? '<div class="lvhero"><b>🚀 المستوى الثاني</b><p>أزمنة أوسع، وقراءة أطول، وكتابة بفقرات</p></div>' : '') + unitsAll.filter(u => lvView === 2 ? u > 10 : u <= 10).map(section).join('');
   view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${lvStars(lvView)}</div></div></div>
-  <div class="scroll ${curI >= 0 ? 'hasr' : ''}">${awHtml}${wotdCard()}${srsCard}${lisCard}${wrtCard}${bdgCard}${annHtml}${plc}${installCard()}${stk}${cc}${cc2}${wkc}${lvTabs}${lvBody}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>${resumeBar}`);
+  <div class="scroll ${curI >= 0 ? 'hasr' : ''}">${awHtml}${chHtml}${wotdCard()}${srsCard}${lisCard}${wrtCard}${bdgCard}${annHtml}${plc}${installCard()}${stk}${cc}${cc2}${wkc}${lvTabs}${lvBody}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>${resumeBar}`);
   const pending = (S.wotd && !S.wotdDone) || (ann[0] && ann[0].id !== seen) || (awOn && localStorage.getItem('eb_aw') !== S.award.week);
   if(ann[0]) localStorage.setItem('eb_ann', ann[0].id);
   if(awOn && localStorage.getItem('eb_aw') !== S.award.week){ localStorage.setItem('eb_aw', S.award.week); confetti(); }
