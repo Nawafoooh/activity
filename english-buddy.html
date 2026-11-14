@@ -202,6 +202,11 @@ body.lv2 .ct2,body.lv2 .cname2{color:#5b4bd6}
 .ch1{display:flex;justify-content:space-between;color:#1d4f91}.chal.won .ch1{color:#15803d}.cht{font-size:1.1rem;font-weight:700;margin:6px 0 10px}
 .chbar{height:16px;background:rgba(255,255,255,.8);border-radius:10px;overflow:hidden}.chbar i{display:block;height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);border-radius:10px;transition:width .6s}.chal.won .chbar i{background:linear-gradient(90deg,#16a34a,#4ade80)}
 .ch2{display:flex;justify-content:space-between;margin-top:6px;font-weight:700}.chw{margin-top:8px;font-weight:800;color:#15803d}.chr{margin-top:8px}.chs{margin-top:6px;font-size:.85rem;color:#4a6b8a}
+
+/* ===== my words ===== */
+.wlink{background:rgba(255,255,255,.75);border-radius:12px;padding:3px 10px;font-weight:700;color:#7a5a12;font-size:.85rem}
+.wq{margin:6px 0 8px;font-weight:700}.wqo{display:grid;gap:8px}.wqb{background:#fff;border:2px solid #f0d58a;border-radius:14px;padding:10px;font-size:1.05rem;font-weight:700;color:var(--ink)}.wqb:active{background:#fff3c4}
+.wrow{margin-bottom:10px}.wr1{display:flex;align-items:center;gap:10px}.wr1 b{font-size:1.3rem;flex:1;direction:ltr;text-align:left}.war{color:var(--g);font-weight:800}.wex{margin-top:6px;font-size:1rem;text-align:left}.wex2{color:#5f7673;margin-top:2px}
 </style>
 </head>
 <body>
@@ -335,22 +340,61 @@ function badgesScreen(){
 }
 function wotdCard(){
   const w = S.wotd; if(!w) return '';
-  return `<div class="wotd ${S.wotdDone ? '' : 'todo'}" id="wotd"><div class="wh"><b>🌟 كلمة اليوم</b><small>📚 ${S.wordsN || 0}</small></div>
-  <div class="ww"><button class="say" id="wsp1" aria-label="استماع">🔊</button><span class="en">${esc(w.en)}</span></div><p class="wa">${esc(w.ar)}</p>
-  <div class="wx"><div class="en" dir="ltr">${esc(w.ex)} <button class="say" id="wsp2" aria-label="استماع">🔊</button></div><p>${esc(w.exAr)}</p></div>
-  ${S.wotdDone ? '<div class="wdone">✅ أحسنت! عد غدًا لكلمة جديدة</div>' : '<button class="btn" id="wdone">✅ تعلّمتها</button>'}</div>`;
+  let foot;
+  if(!S.wotdDone) foot = '<button class="btn" id="wdone">✅ تعلّمتها</button>';
+  else if(S.wq === 'ask') foot = `<p class="wq">🧠 اختبر نفسك: ما معنى <b class="en">${esc(w.en)}</b>؟</p><div class="wqo">${(w.opts || []).map(o => `<button class="wqb" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
+  else if(S.wq === 'no') foot = `<div class="wdone" style="background:#fde8e1;color:#c2410c">المعنى: ${esc(w.ar)} — عد غدًا لكلمة جديدة</div>`;
+  else foot = `<div class="wdone">${S.wq === 'ok' ? '✅ ممتاز! أصبت المعنى. عد غدًا لكلمة جديدة' : '✅ أحسنت! عد غدًا لكلمة جديدة'}</div>`;
+  const ask = S.wq === 'ask';
+  return `<div class="wotd ${S.wotdDone ? '' : 'todo'}" id="wotd"><div class="wh"><b>🌟 كلمة اليوم</b><button class="wlink" id="wlist" type="button">📚 كلماتي ${S.wordsN || 0}</button></div>
+  <div class="ww"><button class="say" id="wsp1" aria-label="استماع">🔊</button><span class="en">${esc(w.en)}</span></div><p class="wa">${ask ? '؟؟؟' : esc(w.ar)}</p>
+  <div class="wx"><div class="en" dir="ltr">${esc(w.ex)} <button class="say" id="wsp2" aria-label="استماع">🔊</button></div><p>${ask ? '' : esc(w.exAr)}</p></div>${foot}</div>`;
 }
 function bindWotd(){
   const w = S.wotd; if(!w || !$('#wotd')) return;
-  $('#wsp1').onclick = () => say(w.en); $('#wsp2').onclick = () => say(w.ex);
+  $('#wsp1').onclick = () => say(w.en); $('#wsp2').onclick = () => say(w.ex); $('#wlist').onclick = wordsScreen;
   const b = $('#wdone');
   if(b) b.onclick = async () => {
     b.disabled = true;
-    try { const r = await api('wotd_done'); S.wotdDone = true; S.wordsN = r.wordsN; S.streak = r.streak; S.doneToday = true;
+    try { const r = await api('wotd_done'); S.wotdDone = true; S.wordsN = r.wordsN; S.streak = r.streak; S.doneToday = true; S.wq = (w.opts || []).length ? 'ask' : 'done';
       $('#wotd').outerHTML = wotdCard(); bindWotd();
       const p = document.querySelector('.top .pill'); if(p){ p.className = 'pill hot'; p.textContent = '🔥 ' + S.streak; }
-      confetti(); } catch(e){ b.disabled = false; }
+      if(S.wq !== 'ask') confetti(); } catch(e){ b.disabled = false; }
   };
+  document.querySelectorAll('.wqb').forEach(q => q.onclick = () => { S.wq = q.dataset.o === w.ar ? 'ok' : 'no'; $('#wotd').outerHTML = wotdCard(); bindWotd(); if(S.wq === 'ok') confetti(); });
+}
+async function wordsScreen(){
+  try { S.wl = (await api('words_list')).words; } catch(e){ alert('تعذر الاتصال، حاول مرة أخرى'); return; }
+  const W = S.wl;
+  view(`${bar(0, 1)}<div class="scroll"><h2 style="margin-top:6px">📚 كلماتي</h2><p class="mut" style="text-align:right;margin:4px 0 10px">${W.length} كلمة جمعتها حتى الآن</p>
+  ${W.length >= 3 ? '<button class="btn" id="wq" style="margin-bottom:12px">🧠 تمرّن على كلماتك</button>' : '<p class="mut" style="margin-bottom:10px">تعلّم 3 كلمات على الأقل لتبدأ التمرين.</p>'}
+  ${W.map((w, i) => `<div class="card wrow"><div class="wr1"><button class="say" data-i="${i}" aria-label="استماع">🔊</button><b class="en">${esc(w.en)}</b><span class="war">${esc(w.ar)}</span></div><p class="en wex" dir="ltr">${esc(w.ex)}</p><p class="wex2">${esc(w.exAr)}</p></div>`).join('')}</div>`);
+  $('#home').onclick = home;
+  document.querySelectorAll('.wrow .say').forEach(b => b.onclick = () => say(W[+b.dataset.i].en));
+  if($('#wq')) $('#wq').onclick = wordsQuiz;
+}
+function wordsQuiz(){
+  const W = S.wl, rnd = a => [...a].sort(() => Math.random() - .5);
+  S.wqz = { i:0, ok:0, qs: rnd(W).slice(0, 8).map(w => ({ w, opts: rnd([w.ar, ...rnd(W.filter(x => x.ar !== w.ar)).slice(0, 2).map(x => x.ar)]) })) }; wqQ();
+}
+function wqQ(){
+  const p = S.wqz, q = p.qs[p.i], n = p.qs.length; let done = false, timer = null;
+  view(`${bar(p.i, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">🧠 تمرين كلماتي — ${p.i + 1} من ${n}</p><div class="ww" style="justify-content:center;margin:18px 0 6px"><button class="say" id="sp" aria-label="استماع">🔊</button><span class="en" style="font-size:2.4rem">${esc(q.w.en)}</span></div><p class="mut" style="text-align:center;margin-bottom:12px">ما معنى هذه الكلمة؟</p>${q.opts.map((o, i) => `<button class="opt ar" data-i="${i}">${esc(o)}</button>`).join('')}</div><div class="fb" id="fb" hidden></div>`);
+  $('#home').onclick = home; $('#sp').onclick = () => say(q.w.en); setTimeout(() => say(q.w.en), 250);
+  const next = () => { clearTimeout(timer); p.i++; if(p.i < n) wqQ(); else wqDone(); };
+  document.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+    if(done) return; done = true; const ok = q.opts[+b.dataset.i] === q.w.ar; if(ok) p.ok++;
+    $('#sc').classList.add('locked'); [...document.querySelectorAll('.opt')].find(o => o.textContent === q.w.ar).classList.add('good'); if(!ok) b.classList.add('bad');
+    if(navigator.vibrate) navigator.vibrate(ok ? 25 : [40, 40, 40]);
+    const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (ok ? 'ok' : 'no');
+    fb.innerHTML = `<div class="fbmsg"><b>${ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b><small>${esc(q.w.ex)}</small></div><button class="btn ${ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
+    $('#nx').onclick = next; if(ok) timer = setTimeout(next, 1100);
+  });
+}
+function wqDone(){
+  const p = S.wqz;
+  view(`<div class="scroll"><div style="text-align:center;padding:40px 0 10px"><div class="logo" style="margin-bottom:10px">🧠</div><h2>أحسنت!</h2><p style="margin-top:8px">عرفتَ ${p.ok} من ${p.qs.length} كلمات</p><p class="mut" style="margin-top:6px;line-height:1.8">كل يوم كلمة جديدة تضيف إلى مكتبتك، وتمرّن عليها متى شئت.</p></div></div><div class="foot"><button class="btn alt" id="more">تمرين آخر</button><button class="btn" id="done">الرئيسية</button></div>`);
+  $('#done').onclick = home; $('#more').onclick = wordsQuiz; if(p.ok >= p.qs.length * .8) confetti();
 }
 function home(){
   const first = !S.landed;
