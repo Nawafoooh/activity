@@ -149,7 +149,7 @@ footer{text-align:center;color:#71869e;font-size:11px;padding:0 20px 25px}
     busy=true; convertBtn.disabled=true; convertBtn.textContent='جارٍ إرسال الصورة ومعالجتها…';
     status('يتم إرسال الصورة إلى خادم التحويل. قد تستغرق العملية بعض الوقت.','info');
     const controller = new AbortController();
-    const timeout = setTimeout(()=>controller.abort(), 180000);
+    const timeout = setTimeout(()=>controller.abort(), 60000);
     try {
       const form = new FormData(); form.append('image',selectedFile,selectedFile.name);
       const response = await fetch(parsed.href,{method:'POST',body:form,signal:controller.signal,headers:{'Accept':'application/json'}});
@@ -159,19 +159,32 @@ footer{text-align:center;color:#71869e;font-size:11px;padding:0 20px 25px}
         if(contentType.includes('application/json')) { const j=await response.json().catch(()=>({})); if(j.error||j.message) detail += ': '+(j.error||j.message); }
         throw new Error(detail);
       }
-      let newUrl='';
-      if(contentType.includes('model/gltf-binary') || contentType.includes('application/octet-stream')) {
-        const blob=await response.blob();
-        if(!blob.size) throw new Error('الخادم أعاد ملفاً فارغاً');
-        newUrl=URL.createObjectURL(blob);
-      } else {
-        const data=await response.json();
-        newUrl=data.modelUrl || data.glbUrl || data.url || (data.data && (data.data.modelUrl || data.data.glbUrl || data.data.url));
-        if(!newUrl) throw new Error('لم يعثر البرنامج على رابط المجسم في استجابة الخادم. أعد رابطاً باسم modelUrl أو glbUrl أو url.');
-        const resolved=new URL(newUrl,parsed);
-        if(!['http:','https:','blob:'].includes(resolved.protocol)) throw new Error('رابط ملف المجسم غير صالح');
-        newUrl=resolved.href;
+      const data=await response.json();
+      let newUrl=data.modelUrl || data.glbUrl || data.url || (data.data && (data.data.modelUrl || data.data.glbUrl || data.data.url));
+      if (!newUrl && data.taskId) {
+        const statusUrl = new URL(`/api/status/${encodeURIComponent(data.taskId)}`, parsed.origin);
+        let finished = false;
+        const started = Date.now();
+        while (!finished && Date.now() - started < 10 * 60 * 1000) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const statusResponse = await fetch(statusUrl.href, {headers:{'Accept':'application/json'}});
+          const statusData = await statusResponse.json().catch(()=>({}));
+          if (!statusResponse.ok) throw new Error(statusData.error || `تعذر فحص حالة التحويل (${statusResponse.status})`);
+          const pct = Number(statusData.progress || 0);
+          status(`جارٍ إنشاء المجسم ثلاثي الأبعاد… ${pct}%`,'info');
+          if (statusData.status === 'SUCCEEDED' && statusData.modelUrl) {
+            newUrl = statusData.modelUrl;
+            finished = true;
+          } else if (['FAILED','CANCELED'].includes(statusData.status)) {
+            throw new Error(statusData.error || 'تعذر إنشاء المجسم لدى خدمة Meshy.');
+          }
+        }
+        if (!newUrl) throw new Error('استغرق التحويل أكثر من 10 دقائق. أعد المحاولة أو تحقق من لوحة Meshy.');
       }
+      if(!newUrl) throw new Error('لم يعثر البرنامج على رابط المجسم في استجابة الخادم.');
+      const resolved=new URL(newUrl,parsed);
+      if(!['http:','https:','blob:'].includes(resolved.protocol)) throw new Error('رابط ملف المجسم غير صالح');
+      newUrl=resolved.href;
       setModel(newUrl,'تم تحميل المجسم',true);
       status('اكتمل التحويل واستلمت المنصة ملف المجسم. يمكنك تدويره أو تجربة AR إذا كان جهازك يدعم ذلك.','success');
     } catch(err) {
