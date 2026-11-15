@@ -207,6 +207,13 @@ body.lv2 .ct2,body.lv2 .cname2{color:#5b4bd6}
 .wlink{background:rgba(255,255,255,.75);border-radius:12px;padding:3px 10px;font-weight:700;color:#7a5a12;font-size:.85rem}
 .wq{margin:6px 0 8px;font-weight:700}.wqo{display:grid;gap:8px}.wqb{background:#fff;border:2px solid #f0d58a;border-radius:14px;padding:10px;font-size:1.05rem;font-weight:700;color:var(--ink)}.wqb:active{background:#fff3c4}
 .wrow{margin-bottom:10px}.wr1{display:flex;align-items:center;gap:10px}.wr1 b{font-size:1.3rem;flex:1;direction:ltr;text-align:left}.war{color:var(--g);font-weight:800}.wex{margin-top:6px;font-size:1rem;text-align:left}.wex2{color:#5f7673;margin-top:2px}
+
+/* ===== english stages ===== */
+.stg{display:inline-block;margin-top:5px;background:rgba(255,255,255,.2);color:#fff;border-radius:12px;padding:3px 11px;font-size:.78rem;font-weight:700;cursor:pointer}
+.top>div:first-child{display:flex;flex-direction:column;align-items:flex-start}
+.stcard{background:linear-gradient(135deg,var(--g),var(--g2));color:#fff;border-radius:24px;padding:22px 18px;text-align:center;margin-top:8px;box-shadow:var(--sh)}.stcard .chbar{background:rgba(255,255,255,.3)}.stcard .chbar i{background:#fff}.stcard .mut{color:rgba(255,255,255,.85)}.stbig{font-size:3.2rem}
+.stl{display:flex;gap:12px;background:#fff;border-radius:18px;padding:12px;margin-bottom:8px;box-shadow:var(--sh);opacity:.6}.stl.cur{opacity:1;outline:3px solid var(--g);outline-offset:-3px}.stl.done{opacity:1}
+.sti{font-size:1.7rem;width:42px;text-align:center;flex:none}.stx b{display:block}.stx b span{font-size:.8rem;color:#5f7673;font-weight:400}.stx p{margin:2px 0;line-height:1.7;font-size:.92rem}.stx small{color:#5f7673}
 </style>
 </head>
 <body>
@@ -338,6 +345,24 @@ function badgesScreen(){
   view(`${bar(0, 1)}<div class="scroll"><h2 style="margin-top:6px">🏅 شاراتي</h2><p class="mut" style="text-align:right;margin:4px 0 12px">${BADGES.filter(b => b[3](bs)).length} من ${BADGES.length} شارة</p><div class="bgrid">${BADGES.map(b => `<div class="bdg ${b[3](bs) ? 'on' : ''}"><div class="bi">${b[0]}</div><b>${b[1]}</b><small>${b[2]}</small></div>`).join('')}</div></div>`);
   $('#home').onclick = home;
 }
+const STAGES = [
+ { from:0, icon:'🌱', name:'مبتدئ', en:'Beginner', desc:'تعرّف نفسك وتستخدم الكلمات الأساسية (أرقام، ألوان، عائلة، طعام) في جمل بسيطة.' },
+ { from:3, icon:'🌿', name:'مبتدئ متقدم', en:'Elementary', desc:'تتحدث عن عاداتك وما فعلته وما ستفعله، وتسأل أسئلة بسيطة وتقارن بين الأشياء.' },
+ { from:7, icon:'🌳', name:'ما قبل المتوسط', en:'Pre-Intermediate', desc:'تستخدم الأفعال المساعدة، وتقرأ نصوصًا قصيرة، وتصف ما كان يحدث، وتحكي تجاربك.' },
+ { from:13, icon:'⛰️', name:'متوسط', en:'Intermediate', desc:'تتحدث عن المدة والتجارب، وتستخدم الجمل الشرطية والمبني للمجهول، وتنقل كلام الآخرين.' },
+ { from:17, icon:'🚀', name:'متوسط متقدم', en:'Upper-Intermediate', desc:'تربط أفكارك بجمل موصولة، وتكتب فقرات منظمة، وتفهم نصوصًا أطول.' },
+ { from:21, icon:'👑', name:'متقدم', en:'Advanced', desc:'تعبّر بطلاقة ودقة عن أفكار معقدة. (المستوى الثالث قادم قريبًا)' }];
+const ulabel = u => (u > 10 ? 'الوحدة ' + (u - 10) + ' من المستوى الثاني' : 'الوحدة ' + u);
+function stageNow(){ const EX = S.exams || {}; let n = 0; while((EX[n + 1] || {}).passed) n++; let i = 0; STAGES.forEach((x, k) => { if(n >= x.from) i = k; }); return { n, i, s:STAGES[i] }; }
+function stagesScreen(){
+  const st = stageNow(), nx = STAGES[st.i + 1], top = Math.max(0, ...Object.keys(S.units || {}).map(Number));
+  const pct = nx ? Math.min(100, Math.round(100 * (st.n - st.s.from) / (nx.from - st.s.from))) : 100;
+  view(`${bar(0, 1)}<div class="scroll"><div class="stcard"><div class="stbig">${st.s.icon}</div><h2>${st.s.name}</h2><p class="en" dir="ltr">${st.s.en}</p>${nx ? `<div class="chbar" style="margin-top:10px"><i style="width:${pct}%"></i></div><p class="mut" style="margin-top:6px">${nx.from - st.n} ${nx.from - st.n === 1 ? 'وحدة' : 'وحدات'} للوصول إلى «${nx.name}»</p>` : '<p class="mut">بلغتَ أعلى مرحلة 🎉</p>'}</div>
+  <h3 style="margin:16px 0 8px">مراحل اللغة الإنجليزية</h3>
+  ${STAGES.map((x, k) => { const done = k < st.i, cur = k === st.i, soon = x.from > top; return `<div class="stl ${cur ? 'cur' : done ? 'done' : 'lock'}"><div class="sti">${done ? '✅' : cur ? x.icon : soon ? '🚧' : '🔒'}</div><div class="stx"><b>${x.name} <span class="en" dir="ltr">${x.en}</span></b><p>${x.desc}</p><small>${k === 0 ? 'نقطة البداية' : soon ? 'تُفتح بعد إضافة المستوى الثالث' : 'تُنال بعد اجتياز اختبار ' + ulabel(x.from)}</small></div></div>`; }).join('')}
+  <p class="mut" style="margin-top:14px;line-height:1.8">هذه مراحل وصفية على طريقة مدارس اللغة، تقيس ما أتقنه الطالب من وحدات المنصة. وليست شهادة اعتماد رسمية.</p></div>`);
+  $('#home').onclick = home;
+}
 function wotdCard(){
   const w = S.wotd; if(!w) return '';
   let foot;
@@ -430,6 +455,7 @@ function home(){
   const ch = S.challenge;
   const chHtml = ch ? (() => { const pct = Math.min(100, Math.round(100 * ch.progress / ch.target)), won = ch.progress >= ch.target, left = 7 - new Date(Date.now() + 3 * 3600 * 1000).getUTCDay(), un = { lessons: 'درسًا', xp: 'نقطة', words: 'كلمة' }[ch.metric] || '';
     return `<div class="chal ${won ? 'won' : ''}"><div class="ch1"><b>🎯 تحدي الأسبوع</b><small>${won ? 'تحقق الهدف!' : 'باقي ' + left + (left === 1 ? ' يوم' : ' أيام')}</small></div><p class="cht">${esc(ch.title)}</p><div class="chbar"><i style="width:${pct}%"></i></div><div class="ch2"><span class="en">${ch.progress} / ${ch.target} ${un}</span><span>${pct}%</span></div>${won ? `<p class="chw">🎉 ${esc(ch.reward || 'مبروك للجميع!')}</p>` : (ch.reward ? `<p class="chr">🎁 ${esc(ch.reward)}</p>` : '')}<p class="chs">كل درس تنهيه وكل نشاط تقوم به يقرّب الجميع من الهدف 💪</p></div>`; })() : '';
+  const stg = stageNow().s;
   const DX = lvView === 2 ? [50, 82, 50, 18] : [50, 74, 84, 74, 50, 26, 16, 26], STEP = 108;
   const section = u => {
     const items = L.map((l, i) => ({ l, i })).filter(x => x.l.unit === u), e = EX[u] || {};
@@ -448,7 +474,7 @@ function home(){
   const lvBody = lvView === 2 && !lvl2Open
     ? '<div class="card" style="text-align:center;padding:26px 18px;margin-top:12px"><div style="font-size:2.6rem">🔒</div><h3 style="margin:8px 0">المستوى الثاني ينتظرك</h3><p class="mut">أنهِ دروس المستوى الأول واجتز اختبار الوحدة 10 لتنتقل إلى مستوى جديد بألوان وخريطة جديدة.</p></div>'
     : (lvView === 2 ? '<div class="lvhero"><b>🚀 المستوى الثاني</b><p>أزمنة أوسع، وقراءة أطول، وكتابة بفقرات</p></div>' : '') + unitsAll.filter(u => lvView === 2 ? u > 10 : u <= 10).map(section).join('');
-  view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${lvStars(lvView)}</div></div></div>
+  view(`<div class="top"><div><small>مرحبًا</small><b>${esc(S.name || 'يا بطل')}</b><button class="stg" id="stg" type="button">${stg.icon} ${stg.name}</button></div><div style="display:flex;gap:8px"><div class="pill ${S.doneToday ? 'hot' : 'cold'}" aria-label="أيام متتالية">🔥 ${S.streak || 0}</div><div class="pill" aria-label="النجوم">⭐ ${lvStars(lvView)}</div></div></div>
   <div class="scroll ${curI >= 0 ? 'hasr' : ''}">${awHtml}${chHtml}${wotdCard()}${srsCard}${lisCard}${wrtCard}${bdgCard}${annHtml}${plc}${installCard()}${stk}${cc}${cc2}${wkc}${lvTabs}${lvBody}<button class="btn alt" id="msgbtn" style="margin:18px 0">✉️ راسل المشرف</button></div>${resumeBar}`);
   const pending = (S.wotd && !S.wotdDone) || (ann[0] && ann[0].id !== seen) || (awOn && localStorage.getItem('eb_aw') !== S.award.week);
   if(ann[0]) localStorage.setItem('eb_ann', ann[0].id);
@@ -470,6 +496,8 @@ function home(){
   if($('#lisbtn')) $('#lisbtn').onclick = listenStart;
   if($('#wrtbtn')) $('#wrtbtn').onclick = writeList;
   if($('#bdgbtn')) $('#bdgbtn').onclick = badgesScreen;
+  if($('#stg')) $('#stg').onclick = stagesScreen;
+  { const si = stageNow().i, prevS = localStorage.getItem('eb_stage'); if(prevS !== null && si > +prevS){ toast('🎓 ترقية! أصبحت في مرحلة «' + STAGES[si].name + '»'); confetti(); } localStorage.setItem('eb_stage', String(si)); }
   { let seenB = null; try { seenB = JSON.parse(localStorage.getItem('eb_bdg') || 'null'); } catch(e){}
     if(seenB){ const fresh = earnedNow.filter(i => !seenB.includes(i)); if(fresh.length){ toast('🏅 شارة جديدة: ' + BADGES[fresh[0]][1]); confetti(); } }
     localStorage.setItem('eb_bdg', JSON.stringify(earnedNow)); }
@@ -582,11 +610,12 @@ async function cert(lvl){
   let c; try { c = await api('cert_issue', { level }); } catch(e){ alert('تعذر إصدار الشهادة، حاول مرة أخرى'); return; }
   const taken = ids.filter(u => !(EX[u] || {}).placed), avg = taken.length ? Math.round(taken.reduce((a, u) => a + ((EX[u] || {}).best || 0), 0) / taken.length) : 100;
   const lv = avg >= 90 ? 'ممتاز' : avg >= 80 ? 'جيد جدًا' : 'جيد';
+  const sg = stageNow().s;
   const d = new Date(c.at), fmt = (loc) => d.toLocaleDateString(loc, { day:'numeric', month:'long', year:'numeric' });
   view(`<div class="scroll"><div class="cert2"><div class="cin">
   <p class="ck">${esc(ISSUER.school)}</p><h1 class="ct2">شهادة إتمام</h1><p class="cs">مسار اللغة الإنجليزية — المستوى ${level === 2 ? 'الثاني' : 'الأول'} — English Buddy</p>
   <p class="cp">تشهد المدرسة بأن الطالب</p><h2 class="cname2">${esc(S.name || '')}</h2>
-  <p class="cp" style="line-height:2">قد أتمّ بنجاح المسار الكامل (100 درس و${ids.length} اختبارات وحدات) بتقدير <b>${lv}</b> ومعدل عام <b class="en">${avg}%</b></p>
+  <p class="cp" style="line-height:2">قد أتمّ بنجاح المسار الكامل (100 درس و${ids.length} اختبارات وحدات) بتقدير <b>${lv}</b> ومعدل عام <b class="en">${avg}%</b></p><p class="cp">المرحلة: <b>${sg.name}</b> <span class="en" dir="ltr">(${sg.en})</span></p>
   <div class="cgrid">${ids.map(u => `<div><span>${+u - (level - 1) * 10}. ${esc(U[u] || '')}</span><b class="en">${(EX[u] || {}).placed ? 'معفى' : ((EX[u] || {}).best || 0) + '%'}</b></div>`).join('')}</div>
   <div class="cfoot"><div><small>التاريخ</small><b>${fmt('ar-SA-u-ca-islamic')}</b><small>${fmt('ar-SA-u-ca-gregory')}</small></div>
   <svg class="seal" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="47" fill="#c9962b"/><circle cx="50" cy="50" r="39" fill="none" stroke="#fff" stroke-width="2"/><polygon fill="#fff" points="50,18 58,40 82,40 63,54 70,78 50,64 30,78 37,54 18,40 42,40"/></svg>
