@@ -3,45 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مختبر الذرة والنواة - الواقع المعزز</title>
-    <!-- استدعاء مكتبة Google Model Viewer -->
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <title>محاكاة نواة الذرة التفاعلية ثلاثية الأبعاد</title>
     <style>
-        body { font-family: Tahoma, sans-serif; background: #0b0f19; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
-        h1 { font-size: 24px; margin-bottom: 5px; color: #38bdf8; text-align: center; }
-        p { color: #94a3b8; text-align: center; margin-bottom: 20px; }
-        model-viewer { width: 100%; max-width: 500px; height: 450px; background-color: #1e293b; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
-        #ar-button { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 15px; box-shadow: 0 4px 12px rgba(37,99,235,0.4); transition: 0.3s; }
-        #ar-button:hover { background: #1d4ed8; }
-        .info-card { margin-top: 15px; background: #1e293b; padding: 15px; border-radius: 10px; max-width: 500px; width: 100%; text-align: right; box-sizing: border-box; }
-        .info-card h3 { color: #38bdf8; margin-top: 0; }
+        body { margin: 0; background-color: #05050a; color: #fff; font-family: Tahoma, sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        #canvas-container { width: 100%; height: 80vh; }
+        .ui-panel { position: absolute; top: 15px; background: rgba(15, 23, 42, 0.85); padding: 12px 20px; border-radius: 12px; border: 1px solid #38bdf8; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        h1 { font-size: 20px; margin: 0 0 5px 0; color: #38bdf8; }
+        p { margin: 0; font-size: 14px; color: #94a3b8; }
     </style>
+    <!-- استدعاء مكتبة Three.js الشهيرة للرسومات ثلاثية الأبعاد -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <h1>⚛️ مختبر الذرة والنواة (3D & AR)</h1>
-    <p>استعرض النواة ومستويات الطاقة ثلاثية الأبعاد، أو اضغط زر الواقع المعزز لتجسيدها أمامك!</p>
-
-    <!-- عارض الذرة والنواة المباشر -->
-    <model-viewer 
-        id="atom-viewer"
-        src="https://modelviewer.dev/shared-assets/models/glTF-Sample-Models/2.0/Atom/glTF-Binary/Atom.glb" 
-        ar 
-        ar-modes="webxr scene-viewer quick-look" 
-        camera-controls 
-        auto-rotate
-        shadow-intensity="1"
-        alt="نموذج الذرة والنواة العلمي">
-        
-        <button slot="ar-button" id="ar-button">
-            📱 عرض النواة في غرفتك (AR)
-        </button>
-    </model-viewer>
-
-    <div class="info-card">
-        <h3>💡 تفاصيل المجسم العلمي:</h3>
-        <p>• يظهر في المركز <b>النواة</b> وتحيط بها مدارات الإلكترونات.<br>• يدعم التدوير الكامل والتكبير بإصبعين.<br>• متوافق بالكامل مع الهواتف الذكية لعرضه عبر الكاميرا.</p>
+    <div class="ui-panel">
+        <h1>⚛️ مختبر النواة والذرة التفاعلي</h1>
+        <p>النواة المركزية (بروتونات ونيوترونات) وحولها تدور الإلكترونات</p>
     </div>
 
+    <div id="canvas-container"></div>
+
+    <script>
+        // إعداد المشهد والكاميرا والمحرك الرسومي
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 12;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+
+        // إضاءة المشهد
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0xffffff, 1.5);
+        pointLight.position.set(10, 10, 10);
+        scene.add(pointLight);
+
+        // مجموعة النواة المركزية
+        const nucleusGroup = new THREE.Group();
+        scene.add(nucleusGroup);
+
+        // بناء النواة (بروتونات حمراء ونيوترونات زرقاء متراصة في المنتصف)
+        const protonGeo = new THREE.SphereGeometry(0.35, 32, 32);
+        const protonMat = new THREE.MeshPhongMaterial({ color: 0xef4444, shininess: 100 }); // بروتون موجب (أحمر)
+        const neutronMat = new THREE.MeshPhongMaterial({ color: 0x3b82f6, shininess: 100 }); // نيوترون متعادل (أزرق)
+
+        const particleCount = 12;
+        for (let i = 0; i < particleCount; i++) {
+            const mesh = new THREE.Mesh(i % 2 === 0 ? protonGeo : neutronMat, i % 2 === 0 ? protonMat : neutronMat);
+            // توزيع عشوائي داخل مركز النواة
+            const u = Math.random();
+            const v = Math.random();
+            const theta = u * 2.0 * Math.PI;
+            const phi = Math.acos(2.0 * v - 1.0);
+            const r = 0.6 * Math.cbrt(Math.random());
+            
+            mesh.position.x = r * Math.sin(phi) * Math.cos(theta);
+            mesh.position.y = r * Math.sin(phi) * Math.sin(theta);
+            mesh.position.z = r * Math.cos(phi);
+            
+            nucleusGroup.add(mesh);
+        }
+
+        // إنشاء مدارات وإلكترونات تدور حول النواة
+        const orbitGroup = new THREE.Group();
+        scene.add(orbitGroup);
+
+        const electronGeo = new THREE.SphereGeometry(0.15, 16, 16);
+        const electronMat = new THREE.MeshPhongMaterial({ color: 0x10b981, emissive: 0x10b981 }); // إلكترون أخضر مضيء
+
+        const orbitsData = [
+            { radiusX: 4, radiusZ: 2, speed: 0.03, angle: 0, axis: new THREE.Vector3(1, 1, 0).normalize() },
+            { radiusX: 5, radiusZ: 3, speed: 0.02, angle: Math.PI / 3, axis: new THREE.Vector3(0, 1, 1).normalize() },
+            { radiusX: 6, radiusZ: 2.5, speed: 0.025, angle: Math.PI / 1.5, axis: new THREE.Vector3(1, 0, 1).normalize() }
+        ];
+
+        const electrons = [];
+
+        orbitsData.forEach(data => {
+            // رسم خط مسار المدار
+            const orbitCurve = new THREE.EllipseCurve(0, 0, data.radiusX, data.radiusZ, 0, 2 * Math.PI, false, 0);
+            const points = orbitCurve.getPoints(50);
+            const geometry = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(p.x, 0, p.y)));
+            const material = new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.6 });
+            const ellipseLine = new THREE.Line(geometry, material);
+            ellipseLine.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), data.axis);
+            scene.add(ellipseLine);
+
+            // إنشاء الإلكترون المتحرك
+            const electron = new THREE.Mesh(electronGeo, electronMat);
+            orbitGroup.add(electron);
+            electrons.push({ mesh: electron, data: data });
+        });
+
+        // حركة الدوران والتفاعل
+        let clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // دوران النواة ببطء
+            nucleusGroup.rotation.y += 0.01;
+            nucleusGroup.rotation.x += 0.005;
+
+            // دوران الإلكترونات في مداراتها
+            const elapsedTime = clock.getElapsedTime();
+            electrons.forEach(item => {
+                const angle = elapsedTime * item.data.speed * 20 + item.data.angle;
+                const x = Math.cos(angle) * item.data.radiusX;
+                const z = Math.sin(angle) * item.data.radiusZ;
+                
+                const pos = new THREE.Vector3(x, 0, z);
+                pos.applyAxisAngle(item.data.axis, item.data.angle);
+                item.data.mesh.position.copy(pos);
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // التجاوب مع تغير حجم الشاشة
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
 </body>
 </html>
