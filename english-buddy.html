@@ -214,6 +214,8 @@ body.lv2 .ct2,body.lv2 .cname2{color:#5b4bd6}
 .stcard{background:linear-gradient(135deg,var(--g),var(--g2));color:#fff;border-radius:24px;padding:22px 18px;text-align:center;margin-top:8px;box-shadow:var(--sh)}.stcard .chbar{background:rgba(255,255,255,.3)}.stcard .chbar i{background:#fff}.stcard .mut{color:rgba(255,255,255,.85)}.stbig{font-size:3.2rem}
 .stl{display:flex;gap:12px;background:#fff;border-radius:18px;padding:12px;margin-bottom:8px;box-shadow:var(--sh);opacity:.6}.stl.cur{opacity:1;outline:3px solid var(--g);outline-offset:-3px}.stl.done{opacity:1}
 .sti{font-size:1.7rem;width:42px;text-align:center;flex:none}.stx b{display:block}.stx b span{font-size:.8rem;color:#5f7673;font-weight:400}.stx p{margin:2px 0;line-height:1.7;font-size:.92rem}.stx small{color:#5f7673}
+
+.nd.exn.wr .c{background:linear-gradient(135deg,#fff3c4,#ffe08a)!important}
 </style>
 </head>
 <body>
@@ -459,7 +461,7 @@ function home(){
   const DX = lvView === 2 ? [50, 82, 50, 18] : [50, 74, 84, 74, 50, 26, 16, 26], STEP = 108;
   const section = u => {
     const items = L.map((l, i) => ({ l, i })).filter(x => x.l.unit === u), e = EX[u] || {};
-    const ready = items.every(x => P[x.l.id] >= 1);
+    const lessonsDone = items.every(x => P[x.l.id] >= 1), wrOk = e.passed || e.placed || (S.wrDone || {})[u] !== false, ready = lessonsDone && wrOk;
     const pts = items.map((x, k) => ({ x: DX[k % 8], y: 56 + k * STEP })); pts.push({ x: 50, y: 56 + items.length * STEP });
     const H = pts[pts.length - 1].y + 66;
     let d = `M ${pts[0].x} ${pts[0].y}`;
@@ -467,7 +469,7 @@ function home(){
     const nodes = items.map((x, k) => { const l = x.l, st = P[l.id] || 0, lock = locked(x.i);
       return `<button class="nd ${lock ? 'lock' : ''} ${st ? 'done' : ''} ${x.i === curI ? 'cur' : ''}" data-unit="${u}" data-id="${l.id}" ${lock ? 'disabled' : ''} style="left:${pts[k].x}%;top:${pts[k].y}px" aria-label="${esc(l.title)}"><span class="c">${lock ? '🔒' : l.icon}</span><span class="t">${esc(l.ar)}</span><span class="s en">${star(st)}</span>${x.i === curI ? '<span class="you">ابدأ من هنا</span>' : ''}</button>`; }).join('');
     const ex = pts[pts.length - 1];
-    const exn = `<button class="nd exn ${ready ? '' : 'lock'} ${e.passed ? 'done' : ''}" data-u="${u}" ${ready ? '' : 'disabled'} style="left:${ex.x}%;top:${ex.y}px"><span class="c">${e.passed ? '✅' : ready ? '📝' : '🔒'}</span><span class="t">${e.placed ? 'معفى' : e.passed ? 'اختبار الوحدة ' + e.best + '%' : 'اختبار الوحدة'}</span></button>`;
+    const exn = (lessonsDone && !wrOk) ? `<button class="nd exn wr" data-w="${u}" style="left:${ex.x}%;top:${ex.y}px"><span class="c">✍️</span><span class="t">اكتب لتفتح الاختبار</span></button>` : `<button class="nd exn ${ready ? '' : 'lock'} ${e.passed ? 'done' : ''}" data-u="${u}" ${ready ? '' : 'disabled'} style="left:${ex.x}%;top:${ex.y}px"><span class="c">${e.passed ? '✅' : ready ? '📝' : '🔒'}</span><span class="t">${e.placed ? 'معفى' : e.passed ? 'اختبار الوحدة ' + e.best + '%' : 'اختبار الوحدة'}</span></button>`;
     const sec = items.map(x => x.l), stT = sec.reduce((a, l) => a + (P[l.id] || 0), 0);
     return `<div class="usec ${u === curUnit ? '' : 'col'}"><button class="unit uh" type="button" aria-expanded="${u === curUnit}"><span>الوحدة ${ul(u)}: ${esc((S.units || {})[u] || '')}</span><span class="us en">${e.passed ? '✅ ' : ''}★ ${stT}/${sec.length * 3} <i>⌄</i></span></button><div class="jm" style="height:${H}px"><svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${d}" vector-effect="non-scaling-stroke"/></svg>${nodes}${exn}</div></div>`;
   };
@@ -505,6 +507,7 @@ function home(){
   if($('#certbtn')) $('#certbtn').onclick = () => cert(1);
   if($('#certbtn2')) $('#certbtn2').onclick = () => cert(2);
   document.querySelectorAll('.nd[data-id]').forEach(b => b.onclick = () => openLesson(b.dataset.id));
+  document.querySelectorAll('.nd[data-w]').forEach(b => b.onclick = () => writeList(+b.dataset.w));
   document.querySelectorAll('.nd[data-u]').forEach(b => b.onclick = () => examIntro(+b.dataset.u));
 }
 async function openLesson(id){
@@ -640,7 +643,7 @@ function examIntro(u){
 }
 async function examStart(u){
   try { const r = await api('exam_start', { unit:u }); S.ex = { u, qs:r.questions, i:0, ans:[] }; examQ(); }
-  catch(e){ alert(e.error === 'locked' ? 'أكمل جميع دروس الوحدة أولًا' : 'تعذر الاتصال، حاول مرة أخرى'); }
+  catch(e){ alert(e.error === 'need_writing' ? 'اكتب مهمة كتابة واحدة من هذه الوحدة أولًا ثم عد للاختبار' : e.error === 'locked' ? 'أكمل جميع دروس الوحدة أولًا' : 'تعذر الاتصال، حاول مرة أخرى'); }
 }
 function examQ(){
   const x = S.ex, q = x.qs[x.i], n = x.qs.length, last = x.i === n - 1; let pick = null; const built = [];
@@ -735,6 +738,7 @@ async function listenStart(){
 }
 function listenQ(){
   const p = S.ls, q = p.qs[p.i], n = p.qs.length; let checked = false, timer = null;
+  if(q.dict) return listenDict();
   view(`${bar(p.i, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">🎧 تمرين الاستماع — ${p.i + 1} من ${n}</p><p class="q" style="direction:rtl;text-align:right;font-size:1.25rem">${esc(q.q)}</p>
   <button class="lbig" id="play" aria-label="استماع">🔊</button><button class="lslow" id="slow">🐢 أبطأ</button>
   ${q.options.map((o, i) => `<button class="opt ar" data-i="${i}">${esc(o)}</button>`).join('')}</div><div class="fb" id="fb" hidden></div>`);
@@ -755,18 +759,53 @@ function listenQ(){
     } catch(e){ checked = false; b.classList.remove('sel'); $('#sc').classList.remove('locked'); }
   });
 }
+function listenDict(){
+  const p = S.ls, q = p.qs[p.i], n = p.qs.length; let timer = null;
+  view(`${bar(p.i, n)}<div class="scroll" id="sc"><p class="mut" style="text-align:right">🎧 تمرين الاستماع — ${p.i + 1} من ${n}</p><p class="q" style="direction:rtl;text-align:right;font-size:1.25rem">✍️ ${esc(q.q)}</p>
+  <button class="lbig" id="play" aria-label="استماع">🔊</button><button class="lslow" id="slow">🐢 أبطأ</button>
+  <textarea id="dt" class="code" rows="2" dir="ltr" placeholder="Type here..." style="height:92px;text-align:left;letter-spacing:0;font-size:1.2rem"></textarea><p class="err" id="derr"></p></div><div class="fb" id="fb" hidden></div><div class="foot" id="dfoot"><button class="btn" id="dgo" disabled>تحقق</button></div>`);
+  $('#home').onclick = home; $('#play').onclick = () => say(q.audio); $('#slow').onclick = () => say(q.audio, .55); setTimeout(() => say(q.audio), 300);
+  const dt = $('#dt'); lockTyping(dt); dt.addEventListener('input', () => { $('#dgo').disabled = dt.value.trim().length < 1; });
+  const next = () => { clearTimeout(timer); speechSynthesis.cancel(); p.i++; if(p.i < n) listenQ(); else listenDone(); };
+  $('#dgo').onclick = async () => {
+    $('#dgo').disabled = true; dt.readOnly = true;
+    try {
+      const r = await api('listen_check', { id:q.id, pick:dt.value }); if(r.ok){ p.ok++; S.streak = r.streak; S.doneToday = true; }
+      if(navigator.vibrate) navigator.vibrate(r.ok ? 25 : [40, 40, 40]);
+      $('#dfoot').hidden = true; const fb = $('#fb'); fb.hidden = false; fb.className = 'fb ' + (r.ok ? 'ok' : 'no');
+      fb.innerHTML = `<div class="fbmsg"><b>${r.ok ? 'أحسنت! 🎉' : 'ليست صحيحة'}</b><small>الصحيح:</small><span class="en">${esc(r.en)}</span></div><button class="btn ${r.ok ? '' : 'no'}" id="nx">${p.i === n - 1 ? 'إنهاء' : 'متابعة'}</button>`;
+      $('#nx').onclick = next; if(r.ok) timer = setTimeout(next, 1800);
+    } catch(e){ $('#dgo').disabled = false; dt.readOnly = false; $('#derr').textContent = 'تعذر الاتصال، حاول مرة أخرى'; }
+  };
+}
 function listenDone(){
   const p = S.ls;
   view(`<div class="scroll"><div style="text-align:center;padding:40px 0 10px"><div class="logo" style="margin-bottom:10px">🎧</div><h2>أحسنت! أنهيت تمرين الاستماع</h2><p style="margin-top:8px">أجبت صحيحًا عن ${p.ok} من ${p.qs.length}</p><p class="mut" style="margin-top:6px;line-height:1.8">كرّر التمرين كل يوم، فالأذن تتدرّب كما تتدرّب العين.</p></div></div><div class="foot"><button class="btn alt" id="more">تمرين آخر</button><button class="btn" id="done">الرئيسية</button></div>`);
   $('#done').onclick = home; $('#more').onclick = listenStart;
   if(p.ok >= p.qs.length * .8) confetti();
 }
-async function writeList(){
+function lockTyping(el){
+  const st = { typed:0, t0:0 }; let last = el.value;
+  const warn = () => toast('🚫 اللصق غير مسموح، اكتب بنفسك');
+  ['paste', 'drop'].forEach(ev => el.addEventListener(ev, e => { e.preventDefault(); warn(); }));
+  el.addEventListener('dragover', e => e.preventDefault());
+  el.addEventListener('beforeinput', e => { if(['insertFromPaste', 'insertFromDrop', 'insertFromYank'].includes(e.inputType)){ e.preventDefault(); warn(); } });
+  el.addEventListener('input', e => {
+    const v = el.value, d = v.length - last.length;
+    if(d > 15 && !e.isComposing){ el.value = last; warn(); return; }
+    if(d > 0){ st.typed += d; if(!st.t0) st.t0 = Date.now(); }
+    last = v;
+  });
+  ['autocomplete', 'autocorrect'].forEach(a => el.setAttribute(a, 'off')); el.setAttribute('spellcheck', 'false');
+  return st;
+}
+async function writeList(u){
+  S.wpOnly = typeof u === 'number' ? u : 0;
   try { S.wp = await api('write_prompts'); drawWriteList(); } catch(e){ alert('تعذر الاتصال، حاول مرة أخرى'); }
 }
 function drawWriteList(){
-  const r = S.wp, byU = {}; r.prompts.forEach(p => (byU[p.unit] = byU[p.unit] || []).push(p));
-  view(`${bar(0, 1)}<div class="scroll"><h2 style="margin-top:6px">✍️ تمرين الكتابة</h2><p class="mut" style="text-align:right;margin:4px 0 6px">اختر موضوعًا واكتب بالإنجليزية، وسيصحّح لك المعلم الذكي. المتبقي اليوم: ${r.left}</p>
+  const r = S.wp, byU = {}; r.prompts.filter(p => !S.wpOnly || p.unit === S.wpOnly).forEach(p => (byU[p.unit] = byU[p.unit] || []).push(p));
+  view(`${bar(0, 1)}<div class="scroll"><h2 style="margin-top:6px">✍️ تمرين الكتابة</h2><p class="mut" style="text-align:right;margin:4px 0 6px">اختر موضوعًا واكتب بالإنجليزية، وسيصحّح لك المعلم الذكي. المتبقي اليوم: ${r.left}</p>${S.wpOnly ? '<div class="fbx fix2">✍️ اكتب مهمة واحدة من هذه الوحدة (ولو بجمل بسيطة) لتُفتح لك الاختبار.</div>' : ''}
   ${Object.keys(byU).map(u => `<h3 class="unit">الوحدة ${ul(+u)}: ${esc((S.units || {})[u] || '')}</h3>${byU[u].map(p => `<button class="card les wp" data-id="${p.id}"><span class="tx"><b class="en" dir="ltr" style="text-align:left;font-size:.98rem;font-weight:500">${esc(p.en)}</b><small>${esc(p.ar)}</small></span><span class="st en">${star(p.stars)}</span></button>`).join('')}`).join('')}</div>`);
   $('#home').onclick = home;
   document.querySelectorAll('.wp').forEach(b => b.onclick = () => writeEdit(r.prompts.find(p => p.id === b.dataset.id)));
@@ -778,19 +817,21 @@ function writeEdit(p, pre){
   <p class="mut" id="wcn" style="text-align:left;direction:ltr">0 / 100 words</p><p class="err" id="err" role="alert"></p></div>
   <div class="foot"><button class="btn alt" id="bk">رجوع</button><button class="btn" id="ws">أرسل للتصحيح</button></div>`);
   $('#home').onclick = drawWriteList; $('#bk').onclick = drawWriteList; if(pre) $('#wt').value = pre;
+  const ts = lockTyping($('#wt'));
   $('#wt').oninput = () => { const n = wc($('#wt').value); $('#wcn').textContent = n + ' / 100 words'; $('#wcn').style.color = n > 100 ? 'var(--no)' : ''; };
   $('#ws').onclick = async () => {
     const text = $('#wt').value.trim(), err = $('#err');
     if(text.length < 8 || wc(text) > 100){ err.textContent = 'اكتب من 8 أحرف إلى 100 كلمة'; return; }
     $('#ws').disabled = true; $('#ws').textContent = '🦉 المعلم يقرأ كتابتك…'; err.textContent = '';
-    try { const r = await api('write_submit', { pid:p.id, text }); S.streak = r.streak; S.doneToday = true; S.wp.left = r.left; p.stars = Math.max(p.stars || 0, r.stars); p.attempts = r.attempts; writeResult(p, text, r); }
-    catch(e){ $('#ws').disabled = false; $('#ws').textContent = 'أرسل للتصحيح'; err.textContent = { limit:'وصلت لحد 10 تصحيحات اليوم، عد غدًا', attempts:'استخدمت محاولتيك لهذا الموضوع، جرّب موضوعًا آخر', bad_input:'اكتب من 8 أحرف إلى 100 كلمة', model:'تعذر التصحيح الآن، حاول بعد قليل' }[e.error] || 'تعذر الاتصال، حاول مرة أخرى'; }
+    try { const r = await api('write_submit', { pid:p.id, text, typed:ts.typed, ms:ts.t0 ? Date.now() - ts.t0 : 0 }); S.streak = r.streak; S.doneToday = true; S.wp.left = r.left; S.wrDone = S.wrDone || {}; if(r.unitOk) S.wrDone[p.unit] = true; p.stars = Math.max(p.stars || 0, r.stars); p.attempts = r.attempts; writeResult(p, text, r); }
+    catch(e){ $('#ws').disabled = false; $('#ws').textContent = 'أرسل للتصحيح'; err.textContent = { limit:'وصلت لحد 10 تصحيحات اليوم، عد غدًا', attempts:'استخدمت محاولتيك لهذا الموضوع، جرّب موضوعًا آخر', bad_input:'اكتب من 8 أحرف إلى 100 كلمة', paste:'اكتب النص بنفسك بلوحة المفاتيح، ولا تلصقه', model:'تعذر التصحيح الآن، حاول بعد قليل' }[e.error] || 'تعذر الاتصال، حاول مرة أخرى'; }
   };
 }
 function writeResult(p, text, r){
   const dots = n => '●'.repeat(n) + '○'.repeat(3 - n);
   view(`<div class="scroll"><div style="text-align:center;padding:24px 0 6px"><div class="stars en">${[0, 1, 2].map(i => `<span style="animation-delay:${i * .2}s">${i < r.stars ? '★' : '☆'}</span>`).join('')}</div></div>
   <div class="card" style="margin:10px 0"><div class="crit"><span>القواعد</span><b class="en">${dots(r.grammar)}</b></div><div class="crit"><span>المفردات</span><b class="en">${dots(r.vocab)}</b></div><div class="crit"><span>اكتمال المهمة</span><b class="en">${dots(r.complete)}</b></div></div>
+  ${r.unitOk && S.wpOnly ? '<div class="fbx good">🔓 فُتح لك اختبار هذه الوحدة، ارجع إلى الخريطة.</div>' : ''}
   ${r.strength_ar ? `<div class="fbx good">👍 ${esc(r.strength_ar)}</div>` : ''}
   ${r.fix ? `<div class="fbx fix2"><b>✏️ أهم تصحيح</b><p class="en" dir="ltr" style="text-align:left">❌ ${esc(r.fix.wrong)}<br>✅ ${esc(r.fix.right)}</p><p>${esc(r.fix.why_ar)}</p></div>` : '<div class="fbx good">✨ لم أجد خطأً مهمًا، أحسنت!</div>'}
   ${r.corrected ? `<div class="card" style="margin-top:10px"><b>النص بعد التصحيح</b><p class="en" dir="ltr" style="text-align:left;line-height:1.8;margin-top:6px">${esc(r.corrected)} <button class="say" id="sc2" aria-label="استماع">🔊</button></p></div>` : ''}
